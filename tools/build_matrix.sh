@@ -47,6 +47,17 @@ for c in "${configs[@]}"; do
   summary+=("$(printf '%-24s %s' "$name" "$used")")
 done
 
+# Board-supplied CAN/ETH drivers and board transport (tests/boards/custom_drivers):
+# the family FDCAN/ETH drivers must be left out and the board's linked instead.
+dir="$OUT/custom-drivers"
+if cmake -B "$dir" -G Ninja -DCMAKE_BUILD_TYPE=Release -DUMCUB_BOARD="$PWD/tests/boards/custom_drivers" \
+     -DUMCUB_CORE=cm7 >"$dir.configure.log" 2>&1 && cmake --build "$dir" >"$dir.build.log" 2>&1 &&
+   ! grep -q "warning:" "$dir.build.log" && ! grep -qE "fdcan\.c|/eth\.c" "$dir/build.ninja"; then
+  summary+=("$(printf '%-24s %s' "custom-drivers" "$(grep -E "^ +FLASH:" "$dir.build.log" | awk '{print $2, $3, $6}')")")
+else
+  echo "FAIL custom-drivers (see $dir.*.log)"; fail=1
+fi
+
 for ex in examples/h755_cm7_app examples/h755_cm4_app; do
   name=$(basename "$ex")
   dir="$OUT/$name"

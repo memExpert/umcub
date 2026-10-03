@@ -8,6 +8,7 @@ extern const umcub_transport_t umcub_transport_uart;
 extern const umcub_transport_t umcub_transport_usb;
 extern const umcub_transport_t umcub_transport_can;
 extern const umcub_transport_t umcub_transport_eth;
+extern const umcub_transport_t umcub_transport_user;   /* boards/<b>/umcub_board.c */
 
 const umcub_transport_t *const umcub_transports[] = {
 #if UMCUB_CFG_TRANSPORT_UART
@@ -22,8 +23,13 @@ const umcub_transport_t *const umcub_transports[] = {
 #if UMCUB_CFG_TRANSPORT_ETH
     &umcub_transport_eth,
 #endif
+#if UMCUB_CFG_TRANSPORT_USER
+    &umcub_transport_user,
+#endif
     0,
 };
+_Static_assert(sizeof(umcub_transports) / sizeof(umcub_transports[0]) - 1u <= UMCUB_TRANSPORT_MAX,
+               "UMCUB_TRANSPORT_MAX");
 
 const unsigned umcub_transport_count = sizeof(umcub_transports) / sizeof(umcub_transports[0]) - 1u;
 

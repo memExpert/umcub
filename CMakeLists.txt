@@ -117,9 +117,14 @@ set(BOOT_INCLUDES
   ${MCUBOOT}/ext/mbedtls-asn1/include
 )
 
-# Optional board hooks (e.g. umcub_cmd_user() for UMCUB_CMD_USER commands).
+# Optional board hooks: umcub_cmd_user() for UMCUB_CMD_USER commands, board
+# drivers (UMCUB_DRIVER_BOARD), the board transport (UMCUB_CFG_TRANSPORT_USER).
 if(EXISTS "${UMCUB_BOARD_DIR}/umcub_board.c")
   list(APPEND BOOT_SOURCES "${UMCUB_BOARD_DIR}/umcub_board.c")
+elseif(UMCUB_CFG_TRANSPORT_USER OR (UMCUB_CFG_TRANSPORT_CAN AND UMCUB_CFG_CAN_DRIVER EQUAL 1)
+       OR (UMCUB_CFG_TRANSPORT_ETH AND UMCUB_CFG_ETH_DRIVER EQUAL 1))
+  message(FATAL_ERROR "umcub: the configuration needs ${UMCUB_BOARD_DIR}/umcub_board.c "
+                      "(UMCUB_CFG_TRANSPORT_USER or a UMCUB_DRIVER_BOARD driver)")
 endif()
 
 # --- transports -------------------------------------------------------------
@@ -146,14 +151,19 @@ if(UMCUB_CFG_TRANSPORT_USB_CDC OR UMCUB_CFG_TRANSPORT_USB_DFU)
   list(APPEND BOOT_INCLUDES ${TUSB} ${UMCUB_ROOT}/transport/usb)
 endif()
 if(UMCUB_CFG_TRANSPORT_CAN)
-  list(APPEND BOOT_SOURCES transport/can/can_transport.c transport/can/isotp.c ${UMCUB_FAMILY_CAN_SOURCES})
+  list(APPEND BOOT_SOURCES transport/can/can_transport.c transport/can/isotp.c)
+  if(UMCUB_CFG_CAN_DRIVER EQUAL 0)      # UMCUB_DRIVER_PORT; BOARD: umcub_port_can_* in umcub_board.c
+    list(APPEND BOOT_SOURCES ${UMCUB_FAMILY_CAN_SOURCES})
+  endif()
 endif()
 if(UMCUB_CFG_TRANSPORT_ETH)
   list(APPEND BOOT_SOURCES
     transport/net/net_transport.c
     transport/net/net.c
-    transport/net/dhcp.c
-    ${UMCUB_FAMILY_ETH_SOURCES})
+    transport/net/dhcp.c)
+  if(UMCUB_CFG_ETH_DRIVER EQUAL 0)      # UMCUB_DRIVER_PORT; BOARD: umcub_port_eth_* in umcub_board.c
+    list(APPEND BOOT_SOURCES ${UMCUB_FAMILY_ETH_SOURCES})
+  endif()
 endif()
 
 # ----------------------------------------------------------------------------

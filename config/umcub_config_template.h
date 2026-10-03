@@ -190,6 +190,11 @@
 /* #define UMCUB_CFG_CAN_RX_PIN           UMCUB_PIN('D', 0, 9) */
 /* Internal loopback (no transceiver needed) - for self-test only. */
 /* #define UMCUB_CFG_CAN_LOOPBACK         0 */
+/* Controller driver: UMCUB_DRIVER_PORT (on-chip FDCAN/bxCAN) or
+ * UMCUB_DRIVER_BOARD (external controller, e.g. MCP2515/MCP2518FD on SPI):
+ * then boards/<b>/umcub_board.c implements umcub_port_can_init/deinit/send/recv
+ * (port/include/umcub_port_can.h) and ISO-TP + SMP run on top of it. */
+/* #define UMCUB_CFG_CAN_DRIVER           UMCUB_DRIVER_PORT */
 
 /* --- Ethernet: SMP over UDP, minimal IPv4 stack with DHCP --------------- */
 /* #define UMCUB_CFG_TRANSPORT_ETH        0 */
@@ -205,6 +210,19 @@
 /* #define UMCUB_CFG_ETH_PHY_ADDR         0 */
 /* RMII pins as an initializer list of UMCUB_PIN(...). */
 /* #define UMCUB_CFG_ETH_RMII_PINS        UMCUB_PIN('A', 1, 11), ... */
+/* MAC driver: UMCUB_DRIVER_PORT (on-chip MAC + RMII PHY) or UMCUB_DRIVER_BOARD
+ * (external MAC, e.g. ENC28J60/LAN9250 on SPI): boards/<b>/umcub_board.c then
+ * implements umcub_port_eth_* (port/include/umcub_port_eth.h, raw frames) and
+ * the IPv4/DHCP stack runs on top of it. */
+/* #define UMCUB_CFG_ETH_DRIVER           UMCUB_DRIVER_PORT */
+
+/* --- Board transport ------------------------------------------------------ */
+/* Anything else (RS-485 with own framing, BLE module, W5500 UDP socket, ...):
+ * boards/<b>/umcub_board.c defines
+ *     const umcub_transport_t umcub_transport_user = { ... };
+ * (transport/include/umcub_transport.h) - a stream (SMP serial framing) or a
+ * packet transport (raw SMP packets). Polled with the built-in ones. */
+/* #define UMCUB_CFG_TRANSPORT_USER       0 */
 
 /* ======================================================================== */
 /* Misc                                                                     */

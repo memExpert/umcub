@@ -36,7 +36,7 @@ void umcub_handoff_note_transport(uint8_t id)
 uint8_t umcub_handoff_last_transport(void)
 {
     uint8_t id = HANDOFF->last_transport;
-    return id <= UMCUB_TRANSPORT_APP ? id : UMCUB_TRANSPORT_NONE;
+    return id <= UMCUB_TRANSPORT_USER ? id : UMCUB_TRANSPORT_NONE;
 }
 
 /* Request for the next boot, written by the bootloader itself (text command

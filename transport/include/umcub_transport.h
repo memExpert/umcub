@@ -8,6 +8,14 @@
  *    received packets to umcub_smp_packet_rx() from poll() and implement
  *    send_packet;
  *  - other transports (USB DFU) only need poll().
+ *
+ * A board can add its own (UMCUB_CFG_TRANSPORT_USER): define
+ *     const umcub_transport_t umcub_transport_user = { .id = UMCUB_TRANSPORT_USER, ... };
+ * in boards/<b>/umcub_board.c. Rules for every transport: everything is
+ * polled from the bootloader's single loop - poll/read/send_packet must not
+ * block (bounded waits only, with a timeout); deinit must put every
+ * peripheral, pin, EXTI and DMA channel it touched back into reset state
+ * (it runs right before the jump to the application).
  */
 #ifndef UMCUB_TRANSPORT_H
 #define UMCUB_TRANSPORT_H
@@ -26,6 +34,11 @@ typedef struct umcub_transport {
     void (*write)(const uint8_t *buf, size_t len);      /* stream: blocking */
     int (*send_packet)(const uint8_t *pkt, size_t len); /* packet transports */
 } umcub_transport_t;
+
+/* Upper bound of compiled-in transports (sizes the mux's per-stream buffers). */
+#define UMCUB_TRANSPORT_MAX ((UMCUB_CFG_TRANSPORT_UART != 0) + (UMCUB_CFG_USB != 0) + \
+                             (UMCUB_CFG_TRANSPORT_CAN != 0) + (UMCUB_CFG_TRANSPORT_ETH != 0) + \
+                             (UMCUB_CFG_TRANSPORT_USER != 0))
 
 /* Registry (transport/registry.c): every transport enabled in umcub_config.h. */
 extern const umcub_transport_t *const umcub_transports[];

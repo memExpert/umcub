@@ -44,6 +44,7 @@ extern "C" {
 #define UMCUB_TRANSPORT_CAN      4u
 #define UMCUB_TRANSPORT_ETH      5u
 #define UMCUB_TRANSPORT_APP      6u
+#define UMCUB_TRANSPORT_USER     7u   /* board transport (UMCUB_CFG_TRANSPORT_USER) */
 
 #define UMCUB_MAX_IMAGES         2u
 

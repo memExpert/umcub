@@ -14,7 +14,7 @@
 #include "umcub.h"
 
 static const char *const reasons[] = { "normal", "upgraded", "reverted", "after recovery" };
-static const char *const transports[] = { "-", "uart", "usb-cdc", "usb-dfu", "can", "eth", "app" };
+static const char *const transports[] = { "-", "uart", "usb-cdc", "usb-dfu", "can", "eth", "app", "user" };
 
 static void put_ver(const umcub_version_t *v)
 {
@@ -43,7 +43,7 @@ static void show_info(void)
         ex_puts("boot reason: ");
         ex_puts(h->boot_reason < 4 ? reasons[h->boot_reason] : "?");
         ex_puts(", last update via ");
-        ex_puts(h->last_transport < 7 ? transports[h->last_transport] : "?");
+        ex_puts(h->last_transport < 8 ? transports[h->last_transport] : "?");
         ex_puts(", reset cause ");
         ex_put_u32(h->reset_cause);
         ex_puts("\n");

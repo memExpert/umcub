@@ -37,6 +37,10 @@
 #define UMCUB_DUALCORE_SINGLE_BOOT  1
 #define UMCUB_DUALCORE_PER_CORE     2
 
+/* UMCUB_CFG_CAN_DRIVER / UMCUB_CFG_ETH_DRIVER */
+#define UMCUB_DRIVER_PORT           0   /* on-chip controller, driver from port/<family>/ */
+#define UMCUB_DRIVER_BOARD          1   /* external controller (SPI, ...), driver in boards/<b>/umcub_board.c */
+
 /* UMCUB_CFG_CLOCK_SOURCE */
 #define UMCUB_CLK_HSI               0
 #define UMCUB_CLK_HSE               1

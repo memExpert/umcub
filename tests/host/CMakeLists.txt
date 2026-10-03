@@ -114,3 +114,71 @@ endfunction()
 umcub_host_variant(swap_scratch)
 umcub_host_variant(swap_move)
 umcub_host_variant(swap_offset)
+
+# Board-supplied drivers (UMCUB_DRIVER_BOARD) and board transport
+# (UMCUB_CFG_TRANSPORT_USER) through the real registry, CAN/ETH transports, mux.
+function(umcub_host_board)
+  set(UMCUB_CONFIG_PRE ${CMAKE_CURRENT_LIST_DIR}/cfg_swap_scratch.h)
+  set(UMCUB_CONFIG_POST ${CMAKE_CURRENT_LIST_DIR}/test_board_post.h)
+  umcub_load_config("${UMCUB_BOARD}" "${UMCUB_CORE}")
+  set(t umcub_host_board)
+  add_executable(${t}
+    test_board.c
+    fake_port.c
+    ${UMCUB_ROOT}/transport/registry.c
+    ${UMCUB_ROOT}/transport/mux.c
+    ${UMCUB_ROOT}/transport/can/can_transport.c
+    ${UMCUB_ROOT}/transport/can/isotp.c
+    ${UMCUB_ROOT}/transport/net/net_transport.c
+    ${UMCUB_ROOT}/transport/net/net.c
+    ${UMCUB_ROOT}/transport/net/dhcp.c
+    ${UMCUB_ROOT}/boot/log.c
+    ${UMCUB_ROOT}/boot/cmd.c
+    ${UMCUB_ROOT}/boot/inspect.c
+    ${UMCUB_ROOT}/boot/smp_inspect.c
+    ${UMCUB_ROOT}/mcuboot_port/src/compat.c
+    ${UMCUB_ROOT}/mcuboot_port/src/flash_map_backend.c
+    ${UMCUB_ROOT}/lib/umcub_app/src/umcub.c
+    ${UMCUB_ROOT}/lib/umcub_app/src/slot_writer.c
+    ${BOOTUTIL_SRCS}
+    ${MCUBOOT}/boot/boot_serial/src/boot_serial.c
+    ${MCUBOOT}/boot/boot_serial/src/zcbor_bulk.c
+    ${MCUBOOT}/boot/zcbor/src/zcbor_common.c
+    ${MCUBOOT}/boot/zcbor/src/zcbor_decode.c
+    ${MCUBOOT}/boot/zcbor/src/zcbor_encode.c
+    ${TINYCRYPT}/source/sha256.c
+    ${TINYCRYPT}/source/utils.c
+    ${TINYCRYPT}/source/ecc.c
+    ${TINYCRYPT}/source/ecc_dsa.c
+    ${MCUBOOT}/ext/mbedtls-asn1/src/asn1parse.c
+    ${MCUBOOT}/ext/mbedtls-asn1/src/platform_util.c
+    ${CMAKE_BINARY_DIR}/umcub_keys.c)
+  add_dependencies(${t} pubkey)
+  target_include_directories(${t} PRIVATE
+    ${CMAKE_CURRENT_LIST_DIR}
+    ${UMCUB_CONFIG_INCLUDES}
+    ${UMCUB_FAMILY_DIR}/include
+    ${UMCUB_ROOT}/port/include
+    ${UMCUB_ROOT}/boot/include
+    ${UMCUB_ROOT}/lib/umcub_app/include
+    ${UMCUB_ROOT}/mcuboot_port/include
+    ${UMCUB_ROOT}/transport/include
+    ${MCUBOOT}/boot/bootutil/include
+    ${MCUBOOT}/boot/bootutil/src
+    ${MCUBOOT}/boot/boot_serial/include
+    ${MCUBOOT}/boot/boot_serial/src
+    ${MCUBOOT}/boot/zcbor/include
+    ${TINYCRYPT}/include
+    ${MCUBOOT}/ext/mbedtls-asn1/include)
+  target_compile_definitions(${t} PRIVATE
+    ${UMCUB_CONFIG_DEFS} UMCUB_HOST_TEST=1 MBEDTLS_CONFIG_FILE="umcub_mbedtls_cfg.h")
+  target_compile_options(${t} PRIVATE -g -O1 -Wall -Wextra -Wno-unused-parameter -ffunction-sections -fdata-sections)
+  target_link_options(${t} PRIVATE -Wl,--gc-sections)
+  if(UMCUB_HOST_SANITIZE)
+    target_compile_options(${t} PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+    target_link_options(${t} PRIVATE -fsanitize=address,undefined)
+  endif()
+  add_test(NAME ${t} COMMAND ${t})
+endfunction()
+
+umcub_host_board()

@@ -13,7 +13,12 @@
 
 extern const umcub_transport_t umcub_transport_eth;
 
+#ifdef UMCUB_CFG_ETH_RMII_PINS
 static const uint32_t rmii_pins[] = { UMCUB_CFG_ETH_RMII_PINS };
+#define RMII_PINS rmii_pins, sizeof(rmii_pins) / sizeof(rmii_pins[0])
+#else
+#define RMII_PINS NULL, 0u      /* board driver (UMCUB_DRIVER_BOARD) with its own wiring */
+#endif
 static uint8_t frame[1536];
 static net_peer_t smp_peer;
 static bool up, link;
@@ -44,8 +49,7 @@ static int eth_init(void)
     }
     uint8_t mac[6];
     make_mac(mac);
-    int rc = umcub_port_eth_init(mac, UMCUB_CFG_ETH_PHY_ADDR, rmii_pins,
-                                 sizeof(rmii_pins) / sizeof(rmii_pins[0]));
+    int rc = umcub_port_eth_init(mac, UMCUB_CFG_ETH_PHY_ADDR, RMII_PINS);
     if (rc) {
         UMCUB_LOG_ERR("eth: init failed %d", rc);
         return rc;

@@ -202,15 +202,28 @@
 #ifndef UMCUB_CFG_CAN_LOOPBACK
 #define UMCUB_CFG_CAN_LOOPBACK          0
 #endif
+#ifndef UMCUB_CFG_CAN_DRIVER
+#define UMCUB_CFG_CAN_DRIVER            UMCUB_DRIVER_PORT
+#endif
 
 /* --- Ethernet ------------------------------------------------------------ */
 #ifndef UMCUB_CFG_TRANSPORT_ETH
 #define UMCUB_CFG_TRANSPORT_ETH         0
 #endif
+#ifndef UMCUB_CFG_ETH_DRIVER
+#define UMCUB_CFG_ETH_DRIVER            UMCUB_DRIVER_PORT
+#endif
+
+/* --- board transport (boards/<b>/umcub_board.c: umcub_transport_user) ---- */
+#ifndef UMCUB_CFG_TRANSPORT_USER
+#define UMCUB_CFG_TRANSPORT_USER        0
+#endif
+
 /* Derived: some transport speaks SMP (boot_serial, zcbor, SMP inspection
  * group are compiled only then; USB DFU alone does not need them). */
 #define UMCUB_CFG_SMP                   (UMCUB_CFG_TRANSPORT_UART | UMCUB_CFG_TRANSPORT_USB_CDC | \
-                                         UMCUB_CFG_TRANSPORT_CAN | UMCUB_CFG_TRANSPORT_ETH)
+                                         UMCUB_CFG_TRANSPORT_CAN | UMCUB_CFG_TRANSPORT_ETH | \
+                                         UMCUB_CFG_TRANSPORT_USER)
 #ifndef UMCUB_CFG_ETH_DHCP
 #define UMCUB_CFG_ETH_DHCP              1
 #endif

@@ -73,7 +73,7 @@ All options are documented in [`config/umcub_config_template.h`](config/umcub_co
 | Slot inspection | `UMCUB_CFG_INSPECT_VERIFY`, `UMCUB_CFG_INSPECT_HASH`, `UMCUB_CFG_READBACK`, `UMCUB_CFG_SMP_INSPECT_GROUP` |
 | Text commands | `UMCUB_CFG_CMD_ENABLE`, `UMCUB_CFG_CMD_IMMEDIATE`, `UMCUB_CFG_CMD_REPLY`, `UMCUB_CFG_CMD_TABLE` |
 | Bootloader entry | `UMCUB_CFG_ENTRY_ON_REQUEST`, `..._ON_NO_IMAGE`, `..._GPIO(_PIN/_ACTIVE/_PULL)`, `..._WAIT_MS`, `UMCUB_CFG_RECOVERY_TIMEOUT_MS` |
-| Transports | `UMCUB_CFG_TRANSPORT_{UART,USB_CDC,USB_DFU,CAN,ETH}` plus their parameters |
+| Transports | `UMCUB_CFG_TRANSPORT_{UART,USB_CDC,USB_DFU,CAN,ETH,USER}` plus their parameters, `UMCUB_CFG_{CAN,ETH}_DRIVER` |
 | Misc | `UMCUB_CFG_LOG_LEVEL`, `UMCUB_CFG_WATCHDOG_MS`, `UMCUB_CFG_SHARED_RAM_ADDR`, `UMCUB_CFG_APP_WRITE_SLOT` |
 
 The configuration can be extended without editing the board file through overlay headers:
@@ -230,6 +230,93 @@ Writing from the application:
 - if the slot is in the same flash bank as the running code, the CPU stalls during a sector erase (up to ~2 s on the
   H7). Applications that write their own updates should keep the secondary slot in the other bank.
 
+## External controllers and custom transports
+
+Interfaces are often attached through a separate chip: a CAN controller on SPI (MCP2515, MCP2518FD), an Ethernet
+MAC on SPI (ENC28J60, LAN9250), a W5500 with its own TCP/IP, an RS-485 line with its own framing, a BLE module.
+The bootloader supports this at two levels. Both live in `boards/<board>/umcub_board.c`, which is added to the
+build automatically. Board code may use LL / registers: it is tied to the MCU anyway.
+
+### 1. Board driver under a built-in transport
+
+ISO-TP + SMP (CAN) and the IPv4/ARP/DHCP/UDP stack + SMP (Ethernet) sit on a small driver interface. Select the
+board driver and implement that interface:
+
+```c
+/* umcub_config.h */
+#define UMCUB_CFG_TRANSPORT_CAN   1
+#define UMCUB_CFG_CAN_DRIVER      UMCUB_DRIVER_BOARD   /* the on-chip FDCAN driver is not compiled */
+#define UMCUB_CFG_TRANSPORT_ETH   1
+#define UMCUB_CFG_ETH_DRIVER      UMCUB_DRIVER_BOARD   /* the on-chip MAC driver is not compiled */
+```
+
+| Transport | Functions to implement (`port/include/...`) | Contract |
+|---|---|---|
+| CAN | `umcub_port_can_init(cfg)`, `_deinit()`, `_send(id, data, len)`, `_recv(&id, data, &len)` (`umcub_port_can.h`) | receive only `cfg->rx_id`; `send` returns `UMCUB_EBUSY` when the TX buffer is full; `len` up to 8 (classic) or 64 (`cfg->fd`) |
+| Ethernet | `umcub_port_eth_init(mac, phy, pins, npins)`, `_deinit()`, `_link()`, `_tx(frame, len)`, `_rx(buf, max)` (`umcub_port_eth.h`) | whole Ethernet frames without FCS; `pins` is `NULL` when `UMCUB_CFG_ETH_RMII_PINS` is not set; `rx` returns 0 when nothing arrived |
+
+All CAN settings from the config (`UMCUB_CFG_CAN_BITRATE`, `_FD`, `_RX_ID`, `_TX_ID`, `_EXT_ID`, ...) reach the
+driver through `umcub_can_cfg_t`. Everything above the driver works as with the on-chip controller, including
+`tools/smp_can.py`, `mcumgr --conntype udp`, text commands and verify/hash.
+
+### 2. Board transport
+
+For anything that is not CAN or raw Ethernet, write a whole transport. It is polled together with the built-in
+ones; responses go back to the transport the request came from.
+
+```c
+/* umcub_config.h */
+#define UMCUB_CFG_TRANSPORT_USER  1
+
+/* umcub_board.c - a packet transport, e.g. a W5500 UDP socket */
+#include "umcub_transport.h"
+#include "umcub_handoff.h"
+
+extern const umcub_transport_t umcub_transport_user;
+static uint8_t rx[UMCUB_CFG_SMP_MTU];
+
+static int  w5500_init(void)   { /* SPI + chip setup, open UDP socket */ return 0; }
+static void w5500_deinit(void) { /* close socket, SPI/GPIO/EXTI back to reset state */ }
+static void w5500_poll(void)
+{
+    size_t n = /* non-blocking: datagram waiting? read it into rx */ 0;
+    if (n) {
+        umcub_smp_packet_rx(&umcub_transport_user, rx, n);   /* raw SMP or a text command */
+    }
+}
+static int w5500_send(const uint8_t *pkt, size_t len) { /* send to the last sender */ return 0; }
+
+const umcub_transport_t umcub_transport_user = {
+    .id = UMCUB_TRANSPORT_USER, .name = "w5500",
+    .init = w5500_init, .deinit = w5500_deinit, .poll = w5500_poll, .send_packet = w5500_send,
+};
+```
+
+There are two kinds of transport, matching the built-in ones:
+- **packet** (`poll` + `send_packet`, like CAN and UDP): whole SMP packets in and out. A packet that is not SMP is
+  treated as a text command.
+- **stream** (`read` + `write`, like UART and USB CDC): bytes of the SMP serial protocol (NLIP lines, base64) plus
+  typed text commands. `read` is non-blocking and returns what is available; `write` may block until sent, with a
+  timeout.
+
+After an update over it, `umcub_boot_info()->last_transport` in the application is `UMCUB_TRANSPORT_USER`.
+
+### Rules for board drivers and transports
+
+- The bootloader is a single polled loop without an RTOS. Nothing may block without a bound: use
+  `umcub_port_millis()` timeouts.
+- Interrupts are optional. If you use them, the ISR only moves data into a buffer.
+- `deinit` must put every peripheral, pin, EXTI line and DMA channel it touched back into reset state (RCC reset is
+  the simplest way). It runs right before the jump into the application.
+- No heap, static buffers only.
+- A transparent UART↔CAN or UART↔RS-485 bridge that just forwards bytes needs nothing: for the bootloader it is
+  the UART transport.
+
+Checked by the build matrix (`tests/boards/custom_drivers`: board CAN + Ethernet drivers + board transport, the
+on-chip drivers left out) and by the host test `umcub_host_board` (SMP over a board CAN driver, SMP and commands
+over a board transport, DHCP through a board Ethernet driver, deinit of all three). Not yet run with a real
+external controller.
+
 ## Using umcub from an IDE (STM32CubeIDE, Keil MDK)
 
 |  | Bootloader | Application with `umcub::app` |
@@ -367,14 +454,14 @@ peripheral a driver touches.
 ## Testing
 
 ```sh
-tools/build_matrix.sh                 # 14 bootloader configurations, examples, IDE checks, host tests; warning-free
+tools/build_matrix.sh                 # 15 bootloader configurations, examples, IDE checks, host tests; warning-free
 ctest --test-dir build/matrix/host    # host tests only
 ```
 
 Host tests (`tests/host`) run the real MCUboot (boot_go, boot_serial, ECDSA) on an emulated H7 flash (32-byte
 words, no double programming) through the umcub transport layer. Covered: SMP upload / echo / list over the packet
 and stream paths (including two interleaved streams), swap → revert → confirm in scratch / move / offset modes, text
-commands, verify / hash / read, ISO-TP classic/FD, DHCP / ARP / ICMP.
+commands, verify / hash / read, ISO-TP classic/FD, DHCP / ARP / ICMP, board-supplied drivers and transports.
 
 Hardware tests: `tools/hw/powerfail_test.py` resets the MCU in the middle of the K-th flash operation (build with
 `tools/config/fault_inject.h`, test only) and checks that an interrupted upgrade or revert always completes. See
@@ -396,6 +483,7 @@ tools/           setup, build matrix, flashing, option bytes, host tools, keys, 
                  umcub_image.py = slot addresses and signing for IDE projects; size_table.py = size tables
 tests/host/      host tests
 tests/tools/     helpers for the build matrix
+tests/boards/    build-matrix boards (custom_drivers: board drivers + board transport)
 ```
 
 ## Mode notes and limitations

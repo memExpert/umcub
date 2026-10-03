@@ -34,7 +34,7 @@ void boot_serial_input(char *buf, int len);
 #define NLIP_DATA_START2  20
 #define LINE_MAX          UMCUB_CFG_SMP_MTU
 #define LOCK_TIMEOUT_MS   1000u
-#define MAX_TRANSPORTS    4
+#define MAX_TRANSPORTS    (UMCUB_TRANSPORT_MAX ? UMCUB_TRANSPORT_MAX : 1)
 
 struct line {
     uint16_t len;
