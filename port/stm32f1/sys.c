@@ -90,6 +90,12 @@ void umcub_port_init(void)
     for (unsigned i = 0; i < EN_REGS; i++) {
         en_snapshot[i] = *en_regs[i];
     }
+#if UMCUB_CFG_USB
+    /* Right after reset (before the HSE start-up), well within the host's
+     * 100 ms attach debounce: the device must not look attached while its
+     * USB is not running. */
+    f1_usb_hold_detached();
+#endif
     f1_clock_init();
 
     SysTick->LOAD = f1_sysclk_hz / 1000u - 1u;

@@ -40,6 +40,15 @@ void umcub_transports_init(void)
     }
 }
 
+void umcub_transports_init_entry_window(void)
+{
+    for (unsigned i = 0; i < umcub_transport_count; i++) {
+        if (!umcub_transports[i]->skip_entry_window) {
+            umcub_transports[i]->init();
+        }
+    }
+}
+
 void umcub_transports_deinit(void)
 {
     for (unsigned i = umcub_transport_count; i-- > 0;) {

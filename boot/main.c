@@ -125,7 +125,7 @@ int main(void)
     }
 #if UMCUB_CFG_ENTRY_WAIT_MS > 0
     if (!skip_entry) {
-        umcub_transports_init();
+        umcub_transports_init_entry_window();   /* USB only in recovery mode */
         if (umcub_recovery_wait(UMCUB_CFG_ENTRY_WAIT_MS)) {
             recovery("host request during wait window");
         }

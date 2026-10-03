@@ -16,6 +16,8 @@
 #define UMCUB_FAMILY_UNIFORM_SECTOR     UMCUB_KB(2)
 #endif
 #define UMCUB_FAMILY_MIN_SECTOR         UMCUB_FAMILY_UNIFORM_SECTOR
+/* Worst-case page erase time (DS5319 / PM0075: 20..40 ms). */
+#define UMCUB_FAMILY_SECTOR_ERASE_MS    40
 /* The flash programs half-words; 8 is the smallest MCUBOOT_BOOT_MAX_ALIGN
  * MCUboot supports, so the driver takes multiples of 8 bytes. */
 #define UMCUB_FAMILY_WRITE_ALIGN        8

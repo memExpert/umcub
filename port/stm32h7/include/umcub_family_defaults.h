@@ -9,6 +9,8 @@
 /* Single-bank-size parts (H7A3/B0 have 8K sectors) are not covered yet. */
 #define UMCUB_FAMILY_UNIFORM_SECTOR     UMCUB_KB(128)
 #define UMCUB_FAMILY_MIN_SECTOR         UMCUB_KB(128)
+/* Worst-case erase time of one sector (DS12919: 128 KiB, x64, max 4 s). */
+#define UMCUB_FAMILY_SECTOR_ERASE_MS    4000
 /* Flash program unit: one 256-bit flash word. */
 #define UMCUB_FAMILY_WRITE_ALIGN        32
 

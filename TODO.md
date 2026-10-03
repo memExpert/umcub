@@ -56,13 +56,17 @@ Done (bootloader 28.3 K in 32 K, two 16 K slots, overwrite, USART1 PA9/PA10 1152
   `verify` / `hash` via `tools/umcub_inspect.py`.
 - [x] Overwrite upgrade from the application (`umcub_slot_*`, `tools/app_upload.py`): secondary -> primary,
   `boot reason: upgraded`, `last update via app`.
+- [x] USB (overlay `tools/config/bluepill_usb.h`, 40.7 K in 44 K): enumeration in recovery, text command and SMP
+  over CDC (4.9 KB in 0.7 s), verify / hash, DFU download with `-R` (2.1 s) -> overwrite upgrade, clean detach
+  (D+ held low outside the bootloader's USB; no enumeration attempts in the kernel log during boot or in the app).
 
 Open:
 
 - [ ] Power-loss test of the overwrite copy on F1 (fault injection points exist in `port/stm32f1/flash.c`).
 - [ ] Watchdog and recovery timeout on F1 (LSI 30..60 kHz spread).
-- [ ] F1 ports of USB FS device (tinyUSB `stm32_fsdev`) and bxCAN; F105/F107 (PREDIV1, 25 MHz HSE); XL-density
-  bank 2.
+- [ ] F1 port of bxCAN; F105/F107 (PREDIV1, 25 MHz HSE, USB OTG FS); XL-density bank 2.
+- [ ] H755 regression run on hardware after the shared changes of the F1 work (USB not started in the entry window,
+  DFU poll time from `UMCUB_FAMILY_SECTOR_ERASE_MS`, `last update via app`).
 
 ## Known limitations / ideas
 

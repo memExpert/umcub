@@ -28,10 +28,13 @@ uint32_t tud_dfu_get_timeout_cb(uint8_t alt, uint8_t state)
     }
     /* The host waits this long before polling again. Only a block that
      * reaches a not yet erased sector (and the first block: slot
-     * preparation) pays for a sector erase (H7: typ. 2 s, max 4 s). */
+     * preparation) pays for sector erases: as many as one block can span,
+     * at the family's worst-case time (H7: 4 s per 128 KiB, F1: 40 ms per
+     * 1 KiB page) plus 1/8 margin. */
+    enum { SECTORS = (CFG_TUD_DFU_XFER_BUFSIZE + UMCUB_FAMILY_MIN_SECTOR - 1) / UMCUB_FAMILY_MIN_SECTOR };
     uint32_t next = writer.off + writer.buf_len + CFG_TUD_DFU_XFER_BUFSIZE;
     bool erase = !active || (next > writer.erased_end && writer.erased_end < writer.last_sector);
-    return erase ? 4500 : 5;
+    return erase ? SECTORS * UMCUB_FAMILY_SECTOR_ERASE_MS * 9u / 8u + 20u : 5u;
 }
 
 void tud_dfu_download_cb(uint8_t alt, uint16_t block_num, uint8_t const *data, uint16_t length)

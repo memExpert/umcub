@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Bootloader flash size per MCU and the cost of every transport / feature.
 
-Builds the reference board's bootloader in many variants (Release, -Os) and
-prints Markdown tables for the README:
+Builds the reference boards' bootloaders in many variants (Release, -Os) and
+prints the Markdown tables of README.md "Bootloader size":
 
-  tools/size_table.py [--out build/sizes] [-j 4]
+  tools/size_table.py [--out build/sizes] [-j 4]     print the tables
+  tools/size_table.py --update                       rewrite them in README.md
+  tools/size_table.py --check                        exit 1 if README.md is stale
 
 Base = MCUboot + ECDSA-P256 validation + jump, no transport, no log, no text
 commands, no inspection. Transport and feature costs are measured on top of
@@ -36,8 +38,10 @@ CHIPS = [
     ("STM32H743 / H753 (single core)", "cm7", "tools/config/single_core.h",
      "#undef UMCUB_CFG_MCU\n#define UMCUB_CFG_MCU STM32H743xx\n"
      "#undef UMCUB_CFG_PWR_SUPPLY\n#define UMCUB_CFG_PWR_SUPPLY UMCUB_H7_SUPPLY_LDO\n"),
-    # Cortex-M3; only UART is ported (USB/CAN columns stay empty).
-    ("STM32F103 (Blue Pill, overwrite)", "", None, "", "bluepill_f103c8"),
+    # Cortex-M3, sized in the 44 KiB bootloader region of the USB layout; no
+    # CAN / Ethernet driver in the port (columns stay empty, "all on" without them).
+    ("STM32F103 (Blue Pill, overwrite)", "", None, f'#include "{ROOT}/tools/config/bluepill_usb.h"\n',
+     "bluepill_f103c8", {"TRANSPORT_CAN", "CAN_FD", "TRANSPORT_ETH"}),
 ]
 
 OFF = {"TRANSPORT_UART": 0, "TRANSPORT_USB_CDC": 0, "TRANSPORT_USB_DFU": 0, "TRANSPORT_CAN": 0,
@@ -64,6 +68,11 @@ VARIANTS = [
                     "CAN_FD": 1, "TRANSPORT_ETH": 1, "LOG_LEVEL": 3, "CMD_ENABLE": 1, "INSPECT_VERIFY": 1,
                     "INSPECT_HASH": 1, "READBACK": 1}, None),
 ]
+# README column names
+LABELS = {"UART": "UART (+SMP)", "Ethernet": "Ethernet (+DHCP)", "log": "log (level 3)",
+          "commands": "text commands", "verify+hash": "verify + hash"}
+README = ROOT / "README.md"
+BEGIN, END = "<!-- size-table:begin -->", "<!-- size-table:end -->"
 TRANSPORTS = ["UART", "USB CDC", "USB DFU", "USB CDC+DFU", "CAN", "CAN FD", "Ethernet", "DFU only"]
 FEATURES = ["log", "commands", "verify+hash", "readback"]
 
@@ -71,7 +80,12 @@ FEATURES = ["log", "commands", "verify+hash", "readback"]
 def build(out, ci, chip, vi, variant):
     _, core, pre, extra = chip[:4]
     board = chip[4] if len(chip) > 4 else BOARD
+    unsupported = chip[5] if len(chip) > 5 else set()
     name, settings, _ = variant
+    if name == "everything":
+        settings = {k: (0 if k in unsupported else v) for k, v in settings.items()}
+    elif any(settings.get(k) for k in unsupported):
+        return None, None                       # not available on this family
     d = out / f"c{ci}_v{vi}"
     d.mkdir(parents=True, exist_ok=True)
     post = d / "post.h"
@@ -107,6 +121,9 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--out", default=str(ROOT / "build/sizes"))
     ap.add_argument("-j", type=int, default=max(1, (os.cpu_count() or 4) // 4))
+    mode = ap.add_mutually_exclusive_group()
+    mode.add_argument("--update", action="store_true", help="rewrite the tables in README.md")
+    mode.add_argument("--check", action="store_true", help="exit 1 if README.md differs")
     a = ap.parse_args()
     out = Path(a.out)
 
@@ -117,7 +134,7 @@ def main():
         for fut in concurrent.futures.as_completed(jobs):
             n, log = fut.result()
             size[jobs[fut]] = n
-            if n is None:
+            if n is None and log is not None:
                 print(f"note: {CHIPS[jobs[fut][0]][0]} / {jobs[fut][1]} does not build (see {log})", file=sys.stderr)
 
     ref = {v[0]: v[2] for v in VARIANTS}
@@ -129,18 +146,34 @@ def main():
         return delta(n - size[(ci, r)])
 
     def table(cols, first):
-        print("| MCU | " + " | ".join(first + cols) + " |")
-        print("|---|" + "---:|" * (len(first) + len(cols)))
+        rows = ["| MCU | " + " | ".join(first + [LABELS.get(c, c) for c in cols]) + " |",
+                "|---|" + "---:|" * (len(first) + len(cols))]
         for ci, c in enumerate(CHIPS):
-            lead = [kb(size[(ci, "base")])] if "base" in " ".join(first) else []
-            if "all" in " ".join(first):
+            lead = [kb(size[(ci, "base")])] if "base" in first else []
+            if "all on" in first:
                 lead.append(kb(size[(ci, "everything")]) if size.get((ci, "everything")) else "—")
-            print(f"| {c[0]} | " + " | ".join(lead + [cell(ci, col) for col in cols]) + " |")
-        print()
+            rows.append(f"| {c[0]} | " + " | ".join(lead + [cell(ci, col) for col in cols]) + " |")
+        return "\n".join(rows)
 
-    table(TRANSPORTS, ["base", "all on"])
-    table(FEATURES, [])
-
+    tables = table(TRANSPORTS, ["base", "all on"]) + "\n\n" + table(FEATURES, [])
+    if not (a.update or a.check):
+        print(tables)
+        return
+    text = README.read_text()
+    if BEGIN not in text or END not in text:
+        sys.exit(f"{README}: markers {BEGIN} / {END} not found")
+    head, rest = text.split(BEGIN, 1)
+    _, tail = rest.split(END, 1)
+    new_text = f"{head}{BEGIN}\n{tables}\n{END}{tail}"
+    if a.check:
+        if new_text != text:
+            print("README.md size tables are stale - run tools/size_table.py --update")
+            print(tables)
+            sys.exit(1)
+        print("README.md size tables are up to date")
+    elif new_text != text:
+        README.write_text(new_text)
+        print("README.md size tables updated")
 
 if __name__ == "__main__":
     main()

@@ -33,6 +33,12 @@ typedef struct umcub_transport {
     size_t (*read)(uint8_t *buf, size_t max);           /* stream: non-blocking */
     void (*write)(const uint8_t *buf, size_t len);      /* stream: blocking */
     int (*send_packet)(const uint8_t *pkt, size_t len); /* packet transports */
+    /* Not started for the UMCUB_CFG_ENTRY_WAIT_MS window, only in recovery
+     * mode. USB: a host needs longer than such a window to enumerate and open
+     * the device, and a device that vanishes in the middle of enumeration
+     * upsets some host controllers. init/deinit/poll/read
+     * of such a transport must cope with never having been started. */
+    bool skip_entry_window;
 } umcub_transport_t;
 
 /* Upper bound of compiled-in transports (sizes the mux's per-stream buffers). */
@@ -51,6 +57,8 @@ bool umcub_smp_packet_rx(const umcub_transport_t *t, const uint8_t *pkt, size_t 
 
 /* Lifecycle used by the boot core. */
 void umcub_transports_init(void);
+/* Only the transports without skip_entry_window (UMCUB_CFG_ENTRY_WAIT_MS). */
+void umcub_transports_init_entry_window(void);
 void umcub_transports_deinit(void);
 void umcub_transports_poll(void);
 

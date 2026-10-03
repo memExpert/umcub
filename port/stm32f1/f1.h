@@ -28,6 +28,9 @@ void f1_gpio_config(uint32_t pin, uint32_t cnf_mode);
 #define F1_GPIO_IN_PULL     0x8u    /* pull direction from ODR */
 #define F1_GPIO_AF_PP_50M   0xBu
 
+/* USB builds: drive D+ low (detached) - see usb.c. */
+void f1_usb_hold_detached(void);
+
 /* Busy-wait until (*reg & mask) == value or timeout. */
 int f1_wait(volatile uint32_t *reg, uint32_t mask, uint32_t value, uint32_t timeout_ms);
 

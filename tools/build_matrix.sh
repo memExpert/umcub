@@ -27,6 +27,7 @@ configs=(
   "per-core-cm4|cm4|Release|per_core.h|"
   "all-debug|cm7|Debug||"
   "bluepill-f103|cm3|Release|||bluepill_f103c8"
+  "bluepill-f103-usb|cm3|Release||bluepill_usb.h|bluepill_f103c8"
 )
 
 for c in "${configs[@]}"; do
