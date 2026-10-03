@@ -207,6 +207,10 @@
 #ifndef UMCUB_CFG_TRANSPORT_ETH
 #define UMCUB_CFG_TRANSPORT_ETH         0
 #endif
+/* Derived: some transport speaks SMP (boot_serial, zcbor, SMP inspection
+ * group are compiled only then; USB DFU alone does not need them). */
+#define UMCUB_CFG_SMP                   (UMCUB_CFG_TRANSPORT_UART | UMCUB_CFG_TRANSPORT_USB_CDC | \
+                                         UMCUB_CFG_TRANSPORT_CAN | UMCUB_CFG_TRANSPORT_ETH)
 #ifndef UMCUB_CFG_ETH_DHCP
 #define UMCUB_CFG_ETH_DHCP              1
 #endif

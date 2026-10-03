@@ -10,6 +10,8 @@
  *    boot_serial_input(); the NLIP/base64 response boot_serial produces is
  *    decoded back into a raw packet for the transport (smp shim);
  *  - responses go to the transport that sent the request.
+ * Without any SMP transport (USB DFU only, or none) boot_serial is not built
+ * and umcub_recovery_run() drives the same loop itself.
  */
 #include <string.h>
 #include "umcub_cfg.h"
@@ -17,12 +19,14 @@
 #include "umcub_port.h"
 #include "umcub_transport.h"
 #include "umcub_handoff.h"
+#include "umcub_cmd.h"
+#if UMCUB_CFG_SMP
 #include "boot_serial/boot_serial.h"
 #include "base64/base64.h"
-#include "umcub_cmd.h"
 
 /* boot_serial_priv.h is not on the public include path. */
 void boot_serial_input(char *buf, int len);
+#endif
 
 #define NLIP_PKT_START1   6
 #define NLIP_PKT_START2   9
@@ -106,11 +110,13 @@ static uint8_t pkt_buf[UMCUB_CFG_SMP_MTU + 1];
 static size_t pkt_len;
 static const umcub_transport_t *pkt_from;
 
+#if UMCUB_CFG_SMP
 /* NLIP -> raw decoder for responses to packet transports */
 static char resp_text[160];
 static size_t resp_text_len;
 static uint8_t resp_raw[UMCUB_CFG_SMP_MTU];
 static size_t resp_raw_len;
+#endif
 
 
 
@@ -239,6 +245,7 @@ static int mux_read(char *str, int cnt, int *newline)
         pkt_len = 0;
         return 0;
     }
+#if UMCUB_CFG_SMP
     if (pkt_len && locked < 0) {
         touch(pkt_from);
         resp_text_len = 0;
@@ -247,6 +254,7 @@ static int mux_read(char *str, int cnt, int *newline)
         pkt_len = 0;
         return 0;
     }
+#endif
 
     if (locked >= 0 && (uint32_t)(umcub_port_millis() - locked_at) > LOCK_TIMEOUT_MS) {
         locked = -1;
@@ -277,6 +285,7 @@ static int mux_read(char *str, int cnt, int *newline)
     return 0;
 }
 
+#if UMCUB_CFG_SMP
 /* Decode boot_serial's NLIP output and send it as one raw SMP packet. */
 static void shim_feed(const char *p, int cnt)
 {
@@ -330,6 +339,7 @@ static const struct boot_uart_funcs mux_funcs = {
     .read = mux_read,
     .write = mux_write,
 };
+#endif /* UMCUB_CFG_SMP */
 
 bool umcub_recovery_wait(uint32_t ms)
 {
@@ -368,8 +378,17 @@ __attribute__((noreturn)) void umcub_recovery_run(void)
 {
     last_activity = umcub_port_millis();
     in_recovery = true;
+#if UMCUB_CFG_SMP
     UMCUB_LOG_INF("recovery mode: waiting for SMP requests");
     boot_serial_start(&mux_funcs);
+#else
+    UMCUB_LOG_INF("recovery mode");
+    static char line[LINE_MAX + 1];
+    int newline;
+    for (;;) {
+        (void)mux_read(line, (int)sizeof(line), &newline);   /* polls USB DFU, commands, timeout */
+    }
+#endif
     umcub_port_reset();
 }
 

@@ -21,6 +21,7 @@ configs=(
   "uart-only|cm7|Release||uart_only.h"
   "uart-usb|cm7|Release||uart_usb.h"
   "uart-canfd-loopback|cm7|Release||uart_can.h"
+  "usb-dfu-only|cm7|Release||usb_dfu_only.h"
   "single-core|cm7|Release|single_core.h|"
   "per-core-cm7|cm7|Release|per_core.h|"
   "per-core-cm4|cm4|Release|per_core.h|"

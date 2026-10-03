@@ -51,7 +51,6 @@ set(BOOT_SOURCES
   boot/info.c
   boot/cmd.c
   boot/inspect.c
-  boot/smp_inspect.c
   mcuboot_port/src/flash_map_backend.c
   mcuboot_port/src/compat.c
   transport/registry.c
@@ -76,14 +75,19 @@ set(MCUBOOT_SOURCES
   ${MCUBOOT}/boot/bootutil/src/swap_move.c
   ${MCUBOOT}/boot/bootutil/src/swap_offset.c
   ${MCUBOOT}/boot/bootutil/src/tlv.c
-  ${MCUBOOT}/boot/boot_serial/src/boot_serial.c
-  ${MCUBOOT}/boot/boot_serial/src/zcbor_bulk.c
-  ${MCUBOOT}/boot/zcbor/src/zcbor_common.c
-  ${MCUBOOT}/boot/zcbor/src/zcbor_decode.c
-  ${MCUBOOT}/boot/zcbor/src/zcbor_encode.c
   ${TINYCRYPT}/source/sha256.c
   ${TINYCRYPT}/source/utils.c
 )
+if(UMCUB_CFG_SMP)                 # some transport speaks SMP: MCUboot serial recovery
+  list(APPEND BOOT_SOURCES boot/smp_inspect.c)
+  list(APPEND MCUBOOT_SOURCES
+    ${MCUBOOT}/boot/boot_serial/src/boot_serial.c
+    ${MCUBOOT}/boot/boot_serial/src/zcbor_bulk.c
+    ${MCUBOOT}/boot/zcbor/src/zcbor_common.c
+    ${MCUBOOT}/boot/zcbor/src/zcbor_decode.c
+    ${MCUBOOT}/boot/zcbor/src/zcbor_encode.c
+  )
+endif()
 if(UMCUB_CFG_SIGNATURE EQUAL 1)   # UMCUB_SIGN_EC256
   list(APPEND MCUBOOT_SOURCES
     ${MCUBOOT}/boot/bootutil/src/image_ecdsa.c

@@ -96,6 +96,42 @@ caught at compile time (`config/umcub_config_check.h`).
 STM32CubeProgrammer 2.23 does not expose `BOOT_CM4_ADD0`/`BCM4` for the H755, so `tools/h755_option_bytes.sh` writes
 them through a small RAM helper run by GDB (`tools/h7_ob/`).
 
+## Bootloader size
+
+Flash used by the bootloader (`.text` + `.data`, arm-none-eabi-gcc 15.2, Release `-Os`, swap-scratch,
+ECDSA-P256), and what every transport and feature adds. Regenerate with `tools/size_table.py`.
+
+- **base**: MCUboot with signature check, upgrade/revert, the jump to the application, handoff and info block.
+  No transport, no log.
+- **all on**: every transport and feature (the `nucleo_h755zi_q` default with all interfaces).
+- **UART** is counted on top of base. It includes the SMP core that every SMP transport needs (`boot_serial`,
+  zcbor, the multiplexer), so the first SMP transport always costs about 10 K.
+- The other columns are counted on top of base + UART.
+- **DFU only** is USB DFU as the only transport, on top of base. Without an SMP transport, `boot_serial` is not
+  compiled at all.
+
+| MCU | base | all on | UART (+SMP) | USB CDC | USB DFU | USB CDC+DFU | CAN | CAN FD | Ethernet (+DHCP) | DFU only |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| STM32H755 CM7 (2 images, SINGLE_BOOT) | 18.9 K | 54.8 K | +10.0 K | +11.1 K | +10.5 K | +13.2 K | +2.2 K | +2.2 K | +4.0 K | +10.9 K |
+| STM32H755 CM4 (PER_CORE) | 16.4 K | 51.9 K | +9.8 K | +11.1 K | +10.5 K | +13.1 K | +2.2 K | +2.2 K | +4.0 K | +10.9 K |
+| STM32H743 / H753 (single core) | 17.1 K | 52.6 K | +9.7 K | +11.1 K | +10.5 K | +13.1 K | +2.2 K | +2.2 K | +4.0 K | +10.9 K |
+
+| MCU | log (level 3) | text commands | verify + hash | readback |
+|---|---:|---:|---:|---:|
+| STM32H755 CM7 (2 images, SINGLE_BOOT) | +2.6 K | +2.7 K | +0.9 K | +0.2 K |
+| STM32H755 CM4 (PER_CORE) | +2.4 K | +2.6 K | +0.9 K | +0.2 K |
+| STM32H743 / H753 (single core) | +2.4 K | +2.6 K | +0.9 K | +0.2 K |
+
+Notes:
+- Only the STM32H7 port exists so far. The H755 CM4 row is the CM4 bootloader of `PER_CORE` mode (Cortex-M4 code).
+  On the board it uses CAN only; the other columns are measured with borrowed pins.
+- The H7 bootloader gets one 128 KiB sector, so even "all on" uses less than half of it.
+- USB is mostly tinyUSB. Ethernet is the own IPv4/ARP/ICMP/UDP/DHCP stack plus the MAC driver. CAN FD only changes
+  configuration, not code size.
+- Base + the columns adds up to "all on" within a few hundred bytes. CDC and DFU together cost less than separately:
+  they share the USB core.
+- Debug builds (`-Og`) are about 18 % larger.
+
 ## Text commands
 
 Besides SMP the bootloader understands simple text commands defined in `umcub_config.h` — handy from a terminal or
@@ -330,7 +366,7 @@ peripheral a driver touches.
 ## Testing
 
 ```sh
-tools/build_matrix.sh                 # 13 bootloader configurations, examples, IDE checks, host tests; warning-free
+tools/build_matrix.sh                 # 14 bootloader configurations, examples, IDE checks, host tests; warning-free
 ctest --test-dir build/matrix/host    # host tests only
 ```
 
@@ -356,7 +392,7 @@ config/          template, defaults, compile-time checks
 boards/          board configurations
 examples/        CM7 / CM4 applications for NUCLEO-H755ZI-Q
 tools/           setup, build matrix, flashing, option bytes, host tools, keys, hardware tests;
-                 umcub_image.py = slot addresses and signing for IDE projects
+                 umcub_image.py = slot addresses and signing for IDE projects; size_table.py = size tables
 tests/host/      host tests
 tests/tools/     helpers for the build matrix
 ```
