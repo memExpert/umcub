@@ -38,6 +38,9 @@ Open:
   signing, debug download of the signed image, Keil key codes (`#L`, `$L@L`), armclang as preprocessor. So far
   verified: `umcub_app_all.c` compiles with the documented include list (GCC, clang); `tools/umcub_image.py` gives
   the same image as CMake (header, payload, hash) from ELF and HEX; a tool-signed image boots on the board.
+- [ ] **Bluetooth UART bridge** (HC-05/HC-06 SPP on USART1 D0/D1, PC over RFCOMM): SMP upload, text commands,
+  verify / hash over a slow, packetizing link without flow control. Postponed: the HC-06 at hand is dead
+  (no LED at 4.5 V, not discoverable, TX not idling high).
 - [ ] Board drivers / board transport with a real external controller (e.g. MCP2518FD, ENC28J60, W5500).
   So far: build matrix (`tests/boards/custom_drivers`) and host test `umcub_host_board`.
 - [ ] CubeMX dual-core start-up handshake (CM7 waits for the CM4 to enter STOP, HSEM 0) together with SINGLE_BOOT
