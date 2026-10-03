@@ -1,0 +1,27 @@
+/*
+ * umcub bootloader, STM32H7 second core (CM4), UMCUB_DUALCORE_PER_CORE.
+ * Preprocessed with umcub_cfg.h.
+ */
+#include "umcub_cfg.h"
+
+MEMORY
+{
+  FLASH (rx)  : ORIGIN = UMCUB_CFG_BOOT_ADDR, LENGTH = UMCUB_CFG_BOOT_INFO_ADDR - UMCUB_CFG_BOOT_ADDR
+  BOOTINFO (r) : ORIGIN = UMCUB_CFG_BOOT_INFO_ADDR, LENGTH = 256
+  RAM   (xrw) : ORIGIN = 0x10000000, LENGTH = 128K   /* D2 SRAM1 (CM4 alias) */
+}
+
+_Min_Heap_Size  = 0;
+_Min_Stack_Size = 0x2000;
+_estack_main = ORIGIN(RAM) + LENGTH(RAM);
+_estack = _estack_main;
+
+SECTIONS
+{
+  .umcub_info :
+  {
+    KEEP(*(.umcub_info))
+  } >BOOTINFO
+}
+
+#include "../../common/cortexm_sections.ld.inc"

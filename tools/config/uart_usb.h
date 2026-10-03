@@ -1,0 +1,5 @@
+/* Build-matrix overlay (UMCUB_CONFIG_POST): UART + USB (CDC, DFU). */
+#undef UMCUB_CFG_TRANSPORT_CAN
+#undef UMCUB_CFG_TRANSPORT_ETH
+#define UMCUB_CFG_TRANSPORT_CAN     0
+#define UMCUB_CFG_TRANSPORT_ETH     0

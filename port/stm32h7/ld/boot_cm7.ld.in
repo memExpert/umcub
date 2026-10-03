@@ -1,0 +1,38 @@
+/*
+ * umcub bootloader, STM32H7 main core (CM7 / single-core H7).
+ * Preprocessed with umcub_cfg.h.
+ */
+#include "umcub_cfg.h"
+
+MEMORY
+{
+  FLASH (rx)  : ORIGIN = UMCUB_CFG_BOOT_ADDR, LENGTH = UMCUB_CFG_BOOT_INFO_ADDR - UMCUB_CFG_BOOT_ADDR
+  BOOTINFO (r) : ORIGIN = UMCUB_CFG_BOOT_INFO_ADDR, LENGTH = 256
+  RAM   (xrw) : ORIGIN = 0x24000000, LENGTH = 256K   /* AXI SRAM: reachable by every DMA master */
+}
+
+_Min_Heap_Size  = 0;
+_Min_Stack_Size = 0x2000;
+
+/* Main stack: top of RAM. */
+_estack_main = ORIGIN(RAM) + LENGTH(RAM);
+
+#if UMCUB_CFG_DUALCORE_MODE == UMCUB_DUALCORE_SINGLE_BOOT
+/* Vector[0] is shared by both cores. Reset_Handler sets MSP per core before
+ * any stack access: the CM4 parks on a small stack in SRAM4 right below the
+ * handoff area (always clocked), the CM7 uses _estack_main. */
+_estack = UMCUB_CFG_SHARED_RAM_ADDR;
+_estack_core2 = UMCUB_CFG_SHARED_RAM_ADDR;   /* the CM4 park loop needs < 64 bytes */
+#else
+_estack = _estack_main;
+#endif
+
+SECTIONS
+{
+  .umcub_info :
+  {
+    KEEP(*(.umcub_info))
+  } >BOOTINFO
+}
+
+#include "../../common/cortexm_sections.ld.inc"

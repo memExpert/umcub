@@ -1,0 +1,23 @@
+/*
+ * Application linker script template, STM32H7 CM7 (or single-core H7).
+ * Preprocessed with umcub_cfg.h and -DUMCUB_APP_IMAGE=<n> -DUMCUB_APP_SLOT=<0|1>.
+ * Use as is, or copy the MEMORY block into your own script.
+ */
+#include "umcub_cfg.h"
+#include "../../common/app_slot.ld.inc"
+
+MEMORY
+{
+  FLASH   (rx)  : ORIGIN = UMCUB_APP_FLASH_ORIGIN, LENGTH = UMCUB_APP_FLASH_LENGTH
+  DTCMRAM (xrw) : ORIGIN = 0x20000000, LENGTH = 128K
+  RAM     (xrw) : ORIGIN = 0x24000000, LENGTH = 512K
+  RAM_D2  (xrw) : ORIGIN = 0x30000000, LENGTH = 288K
+  RAM_D3  (xrw) : ORIGIN = 0x38000000, LENGTH = UMCUB_APP_SRAM4_LENGTH   /* handoff area excluded */
+  ITCMRAM (xrw) : ORIGIN = 0x00000000, LENGTH = 64K
+}
+
+_Min_Heap_Size  = 0x200;
+_Min_Stack_Size = 0x400;
+_estack = ORIGIN(RAM) + LENGTH(RAM);
+
+#include "../../common/cortexm_sections.ld.inc"

@@ -1,0 +1,51 @@
+{
+  "version": 3,
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "toolchainFile": "${sourceDir}/cmake/arm-none-eabi.cmake",
+      "cacheVariables": { "UMCUB_BOARD": "nucleo_h755zi_q" }
+    },
+    {
+      "name": "h755-cm7",
+      "displayName": "NUCLEO-H755ZI-Q, CM7 bootloader (Release)",
+      "inherits": "base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release", "UMCUB_CORE": "cm7" }
+    },
+    {
+      "name": "h755-cm7-debug",
+      "displayName": "NUCLEO-H755ZI-Q, CM7 bootloader (Debug)",
+      "inherits": "base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "UMCUB_CORE": "cm7" }
+    },
+    {
+      "name": "h755-per-core-cm7",
+      "displayName": "NUCLEO-H755ZI-Q, PER_CORE: CM7 bootloader",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "UMCUB_CORE": "cm7",
+        "UMCUB_CONFIG_PRE": "${sourceDir}/tools/config/per_core.h"
+      }
+    },
+    {
+      "name": "h755-per-core-cm4",
+      "displayName": "NUCLEO-H755ZI-Q, PER_CORE: CM4 bootloader",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "UMCUB_CORE": "cm4",
+        "UMCUB_CONFIG_PRE": "${sourceDir}/tools/config/per_core.h"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "h755-cm7", "configurePreset": "h755-cm7" },
+    { "name": "h755-cm7-debug", "configurePreset": "h755-cm7-debug" },
+    { "name": "h755-per-core-cm7", "configurePreset": "h755-per-core-cm7" },
+    { "name": "h755-per-core-cm4", "configurePreset": "h755-per-core-cm4" }
+  ]
+}

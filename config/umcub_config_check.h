@@ -1,0 +1,90 @@
+/*
+ * Compile-time validation of the effective configuration.
+ */
+#ifndef UMCUB_CONFIG_CHECK_H
+#define UMCUB_CONFIG_CHECK_H
+
+#if !defined(UMCUB_CFG_BOOT_ADDR) || !defined(UMCUB_CFG_BOOT_SIZE)
+#error "umcub: UMCUB_CFG_BOOT_ADDR / UMCUB_CFG_BOOT_SIZE not defined"
+#endif
+#if !defined(UMCUB_CFG_IMG0_PRIMARY_ADDR) || !defined(UMCUB_CFG_IMG0_PRIMARY_SIZE)
+#error "umcub: image 0 primary slot not defined (UMCUB_CFG_IMG0_PRIMARY_ADDR/SIZE)"
+#endif
+#if !defined(UMCUB_CFG_IMG0_SECONDARY_ADDR) || !defined(UMCUB_CFG_IMG0_SECONDARY_SIZE)
+#error "umcub: image 0 secondary slot not defined (UMCUB_CFG_IMG0_SECONDARY_ADDR/SIZE)"
+#endif
+
+#if UMCUB_CFG_IMAGE_NUMBER < 1 || UMCUB_CFG_IMAGE_NUMBER > 2
+#error "umcub: UMCUB_CFG_IMAGE_NUMBER must be 1 or 2"
+#endif
+#if UMCUB_CFG_IMAGE_NUMBER == 2 && UMCUB_CFG_IMG1_PRIMARY_SIZE == 0
+#error "umcub: UMCUB_CFG_IMAGE_NUMBER is 2 but image 1 slots are not defined"
+#endif
+#if UMCUB_CFG_DUALCORE_MODE == UMCUB_DUALCORE_SINGLE_BOOT && UMCUB_CFG_IMAGE_NUMBER != 2
+#error "umcub: UMCUB_DUALCORE_SINGLE_BOOT needs UMCUB_CFG_IMAGE_NUMBER 2 (image 1 = second core)"
+#endif
+#if UMCUB_CFG_DUALCORE_MODE != UMCUB_DUALCORE_NONE && !defined(UMCUB_FAMILY_DUALCORE)
+#error "umcub: dual-core mode selected but this family port has no dual-core support"
+#endif
+
+#if UMCUB_CFG_UPGRADE_MODE < UMCUB_MODE_OVERWRITE || UMCUB_CFG_UPGRADE_MODE > UMCUB_MODE_DIRECT_XIP_REVERT
+#error "umcub: invalid UMCUB_CFG_UPGRADE_MODE"
+#endif
+#if UMCUB_CFG_UPGRADE_MODE == UMCUB_MODE_SWAP_SCRATCH && UMCUB_CFG_SCRATCH_SIZE == 0
+#error "umcub: UMCUB_MODE_SWAP_SCRATCH needs a scratch area (UMCUB_CFG_SCRATCH_ADDR/SIZE)"
+#endif
+
+#if (UMCUB_CFG_IMG0_PRIMARY_ADDR < UMCUB_CFG_BOOT_ADDR + UMCUB_CFG_BOOT_SIZE) && \
+    (UMCUB_CFG_IMG0_PRIMARY_ADDR + UMCUB_CFG_IMG0_PRIMARY_SIZE > UMCUB_CFG_BOOT_ADDR)
+#error "umcub: image 0 primary slot overlaps the bootloader"
+#endif
+#if (UMCUB_CFG_IMG0_SECONDARY_ADDR < UMCUB_CFG_IMG0_PRIMARY_ADDR + UMCUB_CFG_IMG0_PRIMARY_SIZE) && \
+    (UMCUB_CFG_IMG0_SECONDARY_ADDR + UMCUB_CFG_IMG0_SECONDARY_SIZE > UMCUB_CFG_IMG0_PRIMARY_ADDR)
+#error "umcub: image 0 primary and secondary slots overlap"
+#endif
+
+#if UMCUB_CFG_SCRATCH_SIZE > 0 && \
+    ((UMCUB_CFG_SCRATCH_ADDR < UMCUB_CFG_IMG0_PRIMARY_ADDR + UMCUB_CFG_IMG0_PRIMARY_SIZE && \
+      UMCUB_CFG_SCRATCH_ADDR + UMCUB_CFG_SCRATCH_SIZE > UMCUB_CFG_IMG0_PRIMARY_ADDR) || \
+     (UMCUB_CFG_SCRATCH_ADDR < UMCUB_CFG_IMG0_SECONDARY_ADDR + UMCUB_CFG_IMG0_SECONDARY_SIZE && \
+      UMCUB_CFG_SCRATCH_ADDR + UMCUB_CFG_SCRATCH_SIZE > UMCUB_CFG_IMG0_SECONDARY_ADDR))
+#error "umcub: scratch area overlaps an image 0 slot"
+#endif
+
+/* swap-move needs the extra sector in the primary slot, swap-offset in the
+ * secondary slot (MCUboot docs/design.md). */
+#if UMCUB_CFG_UPGRADE_MODE == UMCUB_MODE_SWAP_MOVE && \
+    (UMCUB_CFG_IMG0_PRIMARY_SIZE < UMCUB_CFG_IMG0_SECONDARY_SIZE || \
+     UMCUB_CFG_IMG1_PRIMARY_SIZE < UMCUB_CFG_IMG1_SECONDARY_SIZE)
+#error "umcub: swap-move: primary slot must be >= secondary slot (ideally + 1 sector)"
+#endif
+#if UMCUB_CFG_UPGRADE_MODE == UMCUB_MODE_SWAP_OFFSET && \
+    (UMCUB_CFG_IMG0_SECONDARY_SIZE < UMCUB_CFG_IMG0_PRIMARY_SIZE || \
+     UMCUB_CFG_IMG1_SECONDARY_SIZE < UMCUB_CFG_IMG1_PRIMARY_SIZE)
+#error "umcub: swap-offset: secondary slot must be >= primary slot (ideally + 1 sector)"
+#endif
+
+#if defined(UMCUB_FAMILY_UNIFORM_SECTOR)
+#if (UMCUB_CFG_BOOT_ADDR % UMCUB_FAMILY_UNIFORM_SECTOR) || (UMCUB_CFG_BOOT_SIZE % UMCUB_FAMILY_UNIFORM_SECTOR) || \
+    (UMCUB_CFG_IMG0_PRIMARY_ADDR % UMCUB_FAMILY_UNIFORM_SECTOR) || (UMCUB_CFG_IMG0_PRIMARY_SIZE % UMCUB_FAMILY_UNIFORM_SECTOR) || \
+    (UMCUB_CFG_IMG0_SECONDARY_ADDR % UMCUB_FAMILY_UNIFORM_SECTOR) || (UMCUB_CFG_IMG0_SECONDARY_SIZE % UMCUB_FAMILY_UNIFORM_SECTOR) || \
+    (UMCUB_CFG_IMG1_PRIMARY_ADDR % UMCUB_FAMILY_UNIFORM_SECTOR) || (UMCUB_CFG_IMG1_PRIMARY_SIZE % UMCUB_FAMILY_UNIFORM_SECTOR) || \
+    (UMCUB_CFG_IMG1_SECONDARY_ADDR % UMCUB_FAMILY_UNIFORM_SECTOR) || (UMCUB_CFG_IMG1_SECONDARY_SIZE % UMCUB_FAMILY_UNIFORM_SECTOR) || \
+    (UMCUB_CFG_SCRATCH_ADDR % UMCUB_FAMILY_UNIFORM_SECTOR) || (UMCUB_CFG_SCRATCH_SIZE % UMCUB_FAMILY_UNIFORM_SECTOR)
+#error "umcub: bootloader, slots and scratch must start and end on erase-sector boundaries"
+#endif
+#endif
+
+#if (UMCUB_CFG_IMAGE_HEADER_SIZE & (UMCUB_CFG_IMAGE_HEADER_SIZE - 1)) != 0 || UMCUB_CFG_IMAGE_HEADER_SIZE < 0x200
+#error "umcub: UMCUB_CFG_IMAGE_HEADER_SIZE must be a power of two >= 0x200 (VTOR alignment)"
+#endif
+
+#if UMCUB_CFG_TRANSPORT_USB_DFU && UMCUB_CFG_USB_DFU_IMAGE >= UMCUB_CFG_IMAGE_NUMBER
+#error "umcub: UMCUB_CFG_USB_DFU_IMAGE out of range"
+#endif
+
+#if !UMCUB_CFG_TRANSPORT_UART && !UMCUB_CFG_USB && !UMCUB_CFG_TRANSPORT_CAN && !UMCUB_CFG_TRANSPORT_ETH
+#warning "umcub: no transport enabled - updates only via the application (umcub_slot_*)"
+#endif
+
+#endif /* UMCUB_CONFIG_CHECK_H */

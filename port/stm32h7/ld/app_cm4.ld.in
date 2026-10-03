@@ -1,0 +1,18 @@
+/*
+ * Application linker script template, STM32H7 CM4.
+ * Preprocessed with umcub_cfg.h and -DUMCUB_APP_IMAGE=<n> -DUMCUB_APP_SLOT=<0|1>.
+ */
+#include "umcub_cfg.h"
+#include "../../common/app_slot.ld.inc"
+
+MEMORY
+{
+  FLASH (rx)  : ORIGIN = UMCUB_APP_FLASH_ORIGIN, LENGTH = UMCUB_APP_FLASH_LENGTH
+  RAM   (xrw) : ORIGIN = 0x10000000, LENGTH = 288K   /* D2 SRAM1-3 (CM4 alias) */
+}
+
+_Min_Heap_Size  = 0x200;
+_Min_Stack_Size = 0x400;
+_estack = ORIGIN(RAM) + LENGTH(RAM);
+
+#include "../../common/cortexm_sections.ld.inc"

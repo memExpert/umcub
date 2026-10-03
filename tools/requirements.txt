@@ -1,0 +1,7 @@
+# Host tools for umcub (installed into .venv by tools/setup.sh)
+-r ../third_party/mcuboot/scripts/requirements.txt
+smpmgr>=0.12
+python-can>=4.3
+can-isotp>=2.0
+cbor2>=5.6
+pyserial>=3.5
