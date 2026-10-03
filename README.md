@@ -1,6 +1,7 @@
 # umcub — a portable MCUboot-based bootloader for STM32
 
-umcub is a bootloader for STM32 microcontrollers built on [MCUboot](https://github.com/mcu-tools/mcuboot):
+umcub (**U**niversal **MCU**boot **B**ootloader) is a bootloader for STM32 microcontrollers built on
+[MCUboot](https://github.com/mcu-tools/mcuboot):
 
 - **Not tied to a series.** The boot logic, transports and application library use one hardware API
   (`port/include/umcub_port*.h`); everything series-specific lives in `port/stm32<fam>/`. The first port is STM32H7
