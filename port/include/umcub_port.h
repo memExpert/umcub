@@ -22,6 +22,7 @@ extern "C" {
 #define UMCUB_ETIMEOUT  -3
 #define UMCUB_ENOTSUP   -4
 #define UMCUB_EBUSY     -5
+#define UMCUB_EPERM     -6   /* not allowed on this channel */
 
 /* ------------------------------------------------------------------------ */
 /* System                                                                   */

@@ -57,6 +57,10 @@ extern const unsigned umcub_transport_count;
  * busy (packet dropped, host will retry). */
 bool umcub_smp_packet_rx(const umcub_transport_t *t, const uint8_t *pkt, size_t len);
 
+/* True while the request being handled came over an encrypted umcub link
+ * session (SECURE + UMCUB_CFG_LINK_ENCRYPT): readback of encrypted images. */
+bool umcub_mux_request_confidential(void);
+
 /* Lifecycle used by the boot core. */
 void umcub_transports_init(void);
 /* Only the transports without skip_entry_window (UMCUB_CFG_ENTRY_WAIT_MS). */

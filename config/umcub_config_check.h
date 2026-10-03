@@ -104,6 +104,9 @@
 #if UMCUB_CFG_LINK_SECURE_ANY && UMCUB_CFG_TRANSPORT_USB_DFU && !UMCUB_CFG_USB_DFU_ALLOW_UNAUTH
 #error "umcub: USB DFU cannot authenticate the host - disable it next to UMCUB_LINK_SECURE or set UMCUB_CFG_USB_DFU_ALLOW_UNAUTH"
 #endif
+#if UMCUB_CFG_ENCRYPT_IMAGES && UMCUB_CFG_UPGRADE_MODE >= UMCUB_MODE_DIRECT_XIP
+#error "umcub: UMCUB_CFG_ENCRYPT_IMAGES is not available in the direct-xip modes (images run from both slots)"
+#endif
 #if UMCUB_CFG_LINK_ENCRYPT && !UMCUB_CFG_LINK_SECURE_ANY
 #error "umcub: UMCUB_CFG_LINK_ENCRYPT needs a UMCUB_LINK_SECURE transport"
 #endif

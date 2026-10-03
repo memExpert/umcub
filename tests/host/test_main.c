@@ -8,6 +8,7 @@
 #include <string.h>
 
 #include "fake_port.h"
+#include "umcub_inspect.h"
 #include "umcub_cfg.h"
 #include "umcub_port.h"
 #include "umcub_port_can.h"
@@ -357,7 +358,24 @@ static void upload_packets(const uint8_t *img, size_t len, int image)
     }
 }
 
-static void test_packet_upload_and_boot(const uint8_t *v1, size_t v1_len)
+/* What an uploaded image looks like in the primary slot: the file itself, or
+ * for an encrypted file its header and TLVs around the plain payload (the
+ * bootloader decrypts it in place after the upload). */
+static const uint8_t *in_flash(const uint8_t *img, size_t len, const uint8_t *plain)
+{
+    if (!plain) {
+        return img;
+    }
+    uint8_t *x = malloc(len);
+    uint32_t hdr = (uint32_t)img[8] | (uint32_t)img[9] << 8;
+    uint32_t size = (uint32_t)img[12] | (uint32_t)img[13] << 8 | (uint32_t)img[14] << 16 |
+                    (uint32_t)img[15] << 24;
+    memcpy(x, img, len);
+    memcpy(x + hdr, plain + hdr, size);
+    return x;
+}
+
+static void test_packet_upload_and_boot(const uint8_t *v1, size_t v1_len, const uint8_t *v1_flash)
 {
     printf("[packet transport] SMP echo, upload to primary, boot_go\n");
     fake_flash_reset();
@@ -376,7 +394,11 @@ static void test_packet_upload_and_boot(const uint8_t *v1, size_t v1_len)
     char ver[16];
     CHECK(!boot_ok(ver));                   /* empty flash: nothing to boot */
     upload_packets(v1, v1_len, 0);
-    CHECK(memcmp(fake_flash + (UMCUB_CFG_IMG0_PRIMARY_ADDR - 0x08000000), v1, v1_len) == 0);
+    CHECK(memcmp(fake_flash + (UMCUB_CFG_IMG0_PRIMARY_ADDR - 0x08000000), v1_flash, v1_len) == 0);
+#if UMCUB_CFG_ENCRYPT_IMAGES
+    CHECK(memcmp(v1, v1_flash, v1_len) != 0);   /* it really was encrypted on the wire */
+    printf("  encrypted upload decrypted in place\n");
+#endif
     CHECK(boot_ok(ver) && strcmp(ver, "1.0.0") == 0);
     printf("  booted %s\n", ver);
 
@@ -401,6 +423,17 @@ static void write_secondary(const uint8_t *img, size_t len)
     CHECK(umcub_slot_finish(&w, true, false) == 0);
 }
 
+#if UMCUB_CFG_ENCRYPT_IMAGES
+static bool flash_read_hdr_secondary(struct image_header *h)
+{
+    const struct flash_area *fa;
+    bool ok = flash_area_open(FLASH_AREA_IMAGE_SECONDARY(0), &fa) == 0 &&
+              flash_area_read(fa, 0, h, sizeof(*h)) == 0 && h->ih_magic == IMAGE_MAGIC;
+    flash_area_close(fa);
+    return ok;
+}
+#endif
+
 static void test_swap_revert_confirm(const uint8_t *v2, size_t v2_len)
 {
     char ver[16];
@@ -409,6 +442,13 @@ static void test_swap_revert_confirm(const uint8_t *v2, size_t v2_len)
     CHECK(umcub_is_confirmed(0) == 1);      /* v1 was installed permanently */
     CHECK(boot_ok(ver) && strcmp(ver, "1.1.0") == 0);
     printf("  after test upgrade: %s\n", ver);
+#if UMCUB_CFG_ENCRYPT_IMAGES
+    /* secondary: the old image, encrypted again by the swap - verified while decrypting */
+    struct image_header sh;
+    CHECK(flash_read_hdr_secondary(&sh) && IS_ENCRYPTED(&sh));
+    CHECK(umcub_inspect_verify(0, 1) == 0);
+    printf("  old image re-encrypted in the secondary slot, verify ok\n");
+#endif
     CHECK(umcub_is_confirmed(0) == 0);
     umcub_slot_writer_t busy;   /* secondary holds the revert copy now */
     CHECK(umcub_slot_begin(&busy, 0, UMCUB_SLOT_DEFAULT, (uint32_t)v2_len) == UMCUB_EBUSY);
@@ -589,6 +629,7 @@ static void test_inspect(const uint8_t *img, size_t img_len)
     stream_cmd("verify 0 7\r");
     CHECK(stream_out_has(0, "? bad image/slot"));
 
+
     sha256(img, img_len, h);
     hexstr(h, 32, hex);
     snprintf(want, sizeof(want), "sha256 %s len %zu", hex, img_len);
@@ -611,7 +652,12 @@ static void test_inspect(const uint8_t *img, size_t img_len)
     stream_cmd("r");                           /* prefix of "read": must not fire yet */
     CHECK(streams[0].out_len == 0);
     stream_cmd("ead 0 0 0 8\r");
+#if UMCUB_CFG_ENCRYPT_IMAGES
+    /* installed images are plain text: no readback outside an encrypted session */
+    CHECK(stream_out_has(0, "? readback only in an encrypted session"));
+#else
     CHECK(stream_out_has(0, want));
+#endif
 
     /* one flipped payload byte: verify must fail, hash must change */
     uint8_t *byte = &fake_flash[UMCUB_CFG_IMG0_PRIMARY_ADDR - 0x08000000 + 0x800];
@@ -844,21 +890,25 @@ static void log_sink(const char *s, size_t len)
 
 int main(int argc, char **argv)
 {
-    if (argc != 4) {
-        fprintf(stderr, "usage: %s v1.signed.bin v2.signed.bin foreign.signed.bin\n", argv[0]);
+    int want_args = UMCUB_CFG_ENCRYPT_IMAGES ? 6 : 4;
+    if (argc != want_args) {
+        fprintf(stderr, "usage: %s v1.signed.bin v2.signed.bin foreign.signed.bin%s\n", argv[0],
+                UMCUB_CFG_ENCRYPT_IMAGES ? " v1.plain.bin v2.plain.bin (first three encrypted)" : "");
         return 2;
     }
-    size_t v1_len, v2_len, foreign_len;
+    size_t v1_len, v2_len, foreign_len, plain_len;
     uint8_t *v1 = load(argv[1], &v1_len);
     uint8_t *v2 = load(argv[2], &v2_len);
     uint8_t *foreign = load(argv[3], &foreign_len);
+    const uint8_t *v1_flash = in_flash(v1, v1_len, argc > 4 ? load(argv[4], &plain_len) : NULL);
+    const uint8_t *v2_flash = in_flash(v2, v2_len, argc > 5 ? load(argv[5], &plain_len) : NULL);
     setvbuf(stdout, NULL, _IONBF, 0);
     umcub_log_set_sink(log_sink);
 
-    test_packet_upload_and_boot(v1, v1_len);
+    test_packet_upload_and_boot(v1, v1_len, v1_flash);
     test_swap_revert_confirm(v2, v2_len);
     test_board_type(foreign, foreign_len);
-    test_inspect(v2, v2_len);
+    test_inspect(v2_flash, v2_len);
     test_streams_interleaved(v1, v1_len);
     test_commands();
     test_isotp();

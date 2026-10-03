@@ -85,6 +85,9 @@ void umcub_link_poll(void);
  * the bootloader during UMCUB_CFG_ENTRY_WAIT_MS like a "stay" command. */
 bool umcub_link_take_wakeup(void);
 
+/* `t` has an open encrypted session (SECURE + UMCUB_CFG_LINK_ENCRYPT). */
+bool umcub_link_confidential(const umcub_transport_t *t);
+
 /* Provided by the mux: queue a DATA payload of `t` (SMP or text). */
 bool umcub_mux_link_rx(const umcub_transport_t *t, const uint8_t *payload, size_t len);
 

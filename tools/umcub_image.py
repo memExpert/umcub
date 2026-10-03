@@ -28,6 +28,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 DEV_KEY = ROOT / "tools/keys/dev-ecdsa-p256.pem"
+DEV_DEVICE_KEY = ROOT / "tools/keys/dev-device-p256.pem"
 MODES = {1: "overwrite", 2: "swap-scratch", 3: "swap-move", 4: "swap-offset",
          5: "direct-xip", 6: "direct-xip-revert"}
 
@@ -290,6 +291,13 @@ def cmd_sign(cfg, a):
             write_hex(str(out) + ".hex", Path(str(out) + ".bin").read_bytes(), slot_addr)
             print(f"{out}.bin / .hex: image {a.image} slot {slot} version {a.version} at 0x{slot_addr:08X} "
                   f"({len(img)} bytes of code, {MODES.get(mode, mode)})")
+        if cfg["ENCRYPT_IMAGES"]:                   # for updates; the plain .signed.* is for programmers
+            dkey = Path(a.encrypt_key) if a.encrypt_key else DEV_DEVICE_KEY
+            if dkey.resolve() == DEV_DEVICE_KEY.resolve():
+                print("warning: encrypting with the development device key from the repository", file=sys.stderr)
+            out = base.with_name(base.name + ".encrypted.bin")
+            run_imgtool(args + ["--encrypt", str(dkey), str(raw), str(out)], a.imgtool)
+            print(f"{out}: the same image encrypted with {dkey.name} (SMP / DFU / application updates)")
 
 
 def cmd_info(cfg, a):
@@ -332,6 +340,8 @@ def main():
             p.add_argument("--slot", type=int, default=0, help="direct-xip: slot the image is linked for")
             p.add_argument("--version", default="0.0.0", help="x.y.z[+build]")
             p.add_argument("--key", help=f"signing key (default {DEV_KEY.relative_to(ROOT)})")
+            p.add_argument("--encrypt-key", help="UMCUB_CFG_ENCRYPT_IMAGES: device key for <out>.encrypted.bin "
+                                                  f"(default {DEV_DEVICE_KEY.relative_to(ROOT)})")
             p.add_argument("--confirm", action="store_true", help="mark the image confirmed (image_ok)")
             p.add_argument("--pad", action="store_true", help="pad to the slot size with a trailer")
             p.add_argument("--depends", help='multi-image dependency, e.g. "(1,1.0.0)"')

@@ -83,11 +83,18 @@ Open:
   host test `umcub_host_link_secure` (also under ASan/UBSan). Builds: H7 `link-secure` (all transports, with
   encryption) 62.0 K, Blue Pill `bluepill-rs485-secure` 32.1 K of 32 K - SECURE with encryption or more transports
   needs a larger bootloader region on the F1.
-- [ ] 5. Image encryption (MCUboot ENC_EC256 with the device key), in-place decryption after SMP upload, signing tools.
+- [x] 5. Image encryption (MCUboot ENC_EC256 with the device key): `<app>.encrypted.bin` from `umcub_sign_image()` /
+  `umcub_image.py`; own in-place decryption after an SMP upload into the primary slot (MCUboot's keeps a whole
+  sector on the stack), off on the H7 CM4 bootloader (no RAM for a 128 KiB sector); verify of an encrypted
+  secondary; readback only inside an encrypted link session. Host tests `umcub_host_swap_scratch_enc`,
+  `umcub_host_link_secure`; builds `encrypt-images` (H7) 65.9 K, `bluepill-encrypt` 35.6 K in a 38 K region,
+  `per-core-cm4-encrypt`.
 - [ ] 6. `tools/umcub_link.py`: discover, cmd, `serve` proxy (pty / UDP) for mcumgr/smpmgr; end-to-end tests with
   several simulated devices on one bus.
 - [ ] 7. README / size table final pass; manual check of DE / RNG / RDP register use; security review.
-- [ ] Hardware: H755 SECURE over UART / USB CDC through the proxy; Blue Pill board-type rejection; RS485 bus.
+- [ ] Hardware: H755 SECURE over UART / USB CDC through the proxy; Blue Pill board-type rejection; RS485 bus;
+  encrypted image over SMP (in-place decryption, 128 KiB buffer in AXI SRAM), DFU and from the application; stack
+  depth of the AUTH check and the watchdog on the F1.
 
 ## Known limitations / ideas
 

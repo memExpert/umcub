@@ -5,6 +5,7 @@
 #include "umcub_cfg.h"
 #include "umcub_port.h"
 #include "umcub_inspect.h"
+#include "umcub_transport.h"
 #include "bootutil/boot_hooks.h"
 #include "bootutil/bootutil.h"
 #include "bootutil/image.h"
@@ -12,6 +13,9 @@
 #include "bootutil/fault_injection_hardening.h"
 #include "sysflash/sysflash.h"
 #include "bootutil_priv.h"   /* loader state: sector maps for size checks */
+#if UMCUB_CFG_ENCRYPT_IMAGES
+#include "boot_serial/boot_serial_encryption.h"
+#endif
 
 static __attribute__((unused)) bool has_image(const struct flash_area *fa)
 {
@@ -98,6 +102,11 @@ int umcub_inspect_verify(int image, int slot)
     BOOT_CURR_IMG(st) = (uint8_t)image;
 #endif
     FIH_DECLARE(fih_rc, FIH_FAILURE);
+#if UMCUB_CFG_ENCRYPT_IMAGES
+    if (IS_ENCRYPTED(&h)) {         /* secondary: hashed while decrypting; primary: already plain */
+        FIH_CALL(boot_image_validate_encrypted, fih_rc, st, &fa, &h, tmp, sizeof(tmp));
+    } else
+#endif
     FIH_CALL(bootutil_img_validate, fih_rc, st, &h, &fa, tmp, sizeof(tmp), NULL, 0, NULL);
 #if UMCUB_CFG_BOARD_TYPE != 0
     /* Same rule as at boot: an image for another board type is not valid here. */
@@ -164,6 +173,13 @@ int umcub_inspect_read(int image, int slot, uint32_t off, void *buf, uint32_t le
     if (off > fa.fa_size || len > fa.fa_size - off) {
         return UMCUB_EINVAL;
     }
+#if UMCUB_CFG_ENCRYPT_IMAGES
+    /* Installed images are plain text in flash: only over a channel that is
+     * itself encrypted (never USB DFU, which is not a mux request). */
+    if (!umcub_mux_request_confidential()) {
+        return UMCUB_EPERM;
+    }
+#endif
     return flash_area_read(&fa, off, buf, len) ? UMCUB_EIO : 0;
 #else
     (void)image;

@@ -161,17 +161,17 @@ ECDSA-P256), and what every transport and feature adds. Regenerate with `tools/s
 <!-- size-table:begin -->
 | MCU | base | all on | UART (+SMP) | USB CDC | USB DFU | USB CDC+DFU | CAN | CAN FD | Ethernet (+DHCP) | DFU only |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| STM32H755 CM7 (2 images, SINGLE_BOOT) | 19.8 K | 57.5 K | +10.4 K | +11.3 K | +10.7 K | +13.3 K | +2.3 K | +2.3 K | +4.1 K | +11.2 K |
-| STM32H755 CM4 (PER_CORE) | 17.4 K | 54.6 K | +10.2 K | +11.3 K | +10.6 K | +13.3 K | +2.3 K | +2.3 K | +4.1 K | +11.2 K |
-| STM32H743 / H753 (single core) | 18.1 K | 55.4 K | +10.2 K | +11.3 K | +10.6 K | +13.3 K | +2.3 K | +2.3 K | +4.1 K | +11.2 K |
-| STM32F103 (Blue Pill, overwrite) | 13.5 K | 42.1 K | +10.3 K | +9.9 K | +9.2 K | +11.9 K | — | — | — | +9.9 K |
+| STM32H755 CM7 (2 images, SINGLE_BOOT) | 19.8 K | 57.6 K | +10.4 K | +11.3 K | +10.7 K | +13.3 K | +2.3 K | +2.3 K | +4.1 K | +11.2 K |
+| STM32H755 CM4 (PER_CORE) | 17.4 K | 54.7 K | +10.2 K | +11.3 K | +10.6 K | +13.3 K | +2.3 K | +2.3 K | +4.1 K | +11.2 K |
+| STM32H743 / H753 (single core) | 18.1 K | 55.5 K | +10.2 K | +11.3 K | +10.6 K | +13.3 K | +2.3 K | +2.3 K | +4.1 K | +11.2 K |
+| STM32F103 (Blue Pill, overwrite) | 13.5 K | 42.2 K | +10.3 K | +9.9 K | +9.2 K | +11.9 K | — | — | — | +9.9 K |
 
-| MCU | log (level 3) | text commands | verify + hash | readback | umcub link (addressed) | umcub link SECURE | + link encryption |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| STM32H755 CM7 (2 images, SINGLE_BOOT) | +2.8 K | +3.6 K | +1.0 K | +0.2 K | +1.3 K | +4.1 K | +1.4 K |
-| STM32H755 CM4 (PER_CORE) | +2.6 K | +3.5 K | +0.9 K | +0.2 K | +1.3 K | +4.1 K | +1.4 K |
-| STM32H743 / H753 (single core) | +2.6 K | +3.5 K | +0.9 K | +0.2 K | +1.3 K | +4.1 K | +1.4 K |
-| STM32F103 (Blue Pill, overwrite) | +2.2 K | +3.1 K | +0.9 K | +0.2 K | +1.4 K | +4.1 K | +1.4 K |
+| MCU | log (level 3) | text commands | verify + hash | readback | umcub link (addressed) | umcub link SECURE | + link encryption | encrypted images |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| STM32H755 CM7 (2 images, SINGLE_BOOT) | +2.8 K | +3.6 K | +1.0 K | +0.2 K | +1.3 K | +4.1 K | +1.5 K | +5.9 K |
+| STM32H755 CM4 (PER_CORE) | +2.6 K | +3.5 K | +1.0 K | +0.2 K | +1.3 K | +4.1 K | +1.5 K | +5.2 K |
+| STM32H743 / H753 (single core) | +2.6 K | +3.5 K | +1.0 K | +0.2 K | +1.3 K | +4.1 K | +1.5 K | +5.4 K |
+| STM32F103 (Blue Pill, overwrite) | +2.2 K | +3.1 K | +0.9 K | +0.2 K | +1.4 K | +4.1 K | +1.5 K | +5.1 K |
 <!-- size-table:end -->
 
 Notes:
@@ -290,8 +290,42 @@ Limits:
 - The F1 has no true RNG: nonces come from ADC noise and clock jitter, hashed with the UID and a counter.
 - A bus can always be jammed; the link protects authenticity, integrity, replay and (with encryption)
   confidentiality.
+- Firmware confidentiality needs two things: `UMCUB_CFG_LINK_ENCRYPT` for the session and
+  [encrypted images](#encrypted-images) for what is stored and sent outside it.
 - Standard SMP clients do not speak the link. The host tool (discovery, and a proxy that serves `mcumgr` /
   `smpmgr` unchanged) is the next step and not in the repository yet.
+
+## Encrypted images
+
+`UMCUB_CFG_ENCRYPT_IMAGES` makes MCUboot accept images encrypted for the **device key** (ECIES-P256, AES-128-CTR;
+the same `UMCUB_DEVICE_KEY` as the SECURE link). An image file then does not show the firmware, wherever it is
+stored or sent. The signature still covers the plain image, so encryption adds confidentiality, not trust.
+
+`umcub_sign_image()` and `tools/umcub_image.py sign` then write two files:
+
+| File | Use |
+|---|---|
+| `<app>.signed.bin` / `.hex` | plain: programmers and debuggers write it straight into the primary slot |
+| `<app>.encrypted.bin` | updates: SMP, USB DFU, `umcub_slot_*` from the application; distribution |
+
+(`ENCRYPT_KEY` / `--encrypt-key` select the device key; the default is the development key with a warning.)
+
+How an encrypted image is installed:
+- **through the secondary slot** (DFU, application, SMP with `UMCUB_CFG_SMP_DIRECT_UPLOAD`): MCUboot decrypts it
+  while it copies or swaps it into the primary slot. In the swap modes the old image is encrypted again on its way
+  into the secondary slot, so a revert works and the plain code is only ever in the primary slot;
+- **SMP upload into the primary slot** (recovery, the default): after the last chunk the bootloader decrypts the
+  image in place, sector by sector through one sector of RAM (`UMCUB_CFG_ENC_INPLACE`; 128 KiB on the H7). Like any
+  upload into the primary slot this is not power-fail safe: an interrupted decryption leaves an invalid image and
+  the bootloader in recovery, upload again. The H7 CM4 bootloader has no room for the buffer (`UMCUB_CFG_ENC_INPLACE`
+  is 0 there): use the secondary slot.
+
+Installed images are plain text in flash, so `read` / SMP read / DFU upload (`UMCUB_CFG_READBACK`) answer only
+inside an encrypted umcub link session (`UMCUB_LINK_SECURE` + `UMCUB_CFG_LINK_ENCRYPT`) and refuse everywhere else
+(`? readback only in an encrypted session`, SMP rc 11). `verify` checks an encrypted image in the secondary slot by
+decrypting it on the fly; `hash` is computed over what is in flash (ciphertext in the secondary slot, plain text in
+the primary slot after installation). Not available in the direct-xip modes, where images run from both slots.
+Protect the device key like the SECURE link: RDP on, see [umcub link](#shared-buses-umcub-link-addressing-secure-mode).
 
 ## Checking what was written (verify / hash / read)
 
@@ -670,7 +704,7 @@ peripheral a driver touches.
 ## Testing
 
 ```sh
-tools/build_matrix.sh                 # 23 bootloader configurations, examples, IDE checks, host tests; warning-free
+tools/build_matrix.sh                 # 26 bootloader configurations, examples, IDE checks, host tests; warning-free
 ctest --test-dir build/matrix/host    # host tests only
 tools/check_docs.py                   # README still matches the repository (size tables, boards, tools, ...)
 ```
@@ -680,7 +714,9 @@ words, no double programming) through the umcub transport layer. Covered: SMP up
 and stream paths (including two interleaved streams), swap → revert → confirm in scratch / move / offset modes, text
 commands, verify / hash / read, ISO-TP classic/FD, DHCP / ARP / ICMP, board-supplied drivers and transports, the
 board-type check, the umcub link in ADDRESSED mode and in SECURE mode with encryption (handshake, wrong admin key,
-replayed / tampered / reordered frames, session end, RDP level 0).
+replayed / tampered / reordered frames, session end, RDP level 0), encrypted images (SMP upload into the primary
+slot decrypted in place, swap upgrade / revert / confirm with re-encryption, verify of an encrypted secondary,
+readback only inside an encrypted session).
 
 Hardware tests: `tools/hw/powerfail_test.py` resets the MCU in the middle of the K-th flash operation (build with
 `tools/config/fault_inject.h`, test only) and checks that an interrupted upgrade or revert always completes. See

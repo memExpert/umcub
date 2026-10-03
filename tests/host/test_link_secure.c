@@ -495,6 +495,13 @@ static void test_replay_tamper_order(void)
     CHECK(session_cmd("i", "board type"));          /* the session survived all of it */
 }
 
+static void test_readback_in_session(void)
+{
+    printf("[secure] encrypted images: readback answers inside the encrypted session\n");
+    CHECK(handshake(NODE));
+    CHECK(session_cmd("read 0 0 0 8", "00000000 0000000000000000"));
+}
+
 static void test_failed_auth_keeps_session(void)
 {
     printf("[secure] a failed AUTH from someone else leaves the session open\n");
@@ -616,6 +623,7 @@ int main(void)
     test_wrong_admin_key();
     test_session();
     test_replay_tamper_order();
+    test_readback_in_session();
     test_failed_auth_keeps_session();
     test_auth_replay();
     test_close_and_timeout();

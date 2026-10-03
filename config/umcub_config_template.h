@@ -156,6 +156,21 @@
  * the device into recovery mode - off by default. The bootloader region is
  * never readable. */
 /* #define UMCUB_CFG_READBACK             0 */
+/* Encrypted images (MCUboot ECIES-P256, AES-128-CTR) with the device key
+ * (CMake UMCUB_DEVICE_KEY): image files and transfers do not show the
+ * firmware. umcub_sign_image() / tools/umcub_image.py encrypt automatically.
+ * Installed from the secondary slot, the image is decrypted while it is
+ * copied; uploaded over SMP into the primary slot, it is decrypted in place
+ * after the last chunk. Readback (UMCUB_CFG_READBACK) then answers only inside
+ * an encrypted umcub link session (UMCUB_LINK_SECURE + UMCUB_CFG_LINK_ENCRYPT),
+ * never over USB DFU. Not available in the direct-xip modes. */
+/* #define UMCUB_CFG_ENCRYPT_IMAGES       0 */
+/* In-place decryption of an encrypted SMP upload into the primary slot; costs
+ * one flash sector of RAM (default 1, 0 on the H7 CM4 bootloader). Without it
+ * encrypted images go through the secondary slot (USB DFU, the application,
+ * or SMP with UMCUB_CFG_SMP_DIRECT_UPLOAD to image 2); an encrypted image
+ * uploaded into the primary slot stays invalid. */
+/* #define UMCUB_CFG_ENC_INPLACE          1 */
 /* SMP group id of verify (0) / hash (1) / read (2) for host software. */
 /* #define UMCUB_CFG_SMP_INSPECT_GROUP    100 */
 

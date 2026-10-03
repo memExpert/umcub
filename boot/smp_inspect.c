@@ -27,11 +27,12 @@
 #define ERR_EINVAL  3
 #define ERR_ENOENT  5
 #define ERR_ENOTSUP 8
+#define ERR_EACCESS 11
 #define READ_MAX    128u     /* fits boot_serial's response buffer */
 
 static int map_rc(int rc)
 {
-    return rc == 0 ? ERR_OK : rc == UMCUB_ENOTSUP ? ERR_ENOENT : rc == UMCUB_EINVAL ? ERR_EINVAL : ERR_EINVAL;
+    return rc == 0 ? ERR_OK : rc == UMCUB_ENOTSUP ? ERR_ENOENT : rc == UMCUB_EPERM ? ERR_EACCESS : ERR_EINVAL;
 }
 
 static void put_rc(zcbor_state_t *cs, int rc)

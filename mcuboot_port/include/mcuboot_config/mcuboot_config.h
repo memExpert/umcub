@@ -34,6 +34,13 @@
 #error "umcub: unsupported UMCUB_CFG_SIGNATURE"
 #endif
 
+/* The application library never decrypts; the trailer fields it writes do
+ * not depend on the encryption keys stored below them. */
+#if UMCUB_CFG_ENCRYPT_IMAGES && !defined(UMCUB_BUILDING_APP)
+#define MCUBOOT_ENC_IMAGES
+#define MCUBOOT_ENCRYPT_EC256
+#endif
+
 #if UMCUB_CFG_VALIDATE_PRIMARY
 #define MCUBOOT_VALIDATE_PRIMARY_SLOT
 #endif

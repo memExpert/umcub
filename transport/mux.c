@@ -83,6 +83,18 @@ static void tx_packet(const umcub_transport_t *t, const uint8_t *data, size_t le
     }
 }
 
+/* Transport of the packet request being handled (text command or SMP). */
+static const umcub_transport_t *req_from;
+
+bool umcub_mux_request_confidential(void)
+{
+#if UMCUB_CFG_LINK_ANY
+    return req_from && umcub_link_confidential(req_from);
+#else
+    return false;
+#endif
+}
+
 static uint8_t last_transport;
 static uint32_t last_activity;
 static bool in_recovery;
@@ -124,7 +136,9 @@ static void cmd_run(const umcub_transport_t *t, const char *text, size_t len)
     cmd_from = t;
     cmd_out_len = 0;
     last_activity = umcub_port_millis();
+    req_from = t;
     umcub_cmd_execute(text, len, cmd_reply, in_recovery);
+    req_from = NULL;
     cmd_reply(NULL);
 }
 #endif
@@ -336,7 +350,9 @@ static int mux_read(char *str, int cnt, int *newline)
         touch(pkt_from);
         resp_text_len = 0;
         resp_raw_len = 0;
+        req_from = pkt_from;
         boot_serial_input((char *)pkt_buf, (int)pkt_len);
+        req_from = NULL;
         pkt_len = 0;
         return 0;
     }

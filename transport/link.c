@@ -500,6 +500,17 @@ void umcub_link_poll(void)
     }
 }
 
+bool umcub_link_confidential(const umcub_transport_t *t)
+{
+#if UMCUB_CFG_LINK_SECURE_ANY && UMCUB_CFG_LINK_ENCRYPT
+    int i = index_of(t);
+    return i >= 0 && t->link == UMCUB_LINK_SECURE && sess.t == i;
+#else
+    (void)t;
+    return false;
+#endif
+}
+
 bool umcub_link_take_wakeup(void)
 {
     bool w = wakeup;

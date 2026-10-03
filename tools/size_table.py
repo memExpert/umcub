@@ -67,6 +67,7 @@ VARIANTS = [
     ("link", {**UART, "UART_LINK": 1}, "UART"),
     ("secure", {**UART, "UART_LINK": 2}, "UART"),
     ("encryption", {**UART, "UART_LINK": 2, "LINK_ENCRYPT": 1}, "secure"),
+    ("encrypted images", {**UART, "ENCRYPT_IMAGES": 1}, "UART"),
     ("everything", {"TRANSPORT_UART": 1, "TRANSPORT_USB_CDC": 1, "TRANSPORT_USB_DFU": 1, "TRANSPORT_CAN": 1,
                     "CAN_FD": 1, "TRANSPORT_ETH": 1, "LOG_LEVEL": 3, "CMD_ENABLE": 1, "INSPECT_VERIFY": 1,
                     "INSPECT_HASH": 1, "READBACK": 1}, None),
@@ -78,7 +79,7 @@ LABELS = {"UART": "UART (+SMP)", "Ethernet": "Ethernet (+DHCP)", "log": "log (le
 README = ROOT / "README.md"
 BEGIN, END = "<!-- size-table:begin -->", "<!-- size-table:end -->"
 TRANSPORTS = ["UART", "USB CDC", "USB DFU", "USB CDC+DFU", "CAN", "CAN FD", "Ethernet", "DFU only"]
-FEATURES = ["log", "commands", "verify+hash", "readback", "link", "secure", "encryption"]
+FEATURES = ["log", "commands", "verify+hash", "readback", "link", "secure", "encryption", "encrypted images"]
 
 
 def build(out, ci, chip, vi, variant):

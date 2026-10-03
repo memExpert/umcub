@@ -117,6 +117,18 @@
 #ifndef UMCUB_CFG_READBACK
 #define UMCUB_CFG_READBACK              0
 #endif
+#ifndef UMCUB_CFG_ENCRYPT_IMAGES
+#define UMCUB_CFG_ENCRYPT_IMAGES        0
+#endif
+/* In-place decryption after an SMP upload into the primary slot needs one
+ * flash sector of RAM (H7: 128 KiB). The H7 CM4 bootloader has 128 KiB in all. */
+#ifndef UMCUB_CFG_ENC_INPLACE
+#if defined(UMCUB_CORE_CM4) && UMCUB_CORE_CM4
+#define UMCUB_CFG_ENC_INPLACE           0
+#else
+#define UMCUB_CFG_ENC_INPLACE           1
+#endif
+#endif
 #ifndef UMCUB_CFG_SMP_INSPECT_GROUP
 #define UMCUB_CFG_SMP_INSPECT_GROUP     100
 #endif

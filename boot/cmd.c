@@ -205,7 +205,12 @@ static void inspect(unsigned action, const char *args, umcub_cmd_reply_t reply)
     while (len) {
         uint8_t b[32];
         uint32_t k = len > sizeof(b) ? sizeof(b) : len;
-        if (umcub_inspect_read(img, slot, off, b, k)) {
+        int rc = umcub_inspect_read(img, slot, off, b, k);
+        if (rc == UMCUB_EPERM) {
+            say(reply, "? readback only in an encrypted session (UMCUB_CFG_ENCRYPT_IMAGES)");
+            return;
+        }
+        if (rc) {
             say(reply, "? read failed at %lu", (unsigned long)off);
             return;
         }

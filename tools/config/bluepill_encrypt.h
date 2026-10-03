@@ -1,0 +1,15 @@
+/* Overlay (POST), Blue Pill: encrypted images over UART. Needs more room:
+ * bootloader 38 KiB + two 13 KiB slots; readback stays off. */
+#undef UMCUB_CFG_BOOT_SIZE
+#undef UMCUB_CFG_IMG0_PRIMARY_ADDR
+#undef UMCUB_CFG_IMG0_PRIMARY_SIZE
+#undef UMCUB_CFG_IMG0_SECONDARY_ADDR
+#undef UMCUB_CFG_IMG0_SECONDARY_SIZE
+#define UMCUB_CFG_BOOT_SIZE             UMCUB_KB(38)
+#define UMCUB_CFG_IMG0_PRIMARY_ADDR     0x08009800
+#define UMCUB_CFG_IMG0_PRIMARY_SIZE     UMCUB_KB(13)
+#define UMCUB_CFG_IMG0_SECONDARY_ADDR   0x0800CC00
+#define UMCUB_CFG_IMG0_SECONDARY_SIZE   UMCUB_KB(13)
+
+#undef UMCUB_CFG_ENCRYPT_IMAGES
+#define UMCUB_CFG_ENCRYPT_IMAGES        1

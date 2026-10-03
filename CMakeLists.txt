@@ -136,6 +136,22 @@ endif()
 if(UMCUB_CFG_LINK_ANY)             # umcub link: addressing / discovery on shared buses
   list(APPEND BOOT_SOURCES transport/link.c boot/random.c ${UMCUB_FAMILY_ENTROPY_SOURCES})
 endif()
+if(UMCUB_CFG_ENCRYPT_IMAGES)       # MCUboot ECIES-P256 image encryption with the device key
+  list(APPEND BOOT_SOURCES mcuboot_port/src/enc_image.c)
+  list(APPEND MCUBOOT_SOURCES
+    ${MCUBOOT}/boot/bootutil/src/encrypted.c
+    ${TINYCRYPT}/source/ecc.c
+    ${TINYCRYPT}/source/ecc_dh.c
+    ${TINYCRYPT}/source/hmac.c
+    ${TINYCRYPT}/source/aes_encrypt.c
+    ${TINYCRYPT}/source/ctr_mode.c
+    ${MCUBOOT}/ext/mbedtls-asn1/src/asn1parse.c
+    ${MCUBOOT}/ext/mbedtls-asn1/src/platform_util.c
+    ${CMAKE_BINARY_DIR}/umcub_enc_key.c
+  )
+  list(REMOVE_DUPLICATES MCUBOOT_SOURCES)
+  umcub_keys_command(enc-c "${UMCUB_DEVICE_KEY}" "" "${CMAKE_BINARY_DIR}/umcub_enc_key.c")
+endif()
 if(UMCUB_CFG_LINK_SECURE_ANY)      # host authentication, session MAC (and encryption)
   list(APPEND MCUBOOT_SOURCES
     ${TINYCRYPT}/source/ecc.c

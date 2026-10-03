@@ -22,6 +22,7 @@ set(_dev_key ${UMCUB_ROOT}/tools/keys/dev-device-p256.pem)
 set(_adm_key ${UMCUB_ROOT}/tools/keys/dev-admin-p256.pem)
 umcub_keys_command(c ${_dev_key} ${_adm_key} ${CMAKE_BINARY_DIR}/umcub_link_keys.c)
 umcub_keys_command(host-c ${_dev_key} ${_adm_key} ${CMAKE_BINARY_DIR}/umcub_link_host_keys.c)
+umcub_keys_command(enc-c ${_dev_key} "" ${CMAKE_BINARY_DIR}/umcub_enc_key.c)
 
 file(GLOB BOOTUTIL_SRCS ${MCUBOOT}/boot/bootutil/src/*.c)
 list(FILTER BOOTUTIL_SRCS EXCLUDE REGEX "(encrypted|ed25519|image_rsa|ram_load|boot_record|_psa|_mbedtls)")
@@ -70,6 +71,17 @@ function(umcub_host_variant name)
     ${MCUBOOT}/ext/mbedtls-asn1/src/asn1parse.c
     ${MCUBOOT}/ext/mbedtls-asn1/src/platform_util.c
     ${CMAKE_BINARY_DIR}/umcub_keys.c)
+  if(UMCUB_CFG_ENCRYPT_IMAGES)
+    target_sources(${t} PRIVATE
+      ${MCUBOOT}/boot/bootutil/src/encrypted.c
+      ${UMCUB_ROOT}/mcuboot_port/src/enc_image.c
+      ${TINYCRYPT}/source/ecc_dh.c
+      ${TINYCRYPT}/source/hmac.c
+      ${TINYCRYPT}/source/aes_encrypt.c
+      ${TINYCRYPT}/source/ctr_mode.c
+      ${CMAKE_BINARY_DIR}/umcub_enc_key.c)
+    set_source_files_properties(${MCUBOOT}/boot/bootutil/src/encrypted.c PROPERTIES COMPILE_OPTIONS "-w")
+  endif()
   add_dependencies(${t} pubkey)
   target_include_directories(${t} PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}
@@ -109,17 +121,31 @@ function(umcub_host_variant name)
   umcub_board_type_tlv_args(_tlv "${UMCUB_CFG_BOARD_TYPE}")
   math(EXPR _other "${UMCUB_CFG_BOARD_TYPE} + 1")
   umcub_board_type_tlv_args(_tlv_other "${_other}")
+  # Encrypted variant: the same three encrypted with the device key, then
+  # 1.0.0 and 1.1.0 in plain text as the reference for what lands in flash.
   set(_imgs)
-  foreach(v 1.0.0 1.1.0 1.2.0)
+  set(_enc)
+  if(UMCUB_CFG_ENCRYPT_IMAGES)
+    set(_enc --encrypt ${_dev_key})
+  endif()
+  foreach(v 1.0.0 1.1.0 1.2.0 plain-1.0.0 plain-1.1.0)
     set(_o ${CMAKE_BINARY_DIR}/${name}_${v}.bin)
+    string(REPLACE "plain-" "" _ver ${v})
+    set(_e ${_enc})
+    if(v MATCHES "^plain-")
+      if(NOT UMCUB_CFG_ENCRYPT_IMAGES)
+        continue()
+      endif()
+      set(_e)
+    endif()
     if(v STREQUAL "1.2.0")
       set(_t ${_tlv_other})
     else()
       set(_t ${_tlv})
     endif()
     add_custom_command(OUTPUT ${_o} DEPENDS ${_bin}
-      COMMAND ${UMCUB_IMGTOOL} sign -k ${UMCUB_SIGNING_KEY} --version ${v} --header-size 0x400 --pad-header
-              --slot-size ${_slot} --align 32 --max-align 32 --max-sectors ${_sectors} ${_t} ${_bin} ${_o})
+      COMMAND ${UMCUB_IMGTOOL} sign -k ${UMCUB_SIGNING_KEY} --version ${_ver} --header-size 0x400 --pad-header
+              --slot-size ${_slot} --align 32 --max-align 32 --max-sectors ${_sectors} ${_t} ${_e} ${_bin} ${_o})
     list(APPEND _imgs ${_o})
   endforeach()
   add_custom_target(${t}_images ALL DEPENDS ${_imgs})
@@ -129,6 +155,7 @@ endfunction()
 umcub_host_variant(swap_scratch)
 umcub_host_variant(swap_move)
 umcub_host_variant(swap_offset)
+umcub_host_variant(swap_scratch_enc)
 
 # Board-supplied drivers (UMCUB_DRIVER_BOARD) and board transport
 # (UMCUB_CFG_TRANSPORT_USER) through the real registry, CAN/ETH transports, mux.
@@ -264,6 +291,9 @@ endfunction()
 
 umcub_host_link(umcub_host_link test_link.c test_link_post.h)
 umcub_host_link(umcub_host_link_secure test_link_secure.c test_link_secure_post.h
+  ${MCUBOOT}/boot/bootutil/src/encrypted.c
+  ${UMCUB_ROOT}/mcuboot_port/src/enc_image.c
+  ${CMAKE_BINARY_DIR}/umcub_enc_key.c
   ${TINYCRYPT}/source/ecc_dh.c
   ${TINYCRYPT}/source/hmac.c
   ${TINYCRYPT}/source/aes_encrypt.c

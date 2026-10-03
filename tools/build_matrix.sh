@@ -34,6 +34,9 @@ configs=(
   "bluepill-rs485-link|cm3|Release||bluepill_rs485_link.h|bluepill_f103c8"
   "link-secure|cm7|Release||link_secure.h"
   "bluepill-rs485-secure|cm3|Release||bluepill_rs485_secure.h|bluepill_f103c8"
+  "encrypt-images|cm7|Release||encrypt_images.h"
+  "bluepill-encrypt|cm3|Release||bluepill_encrypt.h|bluepill_f103c8"
+  "per-core-cm4-encrypt|cm4|Release|per_core.h|encrypt_only.h"
 )
 
 for c in "${configs[@]}"; do

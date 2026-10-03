@@ -68,33 +68,41 @@ function(umcub_generate_link_keys device admin out)
   umcub_keys_command(c "${device}" "${admin}" "${out}")
 endfunction()
 
-# umcub_keys_command(<c|host-c> <device.pem> <admin.pem> <out.c>): rule running
-# tools/umcub_keys.py with the Python next to imgtool (it has `cryptography`,
-# an imgtool dependency).
+# umcub_keys_command(<c|host-c|enc-c> <device.pem> <admin.pem or ""> <out.c>):
+# rule running tools/umcub_keys.py with the Python next to imgtool (it has
+# `cryptography`, an imgtool dependency).
 function(umcub_keys_command mode device admin out)
+  set(_admin_args)
+  if(admin)
+    set(_admin_args --admin "${admin}")
+  endif()
   get_filename_component(_dir "${UMCUB_IMGTOOL}" DIRECTORY)
   find_program(_py NAMES python3 python HINTS "${_dir}" NO_DEFAULT_PATH NO_CACHE)
   if(NOT _py)
     find_program(_py NAMES python3 python REQUIRED NO_CACHE)
   endif()
   add_custom_command(OUTPUT "${out}"
-    COMMAND "${_py}" "${UMCUB_ROOT}/tools/umcub_keys.py" ${mode} --device "${device}" --admin "${admin}" -o "${out}"
-    DEPENDS "${device}" "${admin}" "${UMCUB_ROOT}/tools/umcub_keys.py"
+    COMMAND "${_py}" "${UMCUB_ROOT}/tools/umcub_keys.py" ${mode} --device "${device}" ${_admin_args} -o "${out}"
+    DEPENDS "${device}" ${admin} "${UMCUB_ROOT}/tools/umcub_keys.py"
     COMMENT "umcub link keys (${mode})"
     VERBATIM)
 endfunction()
 
 # umcub_sign_image(<target>
 #                  [IMAGE <n>] [SLOT <0|1>] [VERSION <x.y.z[+build]>]
-#                  [KEY <key.pem>] [CONFIRM] [PAD] [DEPENDS "(<image>,<version>)"])
+#                  [KEY <key.pem>] [ENCRYPT_KEY <device.pem>] [CONFIRM] [PAD]
+#                  [DEPENDS "(<image>,<version>)"])
 # Post-build step producing <target>.signed.bin / .signed.hex next to the ELF.
+# With UMCUB_CFG_ENCRYPT_IMAGES also <target>.encrypted.bin (ENCRYPT_KEY, default
+# UMCUB_DEVICE_KEY or the development device key) for SMP / DFU / application
+# updates.
 # SLOT matters only for direct-xip (image linked for that slot). In
 # direct-xip-revert an extra <target>.confirmed.{bin,hex} (padded, image_ok
 # set) is produced for programmers and serial recovery: an image without a
 # confirmed trailer is erased by MCUboot on the next boot in that mode.
 # DEPENDS example (multi-image): "(1,1.0.0)" = needs image 1 >= 1.0.0.
 function(umcub_sign_image target)
-  cmake_parse_arguments(A "CONFIRM;PAD" "IMAGE;SLOT;VERSION;KEY" "DEPENDS" ${ARGN})
+  cmake_parse_arguments(A "CONFIRM;PAD" "IMAGE;SLOT;VERSION;KEY;ENCRYPT_KEY" "DEPENDS" ${ARGN})
   if(NOT DEFINED A_IMAGE)
     set(A_IMAGE 0)
   endif()
@@ -106,6 +114,13 @@ function(umcub_sign_image target)
   endif()
   if(NOT A_KEY)
     set(A_KEY "${UMCUB_SIGNING_KEY}")
+  endif()
+  if(NOT A_ENCRYPT_KEY)
+    if(UMCUB_DEVICE_KEY)
+      set(A_ENCRYPT_KEY "${UMCUB_DEVICE_KEY}")
+    else()
+      set(A_ENCRYPT_KEY "${UMCUB_ROOT}/tools/keys/dev-device-p256.pem")
+    endif()
   endif()
 
   if(A_IMAGE EQUAL 0 AND A_SLOT EQUAL 0)
@@ -180,6 +195,14 @@ function(umcub_sign_image target)
             ${_dir}/${_base}.signed.bin ${_dir}/${_base}.signed.hex
     COMMENT "Signing ${target}: image ${A_IMAGE} slot ${A_SLOT} version ${A_VERSION}"
     VERBATIM)
+  if(UMCUB_CFG_ENCRYPT_IMAGES)
+    # Encrypted copy for updates and distribution; the plain .signed.{bin,hex}
+    # is for programmers (MCUboot decrypts only what it installs or receives).
+    add_custom_command(TARGET ${target} POST_BUILD
+      COMMAND "${UMCUB_IMGTOOL}" ${_args} --encrypt "${A_ENCRYPT_KEY}" ${_dir}/${_base}.bin ${_dir}/${_base}.encrypted.bin
+      COMMENT "Encrypting ${target}"
+      VERBATIM)
+  endif()
   if(UMCUB_CFG_UPGRADE_MODE EQUAL 6 AND NOT A_CONFIRM)
     add_custom_command(TARGET ${target} POST_BUILD
       COMMAND "${UMCUB_IMGTOOL}" ${_args} --confirm --pad ${_dir}/${_base}.bin ${_dir}/${_base}.confirmed.bin
