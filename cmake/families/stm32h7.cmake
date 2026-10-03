@@ -60,11 +60,8 @@ set(UMCUB_FAMILY_TUSB_MCU OPT_MCU_STM32H7)
 set(UMCUB_FAMILY_TUSB_SOURCES ${UMCUB_ROOT}/third_party/tinyusb/src/portable/synopsys/dwc2/dcd_dwc2.c
                               ${UMCUB_ROOT}/third_party/tinyusb/src/portable/synopsys/dwc2/dwc2_common.c)
 
-# Linked into the application library (flash access for umcub_slot_*).
-set(UMCUB_FAMILY_APP_SOURCES
-  ${UMCUB_FAMILY_DIR}/common.c
-  ${UMCUB_FAMILY_DIR}/flash.c
-)
+# Application library sources: include/umcub_family_app.inc (pulled into
+# lib/umcub_app/umcub_app_all.c, so IDE projects need no family source list).
 
 # Linker script templates (C preprocessed with umcub_cfg.h).
 set(UMCUB_FAMILY_BOOT_LD ${UMCUB_FAMILY_DIR}/ld/boot_${UMCUB_CORE}.ld.in)

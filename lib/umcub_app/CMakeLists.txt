@@ -35,13 +35,8 @@ endif()
 
 set(MCUBOOT ${UMCUB_ROOT}/third_party/mcuboot)
 
-add_library(umcub_app STATIC
-  src/umcub.c
-  src/slot_writer.c
-  ${UMCUB_ROOT}/mcuboot_port/src/flash_map_backend.c
-  ${MCUBOOT}/boot/bootutil/src/bootutil_public.c
-  ${UMCUB_FAMILY_APP_SOURCES}
-)
+# One translation unit (the same file IDE projects add, see README).
+add_library(umcub_app STATIC umcub_app_all.c)
 add_library(umcub::app ALIAS umcub_app)
 
 target_include_directories(umcub_app
@@ -55,10 +50,9 @@ target_include_directories(umcub_app
     ${UMCUB_ROOT}/mcuboot_port/include
     ${MCUBOOT}/boot/bootutil/include
 )
-target_compile_definitions(umcub_app PRIVATE ${UMCUB_CONFIG_DEFS} UMCUB_BUILDING_APP=1)
+target_compile_definitions(umcub_app PRIVATE ${UMCUB_CONFIG_DEFS})
 target_compile_options(umcub_app PRIVATE
   ${UMCUB_APP_CPU_FLAGS} -ffunction-sections -fdata-sections -Os -Wall -Wextra -Wno-unused-parameter)
-set_source_files_properties(${MCUBOOT}/boot/bootutil/src/bootutil_public.c PROPERTIES COMPILE_OPTIONS "-w")
 
 # Make the configuration visible to the application's directory (signing,
 # linker script helpers, UMCUB_CFG_* values).

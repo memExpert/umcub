@@ -5,7 +5,7 @@ get_filename_component(UMCUB_ROOT "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
 
 if(NOT UMCUB_IMGTOOL)
   find_program(UMCUB_IMGTOOL_FOUND imgtool
-    HINTS "${UMCUB_ROOT}/.venv/bin" NO_CACHE)
+    HINTS "${UMCUB_ROOT}/.venv/bin" "${UMCUB_ROOT}/.venv/Scripts" NO_CACHE)
   set(UMCUB_IMGTOOL "${UMCUB_IMGTOOL_FOUND}")
 endif()
 if(NOT UMCUB_IMGTOOL)

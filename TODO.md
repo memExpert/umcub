@@ -34,6 +34,12 @@ Open:
   swap-scratch so far; move/offset are covered by host tests, the others are build-tested).
 - [ ] Text commands and verify / hash / read over **UDP and CAN** (host tests only).
 - [ ] Downgrade prevention (`UMCUB_CFG_DOWNGRADE_PREVENTION`) in swap modes.
+- [ ] **IDE workflow** (README "Using umcub from an IDE") in real STM32CubeIDE and Keil MDK projects: post-build
+  signing, debug download of the signed image, Keil key codes (`#L`, `$L@L`), armclang as preprocessor. So far
+  verified: `umcub_app_all.c` compiles with the documented include list (GCC, clang); `tools/umcub_image.py` gives
+  the same image as CMake (header, payload, hash) from ELF and HEX; a tool-signed image boots on the board.
+- [ ] CubeMX dual-core start-up handshake (CM7 waits for the CM4 to enter STOP, HSEM 0) together with SINGLE_BOOT
+  and PER_CORE.
 
 ## Known limitations / ideas
 
@@ -42,3 +48,4 @@ Open:
 - [ ] When the application writes a slot in the same flash bank it executes from, the CPU stalls for the duration of a
   sector erase (~2 s on the H7).
 - [ ] Ports for other series (G4, F7, F1, G0, L4).
+- [ ] Bootloader build with Arm Compiler 6 / Keil (now GCC only: startup, linker templates, newlib overrides).

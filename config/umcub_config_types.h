@@ -5,6 +5,16 @@
 #ifndef UMCUB_CONFIG_TYPES_H
 #define UMCUB_CONFIG_TYPES_H
 
+/* Core being built (dual-core parts). CMake passes UMCUB_CORE_CM7/CM4; IDE
+ * projects (CubeIDE, Keil) usually only have the CMSIS CORE_CM7/CORE_CM4. */
+#if !defined(UMCUB_CORE_CM7) && !defined(UMCUB_CORE_CM4)
+#if defined(CORE_CM4)
+#define UMCUB_CORE_CM4 1
+#elif defined(CORE_CM7)
+#define UMCUB_CORE_CM7 1
+#endif
+#endif
+
 #define UMCUB_KB(n)                 ((n) * 1024)
 #define UMCUB_MB(n)                 ((n) * 1024 * 1024)
 
