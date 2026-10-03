@@ -5,6 +5,7 @@
 #include "umcub_cfg.h"
 #include "umcub_port.h"
 #include "umcub_inspect.h"
+#include "bootutil/boot_hooks.h"
 #include "bootutil/bootutil.h"
 #include "bootutil/image.h"
 #include "bootutil/crypto/sha.h"
@@ -98,6 +99,15 @@ int umcub_inspect_verify(int image, int slot)
 #endif
     FIH_DECLARE(fih_rc, FIH_FAILURE);
     FIH_CALL(bootutil_img_validate, fih_rc, st, &h, &fa, tmp, sizeof(tmp), NULL, 0, NULL);
+#if UMCUB_CFG_BOARD_TYPE != 0
+    /* Same rule as at boot: an image for another board type is not valid here. */
+    if (FIH_EQ(fih_rc, FIH_SUCCESS)) {
+        FIH_CALL(boot_image_check_hook, fih_rc, image, slot);
+        if (FIH_EQ(fih_rc, FIH_BOOT_HOOK_REGULAR)) {
+            fih_rc = FIH_SUCCESS;
+        }
+    }
+#endif
     boot_close_all_flash_areas(st);
     boot_state_clear(st);
     return FIH_EQ(fih_rc, FIH_SUCCESS) ? 0 : UMCUB_EIO;

@@ -39,6 +39,8 @@ typedef struct umcub_transport {
      * upsets some host controllers. init/deinit/poll/read
      * of such a transport must cope with never having been started. */
     bool skip_entry_window;
+    /* UMCUB_LINK_* (umcub_link.h); 0 = plain SMP / text. */
+    uint8_t link;
 } umcub_transport_t;
 
 /* Upper bound of compiled-in transports (sizes the mux's per-stream buffers). */

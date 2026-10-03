@@ -29,6 +29,8 @@ set(UMCUB_FAMILY_BOOT_SOURCES
   ${UMCUB_ROOT}/third_party/st/cmsis_device_f1/Source/Templates/gcc/startup_${_mcu_lc}.s
 )
 set(UMCUB_FAMILY_UART_SOURCES ${UMCUB_FAMILY_DIR}/uart.c)
+# Nonces / random back-off (umcub link): ADC noise, no TRNG on F1.
+set(UMCUB_FAMILY_ENTROPY_SOURCES ${UMCUB_FAMILY_DIR}/entropy.c)
 set(UMCUB_FAMILY_USB_SOURCES  ${UMCUB_FAMILY_DIR}/usb.c)
 # tinyUSB device controller driver (USB FS, packet memory) + MCU option for tusb_config.h
 set(UMCUB_FAMILY_TUSB_MCU OPT_MCU_STM32F1)

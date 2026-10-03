@@ -10,6 +10,7 @@
 #include "umcub_transport.h"
 #include "umcub_handoff.h"
 #include "isotp.h"
+#include "umcub_boot.h"
 
 extern const umcub_transport_t umcub_transport_can;
 
@@ -28,7 +29,9 @@ static int can_init(void)
         .data_bitrate = UMCUB_CFG_CAN_DATA_BITRATE,
         .fd = UMCUB_CFG_CAN_FD,
         .loopback = UMCUB_CFG_CAN_LOOPBACK,
-        .rx_id = UMCUB_CFG_CAN_RX_ID,
+        /* One addressing mechanism: node address n listens on RX base + n and
+         * answers on TX base + n (ISO-TP needs distinct IDs per node). */
+        .rx_id = UMCUB_CFG_CAN_RX_ID + umcub_node_address(),
         .ext = UMCUB_CFG_CAN_EXT_ID,
         .tx_pin = UMCUB_CFG_CAN_TX_PIN,
         .rx_pin = UMCUB_CFG_CAN_RX_PIN,
@@ -39,13 +42,12 @@ static int can_init(void)
         return rc;
     }
     tp.frame_len = UMCUB_CFG_CAN_FD ? 64 : 8;
-    tp.tx_id = UMCUB_CFG_CAN_TX_ID;
+    tp.tx_id = UMCUB_CFG_CAN_TX_ID + umcub_node_address();
     tp.rx_buf = rx_msg;
     tp.rx_cap = sizeof(rx_msg);
     up = true;
     UMCUB_LOG_INF("can: %lu bit/s%s, rx 0x%lx tx 0x%lx", (unsigned long)UMCUB_CFG_CAN_BITRATE,
-                  UMCUB_CFG_CAN_FD ? " FD" : "", (unsigned long)UMCUB_CFG_CAN_RX_ID,
-                  (unsigned long)UMCUB_CFG_CAN_TX_ID);
+                  UMCUB_CFG_CAN_FD ? " FD" : "", (unsigned long)c.rx_id, (unsigned long)tp.tx_id);
     return 0;
 }
 
@@ -81,4 +83,5 @@ const umcub_transport_t umcub_transport_can = {
     .deinit = can_deinit,
     .poll = can_poll,
     .send_packet = can_send_packet,
+    .link = UMCUB_CFG_CAN_LINK,
 };

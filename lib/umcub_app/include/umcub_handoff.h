@@ -21,8 +21,9 @@ extern "C" {
 #endif
 
 #define UMCUB_HANDOFF_MAGIC      0x42434D55u   /* "UMCB" */
-#define UMCUB_HANDOFF_VERSION    1u
+#define UMCUB_HANDOFF_VERSION    2u
 #define UMCUB_REQUEST_MAGIC      0x52514255u   /* "UBQR" */
+#define UMCUB_NODE_MAGIC         0x45444F4Eu   /* "NODE": node_addr_req is valid */
 #define UMCUB_CORE2_MAGIC        0x32455243u   /* "CRE2" */
 
 /* umcub_handoff_t.request */
@@ -78,11 +79,18 @@ typedef struct {
     umcub_version_t image_version[UMCUB_MAX_IMAGES];
     uint32_t image_addr[UMCUB_MAX_IMAGES];    /* start of the running slot */
     uint32_t reset_flags;       /* raw reset status register (cleared by the bootloader) */
-    uint32_t crc32;             /* CRC-32 of magic..image_addr */
+    uint32_t board_type;        /* UMCUB_CFG_BOARD_TYPE */
+    uint16_t board_rev;         /* UMCUB_CFG_BOARD_REV */
+    uint16_t node_addr;         /* node address the bootloader used, 0 = unassigned */
+    uint32_t crc32;             /* CRC-32 of magic..node_addr */
 
     /* dual-core release (bootloader internal) */
     uint32_t core2_magic;
     uint32_t core2_vtor;
+
+    /* application -> bootloader, kept over resets (umcub_set_node_address()) */
+    uint32_t node_magic;        /* UMCUB_NODE_MAGIC */
+    uint32_t node_addr_req;     /* address | (~address << 16) */
 } umcub_handoff_t;
 
 #define UMCUB_HANDOFF_INFO_OFFSET   16u

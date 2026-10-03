@@ -86,9 +86,12 @@ macro(umcub_load_config board_dir core)
             "${UMCUB_ROOT}/config/umcub_config_defaults.h"
             "${UMCUB_FAMILY_DIR}/include/umcub_family_defaults.h"
             "${UMCUB_BOARD_DIR}/umcub_config.h")
-    file(STRINGS "${f}" _lines REGEX "#[ \t]*define[ \t]+UMCUB_CFG_[A-Z0-9_]+")
-    foreach(l IN LISTS _lines)
-      string(REGEX MATCH "UMCUB_CFG_[A-Z0-9_]+" _n "${l}")
+    # Whole-file regex, not file(STRINGS): a line ending in '\\' (macro
+    # continuation) would escape the list separator and glue lines together.
+    file(READ "${f}" _text)
+    string(REGEX MATCHALL "#[ \t]*define[ \t]+UMCUB_CFG_[A-Z0-9_]+" _defs "${_text}")
+    foreach(d IN LISTS _defs)
+      string(REGEX MATCH "UMCUB_CFG_[A-Z0-9_]+" _n "${d}")
       list(APPEND _names ${_n})
     endforeach()
   endforeach()

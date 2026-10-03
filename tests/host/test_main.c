@@ -24,6 +24,8 @@
 #include "../../transport/can/isotp.h"
 #include "../../transport/net/net.h"
 #include "umcub_cmd.h"
+#include "umcub_image_info.h"
+#include "sysflash/sysflash.h"
 
 extern const struct boot_uart_funcs *boot_uf;
 const struct boot_uart_funcs *umcub_mux_funcs_for_test(void);
@@ -424,6 +426,26 @@ static void test_swap_revert_confirm(const uint8_t *v2, size_t v2_len)
     CHECK(umcub_image_version(0, 0, &v) == 0 && v.minor == 1);
 }
 
+/* An image signed with the right key but for another board type is never
+ * installed (MCUboot image check hook, mcuboot_port/src/hooks.c). */
+static void test_board_type(const uint8_t *foreign, size_t len)
+{
+    char ver[16];
+    printf("[board type] image for board 0x%08x refused, 0x%08x keeps running\n",
+           (unsigned)UMCUB_CFG_BOARD_TYPE + 1u, (unsigned)UMCUB_CFG_BOARD_TYPE);
+    const struct flash_area *fa;
+    uint32_t type = 0;
+    CHECK(flash_area_open(FLASH_AREA_IMAGE_PRIMARY(0), &fa) == 0);
+    CHECK(umcub_image_board_type(fa, 0, &type) == 0 && type == UMCUB_CFG_BOARD_TYPE);
+    flash_area_close(fa);
+    write_secondary(foreign, len);
+    CHECK(boot_ok(ver) && strcmp(ver, "1.1.0") == 0);
+    struct image_header h;
+    CHECK(flash_area_open(FLASH_AREA_IMAGE_SECONDARY(0), &fa) == 0);
+    CHECK(flash_area_read(fa, 0, &h, sizeof(h)) == 0 && h.ih_magic != IMAGE_MAGIC);   /* erased by MCUboot */
+    flash_area_close(fa);
+}
+
 static void test_streams_interleaved(const uint8_t *img, size_t len)
 {
     printf("[stream transports] interleaved NLIP: upload on s0, echo on s1, list on s0\n");
@@ -822,18 +844,20 @@ static void log_sink(const char *s, size_t len)
 
 int main(int argc, char **argv)
 {
-    if (argc != 3) {
-        fprintf(stderr, "usage: %s v1.signed.bin v2.signed.bin\n", argv[0]);
+    if (argc != 4) {
+        fprintf(stderr, "usage: %s v1.signed.bin v2.signed.bin foreign.signed.bin\n", argv[0]);
         return 2;
     }
-    size_t v1_len, v2_len;
+    size_t v1_len, v2_len, foreign_len;
     uint8_t *v1 = load(argv[1], &v1_len);
     uint8_t *v2 = load(argv[2], &v2_len);
+    uint8_t *foreign = load(argv[3], &foreign_len);
     setvbuf(stdout, NULL, _IONBF, 0);
     umcub_log_set_sink(log_sink);
 
     test_packet_upload_and_boot(v1, v1_len);
     test_swap_revert_confirm(v2, v2_len);
+    test_board_type(foreign, foreign_len);
     test_inspect(v2, v2_len);
     test_streams_interleaved(v1, v1_len);
     test_commands();

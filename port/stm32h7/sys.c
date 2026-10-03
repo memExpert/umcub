@@ -297,3 +297,28 @@ void umcub_port_gpio_reset(uint32_t pin)
         LL_GPIO_SetAFPin_8_15(g, m, 0);
     }
 }
+
+void umcub_port_gpio_output(uint32_t pin, bool level)
+{
+    GPIO_TypeDef *g = h7_gpio_port(pin);
+    uint32_t m = 1u << UMCUB_PIN_NUM(pin);
+    g->BSRR = level ? m : m << 16;
+    LL_GPIO_SetPinOutputType(g, m, LL_GPIO_OUTPUT_PUSHPULL);
+    LL_GPIO_SetPinSpeed(g, m, LL_GPIO_SPEED_FREQ_LOW);
+    LL_GPIO_SetPinPull(g, m, LL_GPIO_PULL_NO);
+    LL_GPIO_SetPinMode(g, m, LL_GPIO_MODE_OUTPUT);
+}
+
+void umcub_port_gpio_write(uint32_t pin, bool level)
+{
+    GPIO_TypeDef *g = h7_gpio_port(pin);
+    uint32_t m = 1u << UMCUB_PIN_NUM(pin);
+    g->BSRR = level ? m : m << 16;
+}
+
+int umcub_port_rdp_level(void)
+{
+    /* FLASH_OPTSR_CUR.RDP: 0xAA level 0, 0xCC level 2, anything else level 1. */
+    uint32_t rdp = (FLASH->OPTSR_CUR & FLASH_OPTSR_RDP) >> FLASH_OPTSR_RDP_Pos;
+    return rdp == 0xAAu ? 0 : rdp == 0xCCu ? 2 : 1;
+}

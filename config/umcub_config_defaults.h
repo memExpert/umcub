@@ -33,6 +33,12 @@
 #ifndef UMCUB_CFG_IMAGE_HEADER_SIZE
 #define UMCUB_CFG_IMAGE_HEADER_SIZE     0x400
 #endif
+#ifndef UMCUB_CFG_BOARD_TYPE
+#define UMCUB_CFG_BOARD_TYPE            0
+#endif
+#ifndef UMCUB_CFG_BOARD_REV
+#define UMCUB_CFG_BOARD_REV             0
+#endif
 #ifndef UMCUB_CFG_TRAILER_RESERVE
 #define UMCUB_CFG_TRAILER_RESERVE       0x2000
 #endif
@@ -152,6 +158,15 @@
 #ifndef UMCUB_CFG_UART_BAUD
 #define UMCUB_CFG_UART_BAUD             115200
 #endif
+#ifndef UMCUB_CFG_UART_DE_PIN
+#define UMCUB_CFG_UART_DE_PIN           UMCUB_PIN_NONE
+#endif
+#ifndef UMCUB_CFG_UART_DE_ACTIVE
+#define UMCUB_CFG_UART_DE_ACTIVE        1
+#endif
+#ifndef UMCUB_CFG_UART_TURNAROUND_MS
+#define UMCUB_CFG_UART_TURNAROUND_MS    0
+#endif
 
 /* --- USB ----------------------------------------------------------------- */
 #ifndef UMCUB_CFG_TRANSPORT_USB_CDC
@@ -221,6 +236,30 @@
 #ifndef UMCUB_CFG_TRANSPORT_USER
 #define UMCUB_CFG_TRANSPORT_USER        0
 #endif
+
+/* --- umcub link per transport (UMCUB_LINK_*) -------------------------------- */
+#ifndef UMCUB_CFG_UART_LINK
+#define UMCUB_CFG_UART_LINK             UMCUB_LINK_PLAIN
+#endif
+#ifndef UMCUB_CFG_USB_CDC_LINK
+#define UMCUB_CFG_USB_CDC_LINK          UMCUB_LINK_PLAIN
+#endif
+#ifndef UMCUB_CFG_CAN_LINK
+#define UMCUB_CFG_CAN_LINK              UMCUB_LINK_PLAIN
+#endif
+#ifndef UMCUB_CFG_ETH_LINK
+#define UMCUB_CFG_ETH_LINK              UMCUB_LINK_PLAIN
+#endif
+#ifndef UMCUB_CFG_USER_LINK
+#define UMCUB_CFG_USER_LINK             UMCUB_LINK_PLAIN
+#endif
+/* Derived: umcub link is used by some enabled transport (non-zero). Plain
+ * arithmetic: cmake/umcub_config.cmake evaluates it, it has no && / ||. */
+#define UMCUB_CFG_LINK_ANY              (UMCUB_CFG_TRANSPORT_UART * UMCUB_CFG_UART_LINK + \
+                                         UMCUB_CFG_TRANSPORT_USB_CDC * UMCUB_CFG_USB_CDC_LINK + \
+                                         UMCUB_CFG_TRANSPORT_CAN * UMCUB_CFG_CAN_LINK + \
+                                         UMCUB_CFG_TRANSPORT_ETH * UMCUB_CFG_ETH_LINK + \
+                                         UMCUB_CFG_TRANSPORT_USER * UMCUB_CFG_USER_LINK)
 
 /* Derived: some transport speaks SMP (boot_serial, zcbor, SMP inspection
  * group are compiled only then; USB DFU alone does not need them). */

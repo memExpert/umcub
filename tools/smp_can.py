@@ -26,7 +26,7 @@ class SmpCan:
         self.bus = can.Bus(interface=args.interface, channel=args.channel, bitrate=args.bitrate,
                            fd=args.fd, data_bitrate=args.data_bitrate if args.fd else None)
         addr = isotp.Address(isotp.AddressingMode.Normal_29bits if args.ext else isotp.AddressingMode.Normal_11bits,
-                             txid=args.tx_id, rxid=args.rx_id)
+                             txid=args.tx_id + args.addr, rxid=args.rx_id + args.addr)
         params = {"tx_padding": 0xCC, "can_fd": args.fd, "tx_data_length": 64 if args.fd else 8,
                   "blocking_send": True, "max_frame_size": 4095, "bitrate_switch": args.fd}
         self.stack = isotp.NotifierBasedCanStack(self.bus, address=addr, params=params)
@@ -96,6 +96,8 @@ def main():
     p.add_argument("--data-bitrate", type=int, default=2000000)
     p.add_argument("--tx-id", type=lambda s: int(s, 0), default=0x7C0, help="host -> device")
     p.add_argument("--rx-id", type=lambda s: int(s, 0), default=0x7C8, help="device -> host")
+    p.add_argument("--addr", type=int, default=0,
+                   help="node address of the device: its IDs are tx-id + addr and rx-id + addr")
     p.add_argument("--ext", action="store_true", help="29-bit identifiers")
     p.add_argument("--timeout", type=float, default=5.0)
     sub = p.add_subparsers(dest="cmd", required=True)

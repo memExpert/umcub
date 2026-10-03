@@ -68,6 +68,8 @@ Open:
 - [ ] Power-loss test of the overwrite copy on F1 (fault injection points exist in `port/stm32f1/flash.c`).
 - [ ] Recovery timeout on F1.
 - [ ] F1 port of bxCAN; F105/F107 (PREDIV1, 25 MHz HSE, USB OTG FS); XL-density bank 2.
+- [ ] H755: images on the board lack the board-type TLV (`UMCUB_CFG_BOARD_TYPE` is now set) - re-flash signed
+  examples together with the new bootloader.
 - [ ] H755 regression run on hardware after the shared changes of the F1 work (USB not started in the entry window,
   DFU poll time from `UMCUB_FAMILY_SECTOR_ERASE_MS`, `last update via app`).
 

@@ -18,6 +18,8 @@
 #define UMCUB_CONFIG_H
 
 #define UMCUB_CFG_MCU                   STM32H755xx
+#define UMCUB_CFG_BOARD_TYPE            0x48755001      /* images must carry this (signed TLV) */
+#define UMCUB_CFG_BOARD_REV             1
 
 #ifndef UMCUB_CFG_DUALCORE_MODE
 #define UMCUB_CFG_DUALCORE_MODE         UMCUB_DUALCORE_SINGLE_BOOT

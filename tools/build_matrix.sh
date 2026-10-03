@@ -28,6 +28,10 @@ configs=(
   "all-debug|cm7|Debug||"
   "bluepill-f103|cm3|Release|||bluepill_f103c8"
   "bluepill-f103-usb|cm3|Release||bluepill_usb.h|bluepill_f103c8"
+  "rs485-hw-de|cm7|Release||rs485.h"
+  "bluepill-rs485|cm3|Release||bluepill_rs485.h|bluepill_f103c8"
+  "link-addressed|cm7|Release||link_addressed.h"
+  "bluepill-rs485-link|cm3|Release||bluepill_rs485_link.h|bluepill_f103c8"
 )
 
 for c in "${configs[@]}"; do

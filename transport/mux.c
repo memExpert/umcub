@@ -9,7 +9,10 @@
  *  - raw SMP packets from packet transports are fed straight into
  *    boot_serial_input(); the NLIP/base64 response boot_serial produces is
  *    decoded back into a raw packet for the transport (smp shim);
- *  - responses go to the transport that sent the request.
+ *  - responses go to the transport that sent the request;
+ *  - a transport in umcub link mode (.link != UMCUB_LINK_PLAIN) carries only
+ *    link frames: their DATA payloads (raw SMP or text) join the packet path,
+ *    answers are wrapped by transport/link.c - stream transports included.
  * Without any SMP transport (USB DFU only, or none) boot_serial is not built
  * and umcub_recovery_run() drives the same loop itself.
  */
@@ -20,6 +23,9 @@
 #include "umcub_transport.h"
 #include "umcub_handoff.h"
 #include "umcub_cmd.h"
+#if UMCUB_CFG_LINK_ANY
+#include "umcub_link.h"
+#endif
 #if UMCUB_CFG_SMP
 #include "boot_serial/boot_serial.h"
 #include "base64/base64.h"
@@ -32,7 +38,11 @@ void boot_serial_input(char *buf, int len);
 #define NLIP_PKT_START2   9
 #define NLIP_DATA_START1  4
 #define NLIP_DATA_START2  20
+#if UMCUB_CFG_LINK_ANY && UMCUB_LINK_LINE_MAX > UMCUB_CFG_SMP_MTU
+#define LINE_MAX          UMCUB_LINK_LINE_MAX
+#else
 #define LINE_MAX          UMCUB_CFG_SMP_MTU
+#endif
 #define LOCK_TIMEOUT_MS   1000u
 #define MAX_TRANSPORTS    (UMCUB_TRANSPORT_MAX ? UMCUB_TRANSPORT_MAX : 1)
 
@@ -53,6 +63,26 @@ static bool is_stream_fn(const umcub_transport_t *t)
 }
 #define is_stream is_stream_fn
 
+/* Plain stream transport: NLIP lines and typed text go straight through. */
+static bool nlip_stream(const umcub_transport_t *t)
+{
+    return is_stream_fn(t) && t->link == 0;
+}
+
+/* One packet to `t`: a link frame in link mode, else the transport's packet. */
+static void tx_packet(const umcub_transport_t *t, const uint8_t *data, size_t len)
+{
+#if UMCUB_CFG_LINK_ANY
+    if (t->link) {
+        umcub_link_send_data(t, data, len);
+        return;
+    }
+#endif
+    if (t->send_packet) {
+        (void)t->send_packet(data, len);
+    }
+}
+
 static uint8_t last_transport;
 static uint32_t last_activity;
 static bool in_recovery;
@@ -68,15 +98,15 @@ static size_t cmd_out_len;
 
 static void cmd_reply(const char *text)
 {
-    if (is_stream_fn(cmd_from)) {
+    if (nlip_stream(cmd_from)) {
         if (text) {
             cmd_from->write((const uint8_t *)text, strlen(text));
         }
         return;
     }
     if (!text) {                    /* flush */
-        if (cmd_out_len && cmd_from->send_packet) {
-            cmd_from->send_packet((const uint8_t *)cmd_out, cmd_out_len);
+        if (cmd_out_len) {
+            tx_packet(cmd_from, (const uint8_t *)cmd_out, cmd_out_len);
         }
         cmd_out_len = 0;
         return;
@@ -125,7 +155,7 @@ static bool nlip_start(const char *b, uint8_t c1, uint8_t c2)
     return (uint8_t)b[0] == c1 && (uint8_t)b[1] == c2;
 }
 
-bool umcub_smp_packet_rx(const umcub_transport_t *t, const uint8_t *pkt, size_t len)
+static bool queue_packet(const umcub_transport_t *t, const uint8_t *pkt, size_t len)
 {
     if (pkt_len != 0 || len == 0 || len > UMCUB_CFG_SMP_MTU) {
         return false;
@@ -135,6 +165,54 @@ bool umcub_smp_packet_rx(const umcub_transport_t *t, const uint8_t *pkt, size_t 
     pkt_len = len;
     return true;
 }
+
+bool umcub_smp_packet_rx(const umcub_transport_t *t, const uint8_t *pkt, size_t len)
+{
+#if UMCUB_CFG_LINK_ANY
+    if (t->link) {
+        umcub_link_rx(t, pkt, len);     /* frame; DATA comes back via umcub_mux_link_rx() */
+        return true;
+    }
+#endif
+    return queue_packet(t, pkt, len);
+}
+
+#if UMCUB_CFG_LINK_ANY
+bool umcub_mux_link_rx(const umcub_transport_t *t, const uint8_t *payload, size_t len)
+{
+    return queue_packet(t, payload, len);
+}
+
+/* Link mode stream transport: only "0x05 0x0B base64 \n" lines count. */
+static void pump_link_stream(unsigned i)
+{
+    const umcub_transport_t *t = umcub_transports[i];
+    struct line *l = &lines[i];
+    uint8_t c;
+    while (t->read(&c, 1) == 1) {
+        if (l->len == 0 && c != UMCUB_LINK_LINE_START1) {
+            continue;                   /* not a frame: ignored in link mode */
+        }
+        if (l->len == 1 && c != UMCUB_LINK_LINE_START2) {
+            l->len = 0;
+            continue;
+        }
+        if (c == '\n') {
+            umcub_link_rx_line(t, &l->buf[2], l->len - 2u);
+            l->len = 0;
+            continue;
+        }
+        if (c == '\r') {
+            continue;
+        }
+        if (l->len >= LINE_MAX) {
+            l->len = 0;                 /* overlong: drop */
+            continue;
+        }
+        l->buf[l->len++] = (char)c;
+    }
+}
+#endif
 
 /* Pull bytes of stream transport i until a full line is assembled. */
 static void pump_stream(unsigned i)
@@ -199,10 +277,18 @@ static void pump_all(void)
 {
     umcub_transports_poll();
     for (unsigned i = 0; i < umcub_transport_count && i < MAX_TRANSPORTS; i++) {
-        if (is_stream(umcub_transports[i])) {
+        if (nlip_stream(umcub_transports[i])) {
             pump_stream(i);
         }
+#if UMCUB_CFG_LINK_ANY
+        else if (is_stream(umcub_transports[i])) {
+            pump_link_stream(i);
+        }
+#endif
     }
+#if UMCUB_CFG_LINK_ANY
+    umcub_link_poll();
+#endif
 }
 
 void umcub_handoff_note_transport(uint8_t id);
@@ -313,7 +399,7 @@ static void shim_feed(const char *p, int cnt)
             size_t total = ((size_t)resp_raw[0] << 8) | resp_raw[1];
             if (resp_raw_len >= total + 2u && total >= 2u) {
                 /* [len:2][hdr+payload][crc:2] -> [hdr+payload] */
-                active->send_packet(&resp_raw[2], total - 2u);
+                tx_packet(active, &resp_raw[2], total - 2u);
                 resp_raw_len = 0;
             }
         }
@@ -325,12 +411,12 @@ static void mux_write(const char *ptr, int cnt)
     if (!active || cnt <= 0) {
         return;
     }
-    if (is_stream(active)) {
+    if (nlip_stream(active)) {
         active->write((const uint8_t *)ptr, (size_t)cnt);
         if (cnt == 1 && ptr[0] == '\n') {
             responded = true;   /* request on the locked stream was answered */
         }
-    } else if (active->send_packet) {
+    } else if (active->send_packet || active->link) {
         shim_feed(ptr, cnt);
     }
 }
@@ -365,6 +451,11 @@ bool umcub_recovery_wait(uint32_t ms)
         if (pkt_len) {
             return true;
         }
+#if UMCUB_CFG_LINK_ANY
+        if (umcub_link_take_wakeup()) {
+            return true;        /* a host addressed this node */
+        }
+#endif
         for (unsigned i = 0; i < umcub_transport_count && i < MAX_TRANSPORTS; i++) {
             if (lines[i].ready) {
                 return true;

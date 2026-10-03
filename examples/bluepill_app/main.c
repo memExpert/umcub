@@ -109,6 +109,12 @@ static void show_info(void)
     puts_(h->last_transport < 8 ? transports[h->last_transport] : "?");
     puts_(", reset cause ");
     put_u32(h->reset_cause);
+    puts_("\nboard type ");
+    put_hex(h->board_type);
+    puts_(" rev ");
+    put_u32(h->board_rev);
+    puts_(", node address ");
+    put_u32(h->node_addr);
     puts_("\nimage 0: ");
     put_ver(&h->image_version[0]);
     puts_(" @ ");
@@ -157,6 +163,7 @@ static void upload(void)
 
 int main(void)
 {
+    umcub_set_node_address(APP_NODE_ADDR);   /* address on a shared bus, used by the bootloader */
     /* HSI 8 MHz (reset clock, the bootloader restored it). */
     SystemCoreClock = 8000000u;
     SysTick_Config(SystemCoreClock / 1000u);

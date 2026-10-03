@@ -20,6 +20,8 @@
 
 /* GPIO pin: port letter ('A'..'K'), pin number 0..15, alternate function 0..15. */
 #define UMCUB_PIN(port, pin, af)    ((((port) - 'A') << 8) | ((pin) << 4) | (af))
+/* No pin (optional pins such as UMCUB_CFG_UART_DE_PIN). */
+#define UMCUB_PIN_NONE              0xFFFFFFFFu
 #define UMCUB_PIN_PORT(p)           (((p) >> 8) & 0xF)
 #define UMCUB_PIN_NUM(p)            (((p) >> 4) & 0xF)
 #define UMCUB_PIN_AF(p)             ((p) & 0xF)
@@ -40,6 +42,14 @@
 /* UMCUB_CFG_CAN_DRIVER / UMCUB_CFG_ETH_DRIVER */
 #define UMCUB_DRIVER_PORT           0   /* on-chip controller, driver from port/<family>/ */
 #define UMCUB_DRIVER_BOARD          1   /* external controller (SPI, ...), driver in boards/<b>/umcub_board.c */
+
+/* UMCUB_CFG_<transport>_LINK */
+#define UMCUB_LINK_PLAIN            0   /* SMP / text as today (point to point) */
+#define UMCUB_LINK_ADDRESSED        1   /* umcub link frames: node addressing, discovery */
+#define UMCUB_LINK_SECURE           2   /* + host authentication, per-frame MAC */
+
+/* MCUboot image TLV (protected, signed) carrying UMCUB_CFG_BOARD_TYPE (u32 LE). */
+#define UMCUB_TLV_BOARD_TYPE        0xA0
 
 /* UMCUB_CFG_CLOCK_SOURCE */
 #define UMCUB_CLK_HSI               0

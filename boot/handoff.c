@@ -33,6 +33,43 @@ void umcub_handoff_note_transport(uint8_t id)
     store_words(w, &u.word, 1);
 }
 
+/* Node address handed over by the application; false if none (power-up,
+ * application that never set one). */
+bool umcub_handoff_node_request(uint16_t *addr)
+{
+    uint32_t v = HANDOFF->node_addr_req;
+    if (HANDOFF->node_magic != UMCUB_NODE_MAGIC || (uint16_t)(v >> 16) != (uint16_t)~v) {
+        return false;
+    }
+    *addr = (uint16_t)v;
+    return true;
+}
+
+/* Board hook (umcub_board.c): address from DIP switches, EEPROM, ... */
+__attribute__((weak)) bool umcub_board_node_address(uint16_t *addr)
+{
+    (void)addr;
+    return false;
+}
+
+static uint16_t node_addr;
+
+void umcub_node_init(void)
+{
+    uint16_t a;
+    if (umcub_handoff_node_request(&a) || umcub_board_node_address(&a)) {
+        node_addr = a;
+    } else {
+        node_addr = 0;          /* unassigned: reachable by UID only (see umcub link) */
+    }
+    /* TODO: address stored in a flash page of its own (not implemented). */
+}
+
+uint16_t umcub_node_address(void)
+{
+    return node_addr;
+}
+
 uint8_t umcub_handoff_last_transport(void)
 {
     uint8_t id = HANDOFF->last_transport;

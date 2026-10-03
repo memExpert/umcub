@@ -169,6 +169,14 @@
 /* #define UMCUB_CFG_UART_BAUD            115200 */
 /* #define UMCUB_CFG_UART_TX_PIN          UMCUB_PIN('D', 8, 7) */
 /* #define UMCUB_CFG_UART_RX_PIN          UMCUB_PIN('D', 9, 7) */
+/* RS485 (half duplex): driver-enable pin of the transceiver (DE, usually tied
+ * to /RE), UMCUB_PIN_NONE = plain UART. STM32H7: give the USART's RTS/DE pin
+ * with its AF number for hardware DE timing, a pin with AF 0 is switched by
+ * software; STM32F1 always by software. */
+/* #define UMCUB_CFG_UART_DE_PIN          UMCUB_PIN_NONE */
+/* #define UMCUB_CFG_UART_DE_ACTIVE       1     (1 = DE high while sending) */
+/* Pause before answering, so the host has released the bus (ms). */
+/* #define UMCUB_CFG_UART_TURNAROUND_MS   0 */
 
 /* --- USB device (tinyUSB): CDC-ACM with SMP and/or DFU ------------------ */
 /* #define UMCUB_CFG_TRANSPORT_USB_CDC    0 */
@@ -227,6 +235,39 @@
  * (transport/include/umcub_transport.h) - a stream (SMP serial framing) or a
  * packet transport (raw SMP packets). Polled with the built-in ones. */
 /* #define UMCUB_CFG_TRANSPORT_USER       0 */
+
+/* ======================================================================== */
+/* umcub link: several devices on one bus                                   */
+/* ======================================================================== */
+
+/* Per transport: UMCUB_LINK_PLAIN (default; SMP and text as is, one device per
+ * line), UMCUB_LINK_ADDRESSED (only umcub link frames: node address, discovery,
+ * standard SMP inside; host side tools/umcub_link.py, which also serves
+ * mcumgr/smpmgr), UMCUB_LINK_SECURE (additionally host authentication and a MAC
+ * on every frame). */
+/* #define UMCUB_CFG_UART_LINK            UMCUB_LINK_PLAIN */
+/* #define UMCUB_CFG_USB_CDC_LINK         UMCUB_LINK_PLAIN */
+/* #define UMCUB_CFG_CAN_LINK             UMCUB_LINK_PLAIN */
+/* #define UMCUB_CFG_ETH_LINK             UMCUB_LINK_PLAIN */
+/* #define UMCUB_CFG_USER_LINK            UMCUB_LINK_PLAIN */
+
+/* ======================================================================== */
+/* Board identity                                                           */
+/* ======================================================================== */
+
+/* Board type (product id, u32) and hardware revision (u16). Reported to the
+ * host (text command "i", SMP) and to the application (umcub_boot_info()).
+ * Board type != 0: every image must carry the same value in its signed TLV
+ * UMCUB_TLV_BOARD_TYPE (umcub_sign_image() / tools/umcub_image.py add it),
+ * otherwise MCUboot rejects it before installing - firmware of another product
+ * can never be booted, even when it is signed with the same key. */
+/* #define UMCUB_CFG_BOARD_TYPE           0 */
+/* #define UMCUB_CFG_BOARD_REV            0 */
+
+/* The node address on a shared bus comes from the application
+ * (umcub_set_node_address(), kept over resets) or from the board hook
+ * bool umcub_board_node_address(uint16_t *addr) in umcub_board.c (DIP switch,
+ * EEPROM, ...); 0 = unassigned. */
 
 /* ======================================================================== */
 /* Misc                                                                     */

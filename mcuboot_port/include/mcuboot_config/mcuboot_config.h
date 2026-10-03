@@ -102,6 +102,12 @@
 
 void umcub_port_wdg_feed(void);
 void umcub_port_idle(void);
+/* Board type check before an image is installed (mcuboot_port/src/hooks.c).
+ * Not in the application library: bootutil_public.c there needs no hooks. */
+#if UMCUB_CFG_BOARD_TYPE != 0 && !defined(UMCUB_BUILDING_APP)
+#define MCUBOOT_IMAGE_ACCESS_HOOKS
+#endif
+
 #define MCUBOOT_WATCHDOG_FEED()         umcub_port_wdg_feed()
 #define MCUBOOT_CPU_IDLE()              umcub_port_idle()
 

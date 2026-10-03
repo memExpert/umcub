@@ -115,3 +115,28 @@ void umcub_handoff_note_transport(uint8_t id) { (void)id; }
 
 uint32_t fake_last_request;
 void umcub_handoff_request(uint32_t request, uint32_t arg) { (void)arg; fake_last_request = request; }
+
+uint16_t fake_node_addr;
+uint16_t umcub_node_address(void) { return fake_node_addr; }
+
+int umcub_port_entropy(uint8_t *buf, size_t len)
+{
+    static uint32_t x = 0x12345678u;            /* xorshift: deterministic test entropy */
+    while (len--) {
+        x ^= x << 13;
+        x ^= x >> 17;
+        x ^= x << 5;
+        *buf++ = (uint8_t)x;
+    }
+    return 0;
+}
+
+/* tinycrypt's default RNG hook (ecc.c references it; gcc drops it with
+ * --gc-sections, clang keeps the reference). Never called: the bootloader
+ * only verifies signatures. */
+int default_CSPRNG(uint8_t *dest, unsigned int size)
+{
+    (void)dest;
+    (void)size;
+    return 0;
+}

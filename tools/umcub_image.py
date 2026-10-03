@@ -269,6 +269,8 @@ def cmd_sign(cfg, a):
         args += ["--max-sectors", str(biggest // cfg["FAMILY_MIN_SECTOR"])]
     else:
         args += ["--rom-fixed", hex(slot_addr)]
+    if cfg["BOARD_TYPE"]:                           # signed TLV checked by the bootloader
+        args += ["--custom-tlv", "0xa0", "0x" + int(cfg["BOARD_TYPE"]).to_bytes(4, "little").hex()]
     if a.confirm:
         args.append("--confirm")
     if a.pad:

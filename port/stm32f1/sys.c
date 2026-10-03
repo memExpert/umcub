@@ -248,3 +248,23 @@ void umcub_port_gpio_reset(uint32_t pin)
     g->BRR = 1u << UMCUB_PIN_NUM(pin);
     f1_gpio_config(pin, F1_GPIO_IN_FLOAT);
 }
+
+void umcub_port_gpio_output(uint32_t pin, bool level)
+{
+    GPIO_TypeDef *g = f1_gpio_port(pin);
+    uint32_t m = 1u << UMCUB_PIN_NUM(pin);
+    g->BSRR = level ? m : m << 16;
+    f1_gpio_config(pin, 0x2u);                      /* output push-pull, 2 MHz */
+}
+
+void umcub_port_gpio_write(uint32_t pin, bool level)
+{
+    GPIO_TypeDef *g = f1_gpio_port(pin);
+    uint32_t m = 1u << UMCUB_PIN_NUM(pin);
+    g->BSRR = level ? m : m << 16;
+}
+
+int umcub_port_rdp_level(void)
+{
+    return (FLASH->OBR & FLASH_OBR_RDPRT) ? 1 : 0;   /* F1: readout protection on/off */
+}

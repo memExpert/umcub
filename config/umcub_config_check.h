@@ -93,6 +93,15 @@
 #error "umcub: UMCUB_CFG_ETH_RMII_PINS is required for the on-chip Ethernet MAC"
 #endif
 
+#if UMCUB_CFG_UART_DE_PIN != UMCUB_PIN_NONE && UMCUB_CFG_LOG_LEVEL > 0
+#error "umcub: RS485 (UMCUB_CFG_UART_DE_PIN): the log would share the bus - set UMCUB_CFG_LOG_LEVEL 0"
+#endif
+#if UMCUB_CFG_UART_LINK == UMCUB_LINK_SECURE || UMCUB_CFG_USB_CDC_LINK == UMCUB_LINK_SECURE || \
+    UMCUB_CFG_CAN_LINK == UMCUB_LINK_SECURE || UMCUB_CFG_ETH_LINK == UMCUB_LINK_SECURE || \
+    UMCUB_CFG_USER_LINK == UMCUB_LINK_SECURE
+#error "umcub: UMCUB_LINK_SECURE is not available yet"
+#endif
+
 #if !UMCUB_CFG_TRANSPORT_UART && !UMCUB_CFG_USB && !UMCUB_CFG_TRANSPORT_CAN && !UMCUB_CFG_TRANSPORT_ETH && \
     !UMCUB_CFG_TRANSPORT_USER
 #warning "umcub: no transport enabled - updates only via the application (umcub_slot_*)"

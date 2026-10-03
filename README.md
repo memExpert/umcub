@@ -161,17 +161,17 @@ ECDSA-P256), and what every transport and feature adds. Regenerate with `tools/s
 <!-- size-table:begin -->
 | MCU | base | all on | UART (+SMP) | USB CDC | USB DFU | USB CDC+DFU | CAN | CAN FD | Ethernet (+DHCP) | DFU only |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| STM32H755 CM7 (2 images, SINGLE_BOOT) | 18.8 K | 54.8 K | +9.9 K | +11.2 K | +10.6 K | +13.2 K | +2.3 K | +2.3 K | +4.1 K | +10.9 K |
-| STM32H755 CM4 (PER_CORE) | 16.4 K | 51.9 K | +9.7 K | +11.2 K | +10.6 K | +13.2 K | +2.3 K | +2.3 K | +4.1 K | +10.9 K |
-| STM32H743 / H753 (single core) | 17.1 K | 52.6 K | +9.7 K | +11.2 K | +10.6 K | +13.2 K | +2.3 K | +2.3 K | +4.1 K | +10.9 K |
-| STM32F103 (Blue Pill, overwrite) | 12.6 K | 40.1 K | +10.2 K | +9.8 K | +9.2 K | +11.8 K | — | — | — | +9.7 K |
+| STM32H755 CM7 (2 images, SINGLE_BOOT) | 19.3 K | 55.7 K | +10.1 K | +11.2 K | +10.6 K | +13.2 K | +2.3 K | +2.3 K | +4.1 K | +10.9 K |
+| STM32H755 CM4 (PER_CORE) | 16.8 K | 52.8 K | +9.9 K | +11.2 K | +10.6 K | +13.2 K | +2.3 K | +2.3 K | +4.1 K | +10.9 K |
+| STM32H743 / H753 (single core) | 17.5 K | 53.5 K | +9.9 K | +11.2 K | +10.6 K | +13.2 K | +2.3 K | +2.3 K | +4.1 K | +10.9 K |
+| STM32F103 (Blue Pill, overwrite) | 13.1 K | 41.0 K | +10.4 K | +9.8 K | +9.2 K | +11.8 K | — | — | — | +9.7 K |
 
 | MCU | log (level 3) | text commands | verify + hash | readback |
 |---|---:|---:|---:|---:|
-| STM32H755 CM7 (2 images, SINGLE_BOOT) | +2.6 K | +2.6 K | +0.9 K | +0.2 K |
-| STM32H755 CM4 (PER_CORE) | +2.4 K | +2.6 K | +0.9 K | +0.2 K |
-| STM32H743 / H753 (single core) | +2.4 K | +2.6 K | +0.9 K | +0.2 K |
-| STM32F103 (Blue Pill, overwrite) | +2.0 K | +2.4 K | +0.9 K | +0.2 K |
+| STM32H755 CM7 (2 images, SINGLE_BOOT) | +2.8 K | +2.7 K | +1.0 K | +0.2 K |
+| STM32H755 CM4 (PER_CORE) | +2.6 K | +2.7 K | +1.0 K | +0.2 K |
+| STM32H743 / H753 (single core) | +2.6 K | +2.7 K | +1.0 K | +0.2 K |
+| STM32F103 (Blue Pill, overwrite) | +2.2 K | +2.5 K | +0.9 K | +0.2 K |
 <!-- size-table:end -->
 
 Notes:
@@ -220,6 +220,29 @@ a few lines of host code:
   (`echo -n i | nc -u <ip> 1337`).
 - SMP (mcumgr / smpmgr / dfu-util) keeps working in parallel.
 - `ok ...` / `? ...` replies can be turned off with `UMCUB_CFG_CMD_REPLY 0`.
+
+## Board identity: board type and node address
+
+**Board type.** `UMCUB_CFG_BOARD_TYPE` (u32 product id) and `UMCUB_CFG_BOARD_REV` (hardware revision) are reported
+by the text command `i` and to the application (`umcub_boot_info()->board_type`, `->board_rev`).
+
+With a board type other than 0, every image must carry the same value in a signed TLV (tag `0xA0`, u32 little
+endian). `umcub_sign_image()` and `tools/umcub_image.py sign` add it automatically from the board configuration.
+MCUboot rejects an image with another board type, or without one, before installing it. This holds even when the
+image is signed with the right key, so firmware of another product cannot be booted:
+
+```
+E: image 0 slot 0 is for board type 0x46103002, this is 0x46103001
+E: Image in the primary slot is not valid!
+```
+
+`verify` applies the same rule. Images signed before a board type was set lack the TLV and have to be re-signed.
+
+**Node address.** The address of a device on a shared bus (RS485, CAN, ...) comes from the application:
+`umcub_set_node_address(addr)` stores it in the handoff RAM, where it survives resets but not power cycles, so
+call it on every start. A board can also supply it with `bool umcub_board_node_address(uint16_t *addr)` in
+`umcub_board.c` (DIP switches, EEPROM). 0 means unassigned. The bootloader reports the address it uses
+(`i`, `umcub_boot_info()->node_addr`).
 
 ## Checking what was written (verify / hash / read)
 
@@ -490,7 +513,97 @@ folder (toolchain *MCU ARM GCC*). Then, under *C/C++ Build*, set the build comma
 after running `cmake --preset h755-cm7` once (CMake, Ninja and `.venv` are needed). Debug
 `build/h755-cm7/umcub_nucleo_h755zi_q_cm7.elf` with an *STM32 C/C++ Application* configuration.
 
-## Adding a series / board
+## Your own board
+
+Ported families: STM32H7 (H743/H753 and the dual-core H745/H755/H747/H757; not H7A3/B0/H72x/H73x yet) and
+STM32F1 (F103x8/xB). For another series the port comes first, see the next section.
+
+**1. Describe the board.** The board directory can live in your own repository (umcub as a submodule):
+`boards/my_board/umcub_config.h`. Start from [`config/umcub_config_template.h`](config/umcub_config_template.h).
+Everything not set takes the default from `config/umcub_config_defaults.h`. A complete minimal example:
+
+```c
+/* umcub configuration: my_board (STM32H743, 8 MHz crystal, RS-232 on USART1). */
+#ifndef UMCUB_CONFIG_H
+#define UMCUB_CONFIG_H
+
+#define UMCUB_CFG_MCU                   STM32H743xx
+#define UMCUB_CFG_CLOCK_SOURCE          UMCUB_CLK_HSE
+#define UMCUB_CFG_HSE_HZ                8000000
+#define UMCUB_CFG_PWR_SUPPLY            UMCUB_H7_SUPPLY_LDO
+
+/* 2 MiB, 128 KiB sectors: bootloader 1 sector, swap-move needs the primary
+ * slot one sector larger than the secondary. */
+#define UMCUB_CFG_UPGRADE_MODE          UMCUB_MODE_SWAP_MOVE
+#define UMCUB_CFG_BOOT_SIZE             UMCUB_KB(128)
+#define UMCUB_CFG_IMG0_PRIMARY_ADDR     0x08020000
+#define UMCUB_CFG_IMG0_PRIMARY_SIZE     UMCUB_KB(512)
+#define UMCUB_CFG_IMG0_SECONDARY_ADDR   0x080A0000
+#define UMCUB_CFG_IMG0_SECONDARY_SIZE   UMCUB_KB(384)
+
+/* Recovery: button on PC13 (low = pressed) or a request from the application. */
+#define UMCUB_CFG_ENTRY_GPIO            1
+#define UMCUB_CFG_ENTRY_GPIO_PIN        UMCUB_PIN('C', 13, 0)
+#define UMCUB_CFG_ENTRY_GPIO_ACTIVE     0
+#define UMCUB_CFG_ENTRY_GPIO_PULL       UMCUB_PULL_UP
+
+#define UMCUB_CFG_TRANSPORT_UART        1
+#define UMCUB_CFG_UART_INSTANCE         1
+#define UMCUB_CFG_UART_BAUD             115200
+#define UMCUB_CFG_UART_TX_PIN           UMCUB_PIN('A', 9, 7)    /* AF7 */
+#define UMCUB_CFG_UART_RX_PIN           UMCUB_PIN('A', 10, 7)
+
+#endif /* UMCUB_CONFIG_H */
+```
+
+**2. Make your own signing key.** The repository key is public and for development only:
+
+```sh
+imgtool keygen -t ecdsa-p256 -k keys/prod.pem      # keep it out of the repository
+```
+
+**3. Build the bootloader.**
+
+```sh
+cmake -S umcub -B build/boot -G Ninja -DCMAKE_BUILD_TYPE=Release \
+      -DUMCUB_BOARD=$PWD/boards/my_board -DUMCUB_SIGNING_KEY=$PWD/keys/prod.pem
+cmake --build build/boot                # build/boot/umcub_my_board_cm7.{elf,hex,bin}
+```
+
+Configuration mistakes stop the build with a message: slots overlapping or off sector boundaries, the wrong slot
+sizes for the mode, a missing scratch area, an HSE the port cannot use, and so on.
+
+**4. Adapt the application.** Use the same board directory and key: CMake with `umcub::app`,
+`umcub_app_linker_script()` and `umcub_sign_image()` (see [Application library](#application-library)), or an IDE
+project with `tools/umcub_image.py` (see [Using umcub from an IDE](#using-umcub-from-an-ide-stm32cubeide-keil-mdk)).
+`tools/umcub_image.py info --board boards/my_board` prints where to link it.
+
+**5. Program and protect.** Program the bootloader `.hex` and the signed application `.hex`. On dual-core H7 parts,
+also program the option bytes (`tools/h755_option_bytes.sh`). For production, write-protect the bootloader sector
+(WRP) and enable RDP.
+
+**6. Optional: `boards/my_board/umcub_board.c`.** It is compiled automatically when present. Use it for your own text
+commands (`UMCUB_CMD_USER`), drivers for external controllers (`UMCUB_DRIVER_BOARD`) or a transport of your own
+(`UMCUB_CFG_TRANSPORT_USER`); see [External controllers and custom transports](#external-controllers-and-custom-transports).
+
+Things that are easy to get wrong:
+- **Slots.** Slots start and end on sector boundaries. swap-move needs a primary slot one sector larger than the
+  secondary, swap-offset the other way round. Only swap-scratch needs a scratch sector. The last
+  `UMCUB_CFG_TRAILER_RESERVE` bytes of a slot belong to MCUboot.
+- **Clocks and power.**
+  - STM32H7: HSE must be a multiple of 2 MHz (8, 12, 16, 24 MHz; not 25 MHz). The application must select the same
+    power supply (`UMCUB_CFG_PWR_SUPPLY`): it can be set only once per power-up.
+  - STM32F1: HSE of 8, 12 or 16 MHz, otherwise HSI.
+- **Pins.** Alternate-function numbers come from the datasheet of your part. F1 has no AF numbers: the remap is
+  chosen from the TX pin.
+- **RAM.** The handoff area (`UMCUB_CFG_SHARED_RAM_ADDR`, 256 bytes) must stay out of the application's RAM. The
+  generated application linker scripts already exclude it.
+- **Image header.** `UMCUB_CFG_IMAGE_HEADER_SIZE` is also the offset of the application vector table: it must meet
+  the VTOR alignment of the core (0x200 on Cortex-M3/M4 with up to 128 vectors, 0x400 on the H7).
+- **Watchdog.** If `UMCUB_CFG_WATCHDOG_MS` is set, the application must feed the IWDG: once started it cannot be
+  stopped.
+
+## Adding a series
 
 1. `cmake/families/stm32<fam>.cmake`: CPU flags, sources, the `cmsis_device_<fam>` and LL driver submodules.
 2. `port/stm32<fam>/`: `include/umcub_family_defaults.h` (flash write unit, sector size),

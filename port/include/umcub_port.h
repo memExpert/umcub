@@ -79,6 +79,21 @@ bool umcub_port_gpio_read(uint32_t pin);
 void umcub_port_gpio_af(uint32_t pin);
 /* Release a pin back to its reset state (analog / input). */
 void umcub_port_gpio_reset(uint32_t pin);
+/* Push-pull output (low speed) driven to `level`, and later level changes. */
+void umcub_port_gpio_output(uint32_t pin, bool level);
+void umcub_port_gpio_write(uint32_t pin, bool level);
+
+/* ------------------------------------------------------------------------ */
+/* Entropy and protection state                                              */
+/* ------------------------------------------------------------------------ */
+
+/* Raw entropy for nonces and back-off (conditioned by the caller with a hash).
+ * Returns UMCUB_OK with `len` bytes, or an error. A true RNG where the family
+ * has one, otherwise noise of an analog source and clock jitter. */
+int umcub_port_entropy(uint8_t *buf, size_t len);
+/* Flash readout protection level: 0 (none), 1 (debug/readout blocked),
+ * 2 (permanent, H7 only). */
+int umcub_port_rdp_level(void);
 
 /* ------------------------------------------------------------------------ */
 /* Internal flash. Addresses are absolute.                                   */

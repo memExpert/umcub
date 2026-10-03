@@ -140,6 +140,8 @@ static void info(umcub_cmd_reply_t reply)
                                          "direct-xip", "direct-xip-revert" };
     say(reply, "umcub %d.%d.%d %s %s images %d", UMCUB_VERSION_MAJOR, UMCUB_VERSION_MINOR,
         UMCUB_VERSION_PATCH, UMCUB_BOARD_NAME, modes[UMCUB_CFG_UPGRADE_MODE], UMCUB_CFG_IMAGE_NUMBER);
+    say(reply, "board type 0x%08lx rev %u node %u", (unsigned long)UMCUB_CFG_BOARD_TYPE,
+        (unsigned)UMCUB_CFG_BOARD_REV, (unsigned)umcub_node_address());
     for (int img = 0; img < UMCUB_CFG_IMAGE_NUMBER; img++) {
         for (int slot = 0; slot < 2; slot++) {
             const struct flash_area *fa;

@@ -13,6 +13,8 @@
 static USART_TypeDef *uart;
 static IRQn_Type uart_irq;
 static uint32_t uart_pins[2];
+static uint32_t de_pin = UMCUB_PIN_NONE;   /* RS485 DE, always software on F1 (no hardware DE) */
+static bool de_level;
 static uint8_t rx_ring[RX_RING];
 static volatile uint32_t rx_head;
 static uint32_t rx_tail;
@@ -56,8 +58,10 @@ void USART1_IRQHandler(void) { uart_isr(); }
 void USART2_IRQHandler(void) { uart_isr(); }
 void USART3_IRQHandler(void) { uart_isr(); }
 
-int umcub_port_uart_init(unsigned instance, uint32_t baud, uint32_t tx_pin, uint32_t rx_pin)
+int umcub_port_uart_init(const umcub_uart_cfg_t *cfg)
 {
+    unsigned instance = cfg->instance;
+    uint32_t baud = cfg->baud, tx_pin = cfg->tx_pin, rx_pin = cfg->rx_pin;
     const struct uart_map *m = NULL;
     for (unsigned i = 0; i < sizeof(maps) / sizeof(maps[0]); i++) {
         if (maps[i].instance == instance && SAME_PIN(maps[i].tx, tx_pin) && SAME_PIN(maps[i].rx, rx_pin)) {
@@ -105,6 +109,11 @@ int umcub_port_uart_init(unsigned instance, uint32_t baud, uint32_t tx_pin, uint
 
     f1_gpio_config(tx_pin, F1_GPIO_AF_PP_50M);
     umcub_port_gpio_input(rx_pin, UMCUB_PULL_UP);   /* idle high if unconnected */
+    de_pin = cfg->de_pin;
+    de_level = cfg->de_active_high;
+    if (de_pin != UMCUB_PIN_NONE) {
+        umcub_port_gpio_output(de_pin, !de_level);  /* receive */
+    }
 
     uart->CR1 = 0;
     uart->CR2 = 0;
@@ -127,6 +136,10 @@ void umcub_port_uart_deinit(void)
     uart->CR1 = 0;
     umcub_port_gpio_reset(uart_pins[0]);
     umcub_port_gpio_reset(uart_pins[1]);
+    if (de_pin != UMCUB_PIN_NONE) {
+        umcub_port_gpio_reset(de_pin);
+        de_pin = UMCUB_PIN_NONE;
+    }
     uart = NULL;
 }
 
@@ -144,16 +157,27 @@ size_t umcub_port_uart_read(uint8_t *buf, size_t max)
 
 void umcub_port_uart_write(const uint8_t *buf, size_t len)
 {
-    if (!uart) {
+    if (!uart || !len) {
         return;
+    }
+    bool rs485 = de_pin != UMCUB_PIN_NONE;
+    if (rs485) {
+        CLEAR_BIT(uart->CR1, USART_CR1_RE);         /* no echo of our own bytes */
+        umcub_port_gpio_write(de_pin, de_level);
     }
     while (len--) {
         uint32_t start = umcub_port_millis();
         while (!(uart->SR & USART_SR_TXE)) {
             if ((uint32_t)(umcub_port_millis() - start) > 10u) {
-                return;                 /* transmitter stuck: drop the rest */
+                len = 0;                            /* transmitter stuck: drop the rest */
+                break;
             }
         }
         uart->DR = *buf++;
+    }
+    if (rs485) {
+        (void)f1_wait(&uart->SR, USART_SR_TC, USART_SR_TC, 10);   /* last stop bit out */
+        umcub_port_gpio_write(de_pin, !de_level);
+        SET_BIT(uart->CR1, USART_CR1_RE);
     }
 }

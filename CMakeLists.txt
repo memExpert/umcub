@@ -53,6 +53,7 @@ set(BOOT_SOURCES
   boot/inspect.c
   mcuboot_port/src/flash_map_backend.c
   mcuboot_port/src/compat.c
+  mcuboot_port/src/hooks.c
   transport/registry.c
   transport/mux.c
   ${UMCUB_FAMILY_BOOT_SOURCES}
@@ -128,6 +129,9 @@ elseif(UMCUB_CFG_TRANSPORT_USER OR (UMCUB_CFG_TRANSPORT_CAN AND UMCUB_CFG_CAN_DR
 endif()
 
 # --- transports -------------------------------------------------------------
+if(UMCUB_CFG_LINK_ANY)             # umcub link: addressing / discovery on shared buses
+  list(APPEND BOOT_SOURCES transport/link.c boot/random.c ${UMCUB_FAMILY_ENTROPY_SOURCES})
+endif()
 # Peripherals the family port does not drive (yet): a board driver
 # (UMCUB_DRIVER_BOARD) or another transport is needed.
 foreach(_t CAN ETH)

@@ -115,4 +115,5 @@ const umcub_transport_t umcub_transport_eth = {
     .deinit = eth_deinit,
     .poll = eth_poll,
     .send_packet = eth_send_packet,
+    .link = UMCUB_CFG_ETH_LINK,
 };

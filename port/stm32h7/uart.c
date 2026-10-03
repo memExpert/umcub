@@ -10,6 +10,8 @@
 static USART_TypeDef *uart;
 static IRQn_Type uart_irq;
 static uint32_t uart_pins[2];
+static uint32_t de_pin = UMCUB_PIN_NONE;
+static bool de_hw, de_level;
 static uint8_t rx_ring[RX_RING];
 static volatile uint32_t rx_head;
 static uint32_t rx_tail;
@@ -63,24 +65,35 @@ void USART6_IRQHandler(void) { uart_isr(); }
 void UART7_IRQHandler(void) { uart_isr(); }
 void UART8_IRQHandler(void) { uart_isr(); }
 
-int umcub_port_uart_init(unsigned instance, uint32_t baud, uint32_t tx_pin, uint32_t rx_pin)
+int umcub_port_uart_init(const umcub_uart_cfg_t *cfg)
 {
     struct uart_desc d;
-    if (!lookup(instance, &d)) {
+    if (!lookup(cfg->instance, &d)) {
         return UMCUB_EINVAL;
     }
+    uint32_t baud = cfg->baud;
     uart = d.regs;
     uart_irq = d.irq;
-    uart_pins[0] = tx_pin;
-    uart_pins[1] = rx_pin;
+    uart_pins[0] = cfg->tx_pin;
+    uart_pins[1] = cfg->rx_pin;
     rx_head = rx_tail = 0;
+    de_pin = cfg->de_pin;
+    de_level = cfg->de_active_high;
+    /* RTS/DE alternate function given: the USART drives DE itself (RM0399
+     * USART "RS485 driver enable"); AF 0: software switches a GPIO. */
+    de_hw = de_pin != UMCUB_PIN_NONE && UMCUB_PIN_AF(de_pin) != 0;
 
     SET_BIT(*d.enr, d.bit);
     (void)*d.enr;
     h7_periph_used(d.rstr, d.bit);
 
-    umcub_port_gpio_af(tx_pin);
-    umcub_port_gpio_af(rx_pin);
+    umcub_port_gpio_af(cfg->tx_pin);
+    umcub_port_gpio_af(cfg->rx_pin);
+    if (de_hw) {
+        umcub_port_gpio_af(de_pin);
+    } else if (de_pin != UMCUB_PIN_NONE) {
+        umcub_port_gpio_output(de_pin, !de_level);      /* receive */
+    }
 
     LL_USART_Disable(uart);
     LL_USART_SetPrescaler(uart, LL_USART_PRESCALER_DIV1);
@@ -88,6 +101,13 @@ int umcub_port_uart_init(unsigned instance, uint32_t baud, uint32_t tx_pin, uint
     LL_USART_ConfigCharacter(uart, LL_USART_DATAWIDTH_8B, LL_USART_PARITY_NONE, LL_USART_STOPBITS_1);
     LL_USART_SetTransferDirection(uart, LL_USART_DIRECTION_TX_RX);
     LL_USART_SetOverSampling(uart, LL_USART_OVERSAMPLING_16);
+    if (de_hw) {
+        /* DE asserted/released half a bit time around the frame (in 1/16 bit). */
+        MODIFY_REG(uart->CR1, USART_CR1_DEAT | USART_CR1_DEDT,
+                   (8u << USART_CR1_DEAT_Pos) | (8u << USART_CR1_DEDT_Pos));
+        MODIFY_REG(uart->CR3, USART_CR3_DEP, de_level ? 0 : USART_CR3_DEP);
+        SET_BIT(uart->CR3, USART_CR3_DEM);
+    }
     LL_USART_EnableIT_RXNE_RXFNE(uart);
     LL_USART_Enable(uart);
 
@@ -106,6 +126,10 @@ void umcub_port_uart_deinit(void)
     LL_USART_Disable(uart);
     umcub_port_gpio_reset(uart_pins[0]);
     umcub_port_gpio_reset(uart_pins[1]);
+    if (de_pin != UMCUB_PIN_NONE) {
+        umcub_port_gpio_reset(de_pin);
+        de_pin = UMCUB_PIN_NONE;
+    }
     uart = NULL;
 }
 
@@ -123,12 +147,31 @@ size_t umcub_port_uart_read(uint8_t *buf, size_t max)
 
 void umcub_port_uart_write(const uint8_t *buf, size_t len)
 {
-    if (!uart) {
+    if (!uart || !len) {
         return;
     }
+    bool rs485 = de_pin != UMCUB_PIN_NONE;
+    if (rs485) {
+        CLEAR_BIT(uart->CR1, USART_CR1_RE);             /* no echo of our own bytes */
+        if (!de_hw) {
+            umcub_port_gpio_write(de_pin, de_level);
+        }
+    }
     while (len--) {
+        uint32_t start = umcub_port_millis();
         while (!LL_USART_IsActiveFlag_TXE_TXFNF(uart)) {
+            if ((uint32_t)(umcub_port_millis() - start) > 10u) {
+                len = 0;                                /* transmitter stuck: drop the rest */
+                break;
+            }
         }
         uart->TDR = *buf++;
+    }
+    if (rs485) {
+        (void)h7_wait(&uart->ISR, USART_ISR_TC, USART_ISR_TC, 10);   /* last stop bit out */
+        if (!de_hw) {
+            umcub_port_gpio_write(de_pin, !de_level);
+        }
+        SET_BIT(uart->CR1, USART_CR1_RE);
     }
 }

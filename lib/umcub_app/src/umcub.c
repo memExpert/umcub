@@ -86,6 +86,15 @@ __attribute__((noreturn)) void umcub_enter_bootloader(uint32_t arg)
     umcub_port_reset();
 }
 
+void umcub_set_node_address(uint16_t addr)
+{
+    HANDOFF->node_addr_req = (uint32_t)addr | ((uint32_t)(uint16_t)~addr << 16);
+    HANDOFF->node_magic = UMCUB_NODE_MAGIC;     /* 32-bit stores only (ECC SRAM) */
+#ifndef UMCUB_HOST_TEST
+    __asm volatile("dsb" ::: "memory");
+#endif
+}
+
 #ifdef UMCUB_BUILDING_APP
 /* The next boot reports "last update via app" (umcub_handoff_t.last_transport,
  * carried over the reset like the recovery mux does it). 32-bit store only:

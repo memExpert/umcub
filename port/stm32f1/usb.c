@@ -21,9 +21,7 @@
 
 void f1_usb_hold_detached(void)
 {
-    GPIO_TypeDef *g = f1_gpio_port(USB_DP);
-    g->BRR = 1u << 12;
-    f1_gpio_config(USB_DP, 0x2u);           /* output push-pull 2 MHz, low: overrides the pull-up */
+    umcub_port_gpio_output(USB_DP, false);  /* push-pull low: overrides the pull-up */
 }
 
 int umcub_port_usb_init(void)

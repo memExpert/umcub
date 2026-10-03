@@ -109,6 +109,8 @@ int main(void)
                   (unsigned long)UMCUB_GIT_HASH, UMCUB_BOARD_NAME,
                   mode_names[UMCUB_CFG_UPGRADE_MODE], UMCUB_CFG_IMAGE_NUMBER);
 
+    umcub_node_init();
+
     uint32_t req_arg = 0;
     uint32_t request = umcub_handoff_take_request(&req_arg);
 #if UMCUB_CFG_ENTRY_ON_REQUEST
@@ -147,6 +149,9 @@ int main(void)
     info.last_transport = umcub_handoff_last_transport();
     info.image_count = UMCUB_CFG_IMAGE_NUMBER;
     info.upgrade_mode = UMCUB_CFG_UPGRADE_MODE;
+    info.board_type = UMCUB_CFG_BOARD_TYPE;
+    info.board_rev = UMCUB_CFG_BOARD_REV;
+    info.node_addr = umcub_node_address();
 
     /* What MCUboot is about to do with image 0 (swap modes). */
 #if !DIRECT_XIP

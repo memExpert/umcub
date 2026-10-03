@@ -7,6 +7,8 @@
 #define UMCUB_CONFIG_H
 
 #define UMCUB_CFG_MCU                   STM32F103xB
+#define UMCUB_CFG_BOARD_TYPE            0x46103001      /* images must carry this (signed TLV) */
+#define UMCUB_CFG_BOARD_REV             1
 
 #define UMCUB_CFG_CLOCK_SOURCE          UMCUB_CLK_HSE
 #define UMCUB_CFG_HSE_HZ                8000000

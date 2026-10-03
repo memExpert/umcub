@@ -53,6 +53,12 @@ int umcub_image_version(int image, int slot, umcub_version_t *v);
  * free value printed by the bootloader. Never returns. */
 __attribute__((noreturn)) void umcub_enter_bootloader(uint32_t arg);
 
+/* Node address of this device on a shared bus (RS485, CAN, ...), used by the
+ * bootloader for addressing (umcub link, CAN IDs). Call it on every start:
+ * the value lives in the handoff RAM and survives resets, not power cycles.
+ * 0 = unassigned. umcub_boot_info()->node_addr shows what the bootloader used. */
+void umcub_set_node_address(uint16_t addr);
+
 /* Mark the running image as good (swap and direct-xip-revert modes:
  * otherwise the bootloader reverts it on the next reset). */
 int umcub_confirm(void);

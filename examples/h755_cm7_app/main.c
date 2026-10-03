@@ -46,6 +46,12 @@ static void show_info(void)
         ex_puts(h->last_transport < 8 ? transports[h->last_transport] : "?");
         ex_puts(", reset cause ");
         ex_put_u32(h->reset_cause);
+        ex_puts("\nboard type ");
+        ex_put_hex(h->board_type);
+        ex_puts(" rev ");
+        ex_put_u32(h->board_rev);
+        ex_puts(", node address ");
+        ex_put_u32(h->node_addr);
         ex_puts("\n");
         for (unsigned i = 0; i < h->image_count && i < UMCUB_MAX_IMAGES; i++) {
             ex_puts("image ");
@@ -125,6 +131,7 @@ static void upload(void)
 
 int main(void)
 {
+    umcub_set_node_address(APP_NODE_ADDR);   /* address on a shared bus, used by the bootloader */
     ex_led_init('B', 0);
     ex_uart_init();
     show_info();
