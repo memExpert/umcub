@@ -52,6 +52,38 @@ function(umcub_generate_pubkey key out)
     VERBATIM)
 endfunction()
 
+# umcub_generate_link_keys(<device.pem> <admin.pem> <out.c>)
+# umcub link SECURE keys for the bootloader (tools/umcub_keys.py): the private
+# device key and the public half of the admin key.
+function(umcub_generate_link_keys device admin out)
+  foreach(_k "${device}" "${admin}")
+    if(NOT EXISTS "${_k}")
+      message(FATAL_ERROR "umcub: key ${_k} not found (imgtool keygen -t ecdsa-p256 -k ${_k})")
+    endif()
+    if(_k MATCHES "/tools/keys/dev-[a-z]+-p256.pem$")
+      message(WARNING "umcub: using the development link key ${_k} from the repository. "
+                      "Set UMCUB_DEVICE_KEY / UMCUB_HOST_KEY for production.")
+    endif()
+  endforeach()
+  umcub_keys_command(c "${device}" "${admin}" "${out}")
+endfunction()
+
+# umcub_keys_command(<c|host-c> <device.pem> <admin.pem> <out.c>): rule running
+# tools/umcub_keys.py with the Python next to imgtool (it has `cryptography`,
+# an imgtool dependency).
+function(umcub_keys_command mode device admin out)
+  get_filename_component(_dir "${UMCUB_IMGTOOL}" DIRECTORY)
+  find_program(_py NAMES python3 python HINTS "${_dir}" NO_DEFAULT_PATH NO_CACHE)
+  if(NOT _py)
+    find_program(_py NAMES python3 python REQUIRED NO_CACHE)
+  endif()
+  add_custom_command(OUTPUT "${out}"
+    COMMAND "${_py}" "${UMCUB_ROOT}/tools/umcub_keys.py" ${mode} --device "${device}" --admin "${admin}" -o "${out}"
+    DEPENDS "${device}" "${admin}" "${UMCUB_ROOT}/tools/umcub_keys.py"
+    COMMENT "umcub link keys (${mode})"
+    VERBATIM)
+endfunction()
+
 # umcub_sign_image(<target>
 #                  [IMAGE <n>] [SLOT <0|1>] [VERSION <x.y.z[+build]>]
 #                  [KEY <key.pem>] [CONFIRM] [PAD] [DEPENDS "(<image>,<version>)"])

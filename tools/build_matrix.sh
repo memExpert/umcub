@@ -32,6 +32,8 @@ configs=(
   "bluepill-rs485|cm3|Release||bluepill_rs485.h|bluepill_f103c8"
   "link-addressed|cm7|Release||link_addressed.h"
   "bluepill-rs485-link|cm3|Release||bluepill_rs485_link.h|bluepill_f103c8"
+  "link-secure|cm7|Release||link_secure.h"
+  "bluepill-rs485-secure|cm3|Release||bluepill_rs485_secure.h|bluepill_f103c8"
 )
 
 for c in "${configs[@]}"; do
@@ -115,8 +117,12 @@ ide_ok="gcc"
 arm-none-eabi-gcc -mcpu=cortex-m7 -mthumb -mfpu=fpv5-d16 -mfloat-abi=hard "${ide_flags[@]}" -o "$OUT/ide_gcc.o" \
   >"$OUT/ide.log" 2>&1 || { echo "FAIL IDE build (gcc), see $OUT/ide.log"; fail=1; ide_ok=""; }
 if command -v clang >/dev/null; then
+  # newlib headers: <sysroot>/include; distribution toolchains (Debian/Ubuntu)
+  # print no sysroot, there they sit next to libc.a's lib directory.
+  newlib_inc="$(arm-none-eabi-gcc -print-sysroot)/include"
+  [[ -f "$newlib_inc/string.h" ]] || newlib_inc="$(dirname "$(arm-none-eabi-gcc -print-file-name=libc.a)")/../include"
   clang --target=arm-none-eabi -mcpu=cortex-m7 -mfpu=fpv5-d16 -mfloat-abi=hard -Wno-unknown-attributes \
-    -isystem "$(arm-none-eabi-gcc -print-sysroot)/include" "${ide_flags[@]}" -o "$OUT/ide_clang.o" >>"$OUT/ide.log" 2>&1 &&
+    -isystem "$newlib_inc" "${ide_flags[@]}" -o "$OUT/ide_clang.o" >>"$OUT/ide.log" 2>&1 &&
     ide_ok+=" clang" || { echo "FAIL IDE build (clang), see $OUT/ide.log"; fail=1; }
 fi
 summary+=("$(printf '%-24s umcub_app_all.c: %s' "ide-library" "$ide_ok")")

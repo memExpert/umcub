@@ -161,17 +161,17 @@ ECDSA-P256), and what every transport and feature adds. Regenerate with `tools/s
 <!-- size-table:begin -->
 | MCU | base | all on | UART (+SMP) | USB CDC | USB DFU | USB CDC+DFU | CAN | CAN FD | Ethernet (+DHCP) | DFU only |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| STM32H755 CM7 (2 images, SINGLE_BOOT) | 19.3 K | 55.7 K | +10.1 K | +11.2 K | +10.6 K | +13.2 K | +2.3 K | +2.3 K | +4.1 K | +10.9 K |
-| STM32H755 CM4 (PER_CORE) | 16.8 K | 52.8 K | +9.9 K | +11.2 K | +10.6 K | +13.2 K | +2.3 K | +2.3 K | +4.1 K | +10.9 K |
-| STM32H743 / H753 (single core) | 17.5 K | 53.5 K | +9.9 K | +11.2 K | +10.6 K | +13.2 K | +2.3 K | +2.3 K | +4.1 K | +10.9 K |
-| STM32F103 (Blue Pill, overwrite) | 13.1 K | 41.0 K | +10.4 K | +9.8 K | +9.2 K | +11.8 K | — | — | — | +9.7 K |
+| STM32H755 CM7 (2 images, SINGLE_BOOT) | 19.8 K | 57.5 K | +10.4 K | +11.3 K | +10.7 K | +13.3 K | +2.3 K | +2.3 K | +4.1 K | +11.2 K |
+| STM32H755 CM4 (PER_CORE) | 17.4 K | 54.6 K | +10.2 K | +11.3 K | +10.6 K | +13.3 K | +2.3 K | +2.3 K | +4.1 K | +11.2 K |
+| STM32H743 / H753 (single core) | 18.1 K | 55.4 K | +10.2 K | +11.3 K | +10.6 K | +13.3 K | +2.3 K | +2.3 K | +4.1 K | +11.2 K |
+| STM32F103 (Blue Pill, overwrite) | 13.5 K | 42.1 K | +10.3 K | +9.9 K | +9.2 K | +11.9 K | — | — | — | +9.9 K |
 
-| MCU | log (level 3) | text commands | verify + hash | readback |
-|---|---:|---:|---:|---:|
-| STM32H755 CM7 (2 images, SINGLE_BOOT) | +2.8 K | +2.7 K | +1.0 K | +0.2 K |
-| STM32H755 CM4 (PER_CORE) | +2.6 K | +2.7 K | +1.0 K | +0.2 K |
-| STM32H743 / H753 (single core) | +2.6 K | +2.7 K | +1.0 K | +0.2 K |
-| STM32F103 (Blue Pill, overwrite) | +2.2 K | +2.5 K | +0.9 K | +0.2 K |
+| MCU | log (level 3) | text commands | verify + hash | readback | umcub link (addressed) | umcub link SECURE | + link encryption |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| STM32H755 CM7 (2 images, SINGLE_BOOT) | +2.8 K | +3.6 K | +1.0 K | +0.2 K | +1.3 K | +4.1 K | +1.4 K |
+| STM32H755 CM4 (PER_CORE) | +2.6 K | +3.5 K | +0.9 K | +0.2 K | +1.3 K | +4.1 K | +1.4 K |
+| STM32H743 / H753 (single core) | +2.6 K | +3.5 K | +0.9 K | +0.2 K | +1.3 K | +4.1 K | +1.4 K |
+| STM32F103 (Blue Pill, overwrite) | +2.2 K | +3.1 K | +0.9 K | +0.2 K | +1.4 K | +4.1 K | +1.4 K |
 <!-- size-table:end -->
 
 Notes:
@@ -243,6 +243,55 @@ E: Image in the primary slot is not valid!
 call it on every start. A board can also supply it with `bool umcub_board_node_address(uint16_t *addr)` in
 `umcub_board.c` (DIP switches, EEPROM). 0 means unassigned. The bootloader reports the address it uses
 (`i`, `umcub_boot_info()->node_addr`).
+
+## Shared buses: umcub link (addressing, SECURE mode)
+
+SMP over a serial line is point to point: on a shared RS485 bus every bootloader would answer at once, and anybody
+on the bus could drive them. The umcub link puts an envelope around SMP and text commands, per transport:
+
+| `UMCUB_CFG_<UART\|USB_CDC\|CAN\|ETH\|USER>_LINK` | What the transport accepts |
+|---|---|
+| `UMCUB_LINK_PLAIN` (default) | SMP and text as before; standard `mcumgr` / `smpmgr` |
+| `UMCUB_LINK_ADDRESSED` | only umcub link frames: a device answers frames for its node address (or, unassigned, for its UID after a `HELLO` with that UID), discovery with random back-off |
+| `UMCUB_LINK_SECURE` | addressed, and nothing is executed before the host has authenticated; every frame of the session carries a MAC |
+
+Frames: magic, version, type, flags, destination, source, sequence number, length, payload, optional 16-byte tag.
+Packet transports (CAN ISO-TP, UDP, board packet transports) carry them as they are, stream transports (UART, USB
+CDC) as a line `0x05 0x0B <base64> \n`. The format and the handshake are described in
+[`transport/include/umcub_link.h`](transport/include/umcub_link.h). RS485 needs the driver-enable pin
+(`UMCUB_CFG_UART_DE_PIN`; hardware DE on the H7, software on the F1) and no log on that UART.
+
+**SECURE mode.** The host answers a fresh 32-byte challenge with an ephemeral EC P-256 key, its own nonce and an
+ECDSA signature made with the **admin key**. The bootloader checks the signature with the embedded public half,
+derives the session keys from ECDH with its **device key** (HKDF-SHA256) and proves in `AUTH_OK` that it holds that
+key. After that every frame has an HMAC-SHA256 tag (16 bytes) and a strictly increasing sequence number, so a
+recorded frame or `AUTH` cannot be replayed and a frame cannot be changed. `UMCUB_CFG_LINK_ENCRYPT` also encrypts
+the payloads (AES-128-CTR), so a sniffer does not see the firmware either. A session belongs to one host on one
+transport and ends with `CLOSE` or after `UMCUB_CFG_LINK_SESSION_MS` without a valid frame.
+
+Keys are files, like the signing key:
+
+```sh
+imgtool keygen -t ecdsa-p256 -k keys/device.pem     # stays in the bootloader (private)
+imgtool keygen -t ecdsa-p256 -k keys/admin.pem      # stays on the hosts allowed to update
+cmake ... -DUMCUB_DEVICE_KEY=$PWD/keys/device.pem -DUMCUB_HOST_KEY=$PWD/keys/admin.pem
+```
+
+CMake embeds them with `tools/umcub_keys.py` (`c`: device private key and admin public key for the bootloader;
+`host-c`: the host side for C tools and tests). `tools/keys/dev-device-p256.pem` and `dev-admin-p256.pem` are
+development keys from the repository, the build warns about them.
+
+Limits:
+- The device key is the same in every device of a product. With flash readout protection off it can be read out
+  with a debugger, so a SECURE transport stays closed (`HELLO` gets an `ANNOUNCE` flagged closed) while RDP is at
+  level 0, unless `UMCUB_CFG_LINK_REQUIRE_RDP` is 0 (development only).
+- USB DFU cannot authenticate the host: together with a SECURE transport it is refused at build time unless
+  `UMCUB_CFG_USB_DFU_ALLOW_UNAUTH` is set.
+- The F1 has no true RNG: nonces come from ADC noise and clock jitter, hashed with the UID and a counter.
+- A bus can always be jammed; the link protects authenticity, integrity, replay and (with encryption)
+  confidentiality.
+- Standard SMP clients do not speak the link. The host tool (discovery, and a proxy that serves `mcumgr` /
+  `smpmgr` unchanged) is the next step and not in the repository yet.
 
 ## Checking what was written (verify / hash / read)
 
@@ -621,7 +670,7 @@ peripheral a driver touches.
 ## Testing
 
 ```sh
-tools/build_matrix.sh                 # 17 bootloader configurations, examples, IDE checks, host tests; warning-free
+tools/build_matrix.sh                 # 23 bootloader configurations, examples, IDE checks, host tests; warning-free
 ctest --test-dir build/matrix/host    # host tests only
 tools/check_docs.py                   # README still matches the repository (size tables, boards, tools, ...)
 ```
@@ -629,7 +678,9 @@ tools/check_docs.py                   # README still matches the repository (siz
 Host tests (`tests/host`) run the real MCUboot (boot_go, boot_serial, ECDSA) on an emulated H7 flash (32-byte
 words, no double programming) through the umcub transport layer. Covered: SMP upload / echo / list over the packet
 and stream paths (including two interleaved streams), swap → revert → confirm in scratch / move / offset modes, text
-commands, verify / hash / read, ISO-TP classic/FD, DHCP / ARP / ICMP, board-supplied drivers and transports.
+commands, verify / hash / read, ISO-TP classic/FD, DHCP / ARP / ICMP, board-supplied drivers and transports, the
+board-type check, the umcub link in ADDRESSED mode and in SECURE mode with encryption (handshake, wrong admin key,
+replayed / tampered / reordered frames, session end, RDP level 0).
 
 Hardware tests: `tools/hw/powerfail_test.py` resets the MCU in the middle of the K-th flash operation (build with
 `tools/config/fault_inject.h`, test only) and checks that an interrupted upgrade or revert always completes. See
@@ -643,14 +694,14 @@ mcuboot_port/    MCUboot glue: mcuboot_config.h, flash map backend, shims
 port/include/    hardware API (umcub_port.h, _uart, _can, _eth, _usb)
 port/stm32h7/    STM32H7 port + linker templates
 port/stm32f1/    STM32F1 port (flash, clocks, GPIO, USART) + linker templates
-transport/       mux (SMP), uart, usb (tinyUSB CDC/DFU), can (ISO-TP), net (IPv4/UDP/DHCP)
+transport/       mux (SMP), umcub link, uart, usb (tinyUSB CDC/DFU), can (ISO-TP), net (IPv4/UDP/DHCP)
 lib/umcub_app/   application library (umcub::app); umcub_app_all.c = the whole library as one file for IDEs
 config/          template, defaults, compile-time checks
 boards/          board configurations
 examples/        CM7 / CM4 applications for NUCLEO-H755ZI-Q, Blue Pill application
 tools/           setup, build matrix, flashing, option bytes, host tools, keys, hardware tests;
                  umcub_image.py = slot addresses and signing for IDE projects; size_table.py = size tables;
-                 check_docs.py = README consistency check
+                 check_docs.py = README consistency check; umcub_keys.py = umcub link keys as C arrays
 tests/host/      host tests
 tests/tools/     helpers for the build matrix
 tests/boards/    build-matrix boards (custom_drivers: board drivers + board transport)
@@ -665,8 +716,10 @@ tests/boards/    build-matrix boards (custom_drivers: board drivers + board tran
   2 = image 0 secondary, 3/4 = image 1), and the image must be linked for that slot
   (`umcub_app_linker_script(... SLOT n)`, `umcub_sign_image(... SLOT n)`). Downgrade prevention is not available in
   these modes.
-- **Recovery over the network / CAN is not authenticated**: any node on the LAN (UDP 1337) or the CAN bus can upload
-  any image signed with your key in recovery mode, including an older one. Signatures are always checked.
+- **Recovery over the network / CAN is not authenticated** unless the transport uses `UMCUB_LINK_SECURE` (see
+  [umcub link](#shared-buses-umcub-link-addressing-secure-mode)): otherwise any node on the LAN (UDP 1337) or the
+  CAN bus can upload any image signed with your key in recovery mode, including an older one. Signatures are
+  always checked.
   `UMCUB_CFG_DOWNGRADE_PREVENTION` (swap modes only) protects updates through the secondary slot (DFU, application);
   SMP recovery writes straight into the primary slot and is not covered. If this matters, allow recovery only by the
   entry pin (`UMCUB_CFG_ENTRY_GPIO`, no `ENTRY_WAIT_MS`) or do not enable network transports.
@@ -678,6 +731,8 @@ tests/boards/    build-matrix boards (custom_drivers: board drivers + board tran
 `tools/keys/dev-ecdsa-p256.pem` is a **development key** stored in the repository — anybody can sign images with it.
 For a product generate your own (`imgtool keygen -t ecdsa-p256 -k prod.pem`) and pass `-DUMCUB_SIGNING_KEY=prod.pem`
 when building the bootloader and the applications. Also write-protect the bootloader sector (WRP) and enable RDP.
+For transports on a shared bus see the SECURE mode of the [umcub link](#shared-buses-umcub-link-addressing-secure-mode)
+and its own keys.
 
 ## License
 

@@ -73,9 +73,26 @@ Open:
 - [ ] H755 regression run on hardware after the shared changes of the F1 work (USB not started in the entry window,
   DFU poll time from `UMCUB_FAMILY_SECTOR_ERASE_MS`, `last update via app`).
 
+## Shared buses: umcub link (plan stages)
+
+- [x] 1. Board type (signed TLV, checked by MCUboot), handoff v2, node address from the application.
+- [x] 2. UART config struct, RS485 DE (H7 hardware, F1 software), entropy and RDP level in the ports.
+- [x] 3. umcub link ADDRESSED (frames, node address / UID selection, discovery) through the mux; host test.
+- [x] 4. SECURE: challenge signed with the admin key, ECDH with the device key, HKDF, per-frame HMAC, replay
+  protection, AES-CTR payload encryption, RDP policy, idle timeout, key embedding (`tools/umcub_keys.py`);
+  host test `umcub_host_link_secure` (also under ASan/UBSan). Builds: H7 `link-secure` (all transports, with
+  encryption) 62.0 K, Blue Pill `bluepill-rs485-secure` 32.1 K of 32 K - SECURE with encryption or more transports
+  needs a larger bootloader region on the F1.
+- [ ] 5. Image encryption (MCUboot ENC_EC256 with the device key), in-place decryption after SMP upload, signing tools.
+- [ ] 6. `tools/umcub_link.py`: discover, cmd, `serve` proxy (pty / UDP) for mcumgr/smpmgr; end-to-end tests with
+  several simulated devices on one bus.
+- [ ] 7. README / size table final pass; manual check of DE / RNG / RDP register use; security review.
+- [ ] Hardware: H755 SECURE over UART / USB CDC through the proxy; Blue Pill board-type rejection; RS485 bus.
+
 ## Known limitations / ideas
 
-- [ ] Recovery over the network / CAN is not authenticated (see README, "Mode notes and limitations").
+- [ ] Recovery over the network / CAN is not authenticated without `UMCUB_LINK_SECURE` (see README, "Mode notes
+  and limitations").
 - [ ] An application on one core can erase the running image of the other core (`umcub_slot_*` only checks its own core).
 - [ ] When the application writes a slot in the same flash bank it executes from, the CPU stalls for the duration of a
   sector erase (~2 s on the H7).

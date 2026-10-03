@@ -14,6 +14,25 @@
  * Addresses: the node address (umcub_node_address(), 0 = unassigned),
  * 0xFFFF = broadcast. DATA payloads are raw SMP packets or text commands; the
  * answer comes back as DATA to the sender.
+ *
+ * SECURE transports (one session at a time):
+ *   host   HELLO
+ *   device CHALLENGE  identity[24] (as ANNOUNCE) | nonce_d[32]
+ *   host   AUTH       eph_pub[64] (X || Y) | nonce_h[32] | sig[64] (r || s)
+ *   device AUTH_OK    empty, FLAG_MAC: proves the device holds the device key
+ * th   = SHA-256("umcub-link-v1" | host addr u16 | CHALLENGE payload |
+ *                eph_pub | nonce_h)
+ * sig  = ECDSA P-256 of th with the admin key (UMCUB_HOST_KEY)
+ * keys = HKDF-SHA256(salt th, ECDH(device key, eph_pub), "umcub-link-v1 keys",
+ *                    96): mac host->device[32] | mac device->host[32] |
+ *                    enc host->device[16] | enc device->host[16]
+ * Every later frame (DATA, CLOSE, AUTH_OK) has FLAG_MAC: tag = first 16 bytes
+ * of HMAC-SHA256(mac key of its direction, header | payload); seq strictly
+ * increasing per direction (replays are dropped). With UMCUB_CFG_LINK_ENCRYPT
+ * DATA payloads are AES-128-CTR (FLAG_ENC; counter block seq u32 LE | 8 x 0 |
+ * block u32 BE from 0) before the MAC is computed. A challenge is good for one
+ * AUTH. Unauthenticated hosts get only ANNOUNCE / CHALLENGE answers. ANNOUNCE
+ * and CHALLENGE identity byte 20: UMCUB_LINK_* | ANNOUNCE_ENC | ANNOUNCE_CLOSED.
  */
 #ifndef UMCUB_LINK_H
 #define UMCUB_LINK_H
@@ -45,6 +64,10 @@ enum {
 #define UMCUB_LF_MAC            0x01u
 #define UMCUB_LF_ENC            0x02u
 #define UMCUB_LF_UID            0x04u
+
+/* Identity byte 20 (ANNOUNCE, CHALLENGE): flags next to the UMCUB_LINK_* mode. */
+#define UMCUB_LINK_ANNOUNCE_ENC     0x40u   /* SECURE with payload encryption */
+#define UMCUB_LINK_ANNOUNCE_CLOSED  0x80u   /* SECURE but closed: RDP level 0 */
 
 /* Largest frame and its line form (stream transports). */
 #define UMCUB_LINK_FRAME_MAX    (UMCUB_LINK_HDR + UMCUB_CFG_SMP_MTU + UMCUB_LINK_TAG)

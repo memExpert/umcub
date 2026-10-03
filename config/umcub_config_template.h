@@ -251,6 +251,24 @@
 /* #define UMCUB_CFG_ETH_LINK             UMCUB_LINK_PLAIN */
 /* #define UMCUB_CFG_USER_LINK            UMCUB_LINK_PLAIN */
 
+/* UMCUB_LINK_SECURE: a host must prove it holds the admin key (ECDSA over a
+ * fresh challenge) before the bootloader executes anything; the session keys
+ * come from ECDH with the device key, every frame then carries a MAC and a
+ * strictly increasing sequence number. Keys: CMake UMCUB_DEVICE_KEY (EC P-256
+ * private, embedded) and UMCUB_HOST_KEY (the admin key; only its public half
+ * is embedded). */
+/* Encrypt session payloads (AES-128-CTR) in addition to the MAC. */
+/* #define UMCUB_CFG_LINK_ENCRYPT         0 */
+/* Keep SECURE transports closed while flash readout protection is off (RDP
+ * level 0): without it the device key can be read out with a debugger. Set 0
+ * only for development. */
+/* #define UMCUB_CFG_LINK_REQUIRE_RDP     1 */
+/* A session ends after this long without a valid frame. */
+/* #define UMCUB_CFG_LINK_SESSION_MS      60000 */
+/* USB DFU cannot authenticate the host. With any SECURE transport it is
+ * refused at build time unless this is set. */
+/* #define UMCUB_CFG_USB_DFU_ALLOW_UNAUTH 0 */
+
 /* ======================================================================== */
 /* Board identity                                                           */
 /* ======================================================================== */

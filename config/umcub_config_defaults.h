@@ -260,6 +260,25 @@
                                          UMCUB_CFG_TRANSPORT_CAN * UMCUB_CFG_CAN_LINK + \
                                          UMCUB_CFG_TRANSPORT_ETH * UMCUB_CFG_ETH_LINK + \
                                          UMCUB_CFG_TRANSPORT_USER * UMCUB_CFG_USER_LINK)
+/* Derived: some enabled transport is UMCUB_LINK_SECURE (non-zero; LINK / 2 is
+ * 1 only for SECURE). */
+#define UMCUB_CFG_LINK_SECURE_ANY       (UMCUB_CFG_TRANSPORT_UART * (UMCUB_CFG_UART_LINK / 2) + \
+                                         UMCUB_CFG_TRANSPORT_USB_CDC * (UMCUB_CFG_USB_CDC_LINK / 2) + \
+                                         UMCUB_CFG_TRANSPORT_CAN * (UMCUB_CFG_CAN_LINK / 2) + \
+                                         UMCUB_CFG_TRANSPORT_ETH * (UMCUB_CFG_ETH_LINK / 2) + \
+                                         UMCUB_CFG_TRANSPORT_USER * (UMCUB_CFG_USER_LINK / 2))
+#ifndef UMCUB_CFG_LINK_ENCRYPT
+#define UMCUB_CFG_LINK_ENCRYPT          0
+#endif
+#ifndef UMCUB_CFG_LINK_REQUIRE_RDP
+#define UMCUB_CFG_LINK_REQUIRE_RDP      1
+#endif
+#ifndef UMCUB_CFG_LINK_SESSION_MS
+#define UMCUB_CFG_LINK_SESSION_MS       60000
+#endif
+#ifndef UMCUB_CFG_USB_DFU_ALLOW_UNAUTH
+#define UMCUB_CFG_USB_DFU_ALLOW_UNAUTH  0
+#endif
 
 /* Derived: some transport speaks SMP (boot_serial, zcbor, SMP inspection
  * group are compiled only then; USB DFU alone does not need them). */

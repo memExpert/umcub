@@ -42,3 +42,11 @@ uint32_t umcub_random_u32(void)
     umcub_random(&v, sizeof(v));
     return v;
 }
+
+/* tinycrypt's RNG hook (ecc.c): random scalars and the side-channel blinding
+ * of the umcub link ECDH. */
+int default_CSPRNG(uint8_t *dest, unsigned int size)
+{
+    umcub_random(dest, size);
+    return 1;
+}

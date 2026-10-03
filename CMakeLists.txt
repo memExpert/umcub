@@ -24,6 +24,10 @@ set(UMCUB_CONFIG_PRE "" CACHE FILEPATH "Optional header included before the boar
 set(UMCUB_CONFIG_POST "" CACHE FILEPATH "Optional header included after the board config")
 set(UMCUB_SIGNING_KEY "${CMAKE_CURRENT_LIST_DIR}/tools/keys/dev-ecdsa-p256.pem" CACHE FILEPATH
     "ECDSA-P256 key whose public part is embedded in the bootloader")
+set(UMCUB_DEVICE_KEY "${CMAKE_CURRENT_LIST_DIR}/tools/keys/dev-device-p256.pem" CACHE FILEPATH
+    "EC P-256 private device key of the umcub link SECURE mode (session key agreement)")
+set(UMCUB_HOST_KEY "${CMAKE_CURRENT_LIST_DIR}/tools/keys/dev-admin-p256.pem" CACHE FILEPATH
+    "EC P-256 admin key of the umcub link SECURE mode; only its public half is embedded")
 set(UMCUB_IMGTOOL "" CACHE FILEPATH "imgtool executable (default: .venv/bin/imgtool or PATH)")
 
 include(cmake/umcub_config.cmake)
@@ -131,6 +135,20 @@ endif()
 # --- transports -------------------------------------------------------------
 if(UMCUB_CFG_LINK_ANY)             # umcub link: addressing / discovery on shared buses
   list(APPEND BOOT_SOURCES transport/link.c boot/random.c ${UMCUB_FAMILY_ENTROPY_SOURCES})
+endif()
+if(UMCUB_CFG_LINK_SECURE_ANY)      # host authentication, session MAC (and encryption)
+  list(APPEND MCUBOOT_SOURCES
+    ${TINYCRYPT}/source/ecc.c
+    ${TINYCRYPT}/source/ecc_dsa.c
+    ${TINYCRYPT}/source/ecc_dh.c
+    ${TINYCRYPT}/source/hmac.c
+    ${CMAKE_BINARY_DIR}/umcub_link_keys.c
+  )
+  if(UMCUB_CFG_LINK_ENCRYPT)
+    list(APPEND MCUBOOT_SOURCES ${TINYCRYPT}/source/aes_encrypt.c ${TINYCRYPT}/source/ctr_mode.c)
+  endif()
+  list(REMOVE_DUPLICATES MCUBOOT_SOURCES)
+  umcub_generate_link_keys("${UMCUB_DEVICE_KEY}" "${UMCUB_HOST_KEY}" "${CMAKE_BINARY_DIR}/umcub_link_keys.c")
 endif()
 # Peripherals the family port does not drive (yet): a board driver
 # (UMCUB_DRIVER_BOARD) or another transport is needed.

@@ -36,6 +36,9 @@ void umcub_port_irq_restore(uint32_t s) { (void)s; }
 uint8_t umcub_port_reset_cause(void) { return UMCUB_RESET_SOFTWARE; }
 uint32_t umcub_port_reset_flags(void) { return 0; }
 
+int fake_rdp_level = 1;
+int umcub_port_rdp_level(void) { return fake_rdp_level; }
+
 void umcub_port_uid(uint8_t uid[12])
 {
     for (int i = 0; i < 12; i++) {
@@ -132,9 +135,9 @@ int umcub_port_entropy(uint8_t *buf, size_t len)
 }
 
 /* tinycrypt's default RNG hook (ecc.c references it; gcc drops it with
- * --gc-sections, clang keeps the reference). Never called: the bootloader
- * only verifies signatures. */
-int default_CSPRNG(uint8_t *dest, unsigned int size)
+ * --gc-sections, clang keeps the reference). Never called by tests without
+ * the umcub link; boot/random.c has the real one. */
+__attribute__((weak)) int default_CSPRNG(uint8_t *dest, unsigned int size)
 {
     (void)dest;
     (void)size;

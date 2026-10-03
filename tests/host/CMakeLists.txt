@@ -17,6 +17,11 @@ set(MCUBOOT ${UMCUB_ROOT}/third_party/mcuboot)
 set(TINYCRYPT ${MCUBOOT}/ext/tinycrypt/lib)
 umcub_generate_pubkey("${UMCUB_SIGNING_KEY}" "${CMAKE_BINARY_DIR}/umcub_keys.c")
 add_custom_target(pubkey DEPENDS ${CMAKE_BINARY_DIR}/umcub_keys.c)
+# umcub link SECURE: the device side (embedded) and the host side (test as host).
+set(_dev_key ${UMCUB_ROOT}/tools/keys/dev-device-p256.pem)
+set(_adm_key ${UMCUB_ROOT}/tools/keys/dev-admin-p256.pem)
+umcub_keys_command(c ${_dev_key} ${_adm_key} ${CMAKE_BINARY_DIR}/umcub_link_keys.c)
+umcub_keys_command(host-c ${_dev_key} ${_adm_key} ${CMAKE_BINARY_DIR}/umcub_link_host_keys.c)
 
 file(GLOB BOOTUTIL_SRCS ${MCUBOOT}/boot/bootutil/src/*.c)
 list(FILTER BOOTUTIL_SRCS EXCLUDE REGEX "(encrypted|ed25519|image_rsa|ram_load|boot_record|_psa|_mbedtls)")
@@ -194,14 +199,15 @@ endfunction()
 
 umcub_host_board()
 
-# umcub link (ADDRESSED) through the mux on stream and packet transports.
-function(umcub_host_link)
+# umcub link through the mux on stream and packet transports: ADDRESSED
+# (test_link.c) and SECURE with encryption (test_link_secure.c, extra sources).
+function(umcub_host_link t src post)
   set(UMCUB_CONFIG_PRE ${CMAKE_CURRENT_LIST_DIR}/cfg_swap_scratch.h)
-  set(UMCUB_CONFIG_POST ${CMAKE_CURRENT_LIST_DIR}/test_link_post.h)
+  set(UMCUB_CONFIG_POST ${CMAKE_CURRENT_LIST_DIR}/${post})
   umcub_load_config("${UMCUB_BOARD}" "${UMCUB_CORE}")
-  set(t umcub_host_link)
   add_executable(${t}
-    test_link.c
+    ${src}
+    ${ARGN}
     ${UMCUB_ROOT}/transport/link.c
     ${UMCUB_ROOT}/boot/random.c
     fake_port.c
@@ -256,4 +262,11 @@ function(umcub_host_link)
   add_test(NAME ${t} COMMAND ${t})
 endfunction()
 
-umcub_host_link()
+umcub_host_link(umcub_host_link test_link.c test_link_post.h)
+umcub_host_link(umcub_host_link_secure test_link_secure.c test_link_secure_post.h
+  ${TINYCRYPT}/source/ecc_dh.c
+  ${TINYCRYPT}/source/hmac.c
+  ${TINYCRYPT}/source/aes_encrypt.c
+  ${TINYCRYPT}/source/ctr_mode.c
+  ${CMAKE_BINARY_DIR}/umcub_link_keys.c
+  ${CMAKE_BINARY_DIR}/umcub_link_host_keys.c)
