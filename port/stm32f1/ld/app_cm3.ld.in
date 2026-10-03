@@ -1,0 +1,19 @@
+/*
+ * Application linker script template, STM32F1.
+ * Preprocessed with umcub_cfg.h and -DUMCUB_APP_IMAGE=<n> -DUMCUB_APP_SLOT=<0|1>.
+ * Use as is, or copy the MEMORY block into your own script.
+ */
+#include "umcub_cfg.h"
+#include "../../common/app_slot.ld.inc"
+
+MEMORY
+{
+  FLASH (rx)  : ORIGIN = UMCUB_APP_FLASH_ORIGIN, LENGTH = UMCUB_APP_FLASH_LENGTH
+  RAM   (xrw) : ORIGIN = 0x20000000, LENGTH = UMCUB_CFG_SHARED_RAM_ADDR - 0x20000000   /* handoff excluded */
+}
+
+_Min_Heap_Size  = 0x200;
+_Min_Stack_Size = 0x400;
+_estack = ORIGIN(RAM) + LENGTH(RAM);
+
+#include "../../common/cortexm_sections.ld.inc"

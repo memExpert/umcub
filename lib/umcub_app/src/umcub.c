@@ -86,6 +86,23 @@ __attribute__((noreturn)) void umcub_enter_bootloader(uint32_t arg)
     umcub_port_reset();
 }
 
+#ifdef UMCUB_BUILDING_APP
+/* The next boot reports "last update via app" (umcub_handoff_t.last_transport,
+ * carried over the reset like the recovery mux does it). 32-bit store only:
+ * ECC SRAM loses narrower writes on reset. */
+void umcub_note_app_update(void)
+{
+    volatile uint32_t *w = (volatile uint32_t *)((uintptr_t)&HANDOFF->last_transport & ~3u);
+    union {
+        uint32_t word;
+        uint8_t b[4];
+    } u = { .word = *w };
+    u.b[(uintptr_t)&HANDOFF->last_transport & 3u] = UMCUB_TRANSPORT_APP;
+    *w = u.word;
+    __asm volatile("dsb" ::: "memory");
+}
+#endif
+
 /* Image the running code belongs to (by the address of this function). */
 static int running_image(void)
 {

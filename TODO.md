@@ -39,12 +39,30 @@ Open:
   verified: `umcub_app_all.c` compiles with the documented include list (GCC, clang); `tools/umcub_image.py` gives
   the same image as CMake (header, payload, hash) from ELF and HEX; a tool-signed image boots on the board.
 - [ ] **Bluetooth UART bridge** (HC-05/HC-06 SPP on USART1 D0/D1, PC over RFCOMM): SMP upload, text commands,
-  verify / hash over a slow, packetizing link without flow control. Postponed: the HC-06 at hand is dead
-  (no LED at 4.5 V, not discoverable, TX not idling high).
+  verify / hash over a slow, packetizing link without flow control.
 - [ ] Board drivers / board transport with a real external controller (e.g. MCP2518FD, ENC28J60, W5500).
   So far: build matrix (`tests/boards/custom_drivers`) and host test `umcub_host_board`.
 - [ ] CubeMX dual-core start-up handshake (CM7 waits for the CM4 to enter STOP, HSEM 0) together with SINGLE_BOOT
   and PER_CORE.
+
+## Hardware verification (Blue Pill, STM32F103C8T6)
+
+Done (bootloader 28.3 K in 32 K, two 16 K slots, overwrite, USART1 PA9/PA10 115200 via FT232R):
+
+- [x] Clocks (HSE 8 MHz -> 72 MHz), SysTick, USART1 log, MCUboot ECDSA validation (boot to jump ~0.4 s incl.
+  ECDSA, + 300 ms entry window), jump to the application, handoff + info block read by the application.
+- [x] Recovery entry: application request, `b` within the 300 ms window, no valid image; `a` boots the application.
+- [x] SMP serial recovery: `state-read`, upload (4.9 KB in 1.3 s), `os reset`; text command `i`;
+  `verify` / `hash` via `tools/umcub_inspect.py`.
+- [x] Overwrite upgrade from the application (`umcub_slot_*`, `tools/app_upload.py`): secondary -> primary,
+  `boot reason: upgraded`, `last update via app`.
+
+Open:
+
+- [ ] Power-loss test of the overwrite copy on F1 (fault injection points exist in `port/stm32f1/flash.c`).
+- [ ] Watchdog and recovery timeout on F1 (LSI 30..60 kHz spread).
+- [ ] F1 ports of USB FS device (tinyUSB `stm32_fsdev`) and bxCAN; F105/F107 (PREDIV1, 25 MHz HSE); XL-density
+  bank 2.
 
 ## Known limitations / ideas
 
@@ -52,5 +70,5 @@ Open:
 - [ ] An application on one core can erase the running image of the other core (`umcub_slot_*` only checks its own core).
 - [ ] When the application writes a slot in the same flash bank it executes from, the CPU stalls for the duration of a
   sector erase (~2 s on the H7).
-- [ ] Ports for other series (G4, F7, F1, G0, L4).
+- [ ] Ports for other series (G4, F7, G0, L4).
 - [ ] Bootloader build with Arm Compiler 6 / Keil (now GCC only: startup, linker templates, newlib overrides).

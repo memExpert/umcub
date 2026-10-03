@@ -4,8 +4,8 @@ umcub (**U**niversal **MCU**boot **B**ootloader) is a bootloader for STM32 micro
 [MCUboot](https://github.com/mcu-tools/mcuboot):
 
 - **Not tied to a series.** The boot logic, transports and application library use one hardware API
-  (`port/include/umcub_port*.h`); everything series-specific lives in `port/stm32<fam>/`. The first port is STM32H7
-  (reference board NUCLEO-H755ZI-Q, both cores).
+  (`port/include/umcub_port*.h`); everything series-specific lives in `port/stm32<fam>/`. Ports: STM32H7
+  (reference board NUCLEO-H755ZI-Q, both cores, all transports) and STM32F1 (Blue Pill, UART).
 - **One configuration file.** `boards/<board>/umcub_config.h` is the single source of truth. CMake runs it through
   the preprocessor to decide what to build: a disabled transport (e.g. USB together with tinyUSB) is not compiled at all.
 - **Transports** (each enabled separately), all speaking SMP/mcumgr:
@@ -59,6 +59,26 @@ SMP serial recovery writes straight into the **primary** slot (this is how MCUbo
 `image` field (`smpmgr --slot`, `mcumgr -n`; 1 = CM4). `--line-buffers 8` matches `UMCUB_CFG_SMP_MTU` = 1024
 (8 lines of 128 bytes). DFU and `umcub_slot_*` write into the **secondary** slot and mark the image for a test boot.
 
+## Quick start (Blue Pill, STM32F103C8T6)
+
+Minimal build in 64 KiB: SMP over USART1 (PA9 TX, PA10 RX, the pins of the ROM bootloader), overwrite mode,
+bootloader 32 KiB + two 16 KiB slots ([`boards/bluepill_f103c8/umcub_config.h`](boards/bluepill_f103c8/umcub_config.h)).
+
+```sh
+cmake --preset bluepill && cmake --build --preset bluepill
+cmake -S examples/bluepill_app -B build/ex-bp -G Ninja -DAPP_VERSION=1.0.0 && cmake --build build/ex-bp
+STM32_Programmer_CLI -c port=SWD -d build/bluepill/umcub_bluepill_f103c8_cm3.hex -v
+STM32_Programmer_CLI -c port=SWD -d build/ex-bp/bluepill_app.signed.hex -v -rst
+
+# USB-UART adapter on PA9/PA10, 115200: log, text commands and SMP on the same port
+smpmgr --port /dev/ttyUSB0 --line-buffers 4 image upload build/ex-bp/bluepill_app.signed.bin   # in recovery
+tools/app_upload.py /dev/ttyUSB0 build/ex-bp/bluepill_app.signed.bin   # from the running application ('u')
+```
+
+There is no user button. Recovery mode starts on a request from the application (key `b` in the example), when there
+is no valid image, or when `b` arrives within 300 ms after reset (`UMCUB_CFG_ENTRY_WAIT_MS`).
+`--line-buffers 4` matches `UMCUB_CFG_SMP_MTU` = 512 (20 KiB SRAM).
+
 ## Configuration
 
 All options are documented in [`config/umcub_config_template.h`](config/umcub_config_template.h); defaults are in
@@ -104,7 +124,7 @@ ECDSA-P256), and what every transport and feature adds. Regenerate with `tools/s
 
 - **base**: MCUboot with signature check, upgrade/revert, the jump to the application, handoff and info block.
   No transport, no log.
-- **all on**: every transport and feature (the `nucleo_h755zi_q` default with all interfaces).
+- **all on**: every transport and feature the port supports (the `nucleo_h755zi_q` default with all interfaces).
 - **UART** is counted on top of base. It includes the SMP core that every SMP transport needs (`boot_serial`,
   zcbor, the multiplexer), so the first SMP transport always costs about 10 K.
 - The other columns are counted on top of base + UART.
@@ -113,20 +133,24 @@ ECDSA-P256), and what every transport and feature adds. Regenerate with `tools/s
 
 | MCU | base | all on | UART (+SMP) | USB CDC | USB DFU | USB CDC+DFU | CAN | CAN FD | Ethernet (+DHCP) | DFU only |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| STM32H755 CM7 (2 images, SINGLE_BOOT) | 18.9 K | 54.8 K | +10.0 K | +11.1 K | +10.5 K | +13.2 K | +2.2 K | +2.2 K | +4.0 K | +10.9 K |
-| STM32H755 CM4 (PER_CORE) | 16.4 K | 51.9 K | +9.8 K | +11.1 K | +10.5 K | +13.1 K | +2.2 K | +2.2 K | +4.0 K | +10.9 K |
-| STM32H743 / H753 (single core) | 17.1 K | 52.6 K | +9.7 K | +11.1 K | +10.5 K | +13.1 K | +2.2 K | +2.2 K | +4.0 K | +10.9 K |
+| STM32H755 CM7 (2 images, SINGLE_BOOT) | 18.8 K | 54.8 K | +9.9 K | +11.2 K | +10.6 K | +13.2 K | +2.3 K | +2.3 K | +4.1 K | +10.9 K |
+| STM32H755 CM4 (PER_CORE) | 16.4 K | 51.9 K | +9.7 K | +11.2 K | +10.6 K | +13.2 K | +2.3 K | +2.3 K | +4.1 K | +10.9 K |
+| STM32H743 / H753 (single core) | 17.1 K | 52.6 K | +9.7 K | +11.2 K | +10.6 K | +13.2 K | +2.3 K | +2.3 K | +4.1 K | +10.9 K |
+| STM32F103 (Blue Pill, overwrite) | 12.6 K | — | +10.2 K | — | — | — | — | — | — | — |
 
 | MCU | log (level 3) | text commands | verify + hash | readback |
 |---|---:|---:|---:|---:|
-| STM32H755 CM7 (2 images, SINGLE_BOOT) | +2.6 K | +2.7 K | +0.9 K | +0.2 K |
+| STM32H755 CM7 (2 images, SINGLE_BOOT) | +2.6 K | +2.6 K | +0.9 K | +0.2 K |
 | STM32H755 CM4 (PER_CORE) | +2.4 K | +2.6 K | +0.9 K | +0.2 K |
 | STM32H743 / H753 (single core) | +2.4 K | +2.6 K | +0.9 K | +0.2 K |
+| STM32F103 (Blue Pill, overwrite) | +2.0 K | +2.4 K | +0.9 K | +0.2 K |
 
 Notes:
-- Only the STM32H7 port exists so far. The H755 CM4 row is the CM4 bootloader of `PER_CORE` mode (Cortex-M4 code).
-  On the board it uses CAN only; the other columns are measured with borrowed pins.
+- The H755 CM4 row is the CM4 bootloader of `PER_CORE` mode (Cortex-M4 code). On the board it uses CAN only; the
+  other columns are measured with borrowed pins.
 - The H7 bootloader gets one 128 KiB sector, so even "all on" uses less than half of it.
+- STM32F103: only UART is ported (no USB, CAN or Ethernet driver yet; board drivers work). The Blue Pill default
+  (UART, log, text commands, verify + hash) is 28.3 K of its 32 K region; without log and commands about 24 K.
 - USB is mostly tinyUSB. Ethernet is the own IPv4/ARP/ICMP/UDP/DHCP stack plus the MAC driver. CAN FD only changes
   configuration, not code size.
 - Base + the columns adds up to "all on" within a few hundred bytes. CDC and DFU together cost less than separately:
@@ -454,7 +478,7 @@ peripheral a driver touches.
 ## Testing
 
 ```sh
-tools/build_matrix.sh                 # 15 bootloader configurations, examples, IDE checks, host tests; warning-free
+tools/build_matrix.sh                 # 16 bootloader configurations, examples, IDE checks, host tests; warning-free
 ctest --test-dir build/matrix/host    # host tests only
 ```
 
@@ -474,11 +498,12 @@ boot/            boot core: main (entry decision, boot_go, jump), startup, hando
 mcuboot_port/    MCUboot glue: mcuboot_config.h, flash map backend, shims
 port/include/    hardware API (umcub_port.h, _uart, _can, _eth, _usb)
 port/stm32h7/    STM32H7 port + linker templates
+port/stm32f1/    STM32F1 port (flash, clocks, GPIO, USART) + linker templates
 transport/       mux (SMP), uart, usb (tinyUSB CDC/DFU), can (ISO-TP), net (IPv4/UDP/DHCP)
 lib/umcub_app/   application library (umcub::app); umcub_app_all.c = the whole library as one file for IDEs
 config/          template, defaults, compile-time checks
 boards/          board configurations
-examples/        CM7 / CM4 applications for NUCLEO-H755ZI-Q
+examples/        CM7 / CM4 applications for NUCLEO-H755ZI-Q, Blue Pill application
 tools/           setup, build matrix, flashing, option bytes, host tools, keys, hardware tests;
                  umcub_image.py = slot addresses and signing for IDE projects; size_table.py = size tables
 tests/host/      host tests

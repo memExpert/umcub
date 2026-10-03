@@ -128,6 +128,17 @@ elseif(UMCUB_CFG_TRANSPORT_USER OR (UMCUB_CFG_TRANSPORT_CAN AND UMCUB_CFG_CAN_DR
 endif()
 
 # --- transports -------------------------------------------------------------
+# Peripherals the family port does not drive (yet): a board driver
+# (UMCUB_DRIVER_BOARD) or another transport is needed.
+foreach(_t CAN ETH)
+  if(UMCUB_FAMILY_UNSUPPORTED_${_t} AND UMCUB_CFG_TRANSPORT_${_t} AND UMCUB_CFG_${_t}_DRIVER EQUAL 0)
+    message(FATAL_ERROR "umcub: ${UMCUB_FAMILY} has no on-chip ${_t} driver yet "
+                        "(set UMCUB_CFG_${_t}_DRIVER UMCUB_DRIVER_BOARD or disable the transport)")
+  endif()
+endforeach()
+if(UMCUB_FAMILY_UNSUPPORTED_USB AND UMCUB_CFG_USB)
+  message(FATAL_ERROR "umcub: ${UMCUB_FAMILY} has no USB device port yet")
+endif()
 if(UMCUB_CFG_TRANSPORT_UART)
   list(APPEND BOOT_SOURCES transport/uart/uart_transport.c ${UMCUB_FAMILY_UART_SOURCES})
 endif()

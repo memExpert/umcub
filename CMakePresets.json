@@ -40,12 +40,19 @@
         "UMCUB_CORE": "cm4",
         "UMCUB_CONFIG_PRE": "${sourceDir}/tools/config/per_core.h"
       }
+    },
+    {
+      "name": "bluepill",
+      "displayName": "Blue Pill (STM32F103C8T6) bootloader (Release)",
+      "inherits": "base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release", "UMCUB_BOARD": "bluepill_f103c8" }
     }
   ],
   "buildPresets": [
     { "name": "h755-cm7", "configurePreset": "h755-cm7" },
     { "name": "h755-cm7-debug", "configurePreset": "h755-cm7-debug" },
     { "name": "h755-per-core-cm7", "configurePreset": "h755-per-core-cm7" },
-    { "name": "h755-per-core-cm4", "configurePreset": "h755-per-core-cm4" }
+    { "name": "h755-per-core-cm4", "configurePreset": "h755-per-core-cm4" },
+    { "name": "bluepill", "configurePreset": "bluepill" }
   ]
 }

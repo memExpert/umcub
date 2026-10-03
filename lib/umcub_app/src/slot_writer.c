@@ -14,6 +14,9 @@
 #include "flash_map_backend/flash_map_backend.h"
 
 int umcub_mark_slot(int image, int slot, bool permanent);
+#ifdef UMCUB_BUILDING_APP
+void umcub_note_app_update(void);
+#endif
 
 static bool executing_from(uint32_t base, uint32_t size)
 {
@@ -201,7 +204,13 @@ int umcub_slot_finish(umcub_slot_writer_t *w, bool request_upgrade, bool permane
         return UMCUB_EIO;   /* not a (complete) MCUboot image */
     }
     if (request_upgrade) {
-        return umcub_mark_slot(w->image, w->slot, permanent);
+        int rc = umcub_mark_slot(w->image, w->slot, permanent);
+#ifdef UMCUB_BUILDING_APP
+        if (rc == 0) {
+            umcub_note_app_update();    /* inside the bootloader (USB DFU) the transport notes itself */
+        }
+#endif
+        return rc;
     }
     return 0;
 }

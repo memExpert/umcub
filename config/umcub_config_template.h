@@ -76,6 +76,10 @@
 /* Image header size reserved by imgtool (--header-size). Must keep the
  * application vector table aligned as the core requires (VTOR). */
 /* #define UMCUB_CFG_IMAGE_HEADER_SIZE    0x400 */
+/* Bytes at the end of every slot the application must not use (MCUboot
+ * trailer; imgtool --slot-size checks it). Swap modes need room for the swap
+ * status, overwrite only a few dozen bytes: one flash page is plenty. */
+/* #define UMCUB_CFG_TRAILER_RESERVE      0x2000 */
 
 /* ======================================================================== */
 /* MCUboot                                                                  */

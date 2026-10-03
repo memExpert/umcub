@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Builds every supported configuration of the bootloader for the reference
-# board plus the examples; fails on warnings or if a bootloader does not fit.
+# boards plus the examples; fails on warnings or if a bootloader does not fit.
 #   tools/build_matrix.sh [build-dir]
 set -uo pipefail
 cd "$(dirname "$0")/.."
@@ -10,7 +10,7 @@ mkdir -p "$OUT"
 fail=0
 summary=()
 
-# name | core | build type | pre overlay | post overlay
+# name | core | build type | pre overlay | post overlay | board (default $BOARD)
 configs=(
   "all-swap-scratch|cm7|Release||"
   "all-overwrite|cm7|Release|mode_overwrite.h|"
@@ -26,12 +26,13 @@ configs=(
   "per-core-cm7|cm7|Release|per_core.h|"
   "per-core-cm4|cm4|Release|per_core.h|"
   "all-debug|cm7|Debug||"
+  "bluepill-f103|cm3|Release|||bluepill_f103c8"
 )
 
 for c in "${configs[@]}"; do
-  IFS='|' read -r name core type pre post <<<"$c"
+  IFS='|' read -r name core type pre post board <<<"$c"
   dir="$OUT/$name"
-  args=(-G Ninja -DCMAKE_BUILD_TYPE="$type" -DUMCUB_BOARD="$BOARD" -DUMCUB_CORE="$core")
+  args=(-G Ninja -DCMAKE_BUILD_TYPE="$type" -DUMCUB_BOARD="${board:-$BOARD}" -DUMCUB_CORE="$core")
   [[ -n "$pre" ]] && args+=(-DUMCUB_CONFIG_PRE="tools/config/$pre")
   [[ -n "$post" ]] && args+=(-DUMCUB_CONFIG_POST="tools/config/$post")
   if ! cmake -B "$dir" "${args[@]}" >"$dir.configure.log" 2>&1; then
@@ -58,13 +59,20 @@ else
   echo "FAIL custom-drivers (see $dir.*.log)"; fail=1
 fi
 
-for ex in examples/h755_cm7_app examples/h755_cm4_app; do
-  name=$(basename "$ex")
+# example dir | board | core | image
+examples=(
+  "h755_cm7_app|nucleo_h755zi_q|cm7|0"
+  "h755_cm4_app|nucleo_h755zi_q|cm4|1"
+  "bluepill_app|bluepill_f103c8||0"
+)
+for e in "${examples[@]}"; do
+  IFS='|' read -r name eboard ecore eimage <<<"$e"
   dir="$OUT/$name"
-  if cmake -S "$ex" -B "$dir" -G Ninja >"$dir.configure.log" 2>&1 && cmake --build "$dir" >"$dir.build.log" 2>&1 &&
+  if cmake -S "examples/$name" -B "$dir" -G Ninja >"$dir.configure.log" 2>&1 && cmake --build "$dir" >"$dir.build.log" 2>&1 &&
+     ! grep -q "warning:" "$dir.build.log" &&
      .venv/bin/imgtool verify -k tools/keys/dev-ecdsa-p256.pem "$dir/$name.signed.bin" >"$dir.verify.log" 2>&1 &&
      # IDE path (tools/umcub_image.py) must produce the same image as CMake.
-     .venv/bin/python tools/umcub_image.py sign --board "$BOARD" --core "${name:5:3}" --image "$([[ $name == *cm4* ]] && echo 1 || echo 0)" \
+     .venv/bin/python tools/umcub_image.py sign --board "$eboard" ${ecore:+--core "$ecore"} --image "$eimage" \
        --version "$(grep -m1 -oP 'Image version: \K[0-9.]+(?=\+)' "$dir.verify.log")" "$dir/$name.elf" -o "$dir/ide" >>"$dir.verify.log" 2>&1 &&
      .venv/bin/python tests/tools/compare_images.py "$dir/$name.signed.bin" "$dir/ide.signed.bin" >>"$dir.verify.log" 2>&1; then
     summary+=("$(printf '%-24s signed, %s, IDE signing identical' "$name" "$(grep -m1 'Image version' "$dir.verify.log")")")

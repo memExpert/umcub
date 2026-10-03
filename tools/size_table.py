@@ -23,7 +23,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 BOARD = "nucleo_h755zi_q"
 
-# name, core, PRE overlay, extra POST lines
+# name, core, PRE overlay, extra POST lines, board
 CHIPS = [
     ("STM32H755 CM7 (2 images, SINGLE_BOOT)", "cm7", None, ""),
     # The board gives the CM4 instance only CAN; borrow the CM7 pins to size the rest.
@@ -36,6 +36,8 @@ CHIPS = [
     ("STM32H743 / H753 (single core)", "cm7", "tools/config/single_core.h",
      "#undef UMCUB_CFG_MCU\n#define UMCUB_CFG_MCU STM32H743xx\n"
      "#undef UMCUB_CFG_PWR_SUPPLY\n#define UMCUB_CFG_PWR_SUPPLY UMCUB_H7_SUPPLY_LDO\n"),
+    # Cortex-M3; only UART is ported (USB/CAN columns stay empty).
+    ("STM32F103 (Blue Pill, overwrite)", "", None, "", "bluepill_f103c8"),
 ]
 
 OFF = {"TRANSPORT_UART": 0, "TRANSPORT_USB_CDC": 0, "TRANSPORT_USB_DFU": 0, "TRANSPORT_CAN": 0,
@@ -67,7 +69,8 @@ FEATURES = ["log", "commands", "verify+hash", "readback"]
 
 
 def build(out, ci, chip, vi, variant):
-    _, core, pre, extra = chip
+    _, core, pre, extra = chip[:4]
+    board = chip[4] if len(chip) > 4 else BOARD
     name, settings, _ = variant
     d = out / f"c{ci}_v{vi}"
     d.mkdir(parents=True, exist_ok=True)
@@ -77,7 +80,7 @@ def build(out, ci, chip, vi, variant):
         lines.append(f"#undef UMCUB_CFG_{k}\n#define UMCUB_CFG_{k} {v}")
     post.write_text("\n".join(lines) + "\n")
     args = ["cmake", "-S", str(ROOT), "-B", str(d / "b"), "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Release",
-            f"-DUMCUB_BOARD={BOARD}", f"-DUMCUB_CORE={core}", f"-DUMCUB_CONFIG_POST={post}"]
+            f"-DUMCUB_BOARD={board}", f"-DUMCUB_CORE={core}", f"-DUMCUB_CONFIG_POST={post}"]
     if pre:
         args.append(f"-DUMCUB_CONFIG_PRE={ROOT / pre}")
     log = d / "build.log"
