@@ -286,7 +286,9 @@ function(umcub_host_link t src post)
     target_compile_options(${t} PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
     target_link_options(${t} PRIVATE -fsanitize=address,undefined)
   endif()
-  add_test(NAME ${t} COMMAND ${t})
+  if(NOT UMCUB_SIM)
+    add_test(NAME ${t} COMMAND ${t})
+  endif()
 endfunction()
 
 umcub_host_link(umcub_host_link test_link.c test_link_post.h)
@@ -300,3 +302,18 @@ umcub_host_link(umcub_host_link_secure test_link_secure.c test_link_secure_post.
   ${TINYCRYPT}/source/ctr_mode.c
   ${CMAKE_BINARY_DIR}/umcub_link_keys.c
   ${CMAKE_BINARY_DIR}/umcub_link_host_keys.c)
+
+# Device simulators for tests/host/link_e2e.py (several devices on one bus with
+# tools/umcub_link.py and smpmgr): ADDRESSED and SECURE (+ encryption).
+set(UMCUB_SIM 1)
+umcub_host_link(umcub_sim_addressed sim_device.c test_link_post.h)
+umcub_host_link(umcub_sim_secure sim_device.c test_link_secure_post.h
+  ${MCUBOOT}/boot/bootutil/src/encrypted.c
+  ${UMCUB_ROOT}/mcuboot_port/src/enc_image.c
+  ${CMAKE_BINARY_DIR}/umcub_enc_key.c
+  ${TINYCRYPT}/source/ecc_dh.c
+  ${TINYCRYPT}/source/hmac.c
+  ${TINYCRYPT}/source/aes_encrypt.c
+  ${TINYCRYPT}/source/ctr_mode.c
+  ${CMAKE_BINARY_DIR}/umcub_link_keys.c)
+unset(UMCUB_SIM)

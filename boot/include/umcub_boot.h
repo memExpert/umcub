@@ -17,6 +17,7 @@ bool umcub_handoff_node_request(uint16_t *addr);
 /* Node address on a shared bus: application request -> board hook -> 0. */
 void umcub_node_init(void);
 uint16_t umcub_node_address(void);
+uint32_t umcub_handoff_boot_count(void);
 bool umcub_board_node_address(uint16_t *addr);   /* weak, override in umcub_board.c */
 
 #endif

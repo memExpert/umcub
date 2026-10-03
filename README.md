@@ -161,17 +161,17 @@ ECDSA-P256), and what every transport and feature adds. Regenerate with `tools/s
 <!-- size-table:begin -->
 | MCU | base | all on | UART (+SMP) | USB CDC | USB DFU | USB CDC+DFU | CAN | CAN FD | Ethernet (+DHCP) | DFU only |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| STM32H755 CM7 (2 images, SINGLE_BOOT) | 19.8 K | 57.6 K | +10.4 K | +11.3 K | +10.7 K | +13.3 K | +2.3 K | +2.3 K | +4.1 K | +11.2 K |
-| STM32H755 CM4 (PER_CORE) | 17.4 K | 54.7 K | +10.2 K | +11.3 K | +10.6 K | +13.3 K | +2.3 K | +2.3 K | +4.1 K | +11.2 K |
-| STM32H743 / H753 (single core) | 18.1 K | 55.5 K | +10.2 K | +11.3 K | +10.6 K | +13.3 K | +2.3 K | +2.3 K | +4.1 K | +11.2 K |
-| STM32F103 (Blue Pill, overwrite) | 13.5 K | 42.2 K | +10.3 K | +9.9 K | +9.2 K | +11.9 K | — | — | — | +9.9 K |
+| STM32H755 CM7 (2 images, SINGLE_BOOT) | 19.4 K | 56.6 K | +10.5 K | +11.2 K | +10.6 K | +13.2 K | +2.4 K | +2.4 K | +4.1 K | +10.9 K |
+| STM32H755 CM4 (PER_CORE) | 16.9 K | 53.6 K | +10.4 K | +11.2 K | +10.6 K | +13.2 K | +2.4 K | +2.4 K | +4.1 K | +10.9 K |
+| STM32H743 / H753 (single core) | 17.6 K | 54.4 K | +10.4 K | +11.2 K | +10.6 K | +13.2 K | +2.4 K | +2.4 K | +4.1 K | +10.9 K |
+| STM32F103 (Blue Pill, overwrite) | 13.1 K | 41.6 K | +10.7 K | +9.8 K | +9.1 K | +11.7 K | — | — | — | +9.7 K |
 
 | MCU | log (level 3) | text commands | verify + hash | readback | umcub link (addressed) | umcub link SECURE | + link encryption | encrypted images |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| STM32H755 CM7 (2 images, SINGLE_BOOT) | +2.8 K | +3.6 K | +1.0 K | +0.2 K | +1.3 K | +4.1 K | +1.5 K | +5.9 K |
-| STM32H755 CM4 (PER_CORE) | +2.6 K | +3.5 K | +1.0 K | +0.2 K | +1.3 K | +4.1 K | +1.5 K | +5.2 K |
-| STM32H743 / H753 (single core) | +2.6 K | +3.5 K | +1.0 K | +0.2 K | +1.3 K | +4.1 K | +1.5 K | +5.4 K |
-| STM32F103 (Blue Pill, overwrite) | +2.2 K | +3.1 K | +0.9 K | +0.2 K | +1.4 K | +4.1 K | +1.5 K | +5.1 K |
+| STM32H755 CM7 (2 images, SINGLE_BOOT) | +2.8 K | +2.8 K | +1.0 K | +0.2 K | +1.6 K | +4.7 K | +1.6 K | +6.8 K |
+| STM32H755 CM4 (PER_CORE) | +2.6 K | +2.8 K | +1.0 K | +0.2 K | +1.6 K | +4.7 K | +1.6 K | +6.2 K |
+| STM32H743 / H753 (single core) | +2.6 K | +2.8 K | +1.0 K | +0.2 K | +1.6 K | +4.7 K | +1.6 K | +6.4 K |
+| STM32F103 (Blue Pill, overwrite) | +2.2 K | +2.6 K | +1.0 K | +0.2 K | +1.6 K | +4.7 K | +1.6 K | +6.1 K |
 <!-- size-table:end -->
 
 Notes:
@@ -287,13 +287,34 @@ Limits:
   level 0, unless `UMCUB_CFG_LINK_REQUIRE_RDP` is 0 (development only).
 - USB DFU cannot authenticate the host: together with a SECURE transport it is refused at build time unless
   `UMCUB_CFG_USB_DFU_ALLOW_UNAUTH` is set.
-- The F1 has no true RNG: nonces come from ADC noise and clock jitter, hashed with the UID and a counter.
+- The F1 has no true RNG: nonces come from ADC noise and clock jitter, hashed with the UID, a boot counter kept
+  in RAM over resets and (SECURE) keyed with the device key. Randomness is fail-closed: if the entropy source fails
+  or its output looks stuck, `HELLO` gets no challenge.
+- A failed `AUTH` blocks further attempts for one second, a challenge is valid for ten seconds. An `AUTH` costs two
+  ECC operations (about 1.3 s on a 72 MHz Cortex-M3), so with SECURE `UMCUB_CFG_WATCHDOG_MS` must be at least 2000
+  and `UMCUB_CFG_VALIDATE_PRIMARY` must stay on (both checked at build time).
+- The policy is per transport: a PLAIN transport next to a SECURE one is a way around it, the build warns unless
+  `UMCUB_CFG_LINK_MIXED_OK` is set. A UART with a link never carries the log.
 - A bus can always be jammed; the link protects authenticity, integrity, replay and (with encryption)
   confidentiality.
 - Firmware confidentiality needs two things: `UMCUB_CFG_LINK_ENCRYPT` for the session and
   [encrypted images](#encrypted-images) for what is stored and sent outside it.
-- Standard SMP clients do not speak the link. The host tool (discovery, and a proxy that serves `mcumgr` /
-  `smpmgr` unchanged) is the next step and not in the repository yet.
+
+**Host side: `tools/umcub_link.py`.** Standard SMP clients do not speak the link. The tool finds the devices, selects
+one and, as a proxy, serves `mcumgr` / `smpmgr` unchanged:
+
+```sh
+umcub_link.py --port /dev/ttyUSB0 discover                     # all devices on the bus (random back-off rounds)
+umcub_link.py --port /dev/ttyUSB0 --addr 5 info                # identity; SECURE: authenticates first
+umcub_link.py --port /dev/ttyUSB0 --uid 53ff7206... cmd i      # unassigned node, selected by UID
+umcub_link.py --port /dev/ttyUSB0 --addr 5 --admin-key admin.pem --device-key device.pem serve --pty-link /tmp/smp
+smpmgr --port /tmp/smp --line-buffers 4 image upload app.encrypted.bin    # through the proxy
+umcub_link.py --udp 192.168.1.50 --addr 5 serve --udp-listen 127.0.0.1:1337   # mcumgr --conntype udp
+```
+
+SECURE transports need `--admin-key` (private) and `--device-key` (the public half is enough). Your own host
+software can do the same: the frames and the handshake are in `umcub_link.h`, `tools/umcub_link.py` is a complete
+reference (Python `cryptography`).
 
 ## Encrypted images
 
@@ -324,7 +345,8 @@ Installed images are plain text in flash, so `read` / SMP read / DFU upload (`UM
 inside an encrypted umcub link session (`UMCUB_LINK_SECURE` + `UMCUB_CFG_LINK_ENCRYPT`) and refuse everywhere else
 (`? readback only in an encrypted session`, SMP rc 11). `verify` checks an encrypted image in the secondary slot by
 decrypting it on the fly; `hash` is computed over what is in flash (ciphertext in the secondary slot, plain text in
-the primary slot after installation). Not available in the direct-xip modes, where images run from both slots.
+the primary slot after installation). Outside an encrypted session only whole-image hashes are answered: hashes of
+small ranges would reveal the plain code piece by piece. Not available in the direct-xip modes, where images run from both slots.
 Protect the device key like the SECURE link: RDP on, see [umcub link](#shared-buses-umcub-link-addressing-secure-mode).
 
 ## Checking what was written (verify / hash / read)
@@ -706,6 +728,7 @@ peripheral a driver touches.
 ```sh
 tools/build_matrix.sh                 # 26 bootloader configurations, examples, IDE checks, host tests; warning-free
 ctest --test-dir build/matrix/host    # host tests only
+tests/host/link_e2e.py build/matrix/host   # several simulated devices on one bus (umcub link, smpmgr)
 tools/check_docs.py                   # README still matches the repository (size tables, boards, tools, ...)
 ```
 

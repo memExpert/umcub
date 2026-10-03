@@ -54,7 +54,11 @@ static int uart_init(void)
     int rc = umcub_port_uart_init(&c);
     if (rc == 0) {
         up = true;
-        umcub_log_set_sink(log_sink);
+        /* Log text only on a plain UART: on a link transport it would be clear
+         * text next to the frames (and share an RS485 bus). */
+        if (UMCUB_CFG_UART_LINK == UMCUB_LINK_PLAIN) {
+            umcub_log_set_sink(log_sink);
+        }
     }
     return rc;
 }

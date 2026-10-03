@@ -98,8 +98,12 @@ void net_udp_input(const net_peer_t *from, uint16_t dst_port, const uint8_t *dat
     if (dst_port != UMCUB_CFG_ETH_SMP_PORT) {
         return;
     }
-    if (umcub_smp_packet_rx(&umcub_transport_eth, data, len)) {
-        smp_peer = *from;
+    /* Answers produced while the packet is handled go to its sender; it stays
+     * the peer only if accepted (link SECURE: authenticated frames only). */
+    net_peer_t keep = smp_peer;
+    smp_peer = *from;
+    if (!umcub_smp_packet_rx(&umcub_transport_eth, data, len)) {
+        smp_peer = keep;
     }
 }
 

@@ -139,5 +139,12 @@ else
   echo "FAIL host tests (see $OUT/host.*.log)"; fail=1
 fi
 
+# Several simulated devices on one bus with tools/umcub_link.py and smpmgr.
+if .venv/bin/python tests/host/link_e2e.py "$OUT/host" --python .venv/bin/python >"$OUT/link_e2e.log" 2>&1; then
+  summary+=("$(printf '%-24s %s' "link-e2e" "$(tail -1 "$OUT/link_e2e.log")")")
+else
+  echo "FAIL link e2e (see $OUT/link_e2e.log)"; fail=1
+fi
+
 printf '%s\n' "${summary[@]}"
 exit $fail

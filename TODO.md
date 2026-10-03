@@ -81,23 +81,42 @@ Open:
 - [x] 4. SECURE: challenge signed with the admin key, ECDH with the device key, HKDF, per-frame HMAC, replay
   protection, AES-CTR payload encryption, RDP policy, idle timeout, key embedding (`tools/umcub_keys.py`);
   host test `umcub_host_link_secure` (also under ASan/UBSan). Builds: H7 `link-secure` (all transports, with
-  encryption) 62.0 K, Blue Pill `bluepill-rs485-secure` 32.1 K of 32 K - SECURE with encryption or more transports
+  encryption) 60.3 K, Blue Pill `bluepill-rs485-secure` 31.5 K of a 31.75 K region - SECURE with encryption or more transports
   needs a larger bootloader region on the F1.
 - [x] 5. Image encryption (MCUboot ENC_EC256 with the device key): `<app>.encrypted.bin` from `umcub_sign_image()` /
   `umcub_image.py`; own in-place decryption after an SMP upload into the primary slot (MCUboot's keeps a whole
   sector on the stack), off on the H7 CM4 bootloader (no RAM for a 128 KiB sector); verify of an encrypted
   secondary; readback only inside an encrypted link session. Host tests `umcub_host_swap_scratch_enc`,
-  `umcub_host_link_secure`; builds `encrypt-images` (H7) 65.9 K, `bluepill-encrypt` 35.6 K in a 38 K region,
+  `umcub_host_link_secure`; builds `encrypt-images` (H7) 64.0 K, `bluepill-encrypt` 35.3 K in a 37.75 K region,
   `per-core-cm4-encrypt`.
-- [ ] 6. `tools/umcub_link.py`: discover, cmd, `serve` proxy (pty / UDP) for mcumgr/smpmgr; end-to-end tests with
-  several simulated devices on one bus.
-- [ ] 7. README / size table final pass; manual check of DE / RNG / RDP register use; security review.
+- [x] 6. `tools/umcub_link.py`: discover, info, cmd, `serve` proxy (pty / UDP) for mcumgr/smpmgr; end-to-end test
+  `tests/host/link_e2e.py` (part of the build matrix): 3 simulated SECURE devices (`umcub_sim_secure`) on one bus -
+  discovery, only the addressed node answers, selection by UID, wrong admin key refused, smpmgr echo / upload of an
+  encrypted image (decrypted in place) / state-read through the proxy.
+- [x] 7. README / size table final pass; manual check of DE / RNG / RDP register use (F1 ADC sampling time, H7 RNG
+  seed-error recovery per RM0399 fixed); security review fixes: fail-closed RNG with a health test and a retained
+  boot counter (HMAC-keyed with the device key), AUTH back-off and challenge lifetime, session bound to the peer
+  (UDP source / accepted frames only), range hashes refused outside an encrypted session, ECDH with random-Z
+  blinding, build checks (VALIDATE_PRIMARY, watchdog >= 2 s, mixed PLAIN+SECURE warning), no log on link UARTs,
+  CAN ID range with the node address.
+- [x] Hardware, Blue Pill (UART SECURE + payload encryption, 44 K region): discover, authentication (~0.8 s with
+  the tool), encrypted `cmd i`, smpmgr upload 5 KB in 2.2 s through `umcub_link.py serve`, reboot into 1.1.0;
+  wrong admin key refused, no keys refused, plain text and unauthenticated DATA get no answer;
+  `UMCUB_CFG_LINK_REQUIRE_RDP 1` at RDP 0: ANNOUNCE flagged closed, handshake refused. Board-type rejection
+  (stage 1) verified earlier.
 - [ ] Hardware: H755 SECURE over UART / USB CDC through the proxy; Blue Pill board-type rejection; RS485 bus;
   encrypted image over SMP (in-place decryption, 128 KiB buffer in AXI SRAM), DFU and from the application; stack
   depth of the AUTH check and the watchdog on the F1.
 
 ## Known limitations / ideas
 
+- [ ] Security review leftovers: (a) one device key per product - per-device keys (provisioning, key derived from
+  the UID + a master on the host), H7 PCROP / secure-access area for the key; on the F1, RDP level 1 can be
+  defeated by known attacks, so the key there is only as safe as the product's physical access; (b) SMP upload into
+  the primary slot decrypts in place before the signature is checked - validate the encrypted image first (as
+  verify does) to avoid destroying the old image with a foreign upload; (c) `MCUBOOT_SWAP_SAVE_ENCTLV` (keep the
+  wrapped key in the trailer instead of the plain AES key) for the swap modes; (d) F1 entropy quality not measured
+  (ADC temperature noise + jitter).
 - [ ] Recovery over the network / CAN is not authenticated without `UMCUB_LINK_SECURE` (see README, "Mode notes
   and limitations").
 - [ ] An application on one core can erase the running image of the other core (`umcub_slot_*` only checks its own core).

@@ -197,7 +197,9 @@ static void send(uint8_t type, uint8_t flags, uint16_t dst, const void *p, size_
 {
     last_frame_len = frame(last_frame, type, flags, dst, p, len, session);
     if (on_pkt) {
-        CHECK(umcub_smp_packet_rx(&t_pkt, last_frame, last_frame_len));
+        /* the result says whether the sender became the peer (authenticated
+         * frames only), not whether the frame was handled */
+        (void)umcub_smp_packet_rx(&t_pkt, last_frame, last_frame_len);
     } else {
         stream_put(last_frame, last_frame_len);
     }
@@ -206,7 +208,7 @@ static void send(uint8_t type, uint8_t flags, uint16_t dst, const void *p, size_
 static void resend_raw(const uint8_t *f, size_t n)
 {
     if (on_pkt) {
-        CHECK(umcub_smp_packet_rx(&t_pkt, f, n));
+        (void)umcub_smp_packet_rx(&t_pkt, f, n);
     } else {
         stream_put(f, n);
     }
@@ -331,6 +333,7 @@ static void make_auth(uint8_t auth[160], const uint8_t chal[56], const uint8_t a
 static bool handshake(uint16_t dst)
 {
     uint8_t chal[56], auth[160], eph[32];
+    umcub_port_delay_ms(1100);              /* past the back-off of an earlier failed AUTH */
     if (!hello(dst, chal)) {
         return false;
     }
@@ -406,6 +409,13 @@ static void test_wrong_admin_key(void)
     run(10);
     CHECK(nothing_sent());
     make_auth(auth, chal, umcub_link_host_admin_priv, eph);    /* right key, same challenge */
+    reset_io();
+    send(UMCUB_LT_AUTH, 0, NODE, auth, sizeof(auth), false);
+    run(10);
+    CHECK(nothing_sent());
+    /* right key, fresh challenge, but within the back-off after the failure */
+    CHECK(hello(NODE, chal));
+    make_auth(auth, chal, umcub_link_host_admin_priv, eph);
     reset_io();
     send(UMCUB_LT_AUTH, 0, NODE, auth, sizeof(auth), false);
     run(10);
@@ -526,6 +536,7 @@ static void test_auth_replay(void)
 {
     printf("[secure] a recorded AUTH does not open a session for a new challenge\n");
     uint8_t chal[56], auth[160], eph[32];
+    umcub_port_delay_ms(1100);              /* past the back-off of an earlier failed AUTH */
     CHECK(hello(NODE, chal));
     make_auth(auth, chal, umcub_link_host_admin_priv, eph);
     reset_io();
@@ -567,11 +578,38 @@ static void test_packet_transport(void)
     on_pkt = true;
     CHECK(handshake(NODE));
     CHECK(session_cmd("i", "board type"));
+    /* Peer binding (UDP): a frame with a broken MAC, or a HELLO from anybody,
+     * must not make its sender the peer; an authenticated frame does. */
+    uint8_t f[256];
+    size_t n = frame(f, UMCUB_LT_DATA, 0, NODE, "i", 1, true);
+    f[n - 1] ^= 1;
+    CHECK(!umcub_smp_packet_rx(&t_pkt, f, n));
+    n = frame(f, UMCUB_LT_HELLO, 0, NODE, NULL, 0, false);
+    CHECK(!umcub_smp_packet_rx(&t_pkt, f, n));
+    n = frame(f, UMCUB_LT_DISCOVER, 0, 0xFFFF, "\x01\x00\x00", 3, false);
+    CHECK(!umcub_smp_packet_rx(&t_pkt, f, n));    /* session runs: discovery keeps the peer */
+    run(20);
+    CHECK(handshake(NODE));                         /* the HELLO above replaced the challenge */
+    n = frame(f, UMCUB_LT_DATA, 0, NODE, "i", 1, true);
+    CHECK(umcub_smp_packet_rx(&t_pkt, f, n));
+    run(10);
     on_pkt = false;
     reset_io();
     send(UMCUB_LT_DATA, 0, NODE, "i", 1, true);     /* same keys on the other transport */
     run(10);
     CHECK(nothing_sent());
+}
+
+static void test_entropy_failure(void)
+{
+    printf("[secure] no healthy entropy: no challenge at all (fail closed)\n");
+    fake_entropy_fail = 1;
+    reset_io();
+    send(UMCUB_LT_HELLO, 0, NODE, NULL, 0, false);
+    run(10);
+    CHECK(nothing_sent());
+    fake_entropy_fail = 0;
+    CHECK(handshake(NODE));
 }
 
 static void test_rdp_closed(void)
@@ -628,6 +666,7 @@ int main(void)
     test_auth_replay();
     test_close_and_timeout();
     test_packet_transport();
+    test_entropy_failure();
     test_rdp_closed();
     test_garbage();
     printf(failures ? "\n%d FAILURE(S)\n" : "\nALL TESTS PASSED\n", failures);

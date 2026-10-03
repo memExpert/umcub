@@ -137,7 +137,8 @@ if(UMCUB_CFG_LINK_ANY)             # umcub link: addressing / discovery on share
   list(APPEND BOOT_SOURCES transport/link.c boot/random.c ${UMCUB_FAMILY_ENTROPY_SOURCES})
 endif()
 if(UMCUB_CFG_ENCRYPT_IMAGES)       # MCUboot ECIES-P256 image encryption with the device key
-  list(APPEND BOOT_SOURCES mcuboot_port/src/enc_image.c)
+  # boot/random.c: default_CSPRNG for the blinded ECDH of the key unwrap
+  list(APPEND BOOT_SOURCES mcuboot_port/src/enc_image.c boot/random.c ${UMCUB_FAMILY_ENTROPY_SOURCES})
   list(APPEND MCUBOOT_SOURCES
     ${MCUBOOT}/boot/bootutil/src/encrypted.c
     ${TINYCRYPT}/source/ecc.c
@@ -220,6 +221,7 @@ endif()
 # ----------------------------------------------------------------------------
 # Target named like its file, so IDEs list "umcub_<board>_<core>".
 set(UMCUB_BOOT_TARGET umcub_${UMCUB_BOARD_NAME}_${UMCUB_CORE})
+list(REMOVE_DUPLICATES BOOT_SOURCES)
 add_executable(${UMCUB_BOOT_TARGET} ${BOOT_SOURCES} ${MCUBOOT_SOURCES})
 
 target_include_directories(${UMCUB_BOOT_TARGET} PRIVATE ${BOOT_INCLUDES})
@@ -245,6 +247,14 @@ target_compile_options(${UMCUB_BOOT_TARGET} PRIVATE
 )
 # Third-party code: compile, but do not drown our warnings in theirs.
 set_source_files_properties(${MCUBOOT_SOURCES} PROPERTIES COMPILE_OPTIONS "-w")
+if("${TINYCRYPT}/source/ecc_dh.c" IN_LIST MCUBOOT_SOURCES)
+  # Random-Z blinding of the ECDH scalar multiplication through default_CSPRNG
+  # (boot/random.c): ecc_dh.c does not include ecc_platform_specific.h itself.
+  file(WRITE ${CMAKE_BINARY_DIR}/umcub_ecc_rng.h
+       "#include <stdint.h>\n#define default_RNG_defined 1\nint default_CSPRNG(uint8_t *dest, unsigned int size);\n")
+  set_property(SOURCE ${TINYCRYPT}/source/ecc_dh.c APPEND PROPERTY COMPILE_OPTIONS
+               -include ${CMAKE_BINARY_DIR}/umcub_ecc_rng.h)
+endif()
 if(UMCUB_CFG_USB)
   file(GLOB_RECURSE _tusb_srcs ${UMCUB_ROOT}/third_party/tinyusb/src/*.c)
   set_source_files_properties(${_tusb_srcs} PROPERTIES COMPILE_OPTIONS "-w")

@@ -41,6 +41,10 @@ static struct link_state st[MAX_T];
 static uint8_t frame_buf[UMCUB_LINK_FRAME_MAX];
 static char line_buf[UMCUB_LINK_LINE_MAX + 1];
 static bool wakeup;
+/* umcub_link_rx() result: the sender may become the transport's peer (answers
+ * go there). SECURE: only after AUTH or a MAC-checked frame, so a stray
+ * datagram cannot redirect a session (UDP). */
+static bool accept_peer;
 
 #if UMCUB_CFG_LINK_SECURE_ANY
 #define NONCE_LEN       32u
@@ -59,11 +63,15 @@ extern const uint8_t umcub_link_device_priv[32];
 extern const uint8_t umcub_link_admin_pub[PUB_LEN];
 
 /* The open challenge (one AUTH) and the session: one host at a time. */
+#define CHALLENGE_MS    10000u      /* an AUTH must follow its CHALLENGE within this time */
+#define AUTH_BACKOFF_MS 1000u       /* after a failed AUTH: costly checks are rate limited */
 static struct {
     int8_t t;                       /* transport index, -1 = none */
     uint16_t peer;
+    uint32_t at;
     uint8_t payload[CHALLENGE_LEN];
 } chal = { .t = -1 };
+static uint32_t auth_blocked_until;
 static struct {
     int8_t t;
     uint16_t peer;
@@ -279,6 +287,7 @@ static bool auth(const uint8_t *p, uint16_t host, uint8_t keys[96])
     (void)tc_sha256_update(&h, eph, PUB_LEN + NONCE_LEN);  /* eph_pub | nonce_h */
     (void)tc_sha256_final(th, &h);
 
+    umcub_port_wdg_feed();                          /* each ECC step ~0.65 s on a 72 MHz Cortex-M3 */
     if (uECC_verify(umcub_link_admin_pub, th, sizeof(th), sig, curve) != TC_CRYPTO_SUCCESS) {
         return false;
     }
@@ -329,13 +338,18 @@ static void secure_rx(const umcub_transport_t *t, int i, struct link_state *s, c
             return;
         }
         identity(t, chal.payload);
-        umcub_random(chal.payload + ANNOUNCE_LEN, NONCE_LEN);
+        if (umcub_random(chal.payload + ANNOUNCE_LEN, NONCE_LEN) != UMCUB_OK) {
+            chal.t = -1;
+            return;                                 /* no healthy entropy: no challenge (fail closed) */
+        }
         chal.t = (int8_t)i;
         chal.peer = src;
+        chal.at = now;
         send_frame(t, s, UMCUB_LT_CHALLENGE, src, chal.payload, CHALLENGE_LEN);
         return;
     case UMCUB_LT_AUTH: {
-        if (chal.t != i || chal.peer != src || plen != AUTH_LEN || flags != 0) {
+        if (chal.t != i || chal.peer != src || plen != AUTH_LEN || flags != 0 ||
+            now - chal.at > CHALLENGE_MS || (int32_t)(now - auth_blocked_until) < 0) {
             return;
         }
         chal.t = -1;                                /* one attempt per challenge */
@@ -346,14 +360,16 @@ static void secure_rx(const umcub_transport_t *t, int i, struct link_state *s, c
         }
         memset(keys, 0, sizeof(keys));
         if (!ok) {
+            auth_blocked_until = umcub_port_millis() + AUTH_BACKOFF_MS;
             return;
         }
         sess.t = (int8_t)i;
         sess.peer = src;
-        sess.rx_seq = seq;
+        sess.rx_seq = 0;                            /* the AUTH header (seq) is not authenticated */
         sess.last_ms = now;
         s->peer = src;
         wakeup = true;
+        accept_peer = true;
         send_frame(t, s, UMCUB_LT_AUTH_OK, src, NULL, 0);
         return;
     }
@@ -383,6 +399,7 @@ static void secure_rx(const umcub_transport_t *t, int i, struct link_state *s, c
     sess.last_ms = now;
     s->peer = src;
     wakeup = true;
+    accept_peer = true;
     if (type == UMCUB_LT_CLOSE) {
         end_session();
         return;
@@ -397,7 +414,16 @@ static void secure_rx(const umcub_transport_t *t, int i, struct link_state *s, c
 }
 #endif
 
-void umcub_link_rx(const umcub_transport_t *t, const uint8_t *f, size_t len)
+static void link_rx(const umcub_transport_t *t, const uint8_t *f, size_t len);
+
+bool umcub_link_rx(const umcub_transport_t *t, const uint8_t *f, size_t len)
+{
+    accept_peer = false;
+    link_rx(t, f, len);
+    return accept_peer;
+}
+
+static void link_rx(const umcub_transport_t *t, const uint8_t *f, size_t len)
 {
     int i = index_of(t);
     if (i < 0 || len < UMCUB_LINK_HDR || f[0] != UMCUB_LINK_MAGIC || f[1] != UMCUB_LINK_VERSION) {
@@ -417,6 +443,12 @@ void umcub_link_rx(const umcub_transport_t *t, const uint8_t *f, size_t len)
     if (type == UMCUB_LT_DISCOVER) {
         if (dst == UMCUB_LINK_BROADCAST) {
             discover(s, src, p, plen);
+            /* the ANNOUNCE comes later: keep the sender, unless a SECURE session runs here */
+#if UMCUB_CFG_LINK_SECURE_ANY
+            accept_peer = !(t->link == UMCUB_LINK_SECURE && sess.t == i);
+#else
+            accept_peer = true;
+#endif
         }
         return;
     }
@@ -444,6 +476,7 @@ void umcub_link_rx(const umcub_transport_t *t, const uint8_t *f, size_t len)
 #endif
     s->peer = src;
     wakeup = true;
+    accept_peer = true;                             /* ADDRESSED: no authentication to wait for */
     switch (type) {
     case UMCUB_LT_HELLO:
         announce(t, s, src);

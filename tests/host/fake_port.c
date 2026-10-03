@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include "fake_port.h"
 #include "umcub_port.h"
 
@@ -27,7 +28,19 @@ void fake_flash_reset(void)
     memset(written, 0, sizeof(written));
 }
 
-uint32_t umcub_port_millis(void) { return now_ms++; }
+/* Device simulator (sim_device.c): real time instead of the fast test clock. */
+int fake_realtime;
+uint32_t fake_uid_seed;
+
+uint32_t umcub_port_millis(void)
+{
+    if (fake_realtime) {
+        struct timespec ts;
+        clock_gettime(CLOCK_MONOTONIC, &ts);
+        return (uint32_t)(ts.tv_sec * 1000u + ts.tv_nsec / 1000000u);
+    }
+    return now_ms++;
+}
 void umcub_port_delay_ms(uint32_t ms) { now_ms += ms; }
 void umcub_port_wdg_feed(void) {}
 void umcub_port_idle(void) {}
@@ -42,7 +55,7 @@ int umcub_port_rdp_level(void) { return fake_rdp_level; }
 void umcub_port_uid(uint8_t uid[12])
 {
     for (int i = 0; i < 12; i++) {
-        uid[i] = (uint8_t)(0x10 + i);
+        uid[i] = (uint8_t)(0x10 + i + (fake_uid_seed >> (8 * (i & 3))));
     }
 }
 
@@ -122,8 +135,13 @@ void umcub_handoff_request(uint32_t request, uint32_t arg) { (void)arg; fake_las
 uint16_t fake_node_addr;
 uint16_t umcub_node_address(void) { return fake_node_addr; }
 
+int fake_entropy_fail;
+
 int umcub_port_entropy(uint8_t *buf, size_t len)
 {
+    if (fake_entropy_fail) {
+        return UMCUB_EIO;
+    }
     static uint32_t x = 0x12345678u;            /* xorshift: deterministic test entropy */
     while (len--) {
         x ^= x << 13;
@@ -142,4 +160,10 @@ __attribute__((weak)) int default_CSPRNG(uint8_t *dest, unsigned int size)
     (void)dest;
     (void)size;
     return 0;
+}
+
+/* boot/handoff.c is not part of the host tests: boot counter of random.c. */
+uint32_t umcub_handoff_boot_count(void)
+{
+    return 1;
 }

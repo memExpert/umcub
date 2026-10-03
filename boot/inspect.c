@@ -130,6 +130,14 @@ int umcub_inspect_hash(int image, int slot, uint32_t off, uint32_t len, uint8_t 
     if (rc) {
         return rc;
     }
+#if UMCUB_CFG_ENCRYPT_IMAGES
+    /* Installed images are plain text in flash. A hash over a chosen range is
+     * a readback by other means (one byte at a time, or growing prefixes):
+     * outside an encrypted session only the whole stored image is hashed. */
+    if ((off != 0 || len != 0) && !umcub_mux_request_confidential()) {
+        return UMCUB_EPERM;
+    }
+#endif
     if (len == 0) {
         len = umcub_inspect_image_len(&fa);
         if (len == 0) {

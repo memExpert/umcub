@@ -75,7 +75,8 @@ enum {
 
 /* From the transports / mux: one complete frame, or one line without the two
  * start bytes and the newline. */
-void umcub_link_rx(const umcub_transport_t *t, const uint8_t *frame, size_t len);
+/* Returns true if the sender may become the transport's peer (see link.c). */
+bool umcub_link_rx(const umcub_transport_t *t, const uint8_t *frame, size_t len);
 void umcub_link_rx_line(const umcub_transport_t *t, const char *b64, size_t len);
 /* Answer to the peer of the last request on `t` (DATA). */
 void umcub_link_send_data(const umcub_transport_t *t, const uint8_t *data, size_t len);

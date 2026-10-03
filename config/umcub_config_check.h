@@ -111,6 +111,28 @@
 #error "umcub: UMCUB_CFG_LINK_ENCRYPT needs a UMCUB_LINK_SECURE transport"
 #endif
 
+/* Without validation of the primary slot, an SMP upload into it is booted
+ * unchecked (MCUboot): no signature, no board type, no decryption check. */
+#if !UMCUB_CFG_VALIDATE_PRIMARY && UMCUB_CFG_SMP && \
+    (UMCUB_CFG_BOARD_TYPE != 0 || UMCUB_CFG_LINK_SECURE_ANY || UMCUB_CFG_ENCRYPT_IMAGES)
+#error "umcub: UMCUB_CFG_VALIDATE_PRIMARY 0 lets SMP uploads bypass signature / board type checks"
+#endif
+/* SECURE AUTH costs two ECC operations (~0.65 s each on a 72 MHz Cortex-M3). */
+#if UMCUB_CFG_LINK_SECURE_ANY && UMCUB_CFG_WATCHDOG_MS > 0 && UMCUB_CFG_WATCHDOG_MS < 2000
+#error "umcub: with UMCUB_LINK_SECURE, UMCUB_CFG_WATCHDOG_MS must be >= 2000 (ECC checks)"
+#endif
+/* Per-transport policy: a PLAIN transport next to a SECURE one gives full
+ * unauthenticated access through that transport. */
+#if UMCUB_CFG_LINK_SECURE_ANY && \
+    ((UMCUB_CFG_TRANSPORT_UART && UMCUB_CFG_UART_LINK == UMCUB_LINK_PLAIN) || \
+     (UMCUB_CFG_TRANSPORT_USB_CDC && UMCUB_CFG_USB_CDC_LINK == UMCUB_LINK_PLAIN) || \
+     (UMCUB_CFG_TRANSPORT_CAN && UMCUB_CFG_CAN_LINK == UMCUB_LINK_PLAIN) || \
+     (UMCUB_CFG_TRANSPORT_ETH && UMCUB_CFG_ETH_LINK == UMCUB_LINK_PLAIN) || \
+     (UMCUB_CFG_TRANSPORT_USER && UMCUB_CFG_USER_LINK == UMCUB_LINK_PLAIN)) && \
+    !UMCUB_CFG_LINK_MIXED_OK
+#warning "umcub: a PLAIN transport next to a SECURE one is not authenticated (set UMCUB_CFG_LINK_MIXED_OK 1 if intended)"
+#endif
+
 #if !UMCUB_CFG_TRANSPORT_UART && !UMCUB_CFG_USB && !UMCUB_CFG_TRANSPORT_CAN && !UMCUB_CFG_TRANSPORT_ETH && \
     !UMCUB_CFG_TRANSPORT_USER
 #warning "umcub: no transport enabled - updates only via the application (umcub_slot_*)"

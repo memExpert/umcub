@@ -90,6 +90,9 @@ int umcub_port_uart_init(const umcub_uart_cfg_t *cfg)
     umcub_port_gpio_af(cfg->tx_pin);
     umcub_port_gpio_af(cfg->rx_pin);
     if (de_hw) {
+        /* RM0399 does not specify the RTS/DE pin level between AF selection
+         * and UE = 1; on a shared bus a transceiver pull-down on DE keeps it
+         * passive meanwhile. */
         umcub_port_gpio_af(de_pin);
     } else if (de_pin != UMCUB_PIN_NONE) {
         umcub_port_gpio_output(de_pin, !de_level);      /* receive */

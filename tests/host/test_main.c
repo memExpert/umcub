@@ -639,7 +639,12 @@ static void test_inspect(const uint8_t *img, size_t img_len)
     hexstr(h, 32, hex);
     snprintf(want, sizeof(want), "sha256 %s len 256", hex);
     stream_cmd("hash 0 0 0x10 256\r");
+#if UMCUB_CFG_ENCRYPT_IMAGES
+    /* a hash over a chosen range is readback by other means (byte by byte) */
+    CHECK(stream_out_has(0, "? only whole-image hashes outside an encrypted session"));
+#else
     CHECK(stream_out_has(0, want));
+#endif
 
     /* immediate mode must not fire on the command word alone */
     stream_cmd("verify");

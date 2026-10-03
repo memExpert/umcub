@@ -1,6 +1,8 @@
 /* UMCUB_CONFIG_POST for test_link_secure.c: umcub link SECURE with payload
  * encryption; RDP comes from fake_rdp_level. */
 #include "test_link_post.h"
+/* Only the test transport is SECURE; the board's other transports stay plain. */
+#define UMCUB_CFG_LINK_MIXED_OK 1
 #undef UMCUB_CFG_UART_LINK
 #define UMCUB_CFG_UART_LINK UMCUB_LINK_SECURE
 #undef UMCUB_CFG_LINK_ENCRYPT

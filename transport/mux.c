@@ -184,8 +184,7 @@ bool umcub_smp_packet_rx(const umcub_transport_t *t, const uint8_t *pkt, size_t 
 {
 #if UMCUB_CFG_LINK_ANY
     if (t->link) {
-        umcub_link_rx(t, pkt, len);     /* frame; DATA comes back via umcub_mux_link_rx() */
-        return true;
+        return umcub_link_rx(t, pkt, len);  /* DATA comes back via umcub_mux_link_rx() */
     }
 #endif
     return queue_packet(t, pkt, len);

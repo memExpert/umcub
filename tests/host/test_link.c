@@ -240,7 +240,7 @@ static void test_data_smp_and_text(void)
 
     reset_io();                     /* a raw SMP packet (no frame) on the link packet transport */
     size_t raw = smp_echo(p, 13);
-    CHECK(umcub_smp_packet_rx(&t_pkt, p, raw));
+    CHECK(!umcub_smp_packet_rx(&t_pkt, p, raw));    /* not a frame: not accepted (peer unchanged) */
     run(10);
     CHECK(pkt_out_len == 0);
 }

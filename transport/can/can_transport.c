@@ -14,7 +14,12 @@
 
 extern const umcub_transport_t umcub_transport_can;
 
+#if UMCUB_CFG_CAN_LINK
+#include "umcub_link.h"
+static uint8_t rx_msg[UMCUB_LINK_FRAME_MAX];    /* a link frame around a full SMP packet */
+#else
 static uint8_t rx_msg[UMCUB_CFG_SMP_MTU];
+#endif
 static isotp_t tp;
 static bool up;
 
@@ -36,6 +41,11 @@ static int can_init(void)
         .tx_pin = UMCUB_CFG_CAN_TX_PIN,
         .rx_pin = UMCUB_CFG_CAN_RX_PIN,
     };
+    uint32_t id_max = UMCUB_CFG_CAN_EXT_ID ? 0x1FFFFFFFu : 0x7FFu;
+    if (c.rx_id > id_max || (uint32_t)UMCUB_CFG_CAN_TX_ID + umcub_node_address() > id_max) {
+        UMCUB_LOG_ERR("can: node address %u does not fit the CAN ID range", (unsigned)umcub_node_address());
+        return UMCUB_EINVAL;
+    }
     int rc = umcub_port_can_init(&c);
     if (rc) {
         UMCUB_LOG_ERR("can: init failed %d", rc);

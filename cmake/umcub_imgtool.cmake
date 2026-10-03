@@ -60,11 +60,12 @@ function(umcub_generate_link_keys device admin out)
     if(NOT EXISTS "${_k}")
       message(FATAL_ERROR "umcub: key ${_k} not found (imgtool keygen -t ecdsa-p256 -k ${_k})")
     endif()
-    if(_k MATCHES "/tools/keys/dev-[a-z]+-p256.pem$")
-      message(WARNING "umcub: using the development link key ${_k} from the repository. "
-                      "Set UMCUB_DEVICE_KEY / UMCUB_HOST_KEY for production.")
-    endif()
   endforeach()
+  # (the device key is reported by umcub_keys_command)
+  if("${admin}" MATCHES "/tools/keys/dev-[a-z]+-p256.pem$")
+    message(WARNING "umcub: using the development admin key ${admin} from the repository: "
+                    "anybody can open a SECURE session. Set UMCUB_HOST_KEY for production.")
+  endif()
   umcub_keys_command(c "${device}" "${admin}" "${out}")
 endfunction()
 
@@ -72,6 +73,10 @@ endfunction()
 # rule running tools/umcub_keys.py with the Python next to imgtool (it has
 # `cryptography`, an imgtool dependency).
 function(umcub_keys_command mode device admin out)
+  if("${device}" MATCHES "/tools/keys/dev-[a-z]+-p256.pem$" AND NOT mode STREQUAL "host-c")
+    message(WARNING "umcub: using the development device key ${device} from the repository "
+                    "(image decryption / link). Set UMCUB_DEVICE_KEY for production.")
+  endif()
   set(_admin_args)
   if(admin)
     set(_admin_args --admin "${admin}")
@@ -120,6 +125,10 @@ function(umcub_sign_image target)
       set(A_ENCRYPT_KEY "${UMCUB_DEVICE_KEY}")
     else()
       set(A_ENCRYPT_KEY "${UMCUB_ROOT}/tools/keys/dev-device-p256.pem")
+    endif()
+    if(UMCUB_CFG_ENCRYPT_IMAGES AND A_ENCRYPT_KEY MATCHES "/tools/keys/dev-device-p256.pem$")
+      message(WARNING "umcub: ${target} is encrypted for the development device key - anybody can decrypt it. "
+                      "Pass ENCRYPT_KEY or set UMCUB_DEVICE_KEY for production.")
     endif()
   endif()
 

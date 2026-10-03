@@ -8,7 +8,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
-void umcub_random(void *out, size_t len);
+/* UMCUB_OK, or an error (no healthy entropy): then the output must not be used. */
+int umcub_random(void *out, size_t len);
 uint32_t umcub_random_u32(void);
 
 #endif

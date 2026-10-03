@@ -15,7 +15,11 @@ static void adc_start(void)
     SET_BIT(RCC->APB2ENR, RCC_APB2ENR_ADC1EN);
     (void)RCC->APB2ENR;
     f1_periph_used(&RCC->APB2RSTR, RCC_APB2RSTR_ADC1RST);
-    ADC1->SMPR1 = 0;                                    /* channel 16: 1.5 cycles, the noisiest */
+    /* Channel 16 at 239.5 cycles (~20 us at 12 MHz): RM0008 §11.10 asks for
+     * >= 17.1 us on the temperature sensor. The conversion value itself is
+     * not used, only its noisy low bits; their quality is not specified by
+     * ST, hence the hash conditioning in boot/random.c. */
+    ADC1->SMPR1 = ADC_SMPR1_SMP16;
     ADC1->SQR1 = 0;                                     /* one conversion */
     ADC1->SQR3 = 16;                                    /* temperature sensor */
     ADC1->CR2 = ADC_CR2_ADON | ADC_CR2_TSVREFE;         /* power up */

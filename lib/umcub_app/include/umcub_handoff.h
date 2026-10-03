@@ -91,6 +91,10 @@ typedef struct {
     /* application -> bootloader, kept over resets (umcub_set_node_address()) */
     uint32_t node_magic;        /* UMCUB_NODE_MAGIC */
     uint32_t node_addr_req;     /* address | (~address << 16) */
+
+    /* bootloader internal, kept over resets: boot counter mixed into nonces */
+    uint32_t boot_count;
+    uint32_t boot_count_check;  /* ~boot_count */
 } umcub_handoff_t;
 
 #define UMCUB_HANDOFF_INFO_OFFSET   16u

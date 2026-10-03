@@ -282,6 +282,9 @@
 #ifndef UMCUB_CFG_LINK_ENCRYPT
 #define UMCUB_CFG_LINK_ENCRYPT          0
 #endif
+#ifndef UMCUB_CFG_LINK_MIXED_OK
+#define UMCUB_CFG_LINK_MIXED_OK         0
+#endif
 #ifndef UMCUB_CFG_LINK_REQUIRE_RDP
 #define UMCUB_CFG_LINK_REQUIRE_RDP      1
 #endif

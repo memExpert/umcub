@@ -186,6 +186,10 @@ static void inspect(unsigned action, const char *args, umcub_cmd_reply_t reply)
         uint8_t h[32];
         uint32_t hashed = 0;
         int rc = umcub_inspect_hash(img, slot, n >= 3 ? v[2] : 0, n >= 4 ? v[3] : 0, h, &hashed);
+        if (rc == UMCUB_EPERM) {
+            say(reply, "? only whole-image hashes outside an encrypted session (UMCUB_CFG_ENCRYPT_IMAGES)");
+            return;
+        }
         if (rc) {
             say(reply, "? hash failed %d", rc);
             return;

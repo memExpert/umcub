@@ -274,6 +274,8 @@
  * is embedded). */
 /* Encrypt session payloads (AES-128-CTR) in addition to the MAC. */
 /* #define UMCUB_CFG_LINK_ENCRYPT         0 */
+/* SECURE needs UMCUB_CFG_VALIDATE_PRIMARY and, with the watchdog on,
+ * UMCUB_CFG_WATCHDOG_MS >= 2000 (an AUTH costs two ECC operations). */
 /* Keep SECURE transports closed while flash readout protection is off (RDP
  * level 0): without it the device key can be read out with a debugger. Set 0
  * only for development. */
@@ -283,6 +285,9 @@
 /* USB DFU cannot authenticate the host. With any SECURE transport it is
  * refused at build time unless this is set. */
 /* #define UMCUB_CFG_USB_DFU_ALLOW_UNAUTH 0 */
+/* A PLAIN transport next to a SECURE one gives unauthenticated access through
+ * that transport; the build warns unless this is set. */
+/* #define UMCUB_CFG_LINK_MIXED_OK        0 */
 
 /* ======================================================================== */
 /* Board identity                                                           */
