@@ -16,7 +16,7 @@
 #ifndef UMCUB_CFG_UPGRADE_MODE
 #define UMCUB_CFG_UPGRADE_MODE          UMCUB_MODE_OVERWRITE
 #endif
-#define UMCUB_CFG_IMAGE_HEADER_SIZE     0x200   /* also the vector table alignment (76 vectors -> 512) */
+#define UMCUB_CFG_IMAGE_HEADER_SIZE     0x200   /* VTOR: minimum alignment 128 words (PM0056 §4.4.4) */
 #define UMCUB_CFG_TRAILER_RESERVE       0x400
 #define UMCUB_CFG_BOOT_ADDR             0x08000000
 #define UMCUB_CFG_BOOT_SIZE             UMCUB_KB(32)

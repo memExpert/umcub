@@ -18,7 +18,7 @@
 #define BANK1_MAX           (512u * 1024u)
 #define KEY1                0x45670123u
 #define KEY2                0xCDEF89ABu
-#define TIMEOUT_PROGRAM_MS  5u      /* datasheet: 52..70 us per half-word */
+#define TIMEOUT_PROGRAM_MS  5u      /* DS5319: 40..70 us per half-word */
 #define TIMEOUT_ERASE_MS    100u    /* datasheet: 20..40 ms per page */
 #define SR_ERRORS           (FLASH_SR_PGERR | FLASH_SR_WRPRTERR)
 
@@ -135,7 +135,7 @@ int umcub_flash_erase(uint32_t addr, size_t len)
         SET_BIT(FLASH->CR, FLASH_CR_PER);
         FLASH->AR = addr;
         SET_BIT(FLASH->CR, FLASH_CR_STRT);
-        __DSB();
+        __DSB();                        /* ES096 2.2.11: BSY is set one cycle after STRT */
         UMCUB_FAULT_POINT();            /* test: power cut in the middle of a page erase */
         rc = wait_done(TIMEOUT_ERASE_MS);
         CLEAR_BIT(FLASH->CR, FLASH_CR_PER);

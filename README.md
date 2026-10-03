@@ -79,14 +79,14 @@ There is no user button. Recovery mode starts on a request from the application 
 is no valid image, or when `b` arrives within 300 ms after reset (`UMCUB_CFG_ENTRY_WAIT_MS`).
 `--line-buffers 4` matches `UMCUB_CFG_SMP_MTU` = 512 (20 KiB SRAM).
 
-USB (CDC with SMP and DFU, micro-USB connector) needs more room: overlay `tools/config/bluepill_usb.h` (bootloader
-44 KiB, two 10 KiB slots; build the application with the same overlay):
+USB (CDC with SMP and DFU, micro-USB connector) needs more room: preset `bluepill-usb` (overlay
+`tools/config/bluepill_usb.h`: bootloader 44 KiB, two 10 KiB slots; the example in the same tree uses the same
+layout):
 
 ```sh
-cmake -B build/bp-usb -G Ninja -DUMCUB_BOARD=bluepill_f103c8 -DUMCUB_CONFIG_POST=$PWD/tools/config/bluepill_usb.h
-cmake -S examples/bluepill_app -B build/ex-bp-usb -G Ninja -DUMCUB_CONFIG_POST=$PWD/tools/config/bluepill_usb.h
-smpmgr --port /dev/ttyACM0 --line-buffers 4 image upload build/ex-bp-usb/bluepill_app.signed.bin
-dfu-util -a 0 -D build/ex-bp-usb/bluepill_app.signed.bin -R
+cmake --preset bluepill-usb && cmake --build --preset bluepill-usb
+smpmgr --port /dev/ttyACM0 --line-buffers 4 image upload build/bluepill-usb/examples/bluepill_app/bluepill_app.signed.bin
+dfu-util -a 0 -D build/bluepill-usb/examples/bluepill_app/bluepill_app.signed.bin -R
 ```
 
 The F1 has no switchable D+ pull-up and the Blue Pill ties D+ to 3.3 V, so the board looks attached whenever it is
@@ -95,6 +95,16 @@ powered, and a host would try to enumerate a device that does not answer. The ST
 uses USB itself must make PA12 an input before enabling its USB peripheral. USB is not started for the 300 ms entry
 window, only in recovery mode. While a debugger holds the MCU in reset (`mode=UR`) D+ floats high again: flash with
 `mode=HOTPLUG`, or with the USB cable unplugged.
+
+## Build trees and IDEs (CMake presets)
+
+Every preset in `CMakePresets.json` builds the bootloader target `umcub_<board>_<core>` and, with
+`UMCUB_BUILD_EXAMPLES=ON` (set in the presets), the example applications of that board in the same tree:
+`build/<preset>/examples/<app>/<app>.{elf,map,signed.bin,signed.hex}`. An IDE using CMake presets (VS Code with
+CMake Tools, CLion, ...) therefore lists the bootloader and the applications as targets, and every `.elf` has its
+`.map` next to it for memory analysis tools. The examples remain standalone projects (`cmake -S examples/<app>`).
+In your own build that adds `lib/umcub_app` for two cores, link each application with `${UMCUB_APP_LIB}` (one target
+per core); with a single application `umcub::app` is enough.
 
 ## Configuration
 

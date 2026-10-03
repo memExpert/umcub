@@ -2,7 +2,8 @@
  * STM32F1 port: USART1..3 (RM0008 §27), RX interrupt into a ring buffer,
  * polled TX. Pins: the default mapping or the AFIO remap the TX pin selects
  * (RM0008 §9.3.8): USART1 PA9/PA10 or PB6/PB7, USART2 PA2/PA3 or PD5/PD6,
- * USART3 PB10/PB11, PC10/PC11 (partial) or PD8/PD9 (full).
+ * USART3 PB10/PB11, PC10/PC11 (partial) or PD8/PD9 (full). Remapped pins
+ * exist only on bigger packages (RM0008 Tables 52/53).
  */
 #include "f1.h"
 #include "umcub_port_uart.h"
@@ -94,8 +95,9 @@ int umcub_port_uart_init(unsigned instance, uint32_t baud, uint32_t tx_pin, uint
     if (m->remap_val) {
         SET_BIT(RCC->APB2ENR, RCC_APB2ENR_AFIOEN);
         f1_periph_used(&RCC->APB2RSTR, RCC_APB2RSTR_AFIORST);
-        /* Keep SWJ_CFG as it is (write-only field, reads 0 = full SWJ). */
-        MODIFY_REG(AFIO->MAPR, m->remap_mask, m->remap_val);
+        /* SWJ_CFG is write-only and reads back undefined (RM0008 §9.4.2): write
+         * 111 ("no effect") with the remap bits, or SWD may get switched off. */
+        MODIFY_REG(AFIO->MAPR, m->remap_mask | AFIO_MAPR_SWJ_CFG, m->remap_val | AFIO_MAPR_SWJ_CFG);
     }
     uart_pins[0] = tx_pin;
     uart_pins[1] = rx_pin;

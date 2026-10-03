@@ -33,8 +33,9 @@ void f1_clock_init(void)
 {
     bool hse = false;
 #if UMCUB_CFG_CLOCK_SOURCE == UMCUB_CLK_HSE
-    /* PLL input 4..16 MHz (HSE or HSE/2), output 72 MHz. Connectivity-line
-     * parts (F105/F107, PREDIV1) are not covered. */
+    /* Crystal 4..16 MHz, PLL output 72 MHz (DS5319: PLL input 1..25 MHz,
+     * output 16..72 MHz). Connectivity-line parts (F105/F107, PREDIV1) are not
+     * covered. */
 #if UMCUB_CFG_HSE_HZ == 8000000
 #define F1_PLL_CFG RCC_CFGR_PLLMULL9
 #elif UMCUB_CFG_HSE_HZ == 12000000
@@ -55,7 +56,8 @@ void f1_clock_init(void)
         f1_sysclk_hz = 72000000u;
     } else {
         CLEAR_BIT(RCC->CR, RCC_CR_HSEON);   /* no crystal: fall back to HSI */
-        CLEAR_BIT(RCC->CR, RCC_CR_HSEBYP);  /* writable only with HSE off */
+        (void)wait_flag(&RCC->CR, RCC_CR_HSERDY, 0);
+        CLEAR_BIT(RCC->CR, RCC_CR_HSEBYP);  /* writable only with the HSE stopped */
     }
 #endif
     if (!hse) {
@@ -88,10 +90,12 @@ void f1_clock_deinit(void)
     (void)wait_flag(&RCC->CR, RCC_CR_HSIRDY, RCC_CR_HSIRDY);
     MODIFY_REG(RCC->CFGR, RCC_CFGR_SW, RCC_CFGR_SW_HSI);
     (void)wait_flag(&RCC->CFGR, RCC_CFGR_SWS, RCC_CFGR_SWS_HSI);
-    RCC->CFGR = 0;                          /* prescalers /1, PLL config reset, MCO off */
+    RCC->CFGR = 0;                          /* prescalers /1, MCO off */
     CLEAR_BIT(RCC->CR, RCC_CR_PLLON);
     (void)wait_flag(&RCC->CR, RCC_CR_PLLRDY, 0);
+    RCC->CFGR = 0;                          /* PLLSRC/XTPRE/MUL are writable only with the PLL off (RM0008 §7.3.2) */
     CLEAR_BIT(RCC->CR, RCC_CR_HSEON | RCC_CR_CSSON);
+    (void)wait_flag(&RCC->CR, RCC_CR_HSERDY, 0);   /* HSEBYP is writable only with the HSE stopped */
     CLEAR_BIT(RCC->CR, RCC_CR_HSEBYP);
     RCC->CIR = 0x009F0000u;                 /* clear ready/CSS flags, interrupts off */
     FLASH->ACR = FLASH_ACR_PRFTBE;          /* zero wait states (reset value 0x30) */

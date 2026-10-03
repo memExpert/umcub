@@ -1,4 +1,4 @@
-# umcub application library (target umcub::app).
+# umcub application library (target umcub::app, or ${UMCUB_APP_LIB}).
 #
 # In the application's CMakeLists.txt (after project()):
 #
@@ -36,10 +36,16 @@ endif()
 set(MCUBOOT ${UMCUB_ROOT}/third_party/mcuboot)
 
 # One translation unit (the same file IDE projects add, see README).
-add_library(umcub_app STATIC umcub_app_all.c)
-add_library(umcub::app ALIAS umcub_app)
+# Target per core: one build tree may hold applications for both cores
+# (umcub's own build with UMCUB_BUILD_EXAMPLES). UMCUB_APP_LIB names it for
+# the caller; umcub::app is the alias of the first (usually only) one.
+set(UMCUB_APP_LIB umcub_app_${UMCUB_CORE})
+add_library(${UMCUB_APP_LIB} STATIC umcub_app_all.c)
+if(NOT TARGET umcub::app)
+  add_library(umcub::app ALIAS ${UMCUB_APP_LIB})
+endif()
 
-target_include_directories(umcub_app
+target_include_directories(${UMCUB_APP_LIB}
   PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}/include
     ${UMCUB_ROOT}/config
@@ -50,8 +56,8 @@ target_include_directories(umcub_app
     ${UMCUB_ROOT}/mcuboot_port/include
     ${MCUBOOT}/boot/bootutil/include
 )
-target_compile_definitions(umcub_app PRIVATE ${UMCUB_CONFIG_DEFS})
-target_compile_options(umcub_app PRIVATE
+target_compile_definitions(${UMCUB_APP_LIB} PRIVATE ${UMCUB_CONFIG_DEFS})
+target_compile_options(${UMCUB_APP_LIB} PRIVATE
   ${UMCUB_APP_CPU_FLAGS} -ffunction-sections -fdata-sections -Os -Wall -Wextra -Wno-unused-parameter)
 
 # Make the configuration visible to the application's directory (signing,

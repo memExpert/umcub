@@ -180,10 +180,11 @@ endif()
 # ----------------------------------------------------------------------------
 # Target
 # ----------------------------------------------------------------------------
-add_executable(umcub_boot ${BOOT_SOURCES} ${MCUBOOT_SOURCES})
-set_target_properties(umcub_boot PROPERTIES OUTPUT_NAME "umcub_${UMCUB_BOARD_NAME}_${UMCUB_CORE}")
+# Target named like its file, so IDEs list "umcub_<board>_<core>".
+set(UMCUB_BOOT_TARGET umcub_${UMCUB_BOARD_NAME}_${UMCUB_CORE})
+add_executable(${UMCUB_BOOT_TARGET} ${BOOT_SOURCES} ${MCUBOOT_SOURCES})
 
-target_include_directories(umcub_boot PRIVATE ${BOOT_INCLUDES})
+target_include_directories(${UMCUB_BOOT_TARGET} PRIVATE ${BOOT_INCLUDES})
 
 execute_process(COMMAND git -C ${UMCUB_ROOT} rev-parse --short=8 HEAD
                 OUTPUT_VARIABLE UMCUB_GIT OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
@@ -191,7 +192,7 @@ if(NOT UMCUB_GIT MATCHES "^[0-9a-f]+$")
   set(UMCUB_GIT 0)
 endif()
 
-target_compile_definitions(umcub_boot PRIVATE
+target_compile_definitions(${UMCUB_BOOT_TARGET} PRIVATE
   ${UMCUB_CONFIG_DEFS}
   UMCUB_GIT_HASH=0x${UMCUB_GIT}u
   UMCUB_BOARD_NAME="${UMCUB_BOARD_NAME}"
@@ -199,7 +200,7 @@ target_compile_definitions(umcub_boot PRIVATE
   $<$<BOOL:${UMCUB_CFG_USB}>:CFG_TUSB_MCU=${UMCUB_FAMILY_TUSB_MCU}>
 )
 
-target_compile_options(umcub_boot PRIVATE
+target_compile_options(${UMCUB_BOOT_TARGET} PRIVATE
   ${UMCUB_CPU_FLAGS_SOFT}
   -Wall -Wextra -Wno-unused-parameter
   $<$<COMPILE_LANGUAGE:ASM>:-x assembler-with-cpp>
@@ -212,13 +213,13 @@ if(UMCUB_CFG_USB)
 endif()
 
 umcub_preprocess("${UMCUB_FAMILY_BOOT_LD}" "${CMAKE_BINARY_DIR}/umcub_boot.ld")
-set_target_properties(umcub_boot PROPERTIES LINK_DEPENDS "${CMAKE_BINARY_DIR}/umcub_boot.ld")
+set_target_properties(${UMCUB_BOOT_TARGET} PROPERTIES LINK_DEPENDS "${CMAKE_BINARY_DIR}/umcub_boot.ld")
 
-target_link_options(umcub_boot PRIVATE
+target_link_options(${UMCUB_BOOT_TARGET} PRIVATE
   ${UMCUB_CPU_FLAGS_SOFT}
   -T${CMAKE_BINARY_DIR}/umcub_boot.ld
   -Wl,--gc-sections
-  -Wl,-Map=$<TARGET_FILE_DIR:umcub_boot>/$<TARGET_FILE_BASE_NAME:umcub_boot>.map
+  -Wl,-Map=$<TARGET_FILE_DIR:${UMCUB_BOOT_TARGET}>/$<TARGET_FILE_BASE_NAME:${UMCUB_BOOT_TARGET}>.map
   -Wl,--print-memory-usage
   -Wl,--no-warn-rwx-segments
   --specs=nano.specs
@@ -226,8 +227,35 @@ target_link_options(umcub_boot PRIVATE
   -nostartfiles
 )
 
-add_custom_command(TARGET umcub_boot POST_BUILD
-  COMMAND ${CMAKE_OBJCOPY} -O binary $<TARGET_FILE:umcub_boot> $<TARGET_FILE_DIR:umcub_boot>/$<TARGET_FILE_BASE_NAME:umcub_boot>.bin
-  COMMAND ${CMAKE_OBJCOPY} -O ihex $<TARGET_FILE:umcub_boot> $<TARGET_FILE_DIR:umcub_boot>/$<TARGET_FILE_BASE_NAME:umcub_boot>.hex
-  COMMAND ${CMAKE_SIZE} $<TARGET_FILE:umcub_boot>
+add_custom_command(TARGET ${UMCUB_BOOT_TARGET} POST_BUILD
+  COMMAND ${CMAKE_OBJCOPY} -O binary $<TARGET_FILE:${UMCUB_BOOT_TARGET}> $<TARGET_FILE_DIR:${UMCUB_BOOT_TARGET}>/$<TARGET_FILE_BASE_NAME:${UMCUB_BOOT_TARGET}>.bin
+  COMMAND ${CMAKE_OBJCOPY} -O ihex $<TARGET_FILE:${UMCUB_BOOT_TARGET}> $<TARGET_FILE_DIR:${UMCUB_BOOT_TARGET}>/$<TARGET_FILE_BASE_NAME:${UMCUB_BOOT_TARGET}>.hex
+  COMMAND ${CMAKE_SIZE} $<TARGET_FILE:${UMCUB_BOOT_TARGET}>
   VERBATIM)
+
+# ----------------------------------------------------------------------------
+# Example applications of this board in the same build tree (IDE: they show up
+# as targets next to the bootloader, with their .elf/.map and compile flags).
+# They stay standalone CMake projects as well: cmake -S examples/<name> ...
+# ----------------------------------------------------------------------------
+option(UMCUB_BUILD_EXAMPLES "Also build the example applications for this board" OFF)
+if(UMCUB_BUILD_EXAMPLES)
+  set(_examples)
+  if(UMCUB_BOARD_NAME STREQUAL "nucleo_h755zi_q")
+    if(UMCUB_CORE STREQUAL "cm7")
+      list(APPEND _examples h755_cm7_app)
+    endif()
+    # SINGLE_BOOT: the CM7 bootloader also boots the CM4 image; PER_CORE: the CM4 one does.
+    if((UMCUB_CORE STREQUAL "cm7" AND UMCUB_CFG_DUALCORE_MODE EQUAL 1) OR UMCUB_CORE STREQUAL "cm4")
+      list(APPEND _examples h755_cm4_app)
+    endif()
+  elseif(UMCUB_BOARD_NAME STREQUAL "bluepill_f103c8")
+    list(APPEND _examples bluepill_app)
+  endif()
+  if(NOT _examples)
+    message(STATUS "umcub: no example application for board ${UMCUB_BOARD_NAME}")
+  endif()
+  foreach(_ex IN LISTS _examples)
+    add_subdirectory(examples/${_ex} examples/${_ex})
+  endforeach()
+endif()

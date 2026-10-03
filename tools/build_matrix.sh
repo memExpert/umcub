@@ -60,6 +60,24 @@ else
   echo "FAIL custom-drivers (see $dir.*.log)"; fail=1
 fi
 
+# CMake presets (bootloader + the board's example applications in one tree,
+# UMCUB_BUILD_EXAMPLES): every target links, warning-free, .map next to each .elf.
+for p in h755-cm7 h755-per-core-cm4 bluepill-usb; do
+  dir="$OUT/preset-$p"
+  if cmake --preset "$p" -B "$dir" >"$dir.configure.log" 2>&1 && cmake --build "$dir" >"$dir.build.log" 2>&1 &&
+     ! grep -q "warning:" "$dir.build.log"; then
+    elfs=$(cd "$dir" && ls *.elf examples/*/*.elf 2>/dev/null)
+    missing=$(for e in $elfs; do [[ -f "$dir/${e%.elf}.map" ]] || echo "$e"; done)
+    if [[ -z "$missing" ]]; then
+      summary+=("$(printf '%-24s %s' "preset $p" "$(echo $elfs | wc -w) targets: $(echo $elfs | xargs -n1 basename | tr '\n' ' ')")")
+    else
+      echo "FAIL preset $p: no .map for $missing"; fail=1
+    fi
+  else
+    echo "FAIL preset $p (see $dir.*.log)"; fail=1
+  fi
+done
+
 # example dir | board | core | image
 examples=(
   "h755_cm7_app|nucleo_h755zi_q|cm7|0"

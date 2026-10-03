@@ -7,7 +7,7 @@
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/${presetName}",
       "toolchainFile": "${sourceDir}/cmake/arm-none-eabi.cmake",
-      "cacheVariables": { "UMCUB_BOARD": "nucleo_h755zi_q" }
+      "cacheVariables": { "UMCUB_BOARD": "nucleo_h755zi_q", "UMCUB_BUILD_EXAMPLES": "ON" }
     },
     {
       "name": "h755-cm7",
@@ -46,6 +46,16 @@
       "displayName": "Blue Pill (STM32F103C8T6) bootloader (Release)",
       "inherits": "base",
       "cacheVariables": { "CMAKE_BUILD_TYPE": "Release", "UMCUB_BOARD": "bluepill_f103c8" }
+    },
+    {
+      "name": "bluepill-usb",
+      "displayName": "Blue Pill (STM32F103C8T6) bootloader with USB CDC + DFU (Release)",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "UMCUB_BOARD": "bluepill_f103c8",
+        "UMCUB_CONFIG_POST": "${sourceDir}/tools/config/bluepill_usb.h"
+      }
     }
   ],
   "buildPresets": [
@@ -53,6 +63,7 @@
     { "name": "h755-cm7-debug", "configurePreset": "h755-cm7-debug" },
     { "name": "h755-per-core-cm7", "configurePreset": "h755-per-core-cm7" },
     { "name": "h755-per-core-cm4", "configurePreset": "h755-per-core-cm4" },
-    { "name": "bluepill", "configurePreset": "bluepill" }
+    { "name": "bluepill", "configurePreset": "bluepill" },
+    { "name": "bluepill-usb", "configurePreset": "bluepill-usb" }
   ]
 }

@@ -22,21 +22,12 @@
  * MCUboot supports, so the driver takes multiples of 8 bytes. */
 #define UMCUB_FAMILY_WRITE_ALIGN        8
 
-/* SRAM size (DS5319 / DS5792 ordering information). */
-#if defined(STM32F103x6) || defined(STM32F101x6) || defined(STM32F102x6)
-#define UMCUB_FAMILY_RAM_SIZE           UMCUB_KB(10)
-#elif defined(STM32F103xB) || defined(STM32F101xB) || defined(STM32F102xB)
-#define UMCUB_FAMILY_RAM_SIZE           UMCUB_KB(20)
-#elif defined(STM32F100xB)
-#define UMCUB_FAMILY_RAM_SIZE           UMCUB_KB(8)
-#elif defined(STM32F103xE)
-#define UMCUB_FAMILY_RAM_SIZE           UMCUB_KB(64)
-#elif defined(STM32F103xG)
-#define UMCUB_FAMILY_RAM_SIZE           UMCUB_KB(96)
-#elif defined(STM32F105xC) || defined(STM32F107xC)
-#define UMCUB_FAMILY_RAM_SIZE           UMCUB_KB(64)
+/* SRAM size. Only parts checked against their datasheet are listed; add
+ * others after checking theirs (sizes differ inside the F101/F102 lines). */
+#if defined(STM32F103xB)
+#define UMCUB_FAMILY_RAM_SIZE           UMCUB_KB(20)   /* DS5319: F103x8/xB */
 #else
-#error "umcub: STM32F1 part not listed in port/stm32f1/include/umcub_family_defaults.h"
+#error "umcub: STM32F1 part not verified yet - add its SRAM size (datasheet) to umcub_family_defaults.h"
 #endif
 
 #ifndef UMCUB_CFG_BOOT_ADDR
