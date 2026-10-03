@@ -59,11 +59,14 @@ Done (bootloader 28.3 K in 32 K, two 16 K slots, overwrite, USART1 PA9/PA10 1152
 - [x] USB (overlay `tools/config/bluepill_usb.h`, 40.7 K in 44 K): enumeration in recovery, text command and SMP
   over CDC (4.9 KB in 0.7 s), verify / hash, DFU download with `-R` (2.1 s) -> overwrite upgrade, clean detach
   (D+ held low outside the bootloader's USB; no enumeration attempts in the kernel log during boot or in the app).
+- [x] Watchdog (`UMCUB_CFG_WATCHDOG_MS` = 2 s, IWDG on LSI): an application that feeds it runs without resets, one
+  that stops (example key `w`) is reset after 1.99 s (3 of 3, reset cause watchdog); boot incl. ECDSA (0.65 s),
+  12 s idle recovery, SMP upload over CDC, DFU download and the overwrite copy complete without a reset.
 
 Open:
 
 - [ ] Power-loss test of the overwrite copy on F1 (fault injection points exist in `port/stm32f1/flash.c`).
-- [ ] Watchdog and recovery timeout on F1 (LSI 30..60 kHz spread).
+- [ ] Recovery timeout on F1.
 - [ ] F1 port of bxCAN; F105/F107 (PREDIV1, 25 MHz HSE, USB OTG FS); XL-density bank 2.
 - [ ] H755 regression run on hardware after the shared changes of the F1 work (USB not started in the entry window,
   DFU poll time from `UMCUB_FAMILY_SECTOR_ERASE_MS`, `last update via app`).

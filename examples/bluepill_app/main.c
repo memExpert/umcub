@@ -7,6 +7,7 @@
  *   i  show bootloader / image information
  *   b  reboot into the bootloader's recovery mode
  *   u  receive an image and write it into the secondary slot (tools/app_upload.py)
+ *   w  stop feeding the watchdog (UMCUB_CFG_WATCHDOG_MS: reset follows)
  *   r  reset
  */
 #include "stm32f1xx.h"
@@ -168,9 +169,10 @@ int main(void)
     USART1->CR1 = USART_CR1_TE | USART_CR1_RE | USART_CR1_UE;
 
     show_info();
-    puts_("keys: i b u r\n");
+    puts_("keys: i b u w r\n");
 
     uint32_t last = 0;
+    bool feed = true;
     for (;;) {
         uint8_t c;
         if (getc_(&c)) {
@@ -178,11 +180,14 @@ int main(void)
             case 'i': show_info(); break;
             case 'b': puts_("-> bootloader\n"); umcub_enter_bootloader(0x1234); break;
             case 'u': upload(); break;
+            case 'w': puts_("watchdog: not fed any more\n"); feed = false; break;
             case 'r': NVIC_SystemReset(); break;
             default: break;
             }
         }
-        IWDG->KR = 0xAAAAu;     /* in case the bootloader started the IWDG */
+        if (feed) {
+            IWDG->KR = 0xAAAAu; /* in case the bootloader started the IWDG (it cannot be stopped) */
+        }
         if ((uint32_t)(ms - last) >= 250u) {
             last = ms;
             GPIOC->ODR ^= 1u << 13;
