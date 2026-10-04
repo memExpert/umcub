@@ -50,7 +50,7 @@ static void lock(void)
 
 static int wait_done(uint32_t timeout_ms)
 {
-    int rc = f1_wait(&FLASH->SR, FLASH_SR_BSY, 0, timeout_ms);
+    int rc = umcub_cm_wait(&FLASH->SR, FLASH_SR_BSY, 0, timeout_ms);
     uint32_t sr = FLASH->SR;
     FLASH->SR = FLASH_SR_EOP | SR_ERRORS;   /* write 1 to clear */
     if (rc != 0) {
@@ -96,7 +96,7 @@ int umcub_flash_write(uint32_t addr, const void *src, size_t len)
     const uint8_t *s = src;
     const uint32_t start = addr;
     const size_t total = len;
-    int rc = f1_wait(&FLASH->SR, FLASH_SR_BSY, 0, TIMEOUT_ERASE_MS);
+    int rc = umcub_cm_wait(&FLASH->SR, FLASH_SR_BSY, 0, TIMEOUT_ERASE_MS);
 
     unlock();
     FLASH->SR = FLASH_SR_EOP | SR_ERRORS;
@@ -126,7 +126,7 @@ int umcub_flash_erase(uint32_t addr, size_t len)
     if (!in_flash(addr, len) || (addr % PAGE_SIZE) || (len % PAGE_SIZE)) {
         return UMCUB_EINVAL;
     }
-    int rc = f1_wait(&FLASH->SR, FLASH_SR_BSY, 0, TIMEOUT_ERASE_MS);
+    int rc = umcub_cm_wait(&FLASH->SR, FLASH_SR_BSY, 0, TIMEOUT_ERASE_MS);
 
     unlock();
     FLASH->SR = FLASH_SR_EOP | SR_ERRORS;

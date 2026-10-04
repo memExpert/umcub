@@ -52,6 +52,26 @@ function(umcub_generate_pubkey key out)
     VERBATIM)
 endfunction()
 
+# umcub_generate_enc_key(<device.pem> <out.c>)
+# The device private key as MCUboot's bootutil_enc_key (encrypted images):
+# `imgtool getpriv`, like the public signing key above.
+function(umcub_generate_enc_key device out)
+  if(NOT EXISTS "${device}")
+    message(FATAL_ERROR "umcub: device key ${device} not found (imgtool keygen -t ecdsa-p256 -k ${device})")
+  endif()
+  if("${device}" MATCHES "/tools/keys/dev-[a-z]+-p256.pem$")
+    message(WARNING "umcub: using the development device key ${device} from the repository "
+                    "(image decryption / link). Set UMCUB_DEVICE_KEY for production.")
+  endif()
+  set(_raw "${out}.raw")
+  add_custom_command(OUTPUT "${out}"
+    COMMAND "${UMCUB_IMGTOOL}" getpriv -k "${device}" > "${_raw}"
+    COMMAND ${CMAKE_COMMAND} -DMODE=enc -DRAW=${_raw} -DOUT=${out} -P "${UMCUB_ROOT}/cmake/umcub_keys_wrap.cmake"
+    DEPENDS "${device}" "${UMCUB_ROOT}/cmake/umcub_keys_wrap.cmake"
+    COMMENT "umcub device key (encrypted images)"
+    VERBATIM)
+endfunction()
+
 # umcub_generate_link_keys(<device.pem> <admin.pem> <out.c>)
 # umcub link SECURE keys for the bootloader (tools/umcub_keys.py): the private
 # device key and the public half of the admin key.
@@ -69,7 +89,7 @@ function(umcub_generate_link_keys device admin out)
   umcub_keys_command(c "${device}" "${admin}" "${out}")
 endfunction()
 
-# umcub_keys_command(<c|host-c|enc-c> <device.pem> <admin.pem or ""> <out.c>):
+# umcub_keys_command(<c|host-c> <device.pem> <admin.pem or ""> <out.c>):
 # rule running tools/umcub_keys.py with the Python next to imgtool (it has
 # `cryptography`, an imgtool dependency).
 function(umcub_keys_command mode device admin out)

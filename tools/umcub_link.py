@@ -26,6 +26,9 @@ import struct
 import sys
 import time
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from umcub_smp import NlipDecoder, nlip_encode  # noqa: E402  (SMP serial framing, smp.packet)
+
 MAGIC, VERSION = 0xA5, 1
 T_DISCOVER, T_ANNOUNCE, T_HELLO, T_CHALLENGE, T_AUTH, T_AUTH_OK, T_DATA, T_CLOSE = range(1, 9)
 F_MAC, F_ENC, F_UID = 0x01, 0x02, 0x04
@@ -300,56 +303,6 @@ class Link:
             if not new:
                 break
         return list(found.values())
-
-
-# --------------------------------------------------------------------------
-# SMP serial framing for the pty side (mcumgr / smpmgr)
-# --------------------------------------------------------------------------
-
-def crc16(data, crc=0):
-    for b in data:
-        crc ^= b << 8
-        for _ in range(8):
-            crc = ((crc << 1) ^ 0x1021) & 0xFFFF if crc & 0x8000 else (crc << 1) & 0xFFFF
-    return crc
-
-
-def nlip_encode(pkt):
-    raw = struct.pack(">H", len(pkt) + 2) + pkt + struct.pack(">H", crc16(pkt))
-    b64 = base64.b64encode(raw)
-    out = b""
-    for i in range(0, len(b64), 124):
-        out += (b"\x06\x09" if i == 0 else b"\x04\x14") + b64[i:i + 124] + b"\n"
-    return out
-
-
-class NlipDecoder:
-    def __init__(self):
-        self.line, self.data = b"", b""
-
-    def feed(self, chunk):
-        pkts = []
-        for c in chunk:
-            if c != 0x0A:
-                self.line += bytes([c])
-                continue
-            line, self.line = self.line.strip(b"\r"), b""
-            if line[:2] == b"\x06\x09":
-                self.data = b""
-            elif line[:2] != b"\x04\x14":
-                continue
-            try:
-                self.data += base64.b64decode(line[2:])
-            except ValueError:
-                self.data = b""
-                continue
-            if len(self.data) >= 2 and len(self.data) >= struct.unpack(">H", self.data[:2])[0] + 2:
-                total = struct.unpack(">H", self.data[:2])[0]
-                body = self.data[2:2 + total]
-                self.data = b""
-                if crc16(body) == 0:
-                    pkts.append(body[:-2])
-        return pkts
 
 
 def serve(link, a):

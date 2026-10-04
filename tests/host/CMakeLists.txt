@@ -22,7 +22,7 @@ set(_dev_key ${UMCUB_ROOT}/tools/keys/dev-device-p256.pem)
 set(_adm_key ${UMCUB_ROOT}/tools/keys/dev-admin-p256.pem)
 umcub_keys_command(c ${_dev_key} ${_adm_key} ${CMAKE_BINARY_DIR}/umcub_link_keys.c)
 umcub_keys_command(host-c ${_dev_key} ${_adm_key} ${CMAKE_BINARY_DIR}/umcub_link_host_keys.c)
-umcub_keys_command(enc-c ${_dev_key} "" ${CMAKE_BINARY_DIR}/umcub_enc_key.c)
+umcub_generate_enc_key(${_dev_key} ${CMAKE_BINARY_DIR}/umcub_enc_key.c)
 
 file(GLOB BOOTUTIL_SRCS ${MCUBOOT}/boot/bootutil/src/*.c)
 list(FILTER BOOTUTIL_SRCS EXCLUDE REGEX "(encrypted|ed25519|image_rsa|ram_load|boot_record|_psa|_mbedtls)")
@@ -304,8 +304,12 @@ umcub_host_link(umcub_host_link_secure test_link_secure.c test_link_secure_post.
   ${CMAKE_BINARY_DIR}/umcub_link_host_keys.c)
 
 # Device simulators for tests/host/link_e2e.py (several devices on one bus with
-# tools/umcub_link.py and smpmgr): ADDRESSED and SECURE (+ encryption).
+# tools/umcub_link.py and smpmgr): ADDRESSED and SECURE (+ encryption); plain
+# SMP for tools/umcub_inspect.py; CAN (ISO-TP) for tools/smp_can.py.
 set(UMCUB_SIM 1)
+umcub_host_link(umcub_sim_plain sim_device.c sim_plain_post.h)
+umcub_host_link(umcub_sim_can sim_can.c sim_can_post.h ${UMCUB_ROOT}/transport/registry.c
+  ${UMCUB_ROOT}/transport/can/can_transport.c ${UMCUB_ROOT}/transport/can/isotp.c)
 umcub_host_link(umcub_sim_addressed sim_device.c test_link_post.h)
 umcub_host_link(umcub_sim_secure sim_device.c test_link_secure_post.h
   ${MCUBOOT}/boot/bootutil/src/encrypted.c

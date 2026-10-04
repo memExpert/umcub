@@ -1,57 +1,14 @@
 /*
- * STM32F1 port: system services (SysTick, reset, jump, GPIO, watchdog).
+ * STM32F1 port: system services (reset cause, clocks, GPIO, watchdog); the
+ * Cortex-M part (SysTick, deinit, jump) is port/common/cortexm_sys.c.
  */
 #include "f1.h"
 
-static volatile uint32_t ticks;
 static uint8_t reset_cause;
 static uint32_t reset_flags;
 
-/* RCC reset registers touched by drivers, restored on deinit. */
-#define MAX_PERIPH 8
-static struct {
-    volatile uint32_t *rstr;
-    uint32_t mask;
-} used[MAX_PERIPH];
-static unsigned used_n;
-
 /* RCC enable registers as found at boot (restored on deinit). */
-#define EN_REGS 3
-static uint32_t en_snapshot[EN_REGS];
-static volatile uint32_t *const en_regs[EN_REGS] = { &RCC->AHBENR, &RCC->APB1ENR, &RCC->APB2ENR };
-
-void SysTick_Handler(void)
-{
-    ticks++;
-}
-
-uint32_t umcub_port_millis(void)
-{
-    return ticks;
-}
-
-void umcub_port_delay_ms(uint32_t ms)
-{
-    uint32_t start = ticks;
-    while ((uint32_t)(ticks - start) < ms) {
-        umcub_port_idle();
-    }
-}
-
-void f1_periph_used(volatile uint32_t *rstr, uint32_t mask)
-{
-    for (unsigned i = 0; i < used_n; i++) {
-        if (used[i].rstr == rstr) {
-            used[i].mask |= mask;
-            return;
-        }
-    }
-    if (used_n < MAX_PERIPH) {
-        used[used_n].rstr = rstr;
-        used[used_n].mask = mask;
-        used_n++;
-    }
-}
+static volatile uint32_t *const en_regs[] = { &RCC->AHBENR, &RCC->APB1ENR, &RCC->APB2ENR };
 
 static uint8_t read_reset_cause(void)
 {
@@ -87,9 +44,7 @@ uint8_t umcub_port_reset_cause(void)
 void umcub_port_init(void)
 {
     reset_cause = read_reset_cause();
-    for (unsigned i = 0; i < EN_REGS; i++) {
-        en_snapshot[i] = *en_regs[i];
-    }
+    umcub_cm_save_clocks(en_regs, sizeof(en_regs) / sizeof(en_regs[0]));
 #if UMCUB_CFG_USB
     /* Right after reset (before the HSE start-up), well within the host's
      * 100 ms attach debounce: the device must not look attached while its
@@ -97,79 +52,15 @@ void umcub_port_init(void)
     f1_usb_hold_detached();
 #endif
     f1_clock_init();
-
-    SysTick->LOAD = f1_sysclk_hz / 1000u - 1u;
-    SysTick->VAL = 0;
-    NVIC_SetPriority(SysTick_IRQn, 0);
-    SysTick->CTRL = SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_TICKINT_Msk | SysTick_CTRL_ENABLE_Msk;
-    __enable_irq();
+    umcub_cm_start(f1_sysclk_hz);
 }
 
 void umcub_port_deinit(void)
 {
-    __disable_irq();
-
-    SysTick->CTRL = 0;
-    SysTick->LOAD = 0;
-    SysTick->VAL = 0;
-
-    for (unsigned i = 0; i < 8; i++) {
-        NVIC->ICER[i] = 0xFFFFFFFFu;
-        NVIC->ICPR[i] = 0xFFFFFFFFu;
-    }
-    SCB->ICSR = SCB_ICSR_PENDSTCLR_Msk | SCB_ICSR_PENDSVCLR_Msk;
-
-    for (unsigned i = 0; i < used_n; i++) {
-        SET_BIT(*used[i].rstr, used[i].mask);
-        (void)*used[i].rstr;
-        CLEAR_BIT(*used[i].rstr, used[i].mask);
-    }
-    used_n = 0;
-    for (unsigned i = 0; i < EN_REGS; i++) {
-        *en_regs[i] = en_snapshot[i];
-    }
+    umcub_cm_deinit();
     f1_clock_deinit();
     __DSB();
     __ISB();
-}
-
-__attribute__((noreturn)) void umcub_port_reset(void)
-{
-    NVIC_SystemReset();
-}
-
-__attribute__((noreturn)) void umcub_port_jump(uint32_t vtor)
-{
-    const uint32_t *vt = (const uint32_t *)vtor;
-    uint32_t sp = vt[0];
-    uint32_t pc = vt[1];
-
-    SCB->VTOR = vtor;
-    __DSB();
-    __ISB();
-    __asm volatile(
-        "msr msp, %0      \n"
-        "movs r1, #0      \n"
-        "msr control, r1  \n"
-        "isb              \n"
-        "cpsie i          \n"
-        "bx %1            \n"
-        :
-        : "r"(sp), "r"(pc)
-        : "r1", "memory");
-    __builtin_unreachable();
-}
-
-void umcub_port_uid(uint8_t uid[12])
-{
-    const uint8_t *p = (const uint8_t *)UID_BASE;
-    for (unsigned i = 0; i < 12; i++) {
-        uid[i] = p[i];
-    }
-}
-
-__attribute__((weak)) void umcub_port_idle(void)
-{
 }
 
 /* --- watchdog: IWDG on LSI (~40 kHz, 30..60 kHz), RM0008 §19 --------------- */
@@ -188,7 +79,7 @@ void umcub_port_wdg_start(uint32_t timeout_ms)
     IWDG->KR = 0x5555;
     IWDG->PR = 6;
     IWDG->RLR = reload;
-    (void)f1_wait(&IWDG->SR, IWDG_SR_PVU | IWDG_SR_RVU, 0, 100);
+    (void)umcub_cm_wait(&IWDG->SR, IWDG_SR_PVU | IWDG_SR_RVU, 0, 100);
     IWDG->KR = 0xAAAA;
 }
 

@@ -75,15 +75,15 @@ int umcub_port_can_init(const umcub_can_cfg_t *c)
     MODIFY_REG(RCC->D2CCIP1R, RCC_D2CCIP1R_FDCANSEL, 1u << RCC_D2CCIP1R_FDCANSEL_Pos);   /* PLL1Q */
     SET_BIT(RCC->APB1HENR, RCC_APB1HENR_FDCANEN);
     (void)RCC->APB1HENR;
-    h7_periph_used(&RCC->APB1HRSTR, RCC_APB1HRSTR_FDCANRST);
+    umcub_cm_periph_used(&RCC->APB1HRSTR, RCC_APB1HRSTR_FDCANRST);
 
     umcub_port_gpio_af(c->tx_pin);
     umcub_port_gpio_af(c->rx_pin);
 
     CLEAR_BIT(can->CCCR, FDCAN_CCCR_CSR);
-    (void)h7_wait(&can->CCCR, FDCAN_CCCR_CSA, 0, 10);
+    (void)umcub_cm_wait(&can->CCCR, FDCAN_CCCR_CSA, 0, 10);
     SET_BIT(can->CCCR, FDCAN_CCCR_INIT);
-    if (h7_wait(&can->CCCR, FDCAN_CCCR_INIT, FDCAN_CCCR_INIT, 10) != 0) {
+    if (umcub_cm_wait(&can->CCCR, FDCAN_CCCR_INIT, FDCAN_CCCR_INIT, 10) != 0) {
         return UMCUB_ETIMEOUT;
     }
     SET_BIT(can->CCCR, FDCAN_CCCR_CCE);
@@ -143,7 +143,7 @@ int umcub_port_can_init(const umcub_can_cfg_t *c)
     can->ILE = 0;
 
     CLEAR_BIT(can->CCCR, FDCAN_CCCR_INIT);
-    return h7_wait(&can->CCCR, FDCAN_CCCR_INIT, 0, 10);
+    return umcub_cm_wait(&can->CCCR, FDCAN_CCCR_INIT, 0, 10);
 }
 
 void umcub_port_can_deinit(void)

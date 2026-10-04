@@ -78,27 +78,27 @@ int umcub_port_uart_init(const umcub_uart_cfg_t *cfg)
         uart = USART1;
         uart_irq = USART1_IRQn;
         SET_BIT(RCC->APB2ENR, RCC_APB2ENR_USART1EN);
-        f1_periph_used(&RCC->APB2RSTR, RCC_APB2RSTR_USART1RST);
+        umcub_cm_periph_used(&RCC->APB2RSTR, RCC_APB2RSTR_USART1RST);
         pclk = f1_pclk2_hz;
         break;
     case 2:
         uart = USART2;
         uart_irq = USART2_IRQn;
         SET_BIT(RCC->APB1ENR, RCC_APB1ENR_USART2EN);
-        f1_periph_used(&RCC->APB1RSTR, RCC_APB1RSTR_USART2RST);
+        umcub_cm_periph_used(&RCC->APB1RSTR, RCC_APB1RSTR_USART2RST);
         pclk = f1_pclk1_hz;
         break;
     default:
         uart = USART3;
         uart_irq = USART3_IRQn;
         SET_BIT(RCC->APB1ENR, RCC_APB1ENR_USART3EN);
-        f1_periph_used(&RCC->APB1RSTR, RCC_APB1RSTR_USART3RST);
+        umcub_cm_periph_used(&RCC->APB1RSTR, RCC_APB1RSTR_USART3RST);
         pclk = f1_pclk1_hz;
         break;
     }
     if (m->remap_val) {
         SET_BIT(RCC->APB2ENR, RCC_APB2ENR_AFIOEN);
-        f1_periph_used(&RCC->APB2RSTR, RCC_APB2RSTR_AFIORST);
+        umcub_cm_periph_used(&RCC->APB2RSTR, RCC_APB2RSTR_AFIORST);
         /* SWJ_CFG is write-only and reads back undefined (RM0008 §9.4.2): write
          * 111 ("no effect") with the remap bits, or SWD may get switched off. */
         MODIFY_REG(AFIO->MAPR, m->remap_mask | AFIO_MAPR_SWJ_CFG, m->remap_val | AFIO_MAPR_SWJ_CFG);
@@ -131,7 +131,7 @@ void umcub_port_uart_deinit(void)
     if (!uart) {
         return;
     }
-    (void)f1_wait(&uart->SR, USART_SR_TC, USART_SR_TC, 50);
+    (void)umcub_cm_wait(&uart->SR, USART_SR_TC, USART_SR_TC, 50);
     NVIC_DisableIRQ(uart_irq);
     uart->CR1 = 0;
     umcub_port_gpio_reset(uart_pins[0]);
@@ -176,7 +176,7 @@ void umcub_port_uart_write(const uint8_t *buf, size_t len)
         uart->DR = *buf++;
     }
     if (rs485) {
-        (void)f1_wait(&uart->SR, USART_SR_TC, USART_SR_TC, 10);   /* last stop bit out */
+        (void)umcub_cm_wait(&uart->SR, USART_SR_TC, USART_SR_TC, 10);   /* last stop bit out */
         umcub_port_gpio_write(de_pin, !de_level);
         SET_BIT(uart->CR1, USART_CR1_RE);
     }

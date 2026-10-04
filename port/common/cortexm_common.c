@@ -1,10 +1,13 @@
 /*
- * STM32H7 port: helpers shared by the bootloader and the application
- * library (flash driver dependencies only - no SysTick, no clocks).
+ * Cortex-M helpers shared by the bootloader and the application library
+ * (flash driver dependencies only - no SysTick, no clocks). Compiled with the
+ * family's device header (umcub_family_cmsis.h).
  */
-#include "h7.h"
+#include "umcub_family_cmsis.h"
+#include "umcub_port.h"
+#include "cortexm_port.h"
 
-int h7_wait(volatile uint32_t *reg, uint32_t mask, uint32_t value, uint32_t timeout_ms)
+int umcub_cm_wait(volatile uint32_t *reg, uint32_t mask, uint32_t value, uint32_t timeout_ms)
 {
     uint32_t start = umcub_port_millis();
     while ((*reg & mask) != value) {
@@ -26,4 +29,3 @@ void umcub_port_irq_restore(uint32_t state)
 {
     __set_PRIMASK(state);
 }
-

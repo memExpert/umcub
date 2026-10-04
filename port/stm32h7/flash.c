@@ -91,7 +91,7 @@ static void lock(const struct bank *b)
 
 static int wait_done(const struct bank *b, uint32_t timeout_ms)
 {
-    int rc = h7_wait(b->sr, FLASH_SR_QW, 0, timeout_ms);
+    int rc = umcub_cm_wait(b->sr, FLASH_SR_QW, 0, timeout_ms);
     uint32_t sr = *b->sr;
     *b->ccr = CCR_ALL;
     if (rc != 0) {

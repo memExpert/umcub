@@ -6,85 +6,50 @@
   smp_can.py reset
   smp_can.py echo hello
 
-Default ids match the umcub defaults: host->device 0x7C0, device->host 0x7C8.
+Default ids match the umcub defaults: host->device 0x7C0, device->host 0x7C8
+(+ the node address with --addr). The SMP side is smpclient; the ISO-TP
+transport is tools/umcub_smp.py (SMPIsoTpTransport).
 """
 import argparse
-import hashlib
-import struct
+import asyncio
+import os
 import sys
 
-import can
-import cbor2
-import isotp
+from smpclient import SMPClient
+from smpclient.generics import error, success
+from smpclient.requests.image_management import ImageStatesRead
+from smpclient.requests.os_management import EchoWrite, ResetWrite
 
-OP_READ, OP_WRITE = 0, 2
-GRP_DEFAULT, GRP_IMAGE = 0, 1
-
-
-class SmpCan:
-    def __init__(self, args):
-        self.bus = can.Bus(interface=args.interface, channel=args.channel, bitrate=args.bitrate,
-                           fd=args.fd, data_bitrate=args.data_bitrate if args.fd else None)
-        addr = isotp.Address(isotp.AddressingMode.Normal_29bits if args.ext else isotp.AddressingMode.Normal_11bits,
-                             txid=args.tx_id + args.addr, rxid=args.rx_id + args.addr)
-        params = {"tx_padding": 0xCC, "can_fd": args.fd, "tx_data_length": 64 if args.fd else 8,
-                  "blocking_send": True, "max_frame_size": 4095, "bitrate_switch": args.fd}
-        self.stack = isotp.NotifierBasedCanStack(self.bus, address=addr, params=params)
-        self.stack.start()
-        self.seq = 0
-        self.timeout = args.timeout
-
-    def close(self):
-        self.stack.stop()
-        self.bus.shutdown()
-
-    def request(self, op, group, cmd, payload):
-        body = cbor2.dumps(payload)
-        self.seq = (self.seq + 1) & 0xFF
-        hdr = struct.pack(">BBHHBB", op, 0, len(body), group, self.seq, cmd)
-        self.stack.send(hdr + body, send_timeout=self.timeout)
-        rsp = self.stack.recv(block=True, timeout=self.timeout)
-        if rsp is None:
-            raise TimeoutError("no SMP response")
-        _, _, length, rgroup, rseq, rcmd = struct.unpack(">BBHHBB", rsp[:8])
-        if (rgroup, rcmd) != (group, cmd):
-            raise IOError(f"unexpected response group {rgroup} id {rcmd}")
-        return cbor2.loads(rsp[8:8 + length]) if length else {}
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from umcub_smp import SMPIsoTpTransport  # noqa: E402
 
 
-def cmd_list(smp, args):
-    rsp = smp.request(OP_READ, GRP_IMAGE, 0, {})
-    for img in rsp.get("images", []):
-        flags = [k for k in ("active", "confirmed", "pending", "permanent", "bootable") if img.get(k)]
-        print(f"image {img.get('image', 0)} slot {img.get('slot')}: {img.get('version')} "
-              f"{img.get('hash', b'').hex()[:16]} {' '.join(flags)}")
-    if not rsp.get("images"):
-        print(rsp)
+def check(r):
+    if error(r):
+        sys.exit(f"device error: {r}")
+    return r
 
 
-def cmd_upload(smp, args):
-    data = open(args.file, "rb").read()
-    sha = hashlib.sha256(data).digest()
-    off = 0
-    while off < len(data):
-        chunk = data[off:off + args.chunk]
-        req = {"image": args.image, "off": off, "data": chunk}
-        if off == 0:
-            req.update({"len": len(data), "sha": sha})
-        rsp = smp.request(OP_WRITE, GRP_IMAGE, 1, req)
-        if rsp.get("rc", 0) != 0:
-            sys.exit(f"upload failed at {off}: {rsp}")
-        off = rsp.get("off", off + len(chunk))
-        print(f"\r{off}/{len(data)} bytes", end="", flush=True)
-    print("\ndone")
-
-
-def cmd_reset(smp, args):
-    print(smp.request(OP_WRITE, GRP_DEFAULT, 5, {}))
-
-
-def cmd_echo(smp, args):
-    print(smp.request(OP_WRITE, GRP_DEFAULT, 0, {"d": args.text}))
+async def run(a):
+    transport = SMPIsoTpTransport(a.interface, a.channel, a.bitrate, tx_id=a.tx_id + a.addr,
+                                  rx_id=a.rx_id + a.addr, fd=a.fd, data_bitrate=a.data_bitrate,
+                                  extended=a.ext, mtu=a.mtu)
+    async with SMPClient(transport, "can", timeout_s=a.timeout) as client:
+        if a.cmd == "list":
+            for img in check(await client.request(ImageStatesRead())).images:
+                flags = [k for k in ("active", "confirmed", "pending", "permanent", "bootable") if getattr(img, k)]
+                print(f"image {img.image or 0} slot {img.slot}: {img.version} "
+                      f"{(img.hash or b'').hex()[:16]} {' '.join(flags)}")
+        elif a.cmd == "upload":
+            data = open(a.file, "rb").read()
+            async for off in client.upload(data, slot=a.image, subsequent_timeout_s=a.timeout):
+                print(f"\r{off}/{len(data)} bytes", end="", flush=True)
+            print("\ndone")
+        elif a.cmd == "reset":
+            r = await client.request(ResetWrite())
+            print("reset" if success(r) else r)
+        else:
+            print(check(await client.request(EchoWrite(d=a.text))).r)
 
 
 def main():
@@ -99,23 +64,17 @@ def main():
     p.add_argument("--addr", type=int, default=0,
                    help="node address of the device: its IDs are tx-id + addr and rx-id + addr")
     p.add_argument("--ext", action="store_true", help="29-bit identifiers")
+    p.add_argument("--mtu", type=int, default=1024, help="largest SMP packet (UMCUB_CFG_SMP_MTU)")
     p.add_argument("--timeout", type=float, default=5.0)
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("list")
     up = sub.add_parser("upload")
     up.add_argument("file")
     up.add_argument("--image", type=int, default=0)
-    up.add_argument("--chunk", type=int, default=512)
     sub.add_parser("reset")
     e = sub.add_parser("echo")
     e.add_argument("text")
-    args = p.parse_args()
-
-    smp = SmpCan(args)
-    try:
-        {"list": cmd_list, "upload": cmd_upload, "reset": cmd_reset, "echo": cmd_echo}[args.cmd](smp, args)
-    finally:
-        smp.close()
+    asyncio.run(run(p.parse_args()))
 
 
 if __name__ == "__main__":

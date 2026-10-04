@@ -1,0 +1,17 @@
+/* UMCUB_CONFIG_POST for the CAN simulator (umcub_sim_can): CAN only (classic,
+ * board driver = the simulator), plain SMP over ISO-TP, for tools/smp_can.py. */
+#undef UMCUB_CFG_LOG_LEVEL
+#define UMCUB_CFG_LOG_LEVEL 0
+#undef UMCUB_CFG_TRANSPORT_UART
+#define UMCUB_CFG_TRANSPORT_UART 0
+#undef UMCUB_CFG_TRANSPORT_USB_CDC
+#define UMCUB_CFG_TRANSPORT_USB_CDC 0
+#undef UMCUB_CFG_TRANSPORT_USB_DFU
+#define UMCUB_CFG_TRANSPORT_USB_DFU 0
+#undef UMCUB_CFG_TRANSPORT_ETH
+#define UMCUB_CFG_TRANSPORT_ETH 0
+#undef UMCUB_CFG_TRANSPORT_CAN
+#define UMCUB_CFG_TRANSPORT_CAN 1
+#undef UMCUB_CFG_CAN_FD
+#define UMCUB_CFG_CAN_FD 0
+#define UMCUB_CFG_CAN_DRIVER UMCUB_DRIVER_BOARD

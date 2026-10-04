@@ -35,7 +35,7 @@ int umcub_port_usb_init(void)
     CLEAR_BIT(RCC->CFGR, RCC_CFGR_USBPRE);  /* PLL / 1.5 */
     SET_BIT(RCC->APB1ENR, RCC_APB1ENR_USBEN);
     (void)RCC->APB1ENR;
-    f1_periph_used(&RCC->APB1RSTR, RCC_APB1RSTR_USBRST);
+    umcub_cm_periph_used(&RCC->APB1RSTR, RCC_APB1RSTR_USBRST);
     NVIC_SetPriority(USB_LP_CAN1_RX0_IRQn, 3);
     NVIC_SetPriority(USB_HP_CAN1_TX_IRQn, 3);
     return 0;   /* tinyUSB rhport 0; dcd_int_enable() enables the IRQs */

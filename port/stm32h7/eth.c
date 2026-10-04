@@ -52,7 +52,7 @@ static unsigned eth_npins;
 
 static int mdio(unsigned reg, bool write, uint16_t *val)
 {
-    if (h7_wait(&ETH->MACMDIOAR, ETH_MACMDIOAR_MB, 0, 5)) {
+    if (umcub_cm_wait(&ETH->MACMDIOAR, ETH_MACMDIOAR_MB, 0, 5)) {
         return UMCUB_ETIMEOUT;
     }
     if (write) {
@@ -62,7 +62,7 @@ static int mdio(unsigned reg, bool write, uint16_t *val)
     ETH->MACMDIOAR = (phy << ETH_MACMDIOAR_PA_Pos) | (reg << ETH_MACMDIOAR_RDA_Pos) |
                      (4u << ETH_MACMDIOAR_CR_Pos) | (write ? ETH_MACMDIOAR_MOC_WR : ETH_MACMDIOAR_MOC_RD) |
                      ETH_MACMDIOAR_MB;
-    if (h7_wait(&ETH->MACMDIOAR, ETH_MACMDIOAR_MB, 0, 5)) {
+    if (umcub_cm_wait(&ETH->MACMDIOAR, ETH_MACMDIOAR_MB, 0, 5)) {
         return UMCUB_ETIMEOUT;
     }
     if (!write) {
@@ -110,10 +110,10 @@ int umcub_port_eth_init(const uint8_t mac[6], unsigned phy_addr, const uint32_t 
 
     SET_BIT(RCC->AHB1ENR, RCC_AHB1ENR_ETH1MACEN | RCC_AHB1ENR_ETH1TXEN | RCC_AHB1ENR_ETH1RXEN);
     (void)RCC->AHB1ENR;
-    h7_periph_used(&RCC->AHB1RSTR, RCC_AHB1RSTR_ETH1MACRST);
+    umcub_cm_periph_used(&RCC->AHB1RSTR, RCC_AHB1RSTR_ETH1MACRST);
 
     SET_BIT(ETH->DMAMR, ETH_DMAMR_SWR);
-    if (h7_wait(&ETH->DMAMR, ETH_DMAMR_SWR, 0, 100)) {
+    if (umcub_cm_wait(&ETH->DMAMR, ETH_DMAMR_SWR, 0, 100)) {
         return UMCUB_ETIMEOUT;   /* no 50 MHz REF_CLK from the PHY */
     }
 

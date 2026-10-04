@@ -29,15 +29,15 @@
 #if UMCUB_CFG_SMP
 #include "boot_serial/boot_serial.h"
 #include "base64/base64.h"
-
-/* boot_serial_priv.h is not on the public include path. */
-void boot_serial_input(char *buf, int len);
 #endif
+/* NLIP line starts and boot_serial_input() (on the include path, used
+ * without boot_serial too: plain streams still tell NLIP from text). */
+#include "boot_serial_priv.h"
 
-#define NLIP_PKT_START1   6
-#define NLIP_PKT_START2   9
-#define NLIP_DATA_START1  4
-#define NLIP_DATA_START2  20
+#define NLIP_PKT_START1   SHELL_NLIP_PKT_START1
+#define NLIP_PKT_START2   SHELL_NLIP_PKT_START2
+#define NLIP_DATA_START1  SHELL_NLIP_DATA_START1
+#define NLIP_DATA_START2  SHELL_NLIP_DATA_START2
 #if UMCUB_CFG_LINK_ANY && UMCUB_LINK_LINE_MAX > UMCUB_CFG_SMP_MTU
 #define LINE_MAX          UMCUB_LINK_LINE_MAX
 #else
@@ -52,7 +52,12 @@ struct line {
     char buf[LINE_MAX + 1];
 };
 
-static struct line lines[MAX_TRANSPORTS];
+/* Line assemblers only for transports that can be streams (UART, USB CDC,
+ * board transport); packet transports (CAN, UDP) never use one. */
+#define STREAMS           ((UMCUB_CFG_TRANSPORT_UART != 0) + (UMCUB_CFG_TRANSPORT_USB_CDC != 0) + \
+                           (UMCUB_CFG_TRANSPORT_USER != 0))
+#define MAX_STREAMS       (STREAMS ? STREAMS : 1)
+static struct line lines[MAX_STREAMS];
 static int locked = -1;          /* stream index receiving a multi-line packet */
 static uint32_t locked_at;
 static bool responded;
@@ -62,6 +67,16 @@ static bool is_stream_fn(const umcub_transport_t *t)
     return t->read && t->write;
 }
 #define is_stream is_stream_fn
+
+/* Line of stream transport i (registry index); NULL for packet transports. */
+static struct line *line_of(unsigned i)
+{
+    unsigned n = 0;
+    for (unsigned j = 0; j < i; j++) {
+        n += is_stream_fn(umcub_transports[j]);
+    }
+    return is_stream_fn(umcub_transports[i]) && n < MAX_STREAMS ? &lines[n] : NULL;
+}
 
 /* Plain stream transport: NLIP lines and typed text go straight through. */
 static bool nlip_stream(const umcub_transport_t *t)
@@ -200,9 +215,9 @@ bool umcub_mux_link_rx(const umcub_transport_t *t, const uint8_t *payload, size_
 static void pump_link_stream(unsigned i)
 {
     const umcub_transport_t *t = umcub_transports[i];
-    struct line *l = &lines[i];
+    struct line *l = line_of(i);
     uint8_t c;
-    while (t->read(&c, 1) == 1) {
+    while (l && t->read(&c, 1) == 1) {
         if (l->len == 0 && c != UMCUB_LINK_LINE_START1) {
             continue;                   /* not a frame: ignored in link mode */
         }
@@ -231,10 +246,10 @@ static void pump_link_stream(unsigned i)
 static void pump_stream(unsigned i)
 {
     const umcub_transport_t *t = umcub_transports[i];
-    struct line *l = &lines[i];
+    struct line *l = line_of(i);
     uint8_t c;
 
-    while (!l->ready && t->read(&c, 1) == 1) {
+    while (l && !l->ready && t->read(&c, 1) == 1) {
         bool nlip = l->len ? ((uint8_t)l->buf[0] == NLIP_PKT_START1 || (uint8_t)l->buf[0] == NLIP_DATA_START1)
                            : (c == NLIP_PKT_START1 || c == NLIP_DATA_START1);
         if (!nlip) {
@@ -362,8 +377,8 @@ static int mux_read(char *str, int cnt, int *newline)
     }
 
     for (unsigned i = 0; i < umcub_transport_count && i < MAX_TRANSPORTS; i++) {
-        struct line *l = &lines[i];
-        if (!l->ready || (locked >= 0 && locked != (int)i)) {
+        struct line *l = line_of(i);
+        if (!l || !l->ready || (locked >= 0 && locked != (int)i)) {
             continue;
         }
         int len = l->len;
@@ -472,7 +487,8 @@ bool umcub_recovery_wait(uint32_t ms)
         }
 #endif
         for (unsigned i = 0; i < umcub_transport_count && i < MAX_TRANSPORTS; i++) {
-            if (lines[i].ready) {
+            const struct line *l = line_of(i);
+            if (l && l->ready) {
                 return true;
             }
         }

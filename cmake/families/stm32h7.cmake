@@ -45,7 +45,8 @@ set(UMCUB_FAMILY_DEFS ${UMCUB_MCU} USE_FULL_LL_DRIVER ${_core_def})
 # Linked into the bootloader.
 set(UMCUB_FAMILY_BOOT_SOURCES
   ${UMCUB_FAMILY_DIR}/sys.c
-  ${UMCUB_FAMILY_DIR}/common.c
+  ${UMCUB_ROOT}/port/common/cortexm_common.c
+  ${UMCUB_ROOT}/port/common/cortexm_sys.c
   ${UMCUB_FAMILY_DIR}/clock.c
   ${UMCUB_FAMILY_DIR}/flash.c
   ${UMCUB_FAMILY_DIR}/dualcore.c

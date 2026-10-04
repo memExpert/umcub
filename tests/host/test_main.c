@@ -398,6 +398,13 @@ static void test_packet_upload_and_boot(const uint8_t *v1, size_t v1_len, const 
 #if UMCUB_CFG_ENCRYPT_IMAGES
     CHECK(memcmp(v1, v1_flash, v1_len) != 0);   /* it really was encrypted on the wire */
     printf("  encrypted upload decrypted in place\n");
+    /* The header keeps IMAGE_F_ENCRYPTED (it is signed): in the primary slot
+     * the image must still be treated as plain (MUST_DECRYPT is false). */
+    struct image_header ph;
+    memcpy(&ph, v1_flash, sizeof(ph));
+    CHECK(IS_ENCRYPTED(&ph));
+    CHECK(umcub_inspect_verify(0, 0) == 0);
+    printf("  decrypted primary (header still flagged encrypted): verify ok\n");
 #endif
     CHECK(boot_ok(ver) && strcmp(ver, "1.0.0") == 0);
     printf("  booted %s\n", ver);
@@ -635,6 +642,12 @@ static void test_inspect(const uint8_t *img, size_t img_len)
     snprintf(want, sizeof(want), "sha256 %s len %zu", hex, img_len);
     stream_cmd("hash 0 0\r");
     CHECK(stream_out_has(0, want));
+    /* TLV areas inconsistent with the header (ih_protect_tlv_size): no image length */
+    uint8_t *pts = &fake_flash[UMCUB_CFG_IMG0_PRIMARY_ADDR - 0x08000000 + 10];
+    *pts ^= 0x04;
+    stream_cmd("hash 0 0\r");
+    CHECK(stream_out_has(0, "? hash failed"));
+    *pts ^= 0x04;
     sha256(img + 0x10, 0x100, h);
     hexstr(h, 32, hex);
     snprintf(want, sizeof(want), "sha256 %s len 256", hex);
@@ -691,6 +704,27 @@ static void test_inspect(const uint8_t *img, size_t img_len)
     pl = smp_frame(pkt, 0, UMCUB_CFG_SMP_INSPECT_GROUP, 9, &c);   /* unknown id */
     smp_packet_request(pkt, pl);
     CHECK(cbor_find_uint(pkt_rsp + 8, pkt_rsp_len - 8, "rc") == 8);
+}
+
+/* What the host sees in the secondary slot (text "info", "verify") while an
+ * update is pending and after the test swap: in swap-offset the update and
+ * the revert copy start at different offsets, as MCUboot reads them. */
+static void test_secondary_views(const uint8_t *v2, size_t v2_len)
+{
+    char ver[16];
+    printf("[inspect] secondary slot: pending update, revert copy\n");
+    write_secondary(v2, v2_len);
+    stream_cmd("i");
+    CHECK(stream_out_has(0, "image 0 slot 1: 1.1.0+0 pending"));
+    stream_cmd("verify 0 1\r");
+    CHECK(stream_out_has(0, "ok valid"));
+    CHECK(boot_ok(ver) && strcmp(ver, "1.1.0") == 0);      /* test swap */
+    stream_cmd("i");
+    CHECK(stream_out_has(0, "image 0 slot 0: 1.1.0+0 test") &&
+          stream_out_has(0, "image 0 slot 1: 1.0.0+0"));
+    stream_cmd("verify 0 1\r");
+    CHECK(stream_out_has(0, "ok valid"));
+    CHECK(boot_ok(ver) && strcmp(ver, "1.0.0") == 0);      /* not confirmed: revert */
 }
 
 /* --- ISO-TP over a fake CAN bus ----------------------------------------- */
@@ -911,6 +945,7 @@ int main(int argc, char **argv)
     umcub_log_set_sink(log_sink);
 
     test_packet_upload_and_boot(v1, v1_len, v1_flash);
+    test_secondary_views(v2, v2_len);
     test_swap_revert_confirm(v2, v2_len);
     test_board_type(foreign, foreign_len);
     test_inspect(v2_flash, v2_len);

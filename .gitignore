@@ -9,3 +9,6 @@ manuals/
 .settings/
 # Local tooling (IDE settings)
 .vscode/
+# Research notes and reports (local)
+research_notes/
+reports/

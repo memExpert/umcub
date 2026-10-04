@@ -8,7 +8,9 @@ boot_serial on emulated flash) and a bus hub that gives tools/umcub_link.py a
 serial port (pty): every byte from the host reaches every device, device lines
 are merged back. Checks discovery, addressing (only the addressed device
 answers), selection by UID, the SECURE handshake, a wrong admin key, and
-standard smpmgr through `umcub_link.py serve`.
+standard smpmgr through `umcub_link.py serve`. Then the SMP host tools on a
+plain device (umcub_sim_plain: tools/umcub_inspect.py) and on the CAN transport
+(umcub_sim_can, python-can "serial" bus on a pty: tools/smp_can.py).
 """
 import argparse
 import base64
@@ -81,6 +83,94 @@ class Hub(threading.Thread):
 def run(py, args, timeout=30):
     p = subprocess.run([py, LINK] + args, capture_output=True, text=True, timeout=timeout)
     return p.returncode, p.stdout + p.stderr
+
+
+class ByteHub(threading.Thread):
+    """A pty passing raw bytes to and from one simulator (python-can "serial" CAN bus)."""
+
+    def __init__(self, sim):
+        super().__init__(daemon=True)
+        self.sim = sim
+        self.master, slave = pty.openpty()
+        tty.setraw(slave)
+        self.path = os.ttyname(slave)
+        self.slave = slave
+        self.stop = False
+
+    def run(self):
+        out = self.sim.stdout.fileno()
+        while not self.stop:
+            for fd in select.select([self.master, out], [], [], 0.1)[0]:
+                data = os.read(fd, 4096)
+                if fd == self.master:
+                    self.sim.stdin.write(data)
+                    self.sim.stdin.flush()
+                elif data:
+                    os.write(self.master, data)
+
+
+def can_tools(build, py):
+    """tools/smp_can.py (smpclient + ISO-TP) against the real umcub CAN transport."""
+    print("[e2e] CAN: smp_can.py echo / upload / list over ISO-TP", flush=True)
+    sim = subprocess.Popen([os.path.join(build, "umcub_sim_can")], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+    hub = ByteHub(sim)
+    hub.start()
+    can = [py, os.path.join(ROOT, "tools/smp_can.py"), "--interface", "serial", "--channel", hub.path]
+    try:
+        p = subprocess.run(can + ["echo", "hello-can"], capture_output=True, text=True, timeout=60)
+        check(p.returncode == 0 and "hello-can" in p.stdout, "smp_can.py echo")
+        with tempfile.TemporaryDirectory() as d:
+            subprocess.run([py, os.path.join(ROOT, "tools/umcub_image.py"), "sign", "--board", "nucleo_h755zi_q",
+                            "--core", "cm7", "--pre", os.path.join(ROOT, "tests/host/cfg_swap_scratch.h"),
+                            "--post", os.path.join(ROOT, "tests/host/sim_can_post.h"), "--version", "3.1.4",
+                            os.path.join(build, "payload.bin"), "-o", os.path.join(d, "app")],
+                           check=True, capture_output=True)
+            p = subprocess.run(can + ["upload", os.path.join(d, "app.signed.bin")], capture_output=True, text=True,
+                               timeout=300)
+            check(p.returncode == 0 and "done" in p.stdout, "smp_can.py upload")
+        p = subprocess.run(can + ["list"], capture_output=True, text=True, timeout=60)
+        check(p.returncode == 0 and "slot 0: 3.1.4" in p.stdout, "smp_can.py list: 3.1.4 in slot 0")
+    finally:
+        hub.stop = True
+        sim.stdin.close()
+        sim.wait(5)
+
+
+def plain_tools(build, py, smpmgr):
+    """Standard SMP on one plain device: smpmgr upload, tools/umcub_inspect.py (smpclient)."""
+    print("[e2e] plain SMP: smpmgr upload, umcub_inspect.py verify / hash / read", flush=True)
+    sim = subprocess.Popen([os.path.join(build, "umcub_sim_plain")], stdin=subprocess.PIPE,
+                           stdout=subprocess.PIPE, env=dict(os.environ, UMCUB_SIM_ADDR="0", UMCUB_SIM_UID="7"))
+    hub = Hub([sim])
+    hub.start()
+    inspect = [py, os.path.join(ROOT, "tools/umcub_inspect.py"), "--port", hub.path, "--timeout", "5"]
+    try:
+        with tempfile.TemporaryDirectory() as d:
+            subprocess.run([py, os.path.join(ROOT, "tools/umcub_image.py"), "sign", "--board", "nucleo_h755zi_q",
+                            "--core", "cm7", "--pre", os.path.join(ROOT, "tests/host/cfg_swap_scratch.h"),
+                            "--post", os.path.join(ROOT, "tests/host/sim_plain_post.h"), "--version", "2.0.1",
+                            os.path.join(build, "payload.bin"), "-o", os.path.join(d, "app")],
+                           check=True, capture_output=True)
+            img = os.path.join(d, "app.signed.bin")
+            p = subprocess.run([smpmgr, "--port", hub.path, "--timeout", "5", "--line-buffers", "8", "image",
+                                "upload", img], capture_output=True, text=True, timeout=300)
+            check(p.returncode == 0, "smpmgr image upload (plain)")
+            p = subprocess.run(inspect + ["verify", "0", "0"], capture_output=True, text=True, timeout=60)
+            check(p.returncode == 0 and "valid" in p.stdout, "umcub_inspect.py verify 0 0")
+            p = subprocess.run(inspect + ["hash", "0", "0", "--file", img], capture_output=True, text=True,
+                               timeout=60)
+            check(p.returncode == 0 and "MATCH" in p.stdout, "umcub_inspect.py hash --file: MATCH")
+            p = subprocess.run(inspect + ["verify", "0", "1"], capture_output=True, text=True, timeout=60)
+            check(p.returncode != 0 and "no image" in p.stdout + p.stderr, "umcub_inspect.py verify of an empty slot")
+            dump = os.path.join(d, "dump.bin")
+            p = subprocess.run(inspect + ["read", "0", "0", "--len", "1000", "--out", dump], capture_output=True,
+                               text=True, timeout=120)
+            check(p.returncode == 0 and open(dump, "rb").read() == open(img, "rb").read()[:1000],
+                  "umcub_inspect.py read: readback equals the file")
+    finally:
+        hub.stop = True
+        sim.stdin.close()
+        sim.wait(5)
 
 
 def main():
@@ -165,6 +255,9 @@ def main():
         for s in sims:
             s.stdin.close()
             s.wait(5)
+
+    plain_tools(a.build, py, smpmgr)
+    can_tools(a.build, py)
 
     print(f"\n{failures} failure(s)" if failures else "\nALL E2E TESTS PASSED")
     sys.exit(1 if failures else 0)

@@ -17,12 +17,6 @@
 #include "boot_serial/boot_serial_encryption.h"
 #endif
 
-static __attribute__((unused)) bool has_image(const struct flash_area *fa)
-{
-    struct image_header h;
-    return flash_area_read(fa, 0, &h, sizeof(h)) == 0 && h.ih_magic == IMAGE_MAGIC;
-}
-
 int umcub_inspect_area(int image, int slot, struct flash_area *out)
 {
     const struct flash_area *fa;
@@ -32,8 +26,12 @@ int umcub_inspect_area(int image, int slot, struct flash_area *out)
     }
     *out = *fa;
 #if UMCUB_CFG_UPGRADE_MODE == UMCUB_MODE_SWAP_OFFSET
+    /* Same rule as MCUboot (boot_serial bs_list, loader): an update starts at
+     * the second sector of the secondary slot; only the previous image kept
+     * for a revert (after a test swap) starts at offset 0. */
     struct flash_sector s;
-    if (slot == 1 && !has_image(out) && flash_area_get_sector(fa, 0, &s) == 0) {
+    if (slot == 1 && boot_swap_type_multi(image) != BOOT_SWAP_TYPE_REVERT &&
+        flash_area_get_sector(fa, 0, &s) == 0) {
         out->fa_off += s.fs_size;
         out->fa_size -= s.fs_size;
     }
@@ -41,6 +39,9 @@ int umcub_inspect_area(int image, int slot, struct flash_area *out)
     return 0;
 }
 
+/* Header + payload + TLV areas, checked like MCUboot's boot_read_image_size():
+ * a protected area must match ih_protect_tlv_size, the unprotected one must
+ * follow. 0 = no (consistent) image. */
 uint32_t umcub_inspect_image_len(const struct flash_area *fa)
 {
     struct image_header h;
@@ -48,23 +49,26 @@ uint32_t umcub_inspect_image_len(const struct flash_area *fa)
     if (flash_area_read(fa, 0, &h, sizeof(h)) || h.ih_magic != IMAGE_MAGIC) {
         return 0;
     }
-    uint32_t off = (uint32_t)h.ih_hdr_size + h.ih_img_size;
-    uint32_t len = off;
-    /* optional protected TLV area, then the unprotected one */
-    for (int i = 0; i < 2; i++) {
-        if (len + sizeof(info) > fa->fa_size || flash_area_read(fa, len, &info, sizeof(info))) {
-            break;
-        }
-        if (info.it_magic == IMAGE_TLV_PROT_INFO_MAGIC || info.it_magic == IMAGE_TLV_INFO_MAGIC) {
-            len += info.it_tlv_tot;
-            if (info.it_magic == IMAGE_TLV_INFO_MAGIC) {
-                break;
-            }
-        } else {
-            break;
-        }
+    uint32_t len = (uint32_t)h.ih_hdr_size + h.ih_img_size;
+    if (len + sizeof(info) > fa->fa_size || flash_area_read(fa, len, &info, sizeof(info))) {
+        return 0;
     }
-    return len <= fa->fa_size ? len : fa->fa_size;
+    if (info.it_magic == IMAGE_TLV_PROT_INFO_MAGIC) {
+        if (info.it_tlv_tot != h.ih_protect_tlv_size) {
+            return 0;
+        }
+        len += info.it_tlv_tot;
+        if (len + sizeof(info) > fa->fa_size || flash_area_read(fa, len, &info, sizeof(info))) {
+            return 0;
+        }
+    } else if (h.ih_protect_tlv_size != 0) {
+        return 0;
+    }
+    if (info.it_magic != IMAGE_TLV_INFO_MAGIC) {
+        return 0;
+    }
+    len += info.it_tlv_tot;
+    return len <= fa->fa_size ? len : 0;
 }
 
 int umcub_inspect_verify(int image, int slot)

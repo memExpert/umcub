@@ -156,3 +156,9 @@ void h7_clock_deinit(void)
     h7_pll1q_hz = 0;
     SystemCoreClock = 64000000;
 }
+
+int h7_hsi48_on(void)
+{
+    LL_RCC_HSI48_Enable();
+    return umcub_cm_wait(&RCC->CR, RCC_CR_HSI48RDY, RCC_CR_HSI48RDY, 10) == 0 ? UMCUB_OK : UMCUB_EIO;
+}

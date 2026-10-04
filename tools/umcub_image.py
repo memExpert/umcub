@@ -204,21 +204,10 @@ def flatten(segs, origin, length, path):
 
 
 def write_hex(path, data, addr):
-    out = []
-
-    def rec(t, a, payload):
-        b = bytes([len(payload), (a >> 8) & 0xFF, a & 0xFF, t]) + payload
-        out.append(":" + b.hex().upper() + f"{(-sum(b)) & 0xFF:02X}")
-
-    upper = None
-    for off in range(0, len(data), 16):
-        a = addr + off
-        if a >> 16 != upper:
-            upper = a >> 16
-            rec(4, 0, struct.pack(">H", upper))
-        rec(0, a & 0xFFFF, data[off:off + 16])
-    rec(1, 0, b"")
-    Path(path).write_text("\n".join(out) + "\n")
+    from intelhex import IntelHex           # an imgtool dependency
+    ih = IntelHex()
+    ih.frombytes(data, offset=addr)
+    ih.write_hex_file(path, byte_count=16)
 
 
 # --------------------------------------------------------------------------

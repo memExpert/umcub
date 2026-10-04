@@ -144,9 +144,10 @@ static void info(umcub_cmd_reply_t reply)
         (unsigned)UMCUB_CFG_BOARD_REV, (unsigned)umcub_node_address());
     for (int img = 0; img < UMCUB_CFG_IMAGE_NUMBER; img++) {
         for (int slot = 0; slot < 2; slot++) {
-            const struct flash_area *fa;
+            struct flash_area area;     /* swap-offset: where MCUboot looks for the image */
+            const struct flash_area *fa = &area;
             struct image_header h;
-            if (flash_area_open((uint8_t)flash_area_id_from_multi_image_slot(img, slot), &fa) ||
+            if (umcub_inspect_area(img, slot, &area) ||
                 flash_area_read(fa, 0, &h, sizeof(h)) || h.ih_magic != IMAGE_MAGIC) {
                 say(reply, "image %d slot %d: empty", img, slot);
                 continue;

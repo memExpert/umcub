@@ -1,6 +1,7 @@
 # Host tools for umcub (installed into .venv by tools/setup.sh)
 -r ../third_party/mcuboot/scripts/requirements.txt
 smpmgr>=0.12
+smpclient>=7.3              # tools/umcub_smp.py, umcub_inspect.py, smp_can.py
 python-can>=4.3
 can-isotp>=2.0
 cbor2>=5.6

@@ -85,7 +85,7 @@ int umcub_port_uart_init(const umcub_uart_cfg_t *cfg)
 
     SET_BIT(*d.enr, d.bit);
     (void)*d.enr;
-    h7_periph_used(d.rstr, d.bit);
+    umcub_cm_periph_used(d.rstr, d.bit);
 
     umcub_port_gpio_af(cfg->tx_pin);
     umcub_port_gpio_af(cfg->rx_pin);
@@ -124,7 +124,7 @@ void umcub_port_uart_deinit(void)
     if (!uart) {
         return;
     }
-    (void)h7_wait(&uart->ISR, USART_ISR_TC, USART_ISR_TC, 50);
+    (void)umcub_cm_wait(&uart->ISR, USART_ISR_TC, USART_ISR_TC, 50);
     NVIC_DisableIRQ(uart_irq);
     LL_USART_Disable(uart);
     umcub_port_gpio_reset(uart_pins[0]);
@@ -171,7 +171,7 @@ void umcub_port_uart_write(const uint8_t *buf, size_t len)
         uart->TDR = *buf++;
     }
     if (rs485) {
-        (void)h7_wait(&uart->ISR, USART_ISR_TC, USART_ISR_TC, 10);   /* last stop bit out */
+        (void)umcub_cm_wait(&uart->ISR, USART_ISR_TC, USART_ISR_TC, 10);   /* last stop bit out */
         if (!de_hw) {
             umcub_port_gpio_write(de_pin, !de_level);
         }

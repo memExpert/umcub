@@ -151,7 +151,7 @@ if(UMCUB_CFG_ENCRYPT_IMAGES)       # MCUboot ECIES-P256 image encryption with th
     ${CMAKE_BINARY_DIR}/umcub_enc_key.c
   )
   list(REMOVE_DUPLICATES MCUBOOT_SOURCES)
-  umcub_keys_command(enc-c "${UMCUB_DEVICE_KEY}" "" "${CMAKE_BINARY_DIR}/umcub_enc_key.c")
+  umcub_generate_enc_key("${UMCUB_DEVICE_KEY}" "${CMAKE_BINARY_DIR}/umcub_enc_key.c")
 endif()
 if(UMCUB_CFG_LINK_SECURE_ANY)      # host authentication, session MAC (and encryption)
   list(APPEND MCUBOOT_SOURCES

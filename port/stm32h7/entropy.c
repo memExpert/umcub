@@ -8,14 +8,13 @@ static bool rng_up;
 
 static int rng_start(void)
 {
-    SET_BIT(RCC->CR, RCC_CR_HSI48ON);
-    if (h7_wait(&RCC->CR, RCC_CR_HSI48RDY, RCC_CR_HSI48RDY, 10) != 0) {
+    if (h7_hsi48_on() != 0) {
         return UMCUB_EIO;
     }
     CLEAR_BIT(RCC->D2CCIP2R, RCC_D2CCIP2R_RNGSEL);     /* HSI48 */
     SET_BIT(RCC->AHB2ENR, RCC_AHB2ENR_RNGEN);
     (void)RCC->AHB2ENR;
-    h7_periph_used(&RCC->AHB2RSTR, RCC_AHB2RSTR_RNGRST);
+    umcub_cm_periph_used(&RCC->AHB2RSTR, RCC_AHB2RSTR_RNGRST);
     RNG->CR = RNG_CR_RNGEN;                             /* clock error detection on (CED = 0) */
     rng_up = true;
     return UMCUB_OK;
@@ -43,7 +42,7 @@ int umcub_port_entropy(uint8_t *buf, size_t len)
         if (RNG->SR & RNG_SR_CEIS) {
             RNG->SR = 0;                            /* clock error: no impact on the numbers (§36.3.7) */
         }
-        if (h7_wait(&RNG->SR, RNG_SR_DRDY, RNG_SR_DRDY, 10) != 0) {
+        if (umcub_cm_wait(&RNG->SR, RNG_SR_DRDY, RNG_SR_DRDY, 10) != 0) {
             return UMCUB_ETIMEOUT;
         }
         uint32_t v = RNG->DR;

@@ -14,7 +14,7 @@ static void adc_start(void)
     MODIFY_REG(RCC->CFGR, RCC_CFGR_ADCPRE, RCC_CFGR_ADCPRE_DIV6);   /* <= 14 MHz at 72 MHz */
     SET_BIT(RCC->APB2ENR, RCC_APB2ENR_ADC1EN);
     (void)RCC->APB2ENR;
-    f1_periph_used(&RCC->APB2RSTR, RCC_APB2RSTR_ADC1RST);
+    umcub_cm_periph_used(&RCC->APB2RSTR, RCC_APB2RSTR_ADC1RST);
     /* Channel 16 at 239.5 cycles (~20 us at 12 MHz): RM0008 §11.10 asks for
      * >= 17.1 us on the temperature sensor. The conversion value itself is
      * not used, only its noisy low bits; their quality is not specified by
@@ -30,7 +30,7 @@ static void adc_start(void)
 static int sample(uint16_t *v)
 {
     ADC1->CR2 = ADC_CR2_ADON | ADC_CR2_TSVREFE;         /* ADON again: start a conversion */
-    if (f1_wait(&ADC1->SR, ADC_SR_EOC, ADC_SR_EOC, 2) != 0) {
+    if (umcub_cm_wait(&ADC1->SR, ADC_SR_EOC, ADC_SR_EOC, 2) != 0) {
         return UMCUB_ETIMEOUT;
     }
     *v = (uint16_t)ADC1->DR;                            /* read clears EOC */

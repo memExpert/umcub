@@ -23,7 +23,8 @@ set(UMCUB_FAMILY_DEFS ${UMCUB_MCU} USE_FULL_LL_DRIVER)
 # Linked into the bootloader.
 set(UMCUB_FAMILY_BOOT_SOURCES
   ${UMCUB_FAMILY_DIR}/sys.c
-  ${UMCUB_FAMILY_DIR}/common.c
+  ${UMCUB_ROOT}/port/common/cortexm_common.c
+  ${UMCUB_ROOT}/port/common/cortexm_sys.c
   ${UMCUB_FAMILY_DIR}/clock.c
   ${UMCUB_FAMILY_DIR}/flash.c
   ${UMCUB_ROOT}/third_party/st/cmsis_device_f1/Source/Templates/gcc/startup_${_mcu_lc}.s

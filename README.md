@@ -161,17 +161,17 @@ ECDSA-P256), and what every transport and feature adds. Regenerate with `tools/s
 <!-- size-table:begin -->
 | MCU | base | all on | UART (+SMP) | USB CDC | USB DFU | USB CDC+DFU | CAN | CAN FD | Ethernet (+DHCP) | DFU only |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| STM32H755 CM7 (2 images, SINGLE_BOOT) | 19.4 K | 56.6 K | +10.5 K | +11.2 K | +10.6 K | +13.2 K | +2.4 K | +2.4 K | +4.1 K | +10.9 K |
-| STM32H755 CM4 (PER_CORE) | 16.9 K | 53.6 K | +10.4 K | +11.2 K | +10.6 K | +13.2 K | +2.4 K | +2.4 K | +4.1 K | +10.9 K |
-| STM32H743 / H753 (single core) | 17.6 K | 54.4 K | +10.4 K | +11.2 K | +10.6 K | +13.2 K | +2.4 K | +2.4 K | +4.1 K | +10.9 K |
-| STM32F103 (Blue Pill, overwrite) | 13.1 K | 41.6 K | +10.7 K | +9.8 K | +9.1 K | +11.7 K | — | — | — | +9.7 K |
+| STM32H755 CM7 (2 images, SINGLE_BOOT) | 19.5 K | 56.7 K | +10.5 K | +11.2 K | +10.6 K | +13.2 K | +2.3 K | +2.3 K | +4.1 K | +10.9 K |
+| STM32H755 CM4 (PER_CORE) | 17.0 K | 53.8 K | +10.3 K | +11.2 K | +10.6 K | +13.2 K | +2.3 K | +2.3 K | +4.0 K | +10.9 K |
+| STM32H743 / H753 (single core) | 17.7 K | 54.5 K | +10.3 K | +11.2 K | +10.6 K | +13.2 K | +2.3 K | +2.3 K | +4.1 K | +10.9 K |
+| STM32F103 (Blue Pill, overwrite) | 13.3 K | 41.7 K | +10.7 K | +9.8 K | +9.1 K | +11.7 K | — | — | — | +9.7 K |
 
 | MCU | log (level 3) | text commands | verify + hash | readback | umcub link (addressed) | umcub link SECURE | + link encryption | encrypted images |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| STM32H755 CM7 (2 images, SINGLE_BOOT) | +2.8 K | +2.8 K | +1.0 K | +0.2 K | +1.6 K | +4.7 K | +1.6 K | +6.8 K |
-| STM32H755 CM4 (PER_CORE) | +2.6 K | +2.8 K | +1.0 K | +0.2 K | +1.6 K | +4.7 K | +1.6 K | +6.2 K |
+| STM32H755 CM7 (2 images, SINGLE_BOOT) | +2.8 K | +2.9 K | +1.0 K | +0.2 K | +1.6 K | +4.7 K | +1.6 K | +6.8 K |
+| STM32H755 CM4 (PER_CORE) | +2.6 K | +2.9 K | +1.0 K | +0.2 K | +1.6 K | +4.7 K | +1.6 K | +6.2 K |
 | STM32H743 / H753 (single core) | +2.6 K | +2.8 K | +1.0 K | +0.2 K | +1.6 K | +4.7 K | +1.6 K | +6.4 K |
-| STM32F103 (Blue Pill, overwrite) | +2.2 K | +2.6 K | +1.0 K | +0.2 K | +1.6 K | +4.7 K | +1.6 K | +6.1 K |
+| STM32F103 (Blue Pill, overwrite) | +2.2 K | +2.7 K | +1.0 K | +0.2 K | +1.6 K | +4.7 K | +1.6 K | +6.1 K |
 <!-- size-table:end -->
 
 Notes:
@@ -278,7 +278,8 @@ cmake ... -DUMCUB_DEVICE_KEY=$PWD/keys/device.pem -DUMCUB_HOST_KEY=$PWD/keys/adm
 ```
 
 CMake embeds them with `tools/umcub_keys.py` (`c`: device private key and admin public key for the bootloader;
-`host-c`: the host side for C tools and tests). `tools/keys/dev-device-p256.pem` and `dev-admin-p256.pem` are
+`host-c`: the host side for C tools and tests); the device key for [encrypted images](#encrypted-images) with
+`imgtool getpriv`. `tools/keys/dev-device-p256.pem` and `dev-admin-p256.pem` are
 development keys from the repository, the build warns about them.
 
 Limits:
@@ -710,11 +711,15 @@ Things that are easy to get wrong:
 
 ## Adding a series
 
-1. `cmake/families/stm32<fam>.cmake`: CPU flags, sources, the `cmsis_device_<fam>` and LL driver submodules.
+1. `cmake/families/stm32<fam>.cmake`: CPU flags, sources (with `port/common/cortexm_sys.c` and
+   `cortexm_common.c`), the `cmsis_device_<fam>` and LL driver submodules.
 2. `port/stm32<fam>/`: `include/umcub_family_defaults.h` (flash write unit, sector size),
-   `include/umcub_family_app.inc` (port sources of the application library), register-level flash driver
-   (LL has none), clocks (including restoring the reset state before the jump), SysTick / GPIO / IWDG, linker
-   templates, then the optional peripherals (UART, CAN, ETH, USB).
+   `include/umcub_family_cmsis.h` (the device header), `include/umcub_family_app.inc` (port sources of the
+   application library), register-level flash driver (LL has none), clocks (including restoring the reset state
+   before the jump), reset cause, GPIO / IWDG, linker templates, then the optional peripherals (UART, CAN, ETH, USB).
+   The Cortex-M part is shared (`port/common/`: SysTick time base, deinit of NVIC and the peripherals the drivers
+   registered, reset, jump, UID): `umcub_port_init()` calls `umcub_cm_save_clocks()` first and `umcub_cm_start()`
+   after the clock setup, `umcub_port_deinit()` calls `umcub_cm_deinit()`.
 3. `boards/<board>/umcub_config.h` (and optionally `umcub_board.c`).
 4. Add the new configuration to `tools/build_matrix.sh`.
 
@@ -728,7 +733,7 @@ peripheral a driver touches.
 ```sh
 tools/build_matrix.sh                 # 26 bootloader configurations, examples, IDE checks, host tests; warning-free
 ctest --test-dir build/matrix/host    # host tests only
-tests/host/link_e2e.py build/matrix/host   # several simulated devices on one bus (umcub link, smpmgr)
+tests/host/link_e2e.py build/matrix/host   # simulated devices: umcub link bus, smpmgr, host tools
 tools/check_docs.py                   # README still matches the repository (size tables, boards, tools, ...)
 ```
 
@@ -739,7 +744,9 @@ commands, verify / hash / read, ISO-TP classic/FD, DHCP / ARP / ICMP, board-supp
 board-type check, the umcub link in ADDRESSED mode and in SECURE mode with encryption (handshake, wrong admin key,
 replayed / tampered / reordered frames, session end, RDP level 0), encrypted images (SMP upload into the primary
 slot decrypted in place, swap upgrade / revert / confirm with re-encryption, verify of an encrypted secondary,
-readback only inside an encrypted session).
+readback only inside an encrypted session). `link_e2e.py` runs device simulators (the real mux, link, boot_serial and
+CAN transport on emulated flash) against the host tools: `umcub_link.py` with three nodes on one bus,
+`umcub_inspect.py` on plain SMP, `smp_can.py` on the CAN transport (python-can `serial` bus on a pty).
 
 Hardware tests: `tools/hw/powerfail_test.py` resets the MCU in the middle of the K-th flash operation (build with
 `tools/config/fault_inject.h`, test only) and checks that an interrupted upgrade or revert always completes. See
@@ -751,6 +758,7 @@ Hardware tests: `tools/hw/powerfail_test.py` resets the MCU in the middle of the
 boot/            boot core: main (entry decision, boot_go, jump), startup, handoff, info, log, commands, inspection
 mcuboot_port/    MCUboot glue: mcuboot_config.h, flash map backend, shims
 port/include/    hardware API (umcub_port.h, _uart, _can, _eth, _usb)
+port/common/     Cortex-M part shared by the ports (SysTick, deinit, jump, waits) + common linker sections
 port/stm32h7/    STM32H7 port + linker templates
 port/stm32f1/    STM32F1 port (flash, clocks, GPIO, USART) + linker templates
 transport/       mux (SMP), umcub link, uart, usb (tinyUSB CDC/DFU), can (ISO-TP), net (IPv4/UDP/DHCP)
@@ -760,7 +768,8 @@ boards/          board configurations
 examples/        CM7 / CM4 applications for NUCLEO-H755ZI-Q, Blue Pill application
 tools/           setup, build matrix, flashing, option bytes, host tools, keys, hardware tests;
                  umcub_image.py = slot addresses and signing for IDE projects; size_table.py = size tables;
-                 check_docs.py = README consistency check; umcub_keys.py = umcub link keys as C arrays
+                 check_docs.py = README consistency check; umcub_keys.py = umcub link keys as C arrays;
+                 umcub_smp.py = SMP helpers of the host tools (on smp / smpclient)
 tests/host/      host tests
 tests/tools/     helpers for the build matrix
 tests/boards/    build-matrix boards (custom_drivers: board drivers + board transport)

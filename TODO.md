@@ -71,7 +71,12 @@ Open:
 - [ ] H755: images on the board lack the board-type TLV (`UMCUB_CFG_BOARD_TYPE` is now set) - re-flash signed
   examples together with the new bootloader.
 - [ ] H755 regression run on hardware after the shared changes of the F1 work (USB not started in the entry window,
-  DFU poll time from `UMCUB_FAMILY_SECTOR_ERASE_MS`, `last update via app`).
+  DFU poll time from `UMCUB_FAMILY_SECTOR_ERASE_MS`, `last update via app`) and of the duplication cleanup:
+  Cortex-M part moved to `port/common/` (init / deinit / jump on CM7 and the CM4 park loop), shared
+  `h7_hsi48_on()` (USB + RNG), ULPI sleep clock now cleared only by tinyUSB (`dwc2_phy_init`).
+- [x] Blue Pill after the duplication cleanup (`port/common/`, mux line buffers per stream transport, smpclient
+  host tools): boot and jump, application request -> recovery, `smpmgr` echo and upload (5.2 KB in 1.4 s),
+  `umcub_inspect.py` hash (MATCH) / verify over smpclient, text command `i`, boot of the uploaded 1.1.0.
 
 ## Shared buses: umcub link (plan stages)
 
@@ -117,6 +122,10 @@ Open:
   verify does) to avoid destroying the old image with a foreign upload; (c) `MCUBOOT_SWAP_SAVE_ENCTLV` (keep the
   wrapped key in the trailer instead of the plain AES key) for the swap modes; (d) F1 entropy quality not measured
   (ADC temperature noise + jitter).
+- [ ] MCUboot submodule is v2.4.0: `main` already wipes the AES key on every path of `boot_serial_encryption.c`.
+  Its in-place decryption still needs a sector-sized VLA on the stack, assumes uniform sectors and does not
+  validate first, so `mcuboot_port/src/enc_image.c` replaces it (issue draft prepared). Drop our copy once upstream
+  takes a port-provided buffer; update the submodule after the next release.
 - [ ] Recovery over the network / CAN is not authenticated without `UMCUB_LINK_SECURE` (see README, "Mode notes
   and limitations").
 - [ ] An application on one core can erase the running image of the other core (`umcub_slot_*` only checks its own core).

@@ -8,81 +8,79 @@
                                                               raw readback (needs UMCUB_CFG_READBACK)
 
 Slots: 0 primary, 1 secondary. Transports: serial (UART / USB CDC, SMP
-serial framing) or UDP (port 1337). The bootloader must be in recovery mode.
+serial framing) or UDP (port 1337), through smpclient. The bootloader must be
+in recovery mode. For a umcub link transport go through `umcub_link.py serve`.
 """
 import argparse
-import base64
+import asyncio
+import functools
 import hashlib
-import socket
-import struct
+import os
 import sys
 
-import cbor2
+from smpclient import SMPClient
+from smpclient.generics import error, success
+from smpclient.transport.serial import BufferSize, SMPSerialTransport
+from smpclient.transport.udp import SMPUDPTransport
 
-GROUP = 100
-ID_VERIFY, ID_HASH, ID_READ = 0, 1, 2
-ERRORS = {3: "invalid argument", 5: "no image in that slot", 8: "not supported (feature disabled?)"}
-
-
-def crc16_xmodem(data, crc=0):
-    for b in data:
-        crc ^= b << 8
-        for _ in range(8):
-            crc = ((crc << 1) ^ 0x1021) & 0xFFFF if crc & 0x8000 else (crc << 1) & 0xFFFF
-    return crc
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from umcub_smp import INSPECT_ERRORS, InspectHash, InspectRead, InspectVerify  # noqa: E402
 
 
-class SerialSmp:
-    def __init__(self, port, baud, timeout):
-        import serial
-        self.s = serial.Serial(port, baud, timeout=timeout)
-
-    def transfer(self, pkt):
-        raw = struct.pack(">H", len(pkt) + 2) + pkt + struct.pack(">H", crc16_xmodem(pkt))
-        b64 = base64.b64encode(raw)
-        out = b""
-        for i in range(0, len(b64), 124):
-            out += (b"\x06\x09" if i == 0 else b"\x04\x14") + b64[i:i + 124] + b"\n"
-        self.s.reset_input_buffer()
-        self.s.write(out)
-        data = b""
-        while True:
-            line = self.s.readline()
-            if not line:
-                raise TimeoutError("no response")
-            if line[:2] not in (b"\x06\x09", b"\x04\x14"):
-                continue                       # bootloader log lines
-            data += base64.b64decode(line[2:].strip())
-            if len(data) >= 2 and len(data) >= struct.unpack(">H", data[:2])[0] + 2:
-                total = struct.unpack(">H", data[:2])[0]
-                body = data[2:2 + total]
-                if crc16_xmodem(body) != 0:
-                    raise IOError("CRC error")
-                return body[:-2]
-
-
-class UdpSmp:
-    def __init__(self, host, port, timeout):
-        self.addr = (host, port)
-        self.s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.s.settimeout(timeout)
-
-    def transfer(self, pkt):
-        self.s.sendto(pkt, self.addr)
-        return self.s.recv(4096)
-
-
-def request(link, cmd_id, payload, seq=[0]):
-    body = cbor2.dumps(payload)
-    seq[0] = (seq[0] + 1) & 0xFF
-    rsp = link.transfer(struct.pack(">BBHHBB", 0, 0, len(body), GROUP, seq[0], cmd_id) + body)
-    _, _, length, group, _, rid = struct.unpack(">BBHHBB", rsp[:8])
-    if (group, rid) != (GROUP, cmd_id):
-        raise IOError(f"unexpected response group {group} id {rid}")
-    r = cbor2.loads(rsp[8:8 + length])
-    if r.get("rc", 0):
-        raise SystemExit(f"device: {ERRORS.get(r['rc'], 'error')} (rc {r['rc']})")
+async def request(client, req):
+    r = await client.request(req)
+    if error(r):
+        rc = int(r.rc) if hasattr(r, "rc") else int(r.err.rc)
+        sys.exit(f"device: {INSPECT_ERRORS.get(rc, 'error')} (rc {rc})")
+    if success(r) and r.rc:
+        sys.exit(f"device: {INSPECT_ERRORS.get(r.rc, 'error')} (rc {r.rc})")
     return r
+
+
+async def run(a):
+    if a.port:
+        transport = SMPSerialTransport(BufferSize(1024), baudrate=a.baud)
+        address = a.port
+    else:
+        transport = SMPUDPTransport()
+        transport.connect = functools.partial(transport.connect, port=a.udp_port)
+        address = a.udp
+    async with SMPClient(transport, address, timeout_s=a.timeout) as client:
+        sel = {"image": a.image, "slot": a.slot}
+
+        if a.cmd == "verify":
+            r = await request(client, InspectVerify(**sel))
+            print("valid" if r.valid else "INVALID (hash or signature mismatch)")
+            return 0 if r.valid else 1
+
+        if a.cmd == "hash":
+            length, local = a.len, None
+            if a.file:
+                data = open(a.file, "rb").read()[a.off:]
+                length = length or len(data)
+                local = hashlib.sha256(data[:length]).digest()
+            r = await request(client, InspectHash(**sel, off=a.off or None, len=length or None))
+            print(f"device sha256 {r.sha.hex()} ({r.len} bytes)")
+            if local is not None:
+                print(f"file   sha256 {local.hex()}")
+                print("MATCH" if local == r.sha else "MISMATCH")
+                return 0 if local == r.sha else 1
+            return 0
+
+        # read: 128-byte chunks (bootloader response buffer)
+        if not a.len:
+            a.len = (await request(client, InspectHash(**sel))).len - a.off   # length of the stored image
+        out = bytearray()
+        while len(out) < a.len:
+            n = min(128, a.len - len(out))
+            out += (await request(client, InspectRead(**sel, off=a.off + len(out), len=n))).data
+            print(f"\r{len(out)}/{a.len}", end="", file=sys.stderr, flush=True)
+        print(file=sys.stderr)
+        if a.out:
+            open(a.out, "wb").write(out)
+        else:
+            sys.stdout.buffer.write(bytes(out))
+        return 0
 
 
 def main():
@@ -100,46 +98,7 @@ def main():
     ap.add_argument("--off", type=lambda s: int(s, 0), default=0)
     ap.add_argument("--len", type=lambda s: int(s, 0), default=0, help="0 = whole stored image")
     ap.add_argument("--out", help="read: output file")
-    a = ap.parse_args()
-
-    link = SerialSmp(a.port, a.baud, a.timeout) if a.port else UdpSmp(a.udp, a.udp_port, a.timeout)
-    req = {"image": a.image, "slot": a.slot}
-
-    if a.cmd == "verify":
-        r = request(link, ID_VERIFY, req)
-        print("valid" if r.get("valid") else "INVALID (hash or signature mismatch)")
-        sys.exit(0 if r.get("valid") else 1)
-
-    if a.cmd == "hash":
-        length = a.len
-        local = None
-        if a.file:
-            data = open(a.file, "rb").read()[a.off:]
-            length = length or len(data)
-            local = hashlib.sha256(data[:length]).digest()
-        r = request(link, ID_HASH, dict(req, off=a.off, len=length))
-        print(f"device sha256 {r['sha'].hex()} ({r['len']} bytes)")
-        if local is not None:
-            print(f"file   sha256 {local.hex()}")
-            print("MATCH" if local == r["sha"] else "MISMATCH")
-            sys.exit(0 if local == r["sha"] else 1)
-        return
-
-    # read: 128-byte chunks (bootloader response buffer)
-    if not a.len:
-        r = request(link, ID_HASH, req)        # length of the stored image
-        a.len = r["len"] - a.off
-    out = bytearray()
-    while len(out) < a.len:
-        n = min(128, a.len - len(out))
-        r = request(link, ID_READ, dict(req, off=a.off + len(out), len=n))
-        out += r["data"]
-        print(f"\r{len(out)}/{a.len}", end="", flush=True)
-    print()
-    if a.out:
-        open(a.out, "wb").write(out)
-    else:
-        sys.stdout.buffer.write(bytes(out))
+    sys.exit(asyncio.run(run(ap.parse_args())))
 
 
 if __name__ == "__main__":
