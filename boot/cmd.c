@@ -25,6 +25,16 @@ typedef struct {
 static const cmd_entry_t table[] = { UMCUB_CFG_CMD_TABLE };
 #define TABLE_N (sizeof(table) / sizeof(table[0]))
 
+/* The actions the table uses, known at compile time: code for actions that
+ * are not in the table (verify / hash / read) is not linked. */
+#undef UMCUB_CMD
+#define UMCUB_CMD(text, action) | ((action) <= 31u ? 1u << ((action) & 31u) : 0u)
+enum { CMD_ACTIONS = 0u UMCUB_CFG_CMD_TABLE };
+#undef UMCUB_CMD
+#define UMCUB_CMD(text, action)     { (text), (action) },
+#define CMD_INSPECT ((CMD_ACTIONS & ((1u << UMCUB_CMD_VERIFY) | (1u << UMCUB_CMD_HASH) | \
+                                     (1u << UMCUB_CMD_READ))) != 0u)
+
 static unsigned decision;
 
 __attribute__((weak)) bool umcub_cmd_user(unsigned id, const char *text, umcub_cmd_reply_t reply)
@@ -37,7 +47,7 @@ __attribute__((weak)) bool umcub_cmd_user(unsigned id, const char *text, umcub_c
 
 static bool takes_args(unsigned action)
 {
-    return action == UMCUB_CMD_VERIFY || action == UMCUB_CMD_HASH || action == UMCUB_CMD_READ;
+    return CMD_INSPECT && (action == UMCUB_CMD_VERIFY || action == UMCUB_CMD_HASH || action == UMCUB_CMD_READ);
 }
 
 umcub_cmd_match_t umcub_cmd_match(const char *text, size_t len)

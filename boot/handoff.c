@@ -107,8 +107,11 @@ uint32_t umcub_handoff_take_request(uint32_t *arg)
     uint8_t cause = umcub_port_reset_cause();
     if (cause == UMCUB_RESET_POWER_ON || cause == UMCUB_RESET_BROWNOUT) {
         /* RAM content is undefined (and may carry ECC garbage): initialise. */
-        static const uint32_t zero[sizeof(umcub_handoff_t) / 4];
-        store_words((volatile uint32_t *)HANDOFF, zero, sizeof(umcub_handoff_t) / 4);
+        volatile uint32_t *w = (volatile uint32_t *)HANDOFF;
+        for (size_t i = 0; i < sizeof(umcub_handoff_t) / 4; i++) {
+            w[i] = 0;                       /* full words (ECC SRAM) */
+        }
+        __asm volatile("dsb" ::: "memory");
         return UMCUB_REQ_NONE;
     }
     uint32_t req = UMCUB_REQ_NONE;

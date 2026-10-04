@@ -105,7 +105,7 @@ static void tx_packet(const umcub_transport_t *t, const uint8_t *data, size_t le
 }
 
 /* Transport of the packet request being handled (text command or SMP). */
-static const umcub_transport_t *req_from;
+static __attribute__((unused)) const umcub_transport_t *req_from;
 
 bool umcub_mux_request_confidential(void)
 {
@@ -230,16 +230,22 @@ static bool frame_rx(const umcub_transport_t *t, uint8_t kind, const uint8_t *f,
 }
 #endif
 
+/* Raw packets exist only with packet transports or the umcub link (its DATA
+ * payloads take this path on streams too); otherwise the packet path and its
+ * buffers are left out. */
+#define PACKETS (UMCUB_CFG_TRANSPORT_CAN || UMCUB_CFG_TRANSPORT_ETH || UMCUB_CFG_TRANSPORT_USER || \
+                 UMCUB_CFG_LINK_ANY)
+
 /* pending raw packet from a packet transport */
-static uint8_t pkt_buf[UMCUB_CFG_SMP_MTU + 1];
+static uint8_t pkt_buf[PACKETS ? UMCUB_CFG_SMP_MTU + 1 : 1];
 static size_t pkt_len;
 static const umcub_transport_t *pkt_from;
 
 #if UMCUB_CFG_SMP
 /* NLIP -> raw decoder for responses to packet transports */
-static char resp_text[160];
+static char resp_text[PACKETS ? 160 : 2];
 static size_t resp_text_len;
-static uint8_t resp_raw[UMCUB_CFG_SMP_MTU];
+static uint8_t resp_raw[PACKETS ? UMCUB_CFG_SMP_MTU : 1];
 static size_t resp_raw_len;
 #endif
 
@@ -252,7 +258,7 @@ static bool nlip_start(const char *b, uint8_t c1, uint8_t c2)
 
 static bool queue_packet(const umcub_transport_t *t, const uint8_t *pkt, size_t len)
 {
-    if (pkt_len != 0 || len == 0 || len > UMCUB_CFG_SMP_MTU) {
+    if (!PACKETS || pkt_len != 0 || len == 0 || len > UMCUB_CFG_SMP_MTU) {
         return false;
     }
     memcpy(pkt_buf, pkt, len);
@@ -462,13 +468,13 @@ static int mux_read(char *str, int cnt, int *newline)
 
     /* A raw packet waits while a stream is in the middle of a multi-line
      * packet: its response must not release that stream's lock. */
-    if (pkt_len && locked < 0 && !smp_packet(pkt_buf, pkt_len)) {
+    if (PACKETS && pkt_len && locked < 0 && !smp_packet(pkt_buf, pkt_len)) {
         other_packet(pkt_from, pkt_buf, pkt_len);
         pkt_len = 0;
         return 0;
     }
 #if UMCUB_CFG_SMP
-    if (pkt_len && locked < 0) {
+    if (PACKETS && pkt_len && locked < 0) {
         touch(pkt_from);
         resp_text_len = 0;
         resp_raw_len = 0;
@@ -554,7 +560,7 @@ static void mux_write(const char *ptr, int cnt)
         if (cnt == 1 && ptr[0] == '\n') {
             responded = true;   /* request on the locked stream was answered */
         }
-    } else if (active->send_packet || active->link) {
+    } else if (PACKETS && (active->send_packet || active->link)) {
         shim_feed(ptr, cnt);
     }
 }
@@ -571,7 +577,7 @@ bool umcub_recovery_wait(uint32_t ms)
     do {
         umcub_port_wdg_feed();
         pump_all();
-        if (pkt_len && !smp_packet(pkt_buf, pkt_len)) {
+        if (PACKETS && pkt_len && !smp_packet(pkt_buf, pkt_len)) {
             other_packet(pkt_from, pkt_buf, pkt_len);
             pkt_len = 0;
         }
@@ -590,7 +596,7 @@ bool umcub_recovery_wait(uint32_t ms)
             return false;   /* skip the rest of the window */
         }
 #endif
-        if (pkt_len) {
+        if (PACKETS && pkt_len) {
             return true;
         }
 #if UMCUB_CFG_LINK_ANY

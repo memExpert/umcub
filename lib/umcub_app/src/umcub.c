@@ -276,8 +276,11 @@ __attribute__((weak)) void umcub_port_wdg_feed(void)
 {
 }
 
+#ifdef UMCUB_BUILDING_APP
+/* bootutil_public.c asserts; the bootloader has its own handler (compat.c). */
 __attribute__((weak)) void umcub_assert_fail(const char *file, int line)
 {
     (void)file;
     (void)line;
 }
+#endif

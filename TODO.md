@@ -85,6 +85,12 @@ Done (bootloader 28.3 K in 32 K, two 16 K slots, overwrite, USART1 PA9/PA10 1152
 - [x] Recovery without SMP (`UMCUB_CFG_SMP_ENABLE 0`, 24.5 K with log and commands): `tools/umcub_lite.py` upload
   over UART into the primary slot (5.2 KB in 0.9 s, boots, `last update via uart`) and into the secondary slot with
   a test mark (overwrite upgrade); a tampered image in the secondary slot is refused by MCUboot, the old image runs.
+- [x] Size pass: snprintf no longer linked through `MCUBOOT_USE_SNPRINTF 0`, no CRC table (`-fno-optimize-crc`),
+  32-bit divisions in the log formatter, assert without file paths, text-command inspection only when the table
+  uses it, mux packet path only with packet transports, handoff zeroing loop, link state in .bss: Blue Pill
+  30008 -> 27216 B flash, -1.2 K RAM; H7 57668 -> 55844 B. Optional LTO (`UMCUB_CFG_LTO`, experimental):
+  Blue Pill 23600 B (boot, SMP recovery upload, overwrite upgrade from the application verified), H7 49544 B (not
+  run on the board yet); stack high-water mark not measured.
 - [x] Blue Pill after the duplication cleanup (`port/common/`, mux line buffers per stream transport, smpclient
   host tools): boot and jump, application request -> recovery, `smpmgr` echo and upload (5.2 KB in 1.4 s),
   `umcub_inspect.py` hash (MATCH) / verify over smpclient, text command `i`, boot of the uploaded 1.1.0.

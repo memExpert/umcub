@@ -73,6 +73,12 @@ VARIANTS = [
                     "CAN_FD": 1, "TRANSPORT_ETH": 1, "LOG_LEVEL": 3, "CMD_ENABLE": 1, "INSPECT_VERIFY": 1,
                     "INSPECT_HASH": 1, "READBACK": 1}, None),
 ]
+# The same builds with link-time optimisation (UMCUB_CFG_LTO, experimental):
+# name -> the variant it repeats.
+LTO_OF = {"base LTO": "base", "UART LTO": "UART", "UART lite LTO": "UART lite", "everything LTO": "everything"}
+_v = {v[0]: v for v in VARIANTS}
+VARIANTS += [(n, _v[o][1], None, True) for n, o in LTO_OF.items()]
+
 # README column names
 LABELS = {"UART": "UART (+SMP)", "Ethernet": "Ethernet (+DHCP)", "log": "log (level 3)",
           "commands": "text commands", "UART lite": "UART, lite upload (no SMP)", "verify+hash": "verify + hash", "link": "umcub link (addressed)",
@@ -104,8 +110,9 @@ def build(out, ci, chip, vi, variant):
     _, core, pre, extra = chip[:4]
     board = chip[4] if len(chip) > 4 else BOARD
     unsupported = chip[5] if len(chip) > 5 else set()
-    name, settings, _ = variant
-    if name == "everything":
+    name, settings = variant[0], variant[1]
+    lto = len(variant) > 3 and variant[3]
+    if name.startswith("everything"):
         settings = {k: (0 if k in unsupported else v) for k, v in settings.items()}
     elif any(settings.get(k) for k in unsupported):
         return None, None                       # not available on this family
@@ -117,7 +124,8 @@ def build(out, ci, chip, vi, variant):
         lines.append(f"#undef UMCUB_CFG_{k}\n#define UMCUB_CFG_{k} {v}")
     post.write_text("\n".join(lines) + "\n")
     args = ["cmake", "-S", str(ROOT), "-B", str(d / "b"), "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Release",
-            f"-DUMCUB_BOARD={board}", f"-DUMCUB_CORE={core}", f"-DUMCUB_CONFIG_POST={post}"]
+            f"-DUMCUB_BOARD={board}", f"-DUMCUB_CORE={core}", f"-DUMCUB_CONFIG_POST={post}",
+            f"-DUMCUB_LTO={'ON' if lto else 'OFF'}"]
     if pre:
         args.append(f"-DUMCUB_CONFIG_PRE={ROOT / pre}")
     log = d / "build.log"
@@ -203,8 +211,20 @@ def main():
             rows.append(f"| {name}{' — ' + note if note else ''} | " + " | ".join(cells) + " |")
         return "\n".join(rows)
 
+    def lto_table():
+        cols = {"base LTO": "base", "UART LTO": "UART (+SMP)", "UART lite LTO": "UART, lite upload (no SMP)",
+                "everything LTO": "all on"}
+        rows = ["| MCU, with LTO | " + " | ".join(cols.values()) + " |", "|---|" + "---:|" * len(cols)]
+        for ci, c in enumerate(CHIPS):
+            cells = []
+            for col in cols:
+                n, plain = size.get((ci, col)), size.get((ci, LTO_OF[col]))
+                cells.append("—" if n is None or plain is None else f"{kb(n)} ({delta(n - plain)})")
+            rows.append(f"| {c[0]} | " + " | ".join(cells) + " |")
+        return "\n".join(rows)
+
     tables = (table(TRANSPORTS, ["base", "all on"]) + "\n\n" + table(FEATURES, []) + "\n\n" +
-              sector_table())
+              sector_table() + "\n\n" + lto_table())
     if not (a.update or a.check):
         print(tables)
         return

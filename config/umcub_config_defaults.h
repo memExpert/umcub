@@ -340,6 +340,9 @@
 #ifndef UMCUB_CFG_LOG_LEVEL
 #define UMCUB_CFG_LOG_LEVEL             3
 #endif
+#ifndef UMCUB_CFG_LTO
+#define UMCUB_CFG_LTO                   0
+#endif
 #ifndef UMCUB_CFG_WATCHDOG_MS
 #define UMCUB_CFG_WATCHDOG_MS           0
 #endif

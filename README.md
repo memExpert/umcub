@@ -14,7 +14,7 @@ umcub (**U**niversal **MCU**boot **B**ootloader) is a bootloader for STM32 micro
   - CAN / CAN-FD — SMP over ISO-TP (`tools/smp_can.py`);
   - Ethernet — SMP over UDP on a minimal IPv4 stack with DHCP (`mcumgr --conntype udp`);
   - writing an image from the application itself (`umcub_slot_*`) into a selectable slot;
-  - without SMP (about 6 K smaller): a lite upload protocol on the same transports (`tools/umcub_lite.py`) and/or
+  - without SMP (about 4.5 K smaller): a lite upload protocol on the same transports (`tools/umcub_lite.py`) and/or
     the board's own protocol.
 - **MCUboot upgrade modes**: overwrite, swap-scratch, swap-move, swap-offset, direct-xip, direct-xip with revert.
 - **Signing**: ECDSA-P256 (tinycrypt), keys and signing with `imgtool`.
@@ -125,7 +125,7 @@ All options are documented in [`config/umcub_config_template.h`](config/umcub_co
 | Bootloader entry | `UMCUB_CFG_ENTRY_ON_REQUEST`, `..._ON_NO_IMAGE`, `..._GPIO(_PIN/_ACTIVE/_PULL)`, `..._WAIT_MS`, `UMCUB_CFG_RECOVERY_TIMEOUT_MS` |
 | Transports | `UMCUB_CFG_TRANSPORT_{UART,USB_CDC,USB_DFU,CAN,ETH,USER}` plus their parameters, `UMCUB_CFG_{CAN,ETH}_DRIVER` |
 | Recovery protocols | `UMCUB_CFG_SMP_ENABLE`, `UMCUB_CFG_LITE_UPLOAD`, `UMCUB_CFG_PROTO_USER` |
-| Misc | `UMCUB_CFG_LOG_LEVEL`, `UMCUB_CFG_WATCHDOG_MS`, `UMCUB_CFG_SHARED_RAM_ADDR`, `UMCUB_CFG_APP_WRITE_SLOT` |
+| Misc | `UMCUB_CFG_LTO` (experimental), `UMCUB_CFG_LOG_LEVEL`, `UMCUB_CFG_WATCHDOG_MS`, `UMCUB_CFG_SHARED_RAM_ADDR`, `UMCUB_CFG_APP_WRITE_SLOT` |
 
 The configuration can be extended without editing the board file through overlay headers:
 `-DUMCUB_CONFIG_PRE=<file>` is included before the board config (for `#ifndef`-guarded options),
@@ -163,6 +163,8 @@ ECDSA-P256), and what every transport and feature adds. Regenerate with `tools/s
   compiled at all.
 - The third table answers how much flash the bootloader region needs for a set of transports: whole erase
   sectors from the start of flash (absolute size in brackets, including the 256-byte info block).
+- The fourth table repeats base, UART, UART without SMP and "all on" with link-time optimisation (experimental,
+  see the notes below): absolute size and the saving against the same build without it.
 
 **Rule: the bootloader region is a whole number of erase sectors, and on parts with large sectors at most three.**
 Every sector given to the bootloader is lost for the slots, and on parts whose first sectors are small (F2/F4/F7) the
@@ -175,25 +177,32 @@ same core; check the real size after porting.
 <!-- size-table:begin -->
 | MCU | base | all on | UART (+SMP) | USB CDC | USB DFU | USB CDC+DFU | CAN | CAN FD | Ethernet (+DHCP) | DFU only | UART, lite upload (no SMP) |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| STM32H755 CM7 (2 images, SINGLE_BOOT) | 19.5 K | 56.8 K | +10.6 K | +11.2 K | +10.6 K | +13.2 K | +2.3 K | +2.3 K | +4.1 K | +11.0 K | +4.1 K |
-| STM32H755 CM4 (PER_CORE) | 17.0 K | 53.8 K | +10.4 K | +11.2 K | +10.6 K | +13.2 K | +2.3 K | +2.3 K | +4.0 K | +10.9 K | +4.1 K |
-| STM32H743 / H753 (single core) | 17.7 K | 54.6 K | +10.4 K | +11.2 K | +10.6 K | +13.2 K | +2.3 K | +2.3 K | +4.1 K | +10.9 K | +4.1 K |
-| STM32F103 (Blue Pill, overwrite) | 13.2 K | 41.7 K | +10.7 K | +9.8 K | +9.1 K | +11.7 K | — | — | — | +9.8 K | +4.4 K |
+| STM32H755 CM7 (2 images, SINGLE_BOOT) | 18.4 K | 55.0 K | +8.7 K | +11.2 K | +10.6 K | +13.2 K | +2.6 K | +2.6 K | +4.3 K | +10.9 K | +4.1 K |
+| STM32H755 CM4 (PER_CORE) | 16.0 K | 52.1 K | +8.5 K | +11.2 K | +10.6 K | +13.2 K | +2.6 K | +2.6 K | +4.3 K | +10.9 K | +4.0 K |
+| STM32H743 / H753 (single core) | 16.7 K | 52.9 K | +8.5 K | +11.2 K | +10.6 K | +13.2 K | +2.6 K | +2.6 K | +4.3 K | +10.9 K | +4.0 K |
+| STM32F103 (Blue Pill, overwrite) | 12.6 K | 38.8 K | +8.7 K | +9.8 K | +9.1 K | +11.7 K | — | — | — | +9.6 K | +4.1 K |
 
 | MCU | log (level 3) | text commands | verify + hash | readback | umcub link (addressed) | umcub link SECURE | + link encryption | encrypted images |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| STM32H755 CM7 (2 images, SINGLE_BOOT) | +2.8 K | +2.9 K | +1.0 K | +0.2 K | +1.6 K | +4.7 K | +1.6 K | +7.2 K |
-| STM32H755 CM4 (PER_CORE) | +2.6 K | +2.9 K | +1.0 K | +0.2 K | +1.6 K | +4.7 K | +1.6 K | +6.5 K |
-| STM32H743 / H753 (single core) | +2.6 K | +2.9 K | +1.0 K | +0.2 K | +1.6 K | +4.7 K | +1.6 K | +6.8 K |
-| STM32F103 (Blue Pill, overwrite) | +2.2 K | +2.7 K | +1.0 K | +0.2 K | +1.6 K | +4.7 K | +1.6 K | +6.5 K |
+| STM32H755 CM7 (2 images, SINGLE_BOOT) | +3.6 K | +2.3 K | +1.0 K | +0.2 K | +1.9 K | +4.8 K | +1.6 K | +7.1 K |
+| STM32H755 CM4 (PER_CORE) | +3.4 K | +2.3 K | +1.0 K | +0.2 K | +1.9 K | +4.9 K | +1.6 K | +6.4 K |
+| STM32H743 / H753 (single core) | +3.4 K | +2.3 K | +1.0 K | +0.2 K | +1.9 K | +4.8 K | +1.6 K | +6.6 K |
+| STM32F103 (Blue Pill, overwrite) | +3.1 K | +2.1 K | +1.0 K | +0.2 K | +1.9 K | +4.9 K | +1.6 K | +6.4 K |
 
 | Flash layout | UART, lite (no SMP) | UART | UART + USB CDC | UART + USB CDC + DFU | UART + CAN | UART + Ethernet | UART, link SECURE | all on |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| STM32H7 (128 KiB sectors) | 1 (23.6 K) | 1 (30.0 K) | 1 (41.2 K) | 1 (43.3 K) | 1 (32.3 K) | 1 (34.1 K) | 1 (34.7 K) | 1 (56.8 K) |
-| STM32F2 / F4, F72x / F73x (16, 16, 16, 16, 64, 128 KiB ...) — estimate: Cortex-M4 build | 2 (21.1 K) | 2 (27.4 K) | 3 (38.5 K) | 3 (40.6 K) | 2 (29.7 K) | 2 (31.4 K) | 3 (32.1 K) | 4 (53.8 K) > 3 |
-| STM32F74x ... F77x (32, 32, 32, 32, 128, 256 KiB ...) — estimate: Cortex-M7 build | 1 (23.6 K) | 1 (30.0 K) | 2 (41.2 K) | 2 (43.3 K) | 2 (32.3 K) | 2 (34.1 K) | 2 (34.7 K) | 2 (56.8 K) |
-| STM32F1 (1 / 2 KiB pages) | 17.6 K | 23.9 K | 33.7 K | 35.7 K | — | — | 28.6 K | 41.7 K |
-| STM32G4 / L4 (2 KiB pages) — estimate: Cortex-M4 build | 21.1 K | 27.4 K | 38.5 K | 40.6 K | 29.7 K | 31.4 K | 32.1 K | 53.8 K |
+| STM32H7 (128 KiB sectors) | 1 (22.5 K) | 1 (27.1 K) | 1 (38.3 K) | 1 (40.4 K) | 1 (29.7 K) | 1 (31.5 K) | 1 (32.0 K) | 1 (55.0 K) |
+| STM32F2 / F4, F72x / F73x (16, 16, 16, 16, 64, 128 KiB ...) — estimate: Cortex-M4 build | 2 (20.0 K) | 2 (24.5 K) | 3 (35.7 K) | 3 (37.8 K) | 2 (27.1 K) | 2 (28.9 K) | 2 (29.4 K) | 4 (52.1 K) > 3 |
+| STM32F74x ... F77x (32, 32, 32, 32, 128, 256 KiB ...) — estimate: Cortex-M7 build | 1 (22.5 K) | 1 (27.1 K) | 2 (38.3 K) | 2 (40.4 K) | 1 (29.7 K) | 1 (31.5 K) | 2 (32.0 K) | 2 (55.0 K) |
+| STM32F1 (1 / 2 KiB pages) | 16.7 K | 21.2 K | 31.0 K | 33.0 K | — | — | 26.1 K | 38.8 K |
+| STM32G4 / L4 (2 KiB pages) — estimate: Cortex-M4 build | 20.0 K | 24.5 K | 35.7 K | 37.8 K | 27.1 K | 28.9 K | 29.4 K | 52.1 K |
+
+| MCU, with LTO | base | UART (+SMP) | UART, lite upload (no SMP) | all on |
+|---|---:|---:|---:|---:|
+| STM32H755 CM7 (2 images, SINGLE_BOOT) | 15.5 K (-2.9 K) | 23.9 K (-3.2 K) | 19.2 K (-3.2 K) | 48.9 K (-6.1 K) |
+| STM32H755 CM4 (PER_CORE) | 13.1 K (-2.9 K) | 21.1 K (-3.4 K) | 16.8 K (-3.3 K) | 45.9 K (-6.2 K) |
+| STM32H743 / H753 (single core) | 13.8 K (-2.9 K) | 21.9 K (-3.4 K) | 17.5 K (-3.3 K) | 46.6 K (-6.2 K) |
+| STM32F103 (Blue Pill, overwrite) | 10.0 K (-2.5 K) | 18.0 K (-3.2 K) | 13.6 K (-3.1 K) | 33.6 K (-5.2 K) |
 <!-- size-table:end -->
 
 Notes:
@@ -202,19 +211,26 @@ Notes:
 - The H7 bootloader gets one 128 KiB sector, so even "all on" uses less than half of it.
 - STM32F103: UART and USB (CDC, DFU) are ported, no CAN driver yet (board drivers work), no Ethernet on this part.
   The row is measured in the 44 KiB region of the USB layout. The Blue Pill default
-  (UART, log, text commands, verify + hash) is 28.3 K of its 32 K region; without log and commands about 24 K.
+  (UART, log, text commands) is 26.5 K of its 32 K region; without log and commands 21.2 K.
 - USB is mostly tinyUSB. Ethernet is the own IPv4/ARP/ICMP/UDP/DHCP stack plus the MAC driver. CAN FD only changes
   configuration, not code size.
 - Base + the columns adds up to "all on" within a few hundred bytes. CDC and DFU together cost less than separately:
   they share the USB core.
 - Debug builds (`-Og`) are about 18 % larger.
+- **Link-time optimisation** (`UMCUB_CFG_LTO 1` or `-DUMCUB_LTO=ON`, overlay `tools/config/lto.h`, fourth
+  table): 3-4 K less on the Cortex-M3 (Blue Pill default 26.5 K -> 23.0 K), 6-7 K on the H7. It is experimental
+  and up to you: inlining makes stack frames larger (MCUboot's image validation 248 -> 848 bytes), so check the stack of
+  your part, and check weak functions you override in the board file. Verified on the Blue Pill: boot, SMP
+  recovery upload, overwrite upgrade from the application.
+- Every byte counts on small parts: the bootloader keeps compiler-generated tables (`-fno-optimize-crc`), 64-bit
+  division and MCUboot's assert paths out of the image; disabled features are not compiled.
 
 ## Recovery without SMP: lite upload and board protocols
 
 SMP (MCUboot serial recovery) is what `mcumgr` / `smpmgr` speak, and it is the biggest part of a bootloader with a
 transport: `boot_serial`, zcbor and the SMP framing cost about 10 K (see "Bootloader size"). `UMCUB_CFG_SMP_ENABLE 0`
 leaves them out; the transports stay, and images come through the protocols below. With the lite upload protocol a
-UART bootloader is about 6 K smaller (F103: 17.6 K instead of 23.9 K, H7: 23.6 K instead of 30.0 K):
+UART bootloader is about 4.5 K smaller (F103: 16.7 K instead of 21.2 K, H7: 22.5 K instead of 27.1 K):
 
 - **the lite upload protocol** (`UMCUB_CFG_LITE_UPLOAD`, on by default without SMP; about 1 K plus the slot writer).
   Begin / data / end frames with a CRC, every frame answered, lost frames repeated; the image goes through the same
@@ -788,7 +804,7 @@ peripheral a driver touches.
 ## Testing
 
 ```sh
-tools/build_matrix.sh                 # 28 bootloader configurations, examples, IDE checks, host tests; warning-free
+tools/build_matrix.sh                 # 30 bootloader configurations, examples, IDE checks, host tests; warning-free
 ctest --test-dir build/matrix/host    # host tests only
 tests/host/link_e2e.py build/matrix/host   # simulated devices: umcub link bus, smpmgr, host tools, lite upload
 tools/check_docs.py                   # README still matches the repository (size tables, boards, tools, ...)

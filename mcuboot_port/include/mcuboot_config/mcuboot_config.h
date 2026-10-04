@@ -105,7 +105,8 @@
 #define MCUBOOT_HAVE_LOGGING 1
 #endif
 #define MCUBOOT_HAVE_ASSERT_H 1
-#define MCUBOOT_USE_SNPRINTF 0
+/* MCUBOOT_USE_SNPRINTF stays undefined: boot_serial checks it with #ifndef
+ * (even "0" would pull snprintf in) and formats versions without it. */
 
 void umcub_port_wdg_feed(void);
 void umcub_port_idle(void);

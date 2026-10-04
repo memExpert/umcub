@@ -268,6 +268,21 @@ endif()
 umcub_preprocess("${UMCUB_FAMILY_BOOT_LD}" "${CMAKE_BINARY_DIR}/umcub_boot.ld")
 set_target_properties(${UMCUB_BOOT_TARGET} PROPERTIES LINK_DEPENDS "${CMAKE_BINARY_DIR}/umcub_boot.ld")
 
+# Link-time optimisation: UMCUB_CFG_LTO in umcub_config.h, or -DUMCUB_LTO=ON/OFF
+# for one build tree. Experimental (stack frames grow, see the template).
+set(UMCUB_LTO "" CACHE STRING "Link-time optimisation of the bootloader: ON / OFF / empty = UMCUB_CFG_LTO")
+if(UMCUB_LTO STREQUAL "")
+  set(_lto ${UMCUB_CFG_LTO})
+else()
+  set(_lto ${UMCUB_LTO})
+endif()
+if(_lto)
+  message(WARNING "umcub: link-time optimisation is on (experimental, not part of the verified configurations): "
+                  "check the stack usage and weak function overrides on your hardware.")
+  target_compile_options(${UMCUB_BOOT_TARGET} PRIVATE -flto=auto)
+  target_link_options(${UMCUB_BOOT_TARGET} PRIVATE -flto=auto)
+endif()
+
 target_link_options(${UMCUB_BOOT_TARGET} PRIVATE
   ${UMCUB_CPU_FLAGS_SOFT}
   -T${CMAKE_BINARY_DIR}/umcub_boot.ld

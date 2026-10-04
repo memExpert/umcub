@@ -335,6 +335,14 @@
 /* 0 none, 1 error, 2 warning, 3 info, 4 debug. Printed on the UART. */
 /* #define UMCUB_CFG_LOG_LEVEL            3 */
 
+/* EXPERIMENTAL - link-time optimisation of the bootloader (-flto): 3-4 K
+ * smaller on Cortex-M3, about 7 K on the H7. Not part of the verified
+ * configurations: inlining makes stack frames much larger (check the stack
+ * on your part), and weak functions overridden in boards/<b>/umcub_board.c
+ * should be checked. Use at your own risk; CMake -DUMCUB_LTO=ON/OFF overrides
+ * this for one build tree. */
+/* #define UMCUB_CFG_LTO                  0 */
+
 /* Independent watchdog fed by the bootloader (timeout in ms, 0 = off). */
 /* #define UMCUB_CFG_WATCHDOG_MS          0 */
 

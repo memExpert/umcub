@@ -121,7 +121,9 @@ void hal_system_reset(void)
 
 void umcub_assert_fail(const char *file, int line)
 {
-    UMCUB_LOG_ERR("assert %s:%d", file, line);
+    UMCUB_LOG_ERR("assert %s:%d", file ? file : "?", line);
+    (void)file;
+    (void)line;
     umcub_port_reset();
 }
 

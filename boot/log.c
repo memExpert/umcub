@@ -26,6 +26,19 @@ static void put(struct out *o, char c)
     o->n++;
 }
 
+/* *v /= base, returns the remainder - with 32-bit divisions only, so the
+ * 64-bit division helpers of libgcc (~0.8 K) stay out of the image. */
+static unsigned divmod(unsigned long long *v, unsigned base)
+{
+    uint32_t hi = (uint32_t)(*v >> 32), lo = (uint32_t)*v;
+    uint32_t qh = hi / base, r = hi % base;
+    uint32_t cur = (r << 16) | (lo >> 16);
+    uint32_t qm = cur / base;
+    cur = ((cur % base) << 16) | (lo & 0xFFFFu);
+    *v = ((unsigned long long)qh << 32) | (qm << 16) | (cur / base);
+    return cur % base;
+}
+
 static void put_num(struct out *o, unsigned long long v, unsigned base, bool upper,
                     bool neg, int width, char pad, bool left)
 {
@@ -33,8 +46,7 @@ static void put_num(struct out *o, unsigned long long v, unsigned base, bool upp
     int len = 0;
     const char *digits = upper ? "0123456789ABCDEF" : "0123456789abcdef";
     do {
-        tmp[len++] = digits[v % base];
-        v /= base;
+        tmp[len++] = digits[divmod(&v, base)];
     } while (v);
     if (neg) {
         if (pad == '0') {
