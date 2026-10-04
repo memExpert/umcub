@@ -29,9 +29,14 @@ Open:
   ES0445 2.25.10 workaround is active at 10 Mbit/s only). Needs a cable.
 - [ ] **CAN / CAN-FD on a bus** — ISO-TP + SMP with `tools/smp_can.py`. Needs a transceiver on PD0/PD1 and a USB-CAN
   adapter. Only the FDCAN initialisation (internal loopback, timing registers) is verified.
-- [ ] Power-loss test for **swap-move and swap-offset**.
-- [ ] Upgrade modes **overwrite, swap-move, swap-offset, direct-xip, direct-xip-revert** on hardware (only
-  swap-scratch so far; move/offset are covered by host tests, the others are build-tested).
+- [x] Power-loss test for **swap-move and swap-offset** (`tools/hw/powerfail_test.py`, swap-offset with
+  `--revert-copy`): 16 points each over upgrade and revert, 0 failures.
+- [x] Upgrade modes **overwrite, swap-move, swap-offset, direct-xip, direct-xip-revert** on hardware: application
+  writes 1.1.0 (`umcub_slot_*`), text `i` / `verify 0 1` show the pending update and the revert copy, test boot,
+  revert without confirm, confirm; direct-xip(-revert) between both slots (images linked per slot, `APP_SLOT`).
+  Found and fixed: overwrite showed the installed image as "NOT confirmed"; the single-file library did not build
+  in the direct-xip modes (name clash) and MCUboot's fallthrough warning broke `-Werror` builds - the matrix now
+  builds `umcub_app_all.c` in every upgrade mode.
 - [ ] Text commands and verify / hash / read over **UDP and CAN** (host tests only).
 - [ ] Downgrade prevention (`UMCUB_CFG_DOWNGRADE_PREVENTION`) in swap modes.
 - [ ] **IDE workflow** (README "Using umcub from an IDE") in real STM32CubeIDE and Keil MDK projects: post-build
@@ -75,12 +80,12 @@ Open:
   recovery); `verify` reports it invalid. Found and fixed: the boot reason said `upgraded` although MCUboot had
   refused the update - now confirmed by the primary image having changed.
 - [ ] F1 port of bxCAN; F105/F107 (PREDIV1, 25 MHz HSE, USB OTG FS); XL-density bank 2.
-- [ ] H755: images on the board lack the board-type TLV (`UMCUB_CFG_BOARD_TYPE` is now set) - re-flash signed
-  examples together with the new bootloader.
-- [ ] H755 regression run on hardware after the shared changes of the F1 work (USB not started in the entry window,
-  DFU poll time from `UMCUB_FAMILY_SECTOR_ERASE_MS`, `last update via app`) and of the duplication cleanup:
-  Cortex-M part moved to `port/common/` (init / deinit / jump on CM7 and the CM4 park loop), shared
-  `h7_hsi48_on()` (USB + RNG), ULPI sleep clock now cleared only by tinyUSB (`dwc2_phy_init`).
+- [x] H755 regression after the F1 work and the duplication cleanup: signed examples with the board-type TLV,
+  both cores start (`port/common` init / deinit / jump, CM4 park loop and release), USB CDC and DFU in recovery
+  (shared `h7_hsi48_on()`, ULPI sleep clock left to tinyUSB), RNG for the SECURE handshake, USB not enumerated in
+  the 300 ms entry window (`b` in the window stays), DFU download 1.5.0 in 6.4 s -> test boot, `last update via
+  usb-dfu / app / uart`. CM4 updated through image 1's secondary slot from the CM7 application; writing image 1's
+  primary (running CM4 code) from the CM7 application is refused with `UMCUB_EBUSY`.
 - [x] Blue Pill after the duplication cleanup (`port/common/`, mux line buffers per stream transport, smpclient
   host tools): boot and jump, application request -> recovery, `smpmgr` echo and upload (5.2 KB in 1.4 s),
   `umcub_inspect.py` hash (MATCH) / verify over smpclient, text command `i`, boot of the uploaded 1.1.0.
@@ -116,9 +121,12 @@ Open:
   wrong admin key refused, no keys refused, plain text and unauthenticated DATA get no answer;
   `UMCUB_CFG_LINK_REQUIRE_RDP 1` at RDP 0: ANNOUNCE flagged closed, handshake refused. Board-type rejection
   (stage 1) verified earlier.
-- [ ] Hardware: H755 SECURE over UART / USB CDC through the proxy; RS485 bus;
-  encrypted image over SMP (in-place decryption, 128 KiB buffer in AXI SRAM), DFU and from the application; stack
-  depth of the AUTH check and the watchdog on the F1.
+- [x] Hardware, H755 (SECURE on every transport + link encryption + encrypted images): discover, authentication
+  (0.43 s incl. a command), wrong admin key refused, plain SMP unanswered; through `umcub_link.py serve` over UART
+  and USB CDC: `smpmgr` upload of an encrypted image (validated, decrypted in place with the 128 KiB buffer, boots),
+  a tampered one refused with rc 3, `umcub_inspect.py` read / verify / hash inside the encrypted session.
+- [ ] Hardware: RS485 bus; encrypted image over DFU and from the application; stack depth of the AUTH check and the
+  watchdog on the F1.
 
 ## Known limitations / ideas
 
@@ -135,7 +143,9 @@ Open:
   takes a port-provided buffer; update the submodule after the next release.
 - [ ] Recovery over the network / CAN is not authenticated without `UMCUB_LINK_SECURE` (see README, "Mode notes
   and limitations").
-- [ ] An application on one core can erase the running image of the other core (`umcub_slot_*` only checks its own core).
+- [x] An application on one core could erase the running image of the other core: `umcub_slot_*` now also refuses
+  every slot the bootloader started an image from (handoff `image_addr`); verified on the H755 (CM7 application
+  writing image 1's primary -> `UMCUB_EBUSY`).
 - [ ] When the application writes a slot in the same flash bank it executes from, the CPU stalls for the duration of a
   sector erase (~2 s on the H7).
 - [ ] Ports for other series (G4, F7, G0, L4).

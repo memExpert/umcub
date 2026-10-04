@@ -73,6 +73,7 @@ STM32_Programmer_CLI -c port=SWD -d build/ex-bp/bluepill_app.signed.hex -v -rst
 # USB-UART adapter on PA9/PA10, 115200: log, text commands and SMP on the same port
 smpmgr --port /dev/ttyUSB0 --line-buffers 4 image upload build/ex-bp/bluepill_app.signed.bin   # in recovery
 tools/app_upload.py /dev/ttyUSB0 build/ex-bp/bluepill_app.signed.bin   # from the running application ('u')
+# (H755 CM7 example: --image 1 updates the CM4 image; --slot primary asks for the primary slot, refused while it runs)
 ```
 
 There is no user button. Recovery mode starts on a request from the application (key `b` in the example), when there
@@ -171,7 +172,7 @@ same core; check the real size after porting.
 <!-- size-table:begin -->
 | MCU | base | all on | UART (+SMP) | USB CDC | USB DFU | USB CDC+DFU | CAN | CAN FD | Ethernet (+DHCP) | DFU only |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| STM32H755 CM7 (2 images, SINGLE_BOOT) | 19.5 K | 56.8 K | +10.5 K | +11.2 K | +10.6 K | +13.2 K | +2.3 K | +2.3 K | +4.1 K | +10.9 K |
+| STM32H755 CM7 (2 images, SINGLE_BOOT) | 19.5 K | 56.8 K | +10.5 K | +11.2 K | +10.6 K | +13.2 K | +2.3 K | +2.3 K | +4.1 K | +11.0 K |
 | STM32H755 CM4 (PER_CORE) | 17.0 K | 53.8 K | +10.3 K | +11.2 K | +10.6 K | +13.2 K | +2.3 K | +2.3 K | +4.0 K | +10.9 K |
 | STM32H743 / H753 (single core) | 17.7 K | 54.6 K | +10.3 K | +11.2 K | +10.6 K | +13.2 K | +2.3 K | +2.3 K | +4.1 K | +10.9 K |
 | STM32F103 (Blue Pill, overwrite) | 13.3 K | 41.7 K | +10.7 K | +9.8 K | +9.1 K | +11.7 K | — | — | — | +9.7 K |
@@ -426,7 +427,9 @@ the RAM was cleared.
 Writing from the application:
 - target slot `UMCUB_SLOT_SECONDARY` (default), `UMCUB_SLOT_PRIMARY` or `UMCUB_SLOT_INACTIVE` (direct-xip: the slot the
   application is not running from); it can be overridden per call;
-- writing the slot the code is running from is refused (`UMCUB_EBUSY`);
+- writing a slot code is running from is refused (`UMCUB_EBUSY`): the application's own, and any slot the bootloader
+  started an image from according to the handoff - on dual-core parts the CM7 application cannot erase the running
+  CM4 image and vice versa (`UMCUB_SLOT_INACTIVE` picks the other slot of that image);
 - in swap modes the secondary slot is refused (`UMCUB_EBUSY`) while the running image is still on test: the secondary
   then holds the previous image, the only way back;
 - if the slot is in the same flash bank as the running code, the CPU stalls during a sector erase (up to ~2 s on the
@@ -803,8 +806,8 @@ tests/boards/    build-matrix boards (custom_drivers: board drivers + board tran
   plain `.signed.bin` is meant for updates from the application or over DFU, followed by `umcub_confirm()`.
 - **direct-xip / direct-xip-revert**: an SMP upload always names the slot (`image`: 0/1 = image 0 primary,
   2 = image 0 secondary, 3/4 = image 1), and the image must be linked for that slot
-  (`umcub_app_linker_script(... SLOT n)`, `umcub_sign_image(... SLOT n)`). Downgrade prevention is not available in
-  these modes.
+  (`umcub_app_linker_script(... SLOT n)`, `umcub_sign_image(... SLOT n)`; the CM7 example takes `-DAPP_SLOT=1`).
+  Downgrade prevention is not available in these modes.
 - **Recovery over the network / CAN is not authenticated** unless the transport uses `UMCUB_LINK_SECURE` (see
   [umcub link](#shared-buses-umcub-link-addressing-secure-mode)): otherwise any node on the LAN (UDP 1337) or the
   CAN bus can upload any image signed with your key in recovery mode, including an older one. Signatures are

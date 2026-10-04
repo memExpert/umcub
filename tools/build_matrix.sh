@@ -128,7 +128,14 @@ if command -v clang >/dev/null; then
     -isystem "$newlib_inc" "${ide_flags[@]}" -o "$OUT/ide_clang.o" >>"$OUT/ide.log" 2>&1 &&
     ide_ok+=" clang" || { echo "FAIL IDE build (clang), see $OUT/ide.log"; fail=1; }
 fi
-summary+=("$(printf '%-24s umcub_app_all.c: %s' "ide-library" "$ide_ok")")
+# The single translation unit in every upgrade mode (mode-specific code must
+# not clash: static names are shared by all library sources there).
+for m in mode_overwrite mode_swap_move mode_swap_offset mode_direct_xip mode_direct_xip_revert; do
+  arm-none-eabi-gcc -mcpu=cortex-m7 -mthumb -mfpu=fpv5-d16 -mfloat-abi=hard \
+    "-DUMCUB_CONFIG_PRE=\"$PWD/tools/config/$m.h\"" "${ide_flags[@]}" -o "$OUT/ide_$m.o" >>"$OUT/ide.log" 2>&1 ||
+    { echo "FAIL IDE build ($m), see $OUT/ide.log"; fail=1; ide_ok+=" ($m FAILED)"; }
+done
+summary+=("$(printf '%-24s umcub_app_all.c: %s, all upgrade modes' "ide-library" "$ide_ok")")
 
 # Host tests: real MCUboot + umcub transports on emulated flash.
 if cmake -S tests/host -B "$OUT/host" -G Ninja >"$OUT/host.configure.log" 2>&1 &&

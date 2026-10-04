@@ -88,8 +88,9 @@ typedef struct {
 } umcub_slot_writer_t;
 
 /* Prepare `slot` of `image` (UMCUB_SLOT_PRIMARY/SECONDARY/INACTIVE or
- * UMCUB_SLOT_DEFAULT) for an image of `total_size` bytes. Refuses the slot
- * the application is executing from. */
+ * UMCUB_SLOT_DEFAULT) for an image of `total_size` bytes. Refuses
+ * (UMCUB_EBUSY) a slot code is running from: the application itself, or any
+ * image the bootloader started (the other core's image on dual-core parts). */
 int umcub_slot_begin(umcub_slot_writer_t *w, int image, int slot, uint32_t total_size);
 int umcub_slot_write(umcub_slot_writer_t *w, const void *data, size_t len);
 /* Flush, check the MCUboot image header and optionally mark the written

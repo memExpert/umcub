@@ -95,11 +95,12 @@ static void upload(void)
             return;
         }
     }
-    int image = hdr[0];
+    int image = hdr[0] & 0x7F;          /* bit 7: the primary slot instead of the default */
+    int slot = (hdr[0] & 0x80) ? UMCUB_SLOT_PRIMARY : UMCUB_SLOT_DEFAULT;
     uint32_t size = hdr[1] | (uint32_t)hdr[2] << 8 | (uint32_t)hdr[3] << 16 | (uint32_t)hdr[4] << 24;
 
     umcub_slot_writer_t w;
-    int rc = umcub_slot_begin(&w, image, UMCUB_SLOT_DEFAULT, size);
+    int rc = umcub_slot_begin(&w, image, slot, size);
     if (rc != 0) {
         ex_uart_putc('E');
         ex_puts(" slot_begin rc=-");

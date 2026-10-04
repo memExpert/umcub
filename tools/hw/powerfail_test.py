@@ -21,6 +21,8 @@ and the board-type TLV match.
   NUCLEO-H755ZI-Q (swap-scratch):
   tools/hw/powerfail_test.py --boot build/hw/boot_fault/umcub_nucleo_h755zi_q_cm7.hex \\
       --app build/hw/sb_app_cm7/h755_cm7_app.bin --board nucleo_h755zi_q --core cm7 --points 40
+  swap-offset (the update sits one sector into the secondary slot, the revert copy at its start):
+  ... --pre tools/config/mode_swap_offset.h --secondary 0x080A0000 --revert-copy 0x08080000
   Blue Pill (overwrite, 16 KiB slots, 1 KiB pages, no NRST on the SWD header):
   tools/hw/powerfail_test.py --boot build/bp_fault/umcub_bluepill_f103c8_cm3.hex \\
       --app build/bluepill/examples/bluepill_app/bluepill_app.bin --board bluepill_f103c8 \\
@@ -64,6 +66,9 @@ def main():
     ap.add_argument("--mode", choices=("swap", "overwrite"), default="swap")
     ap.add_argument("--primary", type=lambda s: int(s, 0), default=0x08020000)
     ap.add_argument("--secondary", type=lambda s: int(s, 0), default=0x08080000)
+    ap.add_argument("--revert-copy", type=lambda s: int(s, 0),
+                    help="where the previous image lands in the secondary slot after an upgrade (swap-offset: "
+                         "the slot start, one sector before --secondary); default --secondary")
     ap.add_argument("--erase", default="1-7", help="flash sectors / pages to erase before each run (N, N-M)")
     ap.add_argument("--size", type=int, default=200 * 1024, help="payload size")
     ap.add_argument("--fault-addr", type=lambda s: int(s, 0), default=0x3800F000,
@@ -72,6 +77,7 @@ def main():
     ap.add_argument("--reset", choices=("hardRst", "rst"), default="hardRst",
                     help="hardRst (NRST wired) or rst (system reset over SWD)")
     ap.add_argument("--points", type=int, default=40)
+    ap.add_argument("--first", type=int, default=8, help="fault points at the very first operations")
     ap.add_argument("--settle", type=float, default=4.0)
     ap.add_argument("--seed", type=int, default=1)
     a = ap.parse_args()
@@ -145,12 +151,16 @@ def main():
         if w[:2] != [FAULT_MAGIC, k]:
             raise RuntimeError(f"arming failed: {w}")
 
+    revert_copy = a.revert_copy if a.revert_copy is not None else a.secondary
+
     def boot_and_check(expect_primary, expect_secondary):
         cli(f"-{a.reset}")
         time.sleep(a.settle)
         f = read_words(a.fault_addr, 4)
         pri = read_mem(a.primary, len(expect_primary))
-        sec = read_mem(a.secondary, len(expect_secondary)) if expect_secondary else None
+        # after an upgrade the secondary holds v1 (revert copy), after a revert v2 (the update again)
+        sec_addr = revert_copy if expect_secondary == v1b else a.secondary
+        sec = read_mem(sec_addr, len(expect_secondary)) if expect_secondary else None
         return f, pri == expect_primary, expect_secondary is None or sec == expect_secondary
 
     swap = a.mode == "swap"
@@ -174,7 +184,7 @@ def main():
         phases.append(("revert", n_rev, v1b, v2b))
 
     def pick(n):
-        ks = set(range(1, min(n, 8) + 1))                    # first erases
+        ks = set(range(1, min(n, a.first) + 1))              # first erases
         ks |= {max(1, n * i // a.points) for i in range(1, a.points)}
         ks |= {rnd.randint(1, n) for _ in range(a.points // 4)}
         return sorted(ks)

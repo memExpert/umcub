@@ -188,6 +188,11 @@ int umcub_mark_slot(int image, int slot, bool permanent)
 
 int umcub_is_confirmed(int image)
 {
+#if UMCUB_CFG_UPGRADE_MODE == UMCUB_MODE_OVERWRITE
+    /* overwrite: the copy carries the update's trailer (image_ok unset), but
+     * nothing can revert an installed image. */
+    return image < 0 || image >= UMCUB_CFG_IMAGE_NUMBER ? UMCUB_EINVAL : 1;
+#else
     const struct flash_area *fa;
     uint8_t image_ok;
     int slot = 0;
@@ -210,6 +215,7 @@ int umcub_is_confirmed(int image)
     }
     image_ok = st.image_ok;
     return image_ok == BOOT_FLAG_SET;
+#endif
 }
 
 int umcub_request_upgrade(int image, bool permanent)

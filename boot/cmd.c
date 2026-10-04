@@ -156,7 +156,8 @@ static void info(umcub_cmd_reply_t reply)
             (void)boot_read_swap_state(fa, &st);
             /* Same meaning as umcub_is_confirmed(): an image without a trailer
              * cannot be reverted, so it counts as confirmed. */
-            const char *state = st.magic != BOOT_MAGIC_GOOD ? (slot == 0 ? " confirmed" : "")
+            const char *state = (st.magic != BOOT_MAGIC_GOOD ||
+                                 (UMCUB_CFG_UPGRADE_MODE == UMCUB_MODE_OVERWRITE && slot == 0)) ? (slot == 0 ? " confirmed" : "")
                               : st.image_ok == BOOT_FLAG_SET ? " confirmed"
                               : slot == 0 ? " test" : " pending";
             say(reply, "image %d slot %d: %u.%u.%u+%lu%s", img, slot, h.ih_ver.iv_major, h.ih_ver.iv_minor,

@@ -9,6 +9,7 @@ project(h755_cm7_app C ASM)
 
 set(APP_VERSION "1.0.0" CACHE STRING "Image version written by imgtool")
 set(APP_NODE_ADDR "0" CACHE STRING "Node address handed to the bootloader (0 = unassigned)")
+set(APP_SLOT "0" CACHE STRING "direct-xip modes: slot the image is linked for (0 primary, 1 secondary)")
 set(UMCUB_BOARD nucleo_h755zi_q)
 set(UMCUB_CORE cm7)
 add_subdirectory(../../lib/umcub_app umcub)
@@ -29,5 +30,5 @@ target_link_options(h755_cm7_app PRIVATE ${UMCUB_CPU_FLAGS_HARD} --specs=nano.sp
   -Wl,--gc-sections -Wl,--print-memory-usage -Wl,--no-warn-rwx-segments -Wl,-Map=$<TARGET_FILE_DIR:h755_cm7_app>/h755_cm7_app.map)
 target_link_libraries(h755_cm7_app PRIVATE ${UMCUB_APP_LIB})   # = umcub::app in a single-application project
 
-umcub_app_linker_script(h755_cm7_app IMAGE 0)
-umcub_sign_image(h755_cm7_app IMAGE 0 VERSION ${APP_VERSION})
+umcub_app_linker_script(h755_cm7_app IMAGE 0 SLOT ${APP_SLOT})
+umcub_sign_image(h755_cm7_app IMAGE 0 SLOT ${APP_SLOT} VERSION ${APP_VERSION})

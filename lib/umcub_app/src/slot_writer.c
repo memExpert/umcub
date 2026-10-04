@@ -31,6 +31,35 @@ static bool executing_from(uint32_t base, uint32_t size)
 #endif
 }
 
+/* Start of the slot image `i` runs from as the bootloader published it (handoff),
+ * 0 if unknown or not running. Covers the other core's image too (dual-core
+ * SINGLE_BOOT). Inside the bootloader (USB DFU) no image runs. */
+static uint32_t running_image_addr(int i)
+{
+#ifdef UMCUB_BUILDING_APP
+    const umcub_handoff_t *h = umcub_boot_info();
+    return h && (unsigned)i < h->image_count && (unsigned)i < UMCUB_MAX_IMAGES ? h->image_addr[i] : 0;
+#else
+    (void)i;
+    return 0;
+#endif
+}
+
+/* Slot `fa` holds code that is running now (this core or another one). */
+static bool slot_in_use(const struct flash_area *fa)
+{
+    if (executing_from(fa->fa_off, fa->fa_size)) {
+        return true;
+    }
+    for (int i = 0; i < UMCUB_CFG_IMAGE_NUMBER; i++) {
+        uint32_t a = running_image_addr(i);
+        if (a && a - fa->fa_off < fa->fa_size) {
+            return true;
+        }
+    }
+    return false;
+}
+
 static int resolve_slot(int image, int slot)
 {
     if (slot == UMCUB_SLOT_DEFAULT) {
@@ -41,7 +70,7 @@ static int resolve_slot(int image, int slot)
         if (flash_area_open((uint8_t)flash_area_id_from_multi_image_slot(image, 0), &pri)) {
             return UMCUB_EINVAL;
         }
-        slot = executing_from(pri->fa_off, pri->fa_size) ? UMCUB_SLOT_SECONDARY : UMCUB_SLOT_PRIMARY;
+        slot = slot_in_use(pri) ? UMCUB_SLOT_SECONDARY : UMCUB_SLOT_PRIMARY;
     }
     return slot == UMCUB_SLOT_PRIMARY ? 0 : slot == UMCUB_SLOT_SECONDARY ? 1 : UMCUB_EINVAL;
 }
@@ -70,8 +99,8 @@ int umcub_slot_begin(umcub_slot_writer_t *w, int image, int slot, uint32_t total
     if (s < 0 || flash_area_open((uint8_t)flash_area_id_from_multi_image_slot(image, s), &fa)) {
         return UMCUB_EINVAL;
     }
-    if (executing_from(fa->fa_off, fa->fa_size)) {
-        return UMCUB_EBUSY;     /* would erase the running code */
+    if (slot_in_use(fa)) {
+        return UMCUB_EBUSY;     /* would erase running code (of this or the other core) */
     }
 #if UMCUB_CFG_UPGRADE_MODE >= UMCUB_MODE_SWAP_SCRATCH && UMCUB_CFG_UPGRADE_MODE <= UMCUB_MODE_SWAP_OFFSET
     /* After a test swap the secondary slot holds the previous image - the
