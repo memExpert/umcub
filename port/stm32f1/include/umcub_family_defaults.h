@@ -37,5 +37,10 @@
 #ifndef UMCUB_CFG_SHARED_RAM_ADDR
 #define UMCUB_CFG_SHARED_RAM_ADDR       (0x20000000 + UMCUB_FAMILY_RAM_SIZE - 256)
 #endif
+/* TEST ONLY (power-loss emulation): the last 16 bytes of the handoff area,
+ * behind umcub_handoff_t - kept over reset, used by nobody else. */
+#ifndef UMCUB_CFG_TEST_FAULT_ADDR
+#define UMCUB_CFG_TEST_FAULT_ADDR       (UMCUB_CFG_SHARED_RAM_ADDR + 240)
+#endif
 
 #endif /* UMCUB_FAMILY_DEFAULTS_H */

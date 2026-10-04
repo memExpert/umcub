@@ -65,8 +65,15 @@ Done (bootloader 28.3 K in 32 K, two 16 K slots, overwrite, USART1 PA9/PA10 1152
 
 Open:
 
-- [ ] Power-loss test of the overwrite copy on F1 (fault injection points exist in `port/stm32f1/flash.c`).
-- [ ] Recovery timeout on F1.
+- [x] Power-loss test of the overwrite copy (`tools/hw/powerfail_test.py --mode overwrite`, fault record in the
+  last 16 bytes of the handoff area): 57 resets at erase / half-word program operations spread over the 6266 of a
+  12 KiB upgrade, every one completed with primary == v2.
+- [x] Recovery timeout (`UMCUB_CFG_RECOVERY_TIMEOUT_MS` 5000): reset 5.0 s after the last command, a text command
+  restarts the timer, the application starts after the reset.
+- [x] Board-type rejection: an image signed for another board type is refused through the secondary slot (old
+  image keeps running, `boot reason: normal`) and in the primary slot (SMP upload: "is for board type ...",
+  recovery); `verify` reports it invalid. Found and fixed: the boot reason said `upgraded` although MCUboot had
+  refused the update - now confirmed by the primary image having changed.
 - [ ] F1 port of bxCAN; F105/F107 (PREDIV1, 25 MHz HSE, USB OTG FS); XL-density bank 2.
 - [ ] H755: images on the board lack the board-type TLV (`UMCUB_CFG_BOARD_TYPE` is now set) - re-flash signed
   examples together with the new bootloader.
@@ -86,13 +93,13 @@ Open:
 - [x] 4. SECURE: challenge signed with the admin key, ECDH with the device key, HKDF, per-frame HMAC, replay
   protection, AES-CTR payload encryption, RDP policy, idle timeout, key embedding (`tools/umcub_keys.py`);
   host test `umcub_host_link_secure` (also under ASan/UBSan). Builds: H7 `link-secure` (all transports, with
-  encryption) 60.3 K, Blue Pill `bluepill-rs485-secure` 31.5 K of a 31.75 K region - SECURE with encryption or more transports
+  encryption) 60.3 K, Blue Pill `bluepill-rs485-secure` 31.8 K in a 36 K region (`tools/config/bluepill_rs485_secure.h`: 36 K + 2 x 14 K) - SECURE with encryption or more transports
   needs a larger bootloader region on the F1.
 - [x] 5. Image encryption (MCUboot ENC_EC256 with the device key): `<app>.encrypted.bin` from `umcub_sign_image()` /
   `umcub_image.py`; own in-place decryption after an SMP upload into the primary slot (MCUboot's keeps a whole
   sector on the stack), off on the H7 CM4 bootloader (no RAM for a 128 KiB sector); verify of an encrypted
   secondary; readback only inside an encrypted link session. Host tests `umcub_host_swap_scratch_enc`,
-  `umcub_host_link_secure`; builds `encrypt-images` (H7) 64.0 K, `bluepill-encrypt` 35.3 K in a 37.75 K region,
+  `umcub_host_link_secure`; builds `encrypt-images` (H7) 64.3 K, `bluepill-encrypt` 35.7 K in a 37.75 K region,
   `per-core-cm4-encrypt`.
 - [x] 6. `tools/umcub_link.py`: discover, info, cmd, `serve` proxy (pty / UDP) for mcumgr/smpmgr; end-to-end test
   `tests/host/link_e2e.py` (part of the build matrix): 3 simulated SECURE devices (`umcub_sim_secure`) on one bus -
@@ -109,7 +116,7 @@ Open:
   wrong admin key refused, no keys refused, plain text and unauthenticated DATA get no answer;
   `UMCUB_CFG_LINK_REQUIRE_RDP 1` at RDP 0: ANNOUNCE flagged closed, handshake refused. Board-type rejection
   (stage 1) verified earlier.
-- [ ] Hardware: H755 SECURE over UART / USB CDC through the proxy; Blue Pill board-type rejection; RS485 bus;
+- [ ] Hardware: H755 SECURE over UART / USB CDC through the proxy; RS485 bus;
   encrypted image over SMP (in-place decryption, 128 KiB buffer in AXI SRAM), DFU and from the application; stack
   depth of the AUTH check and the watchdog on the F1.
 
@@ -117,9 +124,9 @@ Open:
 
 - [ ] Security review leftovers: (a) one device key per product - per-device keys (provisioning, key derived from
   the UID + a master on the host), H7 PCROP / secure-access area for the key; on the F1, RDP level 1 can be
-  defeated by known attacks, so the key there is only as safe as the product's physical access; (b) SMP upload into
-  the primary slot decrypts in place before the signature is checked - validate the encrypted image first (as
-  verify does) to avoid destroying the old image with a foreign upload; (c) `MCUBOOT_SWAP_SAVE_ENCTLV` (keep the
+  defeated by known attacks, so the key there is only as safe as the product's physical access; (b) done: an encrypted SMP
+  upload into the primary slot is validated before the in-place decryption (rc 3 to the client otherwise; the old
+  image is gone at that point anyway, as with any upload into the primary slot); (c) `MCUBOOT_SWAP_SAVE_ENCTLV` (keep the
   wrapped key in the trailer instead of the plain AES key) for the swap modes; (d) F1 entropy quality not measured
   (ADC temperature noise + jitter).
 - [ ] MCUboot submodule is v2.4.0: `main` already wipes the AES key on every path of `boot_serial_encryption.c`.

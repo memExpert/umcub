@@ -50,7 +50,7 @@ async def run(a):
 
         if a.cmd == "verify":
             r = await request(client, InspectVerify(**sel))
-            print("valid" if r.valid else "INVALID (hash or signature mismatch)")
+            print("valid" if r.valid else "INVALID (hash, signature or board type)")
             return 0 if r.valid else 1
 
         if a.cmd == "hash":

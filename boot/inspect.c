@@ -74,12 +74,15 @@ uint32_t umcub_inspect_image_len(const struct flash_area *fa)
 int umcub_inspect_verify(int image, int slot)
 {
     struct flash_area fa;
+    int rc = umcub_inspect_area(image, slot, &fa);
+    return rc ? rc : umcub_inspect_validate(image, slot, &fa);
+}
+
+int umcub_inspect_validate(int image, int slot, const struct flash_area *area)
+{
+    struct flash_area fa = *area;
     struct image_header h;
     static uint8_t tmp[256];
-    int rc = umcub_inspect_area(image, slot, &fa);
-    if (rc) {
-        return rc;
-    }
     if (flash_area_read(&fa, 0, &h, sizeof(h)) || h.ih_magic != IMAGE_MAGIC) {
         return UMCUB_ENOTSUP;
     }

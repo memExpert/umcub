@@ -19,6 +19,12 @@
 
 #define UMCUB_FAULT_MAGIC 0xFA017E57u
 
+#include "umcub_handoff.h"
+/* The fault record must not overlap the handoff data (both survive resets). */
+_Static_assert(UMCUB_CFG_TEST_FAULT_ADDR + 16u <= UMCUB_CFG_SHARED_RAM_ADDR ||
+               UMCUB_CFG_TEST_FAULT_ADDR >= UMCUB_CFG_SHARED_RAM_ADDR + sizeof(umcub_handoff_t),
+               "UMCUB_CFG_TEST_FAULT_ADDR overlaps the handoff area");
+
 typedef struct {
     uint32_t magic;
     uint32_t target;

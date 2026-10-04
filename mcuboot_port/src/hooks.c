@@ -16,6 +16,7 @@
 #include "bootutil/bootutil_public.h"
 #include "bootutil/boot_hooks.h"
 #include "bootutil/fault_injection_hardening.h"
+#include "sysflash/sysflash.h"
 
 int umcub_image_board_type(const struct flash_area *fa, uint32_t hdr_off, uint32_t *type)
 {
@@ -89,6 +90,14 @@ fih_ret boot_image_check_hook(int img_index, int slot)
     }
     FIH_RET(FIH_BOOT_HOOK_REGULAR);     /* MCUboot's hash + signature validation follows */
 }
+#else
+fih_ret boot_image_check_hook(int img_index, int slot)
+{
+    (void)img_index;
+    (void)slot;
+    FIH_RET(FIH_BOOT_HOOK_REGULAR);     /* no board type configured */
+}
+#endif
 
 int boot_read_image_header_hook(int img_index, int slot, struct image_header *img_head)
 {
@@ -98,9 +107,13 @@ int boot_read_image_header_hook(int img_index, int slot, struct image_header *im
     return BOOT_HOOK_REGULAR;
 }
 
+bool umcub_image0_updated;
+
 int boot_perform_update_hook(int img_index, struct image_header *img_head, const struct flash_area *area)
 {
-    (void)img_index;
+    if (img_index == 0) {
+        umcub_image0_updated = true;    /* MCUboot installs (or reverts) image 0 now */
+    }
     (void)img_head;
     (void)area;
     return BOOT_HOOK_REGULAR;
@@ -116,9 +129,17 @@ int boot_copy_region_post_hook(int img_index, const struct flash_area *area, siz
 
 int boot_serial_uploaded_hook(int img_index, const struct flash_area *area, size_t size)
 {
+    (void)size;
+#if UMCUB_CFG_ENCRYPT_IMAGES
+    /* Validate an encrypted upload into the primary slot before it is
+     * decrypted in place; the error reaches the client in the last response. */
+    if (flash_area_get_id(area) == FLASH_AREA_IMAGE_PRIMARY(img_index) && umcub_enc_upload_check(area) != 0) {
+        return 3;   /* MGMT_ERR_EINVAL */
+    }
+#else
     (void)img_index;
     (void)area;
-    (void)size;
+#endif
     return 0;
 }
 
@@ -134,4 +155,3 @@ int boot_reset_request_hook(bool force)
     (void)force;
     return 0;                               /* allow */
 }
-#endif

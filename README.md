@@ -161,17 +161,17 @@ ECDSA-P256), and what every transport and feature adds. Regenerate with `tools/s
 <!-- size-table:begin -->
 | MCU | base | all on | UART (+SMP) | USB CDC | USB DFU | USB CDC+DFU | CAN | CAN FD | Ethernet (+DHCP) | DFU only |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| STM32H755 CM7 (2 images, SINGLE_BOOT) | 19.5 K | 56.7 K | +10.5 K | +11.2 K | +10.6 K | +13.2 K | +2.3 K | +2.3 K | +4.1 K | +10.9 K |
+| STM32H755 CM7 (2 images, SINGLE_BOOT) | 19.5 K | 56.8 K | +10.5 K | +11.2 K | +10.6 K | +13.2 K | +2.3 K | +2.3 K | +4.1 K | +10.9 K |
 | STM32H755 CM4 (PER_CORE) | 17.0 K | 53.8 K | +10.3 K | +11.2 K | +10.6 K | +13.2 K | +2.3 K | +2.3 K | +4.0 K | +10.9 K |
-| STM32H743 / H753 (single core) | 17.7 K | 54.5 K | +10.3 K | +11.2 K | +10.6 K | +13.2 K | +2.3 K | +2.3 K | +4.1 K | +10.9 K |
+| STM32H743 / H753 (single core) | 17.7 K | 54.6 K | +10.3 K | +11.2 K | +10.6 K | +13.2 K | +2.3 K | +2.3 K | +4.1 K | +10.9 K |
 | STM32F103 (Blue Pill, overwrite) | 13.3 K | 41.7 K | +10.7 K | +9.8 K | +9.1 K | +11.7 K | — | — | — | +9.7 K |
 
 | MCU | log (level 3) | text commands | verify + hash | readback | umcub link (addressed) | umcub link SECURE | + link encryption | encrypted images |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| STM32H755 CM7 (2 images, SINGLE_BOOT) | +2.8 K | +2.9 K | +1.0 K | +0.2 K | +1.6 K | +4.7 K | +1.6 K | +6.8 K |
-| STM32H755 CM4 (PER_CORE) | +2.6 K | +2.9 K | +1.0 K | +0.2 K | +1.6 K | +4.7 K | +1.6 K | +6.2 K |
-| STM32H743 / H753 (single core) | +2.6 K | +2.8 K | +1.0 K | +0.2 K | +1.6 K | +4.7 K | +1.6 K | +6.4 K |
-| STM32F103 (Blue Pill, overwrite) | +2.2 K | +2.7 K | +1.0 K | +0.2 K | +1.6 K | +4.7 K | +1.6 K | +6.1 K |
+| STM32H755 CM7 (2 images, SINGLE_BOOT) | +2.8 K | +2.9 K | +1.0 K | +0.2 K | +1.6 K | +4.7 K | +1.6 K | +7.2 K |
+| STM32H755 CM4 (PER_CORE) | +2.6 K | +2.9 K | +1.0 K | +0.2 K | +1.6 K | +4.7 K | +1.6 K | +6.5 K |
+| STM32H743 / H753 (single core) | +2.6 K | +2.9 K | +1.0 K | +0.2 K | +1.6 K | +4.7 K | +1.6 K | +6.8 K |
+| STM32F103 (Blue Pill, overwrite) | +2.2 K | +2.7 K | +1.0 K | +0.2 K | +1.6 K | +4.7 K | +1.6 K | +6.5 K |
 <!-- size-table:end -->
 
 Notes:
@@ -336,8 +336,9 @@ How an encrypted image is installed:
 - **through the secondary slot** (DFU, application, SMP with `UMCUB_CFG_SMP_DIRECT_UPLOAD`): MCUboot decrypts it
   while it copies or swaps it into the primary slot. In the swap modes the old image is encrypted again on its way
   into the secondary slot, so a revert works and the plain code is only ever in the primary slot;
-- **SMP upload into the primary slot** (recovery, the default): after the last chunk the bootloader decrypts the
-  image in place, sector by sector through one sector of RAM (`UMCUB_CFG_ENC_INPLACE`; 128 KiB on the H7). Like any
+- **SMP upload into the primary slot** (recovery, the default): after the last chunk the bootloader first checks the
+  image (signature over the decrypted payload, board type) and answers the last chunk with an error (rc 3) if it is
+  not valid for this device - such an image is left as it is and not booted. A valid image is decrypted in place, sector by sector through one sector of RAM (`UMCUB_CFG_ENC_INPLACE`; 128 KiB on the H7). Like any
   upload into the primary slot this is not power-fail safe: an interrupted decryption leaves an invalid image and
   the bootloader in recovery, upload again. The H7 CM4 bootloader has no room for the buffer (`UMCUB_CFG_ENC_INPLACE`
   is 0 there): use the secondary slot.
@@ -749,7 +750,9 @@ CAN transport on emulated flash) against the host tools: `umcub_link.py` with th
 `umcub_inspect.py` on plain SMP, `smp_can.py` on the CAN transport (python-can `serial` bus on a pty).
 
 Hardware tests: `tools/hw/powerfail_test.py` resets the MCU in the middle of the K-th flash operation (build with
-`tools/config/fault_inject.h`, test only) and checks that an interrupted upgrade or revert always completes. See
+`tools/config/fault_inject.h`, test only) and checks that an interrupted upgrade or revert (swap modes) or an
+interrupted overwrite copy always completes. The images are signed with `tools/umcub_image.py` for the
+bootloader's board and overlays; `--fault-addr` is `UMCUB_CFG_TEST_FAULT_ADDR` (a RAM word that survives a reset). See
 `TODO.md` for what has been verified on hardware.
 
 ## Layout

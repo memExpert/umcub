@@ -325,7 +325,8 @@ static void smp_packet_request(const uint8_t *pkt, size_t len)
     boot_uf->read(tmp, sizeof(tmp), &nl);    /* processes the pending packet */
 }
 
-static void upload_packets(const uint8_t *img, size_t len, int image)
+/* SMP upload over the packet path; returns the first non-zero rc (0 = ok). */
+static long upload_packets(const uint8_t *img, size_t len, int image)
 {
     size_t off = 0;
     while (off < len) {
@@ -351,11 +352,11 @@ static void upload_packets(const uint8_t *img, size_t len, int image)
         long noff = cbor_find_uint(pkt_rsp + 8, pkt_rsp_len - 8, "off");
         if (rc > 0 || noff != (long)(off + n)) {
             printf("  upload rsp at %zu: rc %ld off %ld\n", off, rc, noff);
-            failures++;
-            return;
+            return rc > 0 ? rc : -1;
         }
         off += n;
     }
+    return 0;
 }
 
 /* What an uploaded image looks like in the primary slot: the file itself, or
@@ -393,7 +394,19 @@ static void test_packet_upload_and_boot(const uint8_t *v1, size_t v1_len, const 
 
     char ver[16];
     CHECK(!boot_ok(ver));                   /* empty flash: nothing to boot */
-    upload_packets(v1, v1_len, 0);
+#if UMCUB_CFG_ENCRYPT_IMAGES
+    /* A tampered encrypted upload is refused at the last chunk and not
+     * decrypted: validated (decrypting on the fly) before the in-place pass. */
+    uint8_t *bad = malloc(v1_len);
+    memcpy(bad, v1, v1_len);
+    bad[0x600] ^= 0x01;
+    CHECK(upload_packets(bad, v1_len, 0) == 3);
+    CHECK(memcmp(fake_flash + (UMCUB_CFG_IMG0_PRIMARY_ADDR - 0x08000000), bad, v1_len) == 0);
+    CHECK(!boot_ok(ver));
+    free(bad);
+    printf("  tampered encrypted upload refused (rc 3), left encrypted, not booted\n");
+#endif
+    CHECK(upload_packets(v1, v1_len, 0) == 0);
     CHECK(memcmp(fake_flash + (UMCUB_CFG_IMG0_PRIMARY_ADDR - 0x08000000), v1_flash, v1_len) == 0);
 #if UMCUB_CFG_ENCRYPT_IMAGES
     CHECK(memcmp(v1, v1_flash, v1_len) != 0);   /* it really was encrypted on the wire */
@@ -477,6 +490,12 @@ static void test_swap_revert_confirm(const uint8_t *v2, size_t v2_len)
  * installed (MCUboot image check hook, mcuboot_port/src/hooks.c). */
 static void test_board_type(const uint8_t *foreign, size_t len)
 {
+#if UMCUB_CFG_BOARD_TYPE == 0
+    (void)foreign;
+    (void)len;
+    printf("[board type] none configured: skipped\n");
+    return;
+#endif
     char ver[16];
     printf("[board type] image for board 0x%08x refused, 0x%08x keeps running\n",
            (unsigned)UMCUB_CFG_BOARD_TYPE + 1u, (unsigned)UMCUB_CFG_BOARD_TYPE);
@@ -681,7 +700,7 @@ static void test_inspect(const uint8_t *img, size_t img_len)
     uint8_t *byte = &fake_flash[UMCUB_CFG_IMG0_PRIMARY_ADDR - 0x08000000 + 0x800];
     *byte ^= 0x40;
     stream_cmd("verify 0 0\r");
-    CHECK(stream_out_has(0, "bad hash or signature"));
+    CHECK(stream_out_has(0, "bad hash, signature or board type"));
     *byte ^= 0x40;
 
     /* SMP group: hash request {image 0, slot 0} */

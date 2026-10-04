@@ -20,6 +20,7 @@
 #include "bootutil_priv.h"   /* loader state: active slot per image (direct-xip) */
 #include "flash_map_backend/flash_map_backend.h"
 #include "sysflash/sysflash.h"
+#include "umcub_image_info.h"
 
 #if UMCUB_CFG_UPGRADE_MODE == UMCUB_MODE_DIRECT_XIP || UMCUB_CFG_UPGRADE_MODE == UMCUB_MODE_DIRECT_XIP_REVERT
 #define DIRECT_XIP 1
@@ -153,7 +154,8 @@ int main(void)
     info.board_rev = UMCUB_CFG_BOARD_REV;
     info.node_addr = umcub_node_address();
 
-    /* What MCUboot is about to do with image 0 (swap modes). */
+    /* What MCUboot is about to do with image 0 (swap modes); confirmed after
+     * boot_go() by MCUboot actually performing it (umcub_image0_updated). */
 #if !DIRECT_XIP
     int swap = boot_swap_type_multi(0);
     info.boot_reason = (swap == BOOT_SWAP_TYPE_TEST || swap == BOOT_SWAP_TYPE_PERM) ? UMCUB_BOOT_UPGRADED :
@@ -184,6 +186,12 @@ int main(void)
 #endif
         }
     }
+
+#if !DIRECT_XIP
+    if (!umcub_image0_updated) {
+        info.boot_reason = UMCUB_BOOT_NORMAL;      /* refused (invalid, board type, downgrade) */
+    }
+#endif
 
     uint32_t vtor0 = image_vtor(&rsp);
     version_from_header(rsp.br_hdr, &info.image_version[0]);

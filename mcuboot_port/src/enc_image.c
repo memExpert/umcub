@@ -21,6 +21,8 @@
 #include "bootutil/enc_key.h"
 #include "bootutil/fault_injection_hardening.h"
 #include "bootutil_priv.h"
+#include "umcub_image_info.h"
+#include "umcub_inspect.h"
 
 #if UMCUB_CFG_ENCRYPT_IMAGES
 
@@ -51,6 +53,31 @@ fih_ret boot_image_validate_encrypted(struct boot_loader_state *state, const str
     FIH_RET(fih_rc);
 }
 
+/* Primary area whose encrypted upload passed umcub_enc_upload_check(). */
+static const struct flash_area *validated;
+
+int umcub_enc_upload_check(const struct flash_area *fap)
+{
+    struct image_header hdr;
+    validated = NULL;
+    if (flash_area_read(fap, 0, &hdr, sizeof(hdr)) != 0 || hdr.ih_magic != IMAGE_MAGIC) {
+        return -1;
+    }
+    if (!IS_ENCRYPTED(&hdr)) {
+        return 0;                       /* plain: checked at boot as usual */
+    }
+    /* The same area under the secondary slot's id: MCUboot then hashes the
+     * payload while decrypting it with the key from the image's TLV. */
+    struct flash_area as_secondary = *fap;
+    as_secondary.fa_id = FLASH_AREA_IMAGE_SECONDARY(0);
+    if (umcub_inspect_validate(0, 0, &as_secondary) != 0) {
+        UMCUB_LOG_ERR("encrypted upload is not valid for this device: not decrypted");
+        return -1;
+    }
+    validated = fap;
+    return 0;
+}
+
 #if UMCUB_CFG_ENC_INPLACE
 static uint8_t sector_buf[UMCUB_FAMILY_UNIFORM_SECTOR];
 #endif
@@ -64,6 +91,10 @@ int boot_handle_enc_fw(const struct flash_area *fap)
     if (!IS_ENCRYPTED(&hdr)) {
         return 0;                       /* plain image: nothing to do */
     }
+    if (fap != validated) {
+        return -1;                      /* not validated (or invalid): leave it */
+    }
+    validated = NULL;
 #if !UMCUB_CFG_ENC_INPLACE
     UMCUB_LOG_ERR("encrypted image in the primary slot: upload it to the secondary slot (UMCUB_CFG_ENC_INPLACE 0)");
     return -1;

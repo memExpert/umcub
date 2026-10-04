@@ -109,9 +109,10 @@
 
 void umcub_port_wdg_feed(void);
 void umcub_port_idle(void);
-/* Board type check before an image is installed (mcuboot_port/src/hooks.c).
- * Not in the application library: bootutil_public.c there needs no hooks. */
-#if UMCUB_CFG_BOARD_TYPE != 0 && !defined(UMCUB_BUILDING_APP)
+/* mcuboot_port/src/hooks.c: board type check before an image is installed,
+ * validation of encrypted SMP uploads, "was an update performed" for the boot
+ * reason. Not in the application library: bootutil_public.c needs no hooks. */
+#if !defined(UMCUB_BUILDING_APP)
 #define MCUBOOT_IMAGE_ACCESS_HOOKS
 #endif
 

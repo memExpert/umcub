@@ -180,7 +180,7 @@ static void inspect(unsigned action, const char *args, umcub_cmd_reply_t reply)
     if (action == UMCUB_CMD_VERIFY) {
         int rc = umcub_inspect_verify(img, slot);
         say(reply, "%s", rc == 0 ? "ok valid" : rc == UMCUB_ENOTSUP ? "bad no image" :
-                          rc == UMCUB_EINVAL ? "? bad image/slot" : "bad hash or signature");
+                          rc == UMCUB_EINVAL ? "? bad image/slot" : "bad hash, signature or board type");
         return;
     }
     if (action == UMCUB_CMD_HASH) {

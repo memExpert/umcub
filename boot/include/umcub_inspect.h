@@ -23,6 +23,11 @@ uint32_t umcub_inspect_image_len(const struct flash_area *fa);
 /* 0 valid; UMCUB_ENOTSUP no image; UMCUB_EIO invalid hash/signature. */
 int umcub_inspect_verify(int image, int slot);
 
+/* Same check for the image at the start of `fa` (image `image`, `slot` for
+ * the board-type rule). An area whose id is the secondary slot's is hashed
+ * while decrypting (encrypted images); the primary is taken as plain. */
+int umcub_inspect_validate(int image, int slot, const struct flash_area *fa);
+
 /* SHA-256 of [off, off + len) of the slot; len 0 = whole stored image. */
 int umcub_inspect_hash(int image, int slot, uint32_t off, uint32_t len, uint8_t out[32], uint32_t *hashed_len);
 
