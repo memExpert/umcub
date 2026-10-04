@@ -76,6 +76,23 @@ VARIANTS = [
 LABELS = {"UART": "UART (+SMP)", "Ethernet": "Ethernet (+DHCP)", "log": "log (level 3)",
           "commands": "text commands", "verify+hash": "verify + hash", "link": "umcub link (addressed)",
           "secure": "umcub link SECURE", "encryption": "+ link encryption"}
+# Sectors the bootloader region needs: sector layouts from the start of flash
+# (KiB), sizes taken from the measured row CHIPS[chip] - for series without a
+# port an estimate from a build for the same core. None = page flash (any size,
+# shown in KiB). The bootloader region also holds the 256-byte info block.
+LAYOUTS = [
+    ("STM32H7 (128 KiB sectors)", 0, [128] * 8, ""),
+    ("STM32F2 / F4, F72x / F73x (16, 16, 16, 16, 64, 128 KiB ...)", 1, [16] * 4 + [64] + [128] * 7,
+     "estimate: Cortex-M4 build"),
+    ("STM32F74x ... F77x (32, 32, 32, 32, 128, 256 KiB ...)", 0, [32] * 4 + [128] + [256] * 7,
+     "estimate: Cortex-M7 build"),
+    ("STM32F1 (1 / 2 KiB pages)", 3, None, ""),
+    ("STM32G4 / L4 (2 KiB pages)", 1, None, "estimate: Cortex-M4 build"),
+]
+SECTOR_SETS = ["UART", "USB CDC", "USB CDC+DFU", "CAN", "Ethernet", "secure", "everything"]
+SECTOR_LABELS = {"UART": "UART", "USB CDC": "UART + USB CDC", "USB CDC+DFU": "UART + USB CDC + DFU",
+                 "CAN": "UART + CAN", "Ethernet": "UART + Ethernet", "secure": "UART, link SECURE",
+                 "everything": "all on"}
 README = ROOT / "README.md"
 BEGIN, END = "<!-- size-table:begin -->", "<!-- size-table:end -->"
 TRANSPORTS = ["UART", "USB CDC", "USB DFU", "USB CDC+DFU", "CAN", "CAN FD", "Ethernet", "DFU only"]
@@ -160,7 +177,33 @@ def main():
             rows.append(f"| {c[0]} | " + " | ".join(lead + [cell(ci, col) for col in cols]) + " |")
         return "\n".join(rows)
 
-    tables = table(TRANSPORTS, ["base", "all on"]) + "\n\n" + table(FEATURES, [])
+    def sectors(layout, n):
+        need, used = n + 256, 0
+        for i, s in enumerate(layout):
+            used += s * 1024
+            if used >= need:
+                return i + 1
+        return len(layout) + 1
+
+    def sector_table():
+        rows = ["| Flash layout | " + " | ".join(SECTOR_LABELS[c] for c in SECTOR_SETS) + " |",
+                "|---|" + "---:|" * len(SECTOR_SETS)]
+        for name, ci, layout, note in LAYOUTS:
+            cells = []
+            for col in SECTOR_SETS:
+                n = size.get((ci, col))
+                if n is None:
+                    cells.append("—")
+                elif layout is None:
+                    cells.append(kb(n))
+                else:
+                    k = sectors(layout, n)
+                    cells.append(f"{k} ({kb(n)})" + (" > 3" if k > 3 else ""))
+            rows.append(f"| {name}{' — ' + note if note else ''} | " + " | ".join(cells) + " |")
+        return "\n".join(rows)
+
+    tables = (table(TRANSPORTS, ["base", "all on"]) + "\n\n" + table(FEATURES, []) + "\n\n" +
+              sector_table())
     if not (a.update or a.check):
         print(tables)
         return

@@ -157,6 +157,16 @@ ECDSA-P256), and what every transport and feature adds. Regenerate with `tools/s
 - The other columns are counted on top of base + UART.
 - **DFU only** is USB DFU as the only transport, on top of base. Without an SMP transport, `boot_serial` is not
   compiled at all.
+- The third table answers how much flash the bootloader region needs for a set of transports: whole erase
+  sectors from the start of flash (absolute size in brackets, including the 256-byte info block).
+
+**Rule: the bootloader region is a whole number of erase sectors, and on parts with large sectors at most three.**
+Every sector given to the bootloader is lost for the slots, and on parts whose first sectors are small (F2/F4/F7) the
+fourth sector is already 64 or 128 KiB. Choose the transports so that the build fits: on the H7 everything fits into
+one 128 KiB sector; on 16 KiB sectors base + UART takes two, USB or the SECURE link a third, and "all on" does not
+fit into three. Page flash (F1, G4, L4: 1-4 KiB pages) has no such limit: size the region in pages with some
+reserve, the slots take the rest. Rows marked "estimate" are series without a port yet, sized from a build for the
+same core; check the real size after porting.
 
 <!-- size-table:begin -->
 | MCU | base | all on | UART (+SMP) | USB CDC | USB DFU | USB CDC+DFU | CAN | CAN FD | Ethernet (+DHCP) | DFU only |
@@ -172,6 +182,14 @@ ECDSA-P256), and what every transport and feature adds. Regenerate with `tools/s
 | STM32H755 CM4 (PER_CORE) | +2.6 K | +2.9 K | +1.0 K | +0.2 K | +1.6 K | +4.7 K | +1.6 K | +6.5 K |
 | STM32H743 / H753 (single core) | +2.6 K | +2.9 K | +1.0 K | +0.2 K | +1.6 K | +4.7 K | +1.6 K | +6.8 K |
 | STM32F103 (Blue Pill, overwrite) | +2.2 K | +2.7 K | +1.0 K | +0.2 K | +1.6 K | +4.7 K | +1.6 K | +6.5 K |
+
+| Flash layout | UART | UART + USB CDC | UART + USB CDC + DFU | UART + CAN | UART + Ethernet | UART, link SECURE | all on |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| STM32H7 (128 KiB sectors) | 1 (30.0 K) | 1 (41.2 K) | 1 (43.3 K) | 1 (32.3 K) | 1 (34.1 K) | 1 (34.7 K) | 1 (56.8 K) |
+| STM32F2 / F4, F72x / F73x (16, 16, 16, 16, 64, 128 KiB ...) — estimate: Cortex-M4 build | 2 (27.4 K) | 3 (38.5 K) | 3 (40.6 K) | 2 (29.7 K) | 2 (31.4 K) | 3 (32.1 K) | 4 (53.8 K) > 3 |
+| STM32F74x ... F77x (32, 32, 32, 32, 128, 256 KiB ...) — estimate: Cortex-M7 build | 1 (30.0 K) | 2 (41.2 K) | 2 (43.3 K) | 2 (32.3 K) | 2 (34.1 K) | 2 (34.7 K) | 2 (56.8 K) |
+| STM32F1 (1 / 2 KiB pages) | 23.9 K | 33.7 K | 35.7 K | — | — | 28.6 K | 41.7 K |
+| STM32G4 / L4 (2 KiB pages) — estimate: Cortex-M4 build | 27.4 K | 38.5 K | 40.6 K | 29.7 K | 31.4 K | 32.1 K | 53.8 K |
 <!-- size-table:end -->
 
 Notes:
