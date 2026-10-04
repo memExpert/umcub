@@ -21,14 +21,6 @@ Done:
   200 KiB in ~2 s; `dfu-util -U`.
 - [x] UART (USART3 VCP and USART1 on Arduino D0/D1), USB CDC, USB DFU, entry pin B1, application request,
   swap-scratch upgrade / revert / confirm, text commands over UART and USB CDC.
-
-Open:
-
-- [ ] **Ethernet** — DHCP (DISCOVER/OFFER/REQUEST/ACK, renewal, static fallback), ARP, ping, SMP over UDP
-  (`mcumgr --conntype udp`). JP6 and JP7 must be fitted (UM2408 §7.12). Test 100 and 10 Mbit/s separately (the
-  ES0445 2.25.10 workaround is active at 10 Mbit/s only). Needs a cable.
-- [ ] **CAN / CAN-FD on a bus** — ISO-TP + SMP with `tools/smp_can.py`. Needs a transceiver on PD0/PD1 and a USB-CAN
-  adapter. Only the FDCAN initialisation (internal loopback, timing registers) is verified.
 - [x] Power-loss test for **swap-move and swap-offset** (`tools/hw/powerfail_test.py`, swap-offset with
   `--revert-copy`): 16 points each over upgrade and revert, 0 failures.
 - [x] Upgrade modes **overwrite, swap-move, swap-offset, direct-xip, direct-xip-revert** on hardware: application
@@ -37,6 +29,20 @@ Open:
   Found and fixed: overwrite showed the installed image as "NOT confirmed"; the single-file library did not build
   in the direct-xip modes (name clash) and MCUboot's fallthrough warning broke `-Werror` builds - the matrix now
   builds `umcub_app_all.c` in every upgrade mode.
+- [x] H755 regression after the F1 work and the duplication cleanup: signed examples with the board-type TLV,
+  both cores start (`port/common` init / deinit / jump, CM4 park loop and release), USB CDC and DFU in recovery
+  (shared `h7_hsi48_on()`, ULPI sleep clock left to tinyUSB), RNG for the SECURE handshake, USB not enumerated in
+  the 300 ms entry window (`b` in the window stays), DFU download 1.5.0 in 6.4 s -> test boot, `last update via
+  usb-dfu / app / uart`. CM4 updated through image 1's secondary slot from the CM7 application; writing image 1's
+  primary (running CM4 code) from the CM7 application is refused with `UMCUB_EBUSY`.
+
+Open:
+
+- [ ] **Ethernet** — DHCP (DISCOVER/OFFER/REQUEST/ACK, renewal, static fallback), ARP, ping, SMP over UDP
+  (`mcumgr --conntype udp`). JP6 and JP7 must be fitted (UM2408 §7.12). Test 100 and 10 Mbit/s separately (the
+  ES0445 2.25.10 workaround is active at 10 Mbit/s only). Needs a cable.
+- [ ] **CAN / CAN-FD on a bus** — ISO-TP + SMP with `tools/smp_can.py`. Needs a transceiver on PD0/PD1 and a USB-CAN
+  adapter. Only the FDCAN initialisation (internal loopback, timing registers) is verified.
 - [ ] Text commands and verify / hash / read over **UDP and CAN** (host tests only).
 - [ ] Downgrade prevention (`UMCUB_CFG_DOWNGRADE_PREVENTION`) in swap modes.
 - [ ] **IDE workflow** (README "Using umcub from an IDE") in real STM32CubeIDE and Keil MDK projects: post-build
@@ -67,9 +73,6 @@ Done (bootloader 28.3 K in 32 K, two 16 K slots, overwrite, USART1 PA9/PA10 1152
 - [x] Watchdog (`UMCUB_CFG_WATCHDOG_MS` = 2 s, IWDG on LSI): an application that feeds it runs without resets, one
   that stops (example key `w`) is reset after 1.99 s (3 of 3, reset cause watchdog); boot incl. ECDSA (0.65 s),
   12 s idle recovery, SMP upload over CDC, DFU download and the overwrite copy complete without a reset.
-
-Open:
-
 - [x] Power-loss test of the overwrite copy (`tools/hw/powerfail_test.py --mode overwrite`, fault record in the
   last 16 bytes of the handoff area): 57 resets at erase / half-word program operations spread over the 6266 of a
   12 KiB upgrade, every one completed with primary == v2.
@@ -79,16 +82,13 @@ Open:
   image keeps running, `boot reason: normal`) and in the primary slot (SMP upload: "is for board type ...",
   recovery); `verify` reports it invalid. Found and fixed: the boot reason said `upgraded` although MCUboot had
   refused the update - now confirmed by the primary image having changed.
-- [ ] F1 port of bxCAN; F105/F107 (PREDIV1, 25 MHz HSE, USB OTG FS); XL-density bank 2.
-- [x] H755 regression after the F1 work and the duplication cleanup: signed examples with the board-type TLV,
-  both cores start (`port/common` init / deinit / jump, CM4 park loop and release), USB CDC and DFU in recovery
-  (shared `h7_hsi48_on()`, ULPI sleep clock left to tinyUSB), RNG for the SECURE handshake, USB not enumerated in
-  the 300 ms entry window (`b` in the window stays), DFU download 1.5.0 in 6.4 s -> test boot, `last update via
-  usb-dfu / app / uart`. CM4 updated through image 1's secondary slot from the CM7 application; writing image 1's
-  primary (running CM4 code) from the CM7 application is refused with `UMCUB_EBUSY`.
 - [x] Blue Pill after the duplication cleanup (`port/common/`, mux line buffers per stream transport, smpclient
   host tools): boot and jump, application request -> recovery, `smpmgr` echo and upload (5.2 KB in 1.4 s),
   `umcub_inspect.py` hash (MATCH) / verify over smpclient, text command `i`, boot of the uploaded 1.1.0.
+
+Open:
+
+- [ ] F1 port of bxCAN; F105/F107 (PREDIV1, 25 MHz HSE, USB OTG FS); XL-density bank 2.
 
 ## Shared buses: umcub link (plan stages)
 
@@ -98,8 +98,8 @@ Open:
 - [x] 4. SECURE: challenge signed with the admin key, ECDH with the device key, HKDF, per-frame HMAC, replay
   protection, AES-CTR payload encryption, RDP policy, idle timeout, key embedding (`tools/umcub_keys.py`);
   host test `umcub_host_link_secure` (also under ASan/UBSan). Builds: H7 `link-secure` (all transports, with
-  encryption) 60.3 K, Blue Pill `bluepill-rs485-secure` 31.8 K in a 36 K region (`tools/config/bluepill_rs485_secure.h`: 36 K + 2 x 14 K) - SECURE with encryption or more transports
-  needs a larger bootloader region on the F1.
+  encryption) 60.3 K, Blue Pill `bluepill-rs485-secure` 31.8 K in a 36 K region (36 K + 2 x 14 K slots) - on the
+  F1 SECURE needs more than the default 32 K region.
 - [x] 5. Image encryption (MCUboot ENC_EC256 with the device key): `<app>.encrypted.bin` from `umcub_sign_image()` /
   `umcub_image.py`; own in-place decryption after an SMP upload into the primary slot (MCUboot's keeps a whole
   sector on the stack), off on the H7 CM4 bootloader (no RAM for a 128 KiB sector); verify of an encrypted
@@ -132,20 +132,16 @@ Open:
 
 - [ ] Security review leftovers: (a) one device key per product - per-device keys (provisioning, key derived from
   the UID + a master on the host), H7 PCROP / secure-access area for the key; on the F1, RDP level 1 can be
-  defeated by known attacks, so the key there is only as safe as the product's physical access; (b) done: an encrypted SMP
-  upload into the primary slot is validated before the in-place decryption (rc 3 to the client otherwise; the old
-  image is gone at that point anyway, as with any upload into the primary slot); (c) `MCUBOOT_SWAP_SAVE_ENCTLV` (keep the
-  wrapped key in the trailer instead of the plain AES key) for the swap modes; (d) F1 entropy quality not measured
-  (ADC temperature noise + jitter).
+  defeated by known attacks, so the key there is only as safe as the product's physical access;
+  (b) `MCUBOOT_SWAP_SAVE_ENCTLV` (keep the wrapped key in the trailer instead of the plain AES key) for the swap
+  modes; (c) F1 entropy quality not measured (ADC temperature noise + jitter). Done: an encrypted SMP upload into
+  the primary slot is validated before the in-place decryption.
 - [ ] MCUboot submodule is v2.4.0: `main` already wipes the AES key on every path of `boot_serial_encryption.c`.
   Its in-place decryption still needs a sector-sized VLA on the stack, assumes uniform sectors and does not
   validate first, so `mcuboot_port/src/enc_image.c` replaces it (issue draft prepared). Drop our copy once upstream
   takes a port-provided buffer; update the submodule after the next release.
 - [ ] Recovery over the network / CAN is not authenticated without `UMCUB_LINK_SECURE` (see README, "Mode notes
   and limitations").
-- [x] An application on one core could erase the running image of the other core: `umcub_slot_*` now also refuses
-  every slot the bootloader started an image from (handoff `image_addr`); verified on the H755 (CM7 application
-  writing image 1's primary -> `UMCUB_EBUSY`).
 - [ ] When the application writes a slot in the same flash bank it executes from, the CPU stalls for the duration of a
   sector erase (~2 s on the H7).
 - [ ] Ports for other series (G4, F7, G0, L4).
