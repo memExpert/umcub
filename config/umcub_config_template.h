@@ -117,6 +117,27 @@
 /* #define UMCUB_CFG_RECOVERY_TIMEOUT_MS  0 */
 
 /* ======================================================================== */
+/* Recovery protocols                                                       */
+/* ======================================================================== */
+
+/* SMP (MCUboot serial recovery: mcumgr / smpmgr) on UART, USB CDC, CAN, UDP
+ * and the board transport. 0 leaves boot_serial, zcbor and the SMP framing
+ * out (about 10 K): images then come through the lite upload protocol below,
+ * USB DFU, the application (umcub_slot_*) or the board's own protocol. */
+/* #define UMCUB_CFG_SMP_ENABLE           1 */
+/* Built-in lite upload protocol (about 1 K plus the slot writer; host tool
+ * tools/umcub_lite.py): begin / data / end frames with CRC on the same
+ * transports, written with umcub_slot_* (header check, test or permanent
+ * mark, in-place decryption of encrypted images). Default: on without SMP. */
+/* #define UMCUB_CFG_LITE_UPLOAD          (1 - UMCUB_CFG_SMP_ENABLE) */
+/* Board protocol: frames that are neither SMP, lite nor a text command go to
+ * umcub_proto_user() in boards/<b>/umcub_board.c (packets of packet
+ * transports and umcub link DATA payloads; on stream transports lines
+ * 0x05 0x0D <base64> \n). Answer with umcub_proto_reply(); umcub_slot_* is
+ * available to write images. */
+/* #define UMCUB_CFG_PROTO_USER           0 */
+
+/* ======================================================================== */
 /* Text commands                                                            */
 /* ======================================================================== */
 

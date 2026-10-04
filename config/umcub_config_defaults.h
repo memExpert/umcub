@@ -295,11 +295,22 @@
 #define UMCUB_CFG_USB_DFU_ALLOW_UNAUTH  0
 #endif
 
+#ifndef UMCUB_CFG_SMP_ENABLE
+#define UMCUB_CFG_SMP_ENABLE            1
+#endif
+#ifndef UMCUB_CFG_LITE_UPLOAD
+#define UMCUB_CFG_LITE_UPLOAD           (1 - UMCUB_CFG_SMP_ENABLE)
+#endif
+#ifndef UMCUB_CFG_PROTO_USER
+#define UMCUB_CFG_PROTO_USER            0
+#endif
 /* Derived: some transport speaks SMP (boot_serial, zcbor, SMP inspection
  * group are compiled only then; USB DFU alone does not need them). */
-#define UMCUB_CFG_SMP                   (UMCUB_CFG_TRANSPORT_UART | UMCUB_CFG_TRANSPORT_USB_CDC | \
-                                         UMCUB_CFG_TRANSPORT_CAN | UMCUB_CFG_TRANSPORT_ETH | \
-                                         UMCUB_CFG_TRANSPORT_USER)
+#define UMCUB_CFG_SMP                   ((UMCUB_CFG_TRANSPORT_UART | UMCUB_CFG_TRANSPORT_USB_CDC | \
+                                          UMCUB_CFG_TRANSPORT_CAN | UMCUB_CFG_TRANSPORT_ETH | \
+                                          UMCUB_CFG_TRANSPORT_USER) * UMCUB_CFG_SMP_ENABLE)
+/* Derived: a recovery protocol writes slots itself (umcub_slot_* in the bootloader). */
+#define UMCUB_CFG_SLOT_WRITER_BOOT      (UMCUB_CFG_TRANSPORT_USB_DFU + UMCUB_CFG_LITE_UPLOAD + UMCUB_CFG_PROTO_USER)
 #ifndef UMCUB_CFG_ETH_DHCP
 #define UMCUB_CFG_ETH_DHCP              1
 #endif

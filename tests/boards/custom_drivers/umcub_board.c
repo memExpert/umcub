@@ -45,3 +45,15 @@ const umcub_transport_t umcub_transport_user = {
     .id = UMCUB_TRANSPORT_USER, .name = "user", .init = user_init, .deinit = user_deinit,
     .send_packet = user_send,
 };
+
+/* Board protocol (UMCUB_CFG_PROTO_USER): frames starting with 'Z' write a
+ * slot through umcub_slot_* - here just answered, as a build check. */
+bool umcub_proto_user(const umcub_transport_t *t, const uint8_t *data, size_t len)
+{
+    if (len == 0 || data[0] != 'Z') {
+        return false;
+    }
+    static const uint8_t ok[] = { 'Z', 0 };
+    umcub_proto_reply(t, ok, sizeof(ok));
+    return true;
+}

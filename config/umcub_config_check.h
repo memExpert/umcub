@@ -133,6 +133,12 @@
 #warning "umcub: a PLAIN transport next to a SECURE one is not authenticated (set UMCUB_CFG_LINK_MIXED_OK 1 if intended)"
 #endif
 
+#if !UMCUB_CFG_SMP_ENABLE && !UMCUB_CFG_LITE_UPLOAD && !UMCUB_CFG_PROTO_USER && \
+    (UMCUB_CFG_TRANSPORT_UART || UMCUB_CFG_TRANSPORT_USB_CDC || UMCUB_CFG_TRANSPORT_CAN || UMCUB_CFG_TRANSPORT_ETH || \
+     UMCUB_CFG_TRANSPORT_USER)
+#warning "umcub: no SMP, lite upload or board protocol - recovery over UART/CDC/CAN/UDP cannot install images"
+#endif
+
 #if !UMCUB_CFG_TRANSPORT_UART && !UMCUB_CFG_USB && !UMCUB_CFG_TRANSPORT_CAN && !UMCUB_CFG_TRANSPORT_ETH && \
     !UMCUB_CFG_TRANSPORT_USER
 #warning "umcub: no transport enabled - updates only via the application (umcub_slot_*)"

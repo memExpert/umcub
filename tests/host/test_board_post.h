@@ -20,6 +20,7 @@
 #define UMCUB_CFG_ETH_DRIVER UMCUB_DRIVER_BOARD     /* e.g. ENC28J60 on SPI */
 
 #define UMCUB_CFG_TRANSPORT_USER 1                  /* e.g. W5500 UDP socket */
+#define UMCUB_CFG_PROTO_USER 1                      /* board protocol next to SMP */
 
 #undef UMCUB_CFG_CMD_ENABLE
 #undef UMCUB_CFG_CMD_TABLE

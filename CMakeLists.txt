@@ -83,6 +83,12 @@ set(MCUBOOT_SOURCES
   ${TINYCRYPT}/source/sha256.c
   ${TINYCRYPT}/source/utils.c
 )
+if(UMCUB_CFG_SLOT_WRITER_BOOT)    # USB DFU, lite upload, board protocol write slots themselves
+  list(APPEND BOOT_SOURCES lib/umcub_app/src/slot_writer.c lib/umcub_app/src/umcub.c)
+endif()
+if(UMCUB_CFG_LITE_UPLOAD)         # lite upload protocol (without SMP)
+  list(APPEND BOOT_SOURCES transport/lite.c)
+endif()
 if(UMCUB_CFG_SMP)                 # some transport speaks SMP: MCUboot serial recovery
   list(APPEND BOOT_SOURCES boot/smp_inspect.c)
   list(APPEND MCUBOOT_SOURCES
@@ -195,8 +201,7 @@ if(UMCUB_CFG_TRANSPORT_USB_CDC OR UMCUB_CFG_TRANSPORT_USB_DFU)
     list(APPEND BOOT_SOURCES ${TUSB}/class/cdc/cdc_device.c)
   endif()
   if(UMCUB_CFG_TRANSPORT_USB_DFU)
-    list(APPEND BOOT_SOURCES ${TUSB}/class/dfu/dfu_device.c transport/usb/usb_dfu.c
-      lib/umcub_app/src/slot_writer.c lib/umcub_app/src/umcub.c)
+    list(APPEND BOOT_SOURCES ${TUSB}/class/dfu/dfu_device.c transport/usb/usb_dfu.c)
   endif()
   list(APPEND BOOT_INCLUDES ${TUSB} ${UMCUB_ROOT}/transport/usb)
 endif()

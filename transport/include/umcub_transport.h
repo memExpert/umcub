@@ -68,6 +68,16 @@ void umcub_transports_init_entry_window(void);
 void umcub_transports_deinit(void);
 void umcub_transports_poll(void);
 
+/* UMCUB_CFG_PROTO_USER: implemented by the board (boards/<b>/umcub_board.c).
+ * A frame that is neither SMP, a lite upload frame nor a text command: a
+ * packet of a packet transport, a umcub link DATA payload, or the decoded
+ * line "0x05 0x0D <base64> \n" of a plain stream transport. Return true if
+ * it was yours (the bootloader then stays in recovery during the entry
+ * window). Write images with umcub_slot_* (umcub.h). */
+bool umcub_proto_user(const umcub_transport_t *t, const uint8_t *data, size_t len);
+/* Answer `t` with one frame (a packet, or a 0x05 0x0D line on a plain stream). */
+void umcub_proto_reply(const umcub_transport_t *t, const uint8_t *data, size_t len);
+
 /* Poll for up to `ms`; true as soon as a host started talking SMP (the
  * request is kept and served by umcub_recovery_run()). */
 bool umcub_recovery_wait(uint32_t ms);

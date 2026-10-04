@@ -57,6 +57,7 @@ VARIANTS = [
     ("USB DFU", {**UART, "TRANSPORT_USB_DFU": 1}, "UART"),
     ("USB CDC+DFU", {**UART, "TRANSPORT_USB_CDC": 1, "TRANSPORT_USB_DFU": 1}, "UART"),
     ("DFU only", {"TRANSPORT_USB_DFU": 1}, "base"),
+    ("UART lite", {**UART, "SMP_ENABLE": 0}, "base"),
     ("CAN", {**UART, "TRANSPORT_CAN": 1}, "UART"),
     ("CAN FD", {**UART, "TRANSPORT_CAN": 1, "CAN_FD": 1}, "UART"),
     ("Ethernet", {**UART, "TRANSPORT_ETH": 1}, "UART"),
@@ -74,7 +75,7 @@ VARIANTS = [
 ]
 # README column names
 LABELS = {"UART": "UART (+SMP)", "Ethernet": "Ethernet (+DHCP)", "log": "log (level 3)",
-          "commands": "text commands", "verify+hash": "verify + hash", "link": "umcub link (addressed)",
+          "commands": "text commands", "UART lite": "UART, lite upload (no SMP)", "verify+hash": "verify + hash", "link": "umcub link (addressed)",
           "secure": "umcub link SECURE", "encryption": "+ link encryption"}
 # Sectors the bootloader region needs: sector layouts from the start of flash
 # (KiB), sizes taken from the measured row CHIPS[chip] - for series without a
@@ -89,13 +90,13 @@ LAYOUTS = [
     ("STM32F1 (1 / 2 KiB pages)", 3, None, ""),
     ("STM32G4 / L4 (2 KiB pages)", 1, None, "estimate: Cortex-M4 build"),
 ]
-SECTOR_SETS = ["UART", "USB CDC", "USB CDC+DFU", "CAN", "Ethernet", "secure", "everything"]
-SECTOR_LABELS = {"UART": "UART", "USB CDC": "UART + USB CDC", "USB CDC+DFU": "UART + USB CDC + DFU",
+SECTOR_SETS = ["UART lite", "UART", "USB CDC", "USB CDC+DFU", "CAN", "Ethernet", "secure", "everything"]
+SECTOR_LABELS = {"UART lite": "UART, lite (no SMP)", "UART": "UART", "USB CDC": "UART + USB CDC", "USB CDC+DFU": "UART + USB CDC + DFU",
                  "CAN": "UART + CAN", "Ethernet": "UART + Ethernet", "secure": "UART, link SECURE",
                  "everything": "all on"}
 README = ROOT / "README.md"
 BEGIN, END = "<!-- size-table:begin -->", "<!-- size-table:end -->"
-TRANSPORTS = ["UART", "USB CDC", "USB DFU", "USB CDC+DFU", "CAN", "CAN FD", "Ethernet", "DFU only"]
+TRANSPORTS = ["UART", "USB CDC", "USB DFU", "USB CDC+DFU", "CAN", "CAN FD", "Ethernet", "DFU only", "UART lite"]
 FEATURES = ["log", "commands", "verify+hash", "readback", "link", "secure", "encryption", "encrypted images"]
 
 

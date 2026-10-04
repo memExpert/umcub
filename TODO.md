@@ -82,6 +82,9 @@ Done (bootloader 28.3 K in 32 K, two 16 K slots, overwrite, USART1 PA9/PA10 1152
   image keeps running, `boot reason: normal`) and in the primary slot (SMP upload: "is for board type ...",
   recovery); `verify` reports it invalid. Found and fixed: the boot reason said `upgraded` although MCUboot had
   refused the update - now confirmed by the primary image having changed.
+- [x] Recovery without SMP (`UMCUB_CFG_SMP_ENABLE 0`, 24.5 K with log and commands): `tools/umcub_lite.py` upload
+  over UART into the primary slot (5.2 KB in 0.9 s, boots, `last update via uart`) and into the secondary slot with
+  a test mark (overwrite upgrade); a tampered image in the secondary slot is refused by MCUboot, the old image runs.
 - [x] Blue Pill after the duplication cleanup (`port/common/`, mux line buffers per stream transport, smpclient
   host tools): boot and jump, application request -> recovery, `smpmgr` echo and upload (5.2 KB in 1.4 s),
   `umcub_inspect.py` hash (MATCH) / verify over smpclient, text command `i`, boot of the uploaded 1.1.0.

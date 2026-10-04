@@ -9,3 +9,5 @@
 #define UMCUB_CFG_CAN_DRIVER            UMCUB_DRIVER_BOARD
 #define UMCUB_CFG_ETH_DRIVER            UMCUB_DRIVER_BOARD
 #define UMCUB_CFG_TRANSPORT_USER        1
+/* Board protocol next to SMP: umcub_proto_user() in umcub_board.c. */
+#define UMCUB_CFG_PROTO_USER            1

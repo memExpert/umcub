@@ -139,6 +139,19 @@ bool umcub_cmd_user(unsigned id, const char *text, umcub_cmd_reply_t reply)
     return true;
 }
 
+/* Board protocol (UMCUB_CFG_PROTO_USER): frames starting with 'Z'. */
+static int proto_frames;
+bool umcub_proto_user(const umcub_transport_t *t, const uint8_t *data, size_t len)
+{
+    if (len == 0 || data[0] != 'Z') {
+        return false;
+    }
+    proto_frames++;
+    static const uint8_t ok[] = { 'Z', 'o', 'k' };
+    umcub_proto_reply(t, ok, sizeof(ok));
+    return true;
+}
+
 /* ---- helpers ------------------------------------------------------------- */
 
 /* SMP echo request {"d": "hi"} (group 0, id 0, write). */
@@ -206,6 +219,13 @@ int main(void)
     user_out_len = 0;
     mux_step();
     CHECK(user_out_len > 5 && memmem(user_out, user_out_len, "hello from the board", 20) != NULL);
+
+    printf("[board protocol] a frame that is neither SMP nor a command goes to umcub_proto_user()\n");
+    memcpy(user_in, "Zdata", 5);
+    user_in_len = 5;
+    user_out_len = 0;
+    mux_step();
+    CHECK(proto_frames == 1 && user_out_len == 3 && memcmp(user_out, "Zok", 3) == 0);
 
     printf("[board Ethernet driver] link polled, DHCP discover sent through it\n");
     for (int i = 0; i < 50 && eth_tx_n == 0; i++) {

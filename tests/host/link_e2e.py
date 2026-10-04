@@ -136,6 +136,59 @@ def can_tools(build, py):
         sim.wait(5)
 
 
+def lite_tools(build, py):
+    """Bootloaders without SMP: tools/umcub_lite.py on a stream (pty) and on CAN."""
+    print("[e2e] without SMP: umcub_lite.py upload over a stream and over CAN, verify", flush=True)
+    with tempfile.TemporaryDirectory() as d:
+        subprocess.run([py, os.path.join(ROOT, "tools/umcub_image.py"), "sign", "--board", "nucleo_h755zi_q",
+                        "--core", "cm7", "--pre", os.path.join(ROOT, "tests/host/cfg_swap_scratch.h"),
+                        "--post", os.path.join(ROOT, "tests/host/sim_lite_post.h"), "--version", "4.0.1",
+                        os.path.join(build, "payload.bin"), "-o", os.path.join(d, "app")],
+                       check=True, capture_output=True)
+        img = os.path.join(d, "app.signed.bin")
+        bad = os.path.join(d, "bad.bin")
+        data = bytearray(open(img, "rb").read())
+        data[0x800] ^= 1
+        open(bad, "wb").write(data)
+        lite = [py, os.path.join(ROOT, "tools/umcub_lite.py")]
+
+        sim = subprocess.Popen([os.path.join(build, "umcub_sim_lite")], stdin=subprocess.PIPE,
+                               stdout=subprocess.PIPE, env=dict(os.environ, UMCUB_SIM_ADDR="0", UMCUB_SIM_UID="9"))
+        hub = Hub([sim])
+        hub.start()
+        try:
+            port = lite + ["--port", hub.path]
+            p = subprocess.run(port + ["upload", img], capture_output=True, text=True, timeout=120)
+            check(p.returncode == 0 and "uploaded" in p.stdout, "umcub_lite.py upload over a stream")
+            p = subprocess.run(port + ["cmd", "verify 0 0"], capture_output=True, text=True, timeout=30)
+            check("ok valid" in p.stdout, "text command verify 0 0: valid")
+            p = subprocess.run(port + ["cmd", "i"], capture_output=True, text=True, timeout=30)
+            check("image 0 slot 0: 4.0.1+0" in p.stdout, "text command i: 4.0.1 in slot 0")
+            p = subprocess.run(port + ["upload", bad], capture_output=True, text=True, timeout=120)
+            p = subprocess.run(port + ["cmd", "verify 0 0"], capture_output=True, text=True, timeout=30)
+            check("bad hash" in p.stdout, "tampered upload: verify reports it invalid")
+        finally:
+            hub.stop = True
+            sim.stdin.close()
+            sim.wait(5)
+
+        sim = subprocess.Popen([os.path.join(build, "umcub_sim_can_lite")], stdin=subprocess.PIPE,
+                               stdout=subprocess.PIPE)
+        hub = ByteHub(sim)
+        hub.start()
+        try:
+            can = lite + ["--can", "--interface", "serial", "--channel", hub.path]
+            p = subprocess.run(can + ["upload", img, "--chunk", "512"], capture_output=True, text=True,
+                               timeout=300)
+            check(p.returncode == 0 and "uploaded" in p.stdout, "umcub_lite.py upload over CAN ISO-TP")
+            p = subprocess.run(can + ["cmd", "verify 0 0"], capture_output=True, text=True, timeout=30)
+            check("ok valid" in p.stdout, "text command over CAN: verify 0 0 valid")
+        finally:
+            hub.stop = True
+            sim.stdin.close()
+            sim.wait(5)
+
+
 def plain_tools(build, py, smpmgr):
     """Standard SMP on one plain device: smpmgr upload, tools/umcub_inspect.py (smpclient)."""
     print("[e2e] plain SMP: smpmgr upload, umcub_inspect.py verify / hash / read", flush=True)
@@ -258,6 +311,7 @@ def main():
 
     plain_tools(a.build, py, smpmgr)
     can_tools(a.build, py)
+    lite_tools(a.build, py)
 
     print(f"\n{failures} failure(s)" if failures else "\nALL E2E TESTS PASSED")
     sys.exit(1 if failures else 0)

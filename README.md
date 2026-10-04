@@ -13,7 +13,9 @@ umcub (**U**niversal **MCU**boot **B**ootloader) is a bootloader for STM32 micro
   - USB (tinyUSB) — CDC-ACM with SMP and/or DFU 1.1 (`dfu-util`);
   - CAN / CAN-FD — SMP over ISO-TP (`tools/smp_can.py`);
   - Ethernet — SMP over UDP on a minimal IPv4 stack with DHCP (`mcumgr --conntype udp`);
-  - writing an image from the application itself (`umcub_slot_*`) into a selectable slot.
+  - writing an image from the application itself (`umcub_slot_*`) into a selectable slot;
+  - without SMP (about 6 K smaller): a lite upload protocol on the same transports (`tools/umcub_lite.py`) and/or
+    the board's own protocol.
 - **MCUboot upgrade modes**: overwrite, swap-scratch, swap-move, swap-offset, direct-xip, direct-xip with revert.
 - **Signing**: ECDSA-P256 (tinycrypt), keys and signing with `imgtool`.
 - **Text commands** next to SMP, defined in the config (e.g. press `a` to start the application).
@@ -122,6 +124,7 @@ All options are documented in [`config/umcub_config_template.h`](config/umcub_co
 | Text commands | `UMCUB_CFG_CMD_ENABLE`, `UMCUB_CFG_CMD_IMMEDIATE`, `UMCUB_CFG_CMD_REPLY`, `UMCUB_CFG_CMD_TABLE` |
 | Bootloader entry | `UMCUB_CFG_ENTRY_ON_REQUEST`, `..._ON_NO_IMAGE`, `..._GPIO(_PIN/_ACTIVE/_PULL)`, `..._WAIT_MS`, `UMCUB_CFG_RECOVERY_TIMEOUT_MS` |
 | Transports | `UMCUB_CFG_TRANSPORT_{UART,USB_CDC,USB_DFU,CAN,ETH,USER}` plus their parameters, `UMCUB_CFG_{CAN,ETH}_DRIVER` |
+| Recovery protocols | `UMCUB_CFG_SMP_ENABLE`, `UMCUB_CFG_LITE_UPLOAD`, `UMCUB_CFG_PROTO_USER` |
 | Misc | `UMCUB_CFG_LOG_LEVEL`, `UMCUB_CFG_WATCHDOG_MS`, `UMCUB_CFG_SHARED_RAM_ADDR`, `UMCUB_CFG_APP_WRITE_SLOT` |
 
 The configuration can be extended without editing the board file through overlay headers:
@@ -170,12 +173,12 @@ reserve, the slots take the rest. Rows marked "estimate" are series without a po
 same core; check the real size after porting.
 
 <!-- size-table:begin -->
-| MCU | base | all on | UART (+SMP) | USB CDC | USB DFU | USB CDC+DFU | CAN | CAN FD | Ethernet (+DHCP) | DFU only |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| STM32H755 CM7 (2 images, SINGLE_BOOT) | 19.5 K | 56.8 K | +10.5 K | +11.2 K | +10.6 K | +13.2 K | +2.3 K | +2.3 K | +4.1 K | +11.0 K |
-| STM32H755 CM4 (PER_CORE) | 17.0 K | 53.8 K | +10.3 K | +11.2 K | +10.6 K | +13.2 K | +2.3 K | +2.3 K | +4.0 K | +10.9 K |
-| STM32H743 / H753 (single core) | 17.7 K | 54.6 K | +10.3 K | +11.2 K | +10.6 K | +13.2 K | +2.3 K | +2.3 K | +4.1 K | +10.9 K |
-| STM32F103 (Blue Pill, overwrite) | 13.3 K | 41.7 K | +10.7 K | +9.8 K | +9.1 K | +11.7 K | — | — | — | +9.7 K |
+| MCU | base | all on | UART (+SMP) | USB CDC | USB DFU | USB CDC+DFU | CAN | CAN FD | Ethernet (+DHCP) | DFU only | UART, lite upload (no SMP) |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| STM32H755 CM7 (2 images, SINGLE_BOOT) | 19.5 K | 56.8 K | +10.6 K | +11.2 K | +10.6 K | +13.2 K | +2.3 K | +2.3 K | +4.1 K | +11.0 K | +4.1 K |
+| STM32H755 CM4 (PER_CORE) | 17.0 K | 53.8 K | +10.4 K | +11.2 K | +10.6 K | +13.2 K | +2.3 K | +2.3 K | +4.0 K | +10.9 K | +4.1 K |
+| STM32H743 / H753 (single core) | 17.7 K | 54.6 K | +10.4 K | +11.2 K | +10.6 K | +13.2 K | +2.3 K | +2.3 K | +4.1 K | +10.9 K | +4.1 K |
+| STM32F103 (Blue Pill, overwrite) | 13.2 K | 41.7 K | +10.7 K | +9.8 K | +9.1 K | +11.7 K | — | — | — | +9.8 K | +4.4 K |
 
 | MCU | log (level 3) | text commands | verify + hash | readback | umcub link (addressed) | umcub link SECURE | + link encryption | encrypted images |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -184,13 +187,13 @@ same core; check the real size after porting.
 | STM32H743 / H753 (single core) | +2.6 K | +2.9 K | +1.0 K | +0.2 K | +1.6 K | +4.7 K | +1.6 K | +6.8 K |
 | STM32F103 (Blue Pill, overwrite) | +2.2 K | +2.7 K | +1.0 K | +0.2 K | +1.6 K | +4.7 K | +1.6 K | +6.5 K |
 
-| Flash layout | UART | UART + USB CDC | UART + USB CDC + DFU | UART + CAN | UART + Ethernet | UART, link SECURE | all on |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| STM32H7 (128 KiB sectors) | 1 (30.0 K) | 1 (41.2 K) | 1 (43.3 K) | 1 (32.3 K) | 1 (34.1 K) | 1 (34.7 K) | 1 (56.8 K) |
-| STM32F2 / F4, F72x / F73x (16, 16, 16, 16, 64, 128 KiB ...) — estimate: Cortex-M4 build | 2 (27.4 K) | 3 (38.5 K) | 3 (40.6 K) | 2 (29.7 K) | 2 (31.4 K) | 3 (32.1 K) | 4 (53.8 K) > 3 |
-| STM32F74x ... F77x (32, 32, 32, 32, 128, 256 KiB ...) — estimate: Cortex-M7 build | 1 (30.0 K) | 2 (41.2 K) | 2 (43.3 K) | 2 (32.3 K) | 2 (34.1 K) | 2 (34.7 K) | 2 (56.8 K) |
-| STM32F1 (1 / 2 KiB pages) | 23.9 K | 33.7 K | 35.7 K | — | — | 28.6 K | 41.7 K |
-| STM32G4 / L4 (2 KiB pages) — estimate: Cortex-M4 build | 27.4 K | 38.5 K | 40.6 K | 29.7 K | 31.4 K | 32.1 K | 53.8 K |
+| Flash layout | UART, lite (no SMP) | UART | UART + USB CDC | UART + USB CDC + DFU | UART + CAN | UART + Ethernet | UART, link SECURE | all on |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| STM32H7 (128 KiB sectors) | 1 (23.6 K) | 1 (30.0 K) | 1 (41.2 K) | 1 (43.3 K) | 1 (32.3 K) | 1 (34.1 K) | 1 (34.7 K) | 1 (56.8 K) |
+| STM32F2 / F4, F72x / F73x (16, 16, 16, 16, 64, 128 KiB ...) — estimate: Cortex-M4 build | 2 (21.1 K) | 2 (27.4 K) | 3 (38.5 K) | 3 (40.6 K) | 2 (29.7 K) | 2 (31.4 K) | 3 (32.1 K) | 4 (53.8 K) > 3 |
+| STM32F74x ... F77x (32, 32, 32, 32, 128, 256 KiB ...) — estimate: Cortex-M7 build | 1 (23.6 K) | 1 (30.0 K) | 2 (41.2 K) | 2 (43.3 K) | 2 (32.3 K) | 2 (34.1 K) | 2 (34.7 K) | 2 (56.8 K) |
+| STM32F1 (1 / 2 KiB pages) | 17.6 K | 23.9 K | 33.7 K | 35.7 K | — | — | 28.6 K | 41.7 K |
+| STM32G4 / L4 (2 KiB pages) — estimate: Cortex-M4 build | 21.1 K | 27.4 K | 38.5 K | 40.6 K | 29.7 K | 31.4 K | 32.1 K | 53.8 K |
 <!-- size-table:end -->
 
 Notes:
@@ -205,6 +208,38 @@ Notes:
 - Base + the columns adds up to "all on" within a few hundred bytes. CDC and DFU together cost less than separately:
   they share the USB core.
 - Debug builds (`-Og`) are about 18 % larger.
+
+## Recovery without SMP: lite upload and board protocols
+
+SMP (MCUboot serial recovery) is what `mcumgr` / `smpmgr` speak, and it is the biggest part of a bootloader with a
+transport: `boot_serial`, zcbor and the SMP framing cost about 10 K (see "Bootloader size"). `UMCUB_CFG_SMP_ENABLE 0`
+leaves them out; the transports stay, and images come through the protocols below. With the lite upload protocol a
+UART bootloader is about 6 K smaller (F103: 17.6 K instead of 23.9 K, H7: 23.6 K instead of 30.0 K):
+
+- **the lite upload protocol** (`UMCUB_CFG_LITE_UPLOAD`, on by default without SMP; about 1 K plus the slot writer).
+  Begin / data / end frames with a CRC, every frame answered, lost frames repeated; the image goes through the same
+  slot writer as from the application (header check, test or permanent mark for the secondary slot, in-place
+  decryption and validation of encrypted images in the primary slot). Frames are described in
+  [`transport/include/umcub_lite.h`](transport/include/umcub_lite.h); the host side is `tools/umcub_lite.py`:
+
+  ```sh
+  tools/umcub_lite.py --port /dev/ttyUSB0 upload app.signed.bin            # primary slot, like SMP recovery
+  tools/umcub_lite.py --port /dev/ttyUSB0 upload app.signed.bin --slot secondary --test --reset
+  tools/umcub_lite.py --udp 192.168.1.50 upload app.signed.bin
+  tools/umcub_lite.py --can --channel can0 upload app.signed.bin --chunk 512
+  tools/umcub_lite.py --port /dev/ttyUSB0 cmd "verify 0 0"                  # text commands work as before
+  ```
+
+  On stream transports a frame is a line `0x05 0x0C <base64> \n`; keep `--chunk` (data bytes per frame, default
+  256) below about 3/4 of `UMCUB_CFG_SMP_MTU` (the line buffer). Packet transports carry one frame per packet.
+- **the board's own protocol** (`UMCUB_CFG_PROTO_USER`, also next to SMP): every frame that is neither SMP, lite
+  nor a text command goes to `umcub_proto_user(t, data, len)` in `boards/<b>/umcub_board.c` - a packet of a
+  packet transport, a umcub link DATA payload, or a line `0x05 0x0D <base64> \n` on a stream. Answer with
+  `umcub_proto_reply()`; write images with `umcub_slot_*` (`umcub.h`), which is part of the bootloader then.
+- USB DFU and updates from the application, as with SMP.
+
+Text commands (`verify`, `hash`, `read`, `i`, ...), the umcub link (ADDRESSED and SECURE: DATA payloads are lite
+frames then) and encrypted images work without SMP; the SMP inspection group and `mcumgr` / `smpmgr` do not.
 
 ## Text commands
 
@@ -753,9 +788,9 @@ peripheral a driver touches.
 ## Testing
 
 ```sh
-tools/build_matrix.sh                 # 26 bootloader configurations, examples, IDE checks, host tests; warning-free
+tools/build_matrix.sh                 # 28 bootloader configurations, examples, IDE checks, host tests; warning-free
 ctest --test-dir build/matrix/host    # host tests only
-tests/host/link_e2e.py build/matrix/host   # simulated devices: umcub link bus, smpmgr, host tools
+tests/host/link_e2e.py build/matrix/host   # simulated devices: umcub link bus, smpmgr, host tools, lite upload
 tools/check_docs.py                   # README still matches the repository (size tables, boards, tools, ...)
 ```
 
@@ -768,7 +803,8 @@ replayed / tampered / reordered frames, session end, RDP level 0), encrypted ima
 slot decrypted in place, swap upgrade / revert / confirm with re-encryption, verify of an encrypted secondary,
 readback only inside an encrypted session). `link_e2e.py` runs device simulators (the real mux, link, boot_serial and
 CAN transport on emulated flash) against the host tools: `umcub_link.py` with three nodes on one bus,
-`umcub_inspect.py` on plain SMP, `smp_can.py` on the CAN transport (python-can `serial` bus on a pty).
+`umcub_inspect.py` on plain SMP, `smp_can.py` on the CAN transport (python-can `serial` bus on a pty),
+`umcub_lite.py` on bootloaders without SMP (stream and CAN).
 
 Hardware tests: `tools/hw/powerfail_test.py` resets the MCU in the middle of the K-th flash operation (build with
 `tools/config/fault_inject.h`, test only) and checks that an interrupted upgrade or revert (swap modes) or an
@@ -785,7 +821,7 @@ port/include/    hardware API (umcub_port.h, _uart, _can, _eth, _usb)
 port/common/     Cortex-M part shared by the ports (SysTick, deinit, jump, waits) + common linker sections
 port/stm32h7/    STM32H7 port + linker templates
 port/stm32f1/    STM32F1 port (flash, clocks, GPIO, USART) + linker templates
-transport/       mux (SMP), umcub link, uart, usb (tinyUSB CDC/DFU), can (ISO-TP), net (IPv4/UDP/DHCP)
+transport/       mux (SMP, lite upload, board frames), umcub link, uart, usb (tinyUSB CDC/DFU), can (ISO-TP), net (IPv4/UDP/DHCP)
 lib/umcub_app/   application library (umcub::app); umcub_app_all.c = the whole library as one file for IDEs
 config/          template, defaults, compile-time checks
 boards/          board configurations
@@ -793,7 +829,8 @@ examples/        CM7 / CM4 applications for NUCLEO-H755ZI-Q, Blue Pill applicati
 tools/           setup, build matrix, flashing, option bytes, host tools, keys, hardware tests;
                  umcub_image.py = slot addresses and signing for IDE projects; size_table.py = size tables;
                  check_docs.py = README consistency check; umcub_keys.py = umcub link keys as C arrays;
-                 umcub_smp.py = SMP helpers of the host tools (on smp / smpclient)
+                 umcub_smp.py = SMP helpers of the host tools (on smp / smpclient);
+                 umcub_lite.py = lite upload protocol (bootloaders without SMP)
 tests/host/      host tests
 tests/tools/     helpers for the build matrix
 tests/boards/    build-matrix boards (custom_drivers: board drivers + board transport)

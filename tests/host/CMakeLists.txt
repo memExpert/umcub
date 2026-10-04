@@ -237,6 +237,7 @@ function(umcub_host_link t src post)
     ${src}
     ${ARGN}
     ${UMCUB_ROOT}/transport/link.c
+    ${UMCUB_ROOT}/transport/lite.c
     ${UMCUB_ROOT}/boot/random.c
     fake_port.c
     ${UMCUB_ROOT}/transport/mux.c
@@ -310,6 +311,10 @@ umcub_host_link(umcub_host_link_secure test_link_secure.c test_link_secure_post.
 set(UMCUB_SIM 1)
 umcub_host_link(umcub_sim_plain sim_device.c sim_plain_post.h)
 umcub_host_link(umcub_sim_can sim_can.c sim_can_post.h ${UMCUB_ROOT}/transport/registry.c
+  ${UMCUB_ROOT}/transport/can/can_transport.c ${UMCUB_ROOT}/transport/can/isotp.c)
+# Without SMP: lite upload protocol (tools/umcub_lite.py) on a stream and on CAN.
+umcub_host_link(umcub_sim_lite sim_device.c sim_lite_post.h)
+umcub_host_link(umcub_sim_can_lite sim_can.c sim_can_lite_post.h ${UMCUB_ROOT}/transport/registry.c
   ${UMCUB_ROOT}/transport/can/can_transport.c ${UMCUB_ROOT}/transport/can/isotp.c)
 umcub_host_link(umcub_sim_addressed sim_device.c test_link_post.h)
 umcub_host_link(umcub_sim_secure sim_device.c test_link_secure_post.h

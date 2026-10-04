@@ -28,7 +28,13 @@
 #endif
 #if UMCUB_CFG_SMP
 #include "boot_serial/boot_serial.h"
+#endif
+#define FRAMES (UMCUB_CFG_LITE_UPLOAD || UMCUB_CFG_PROTO_USER)
+#if UMCUB_CFG_SMP || FRAMES
 #include "base64/base64.h"
+#endif
+#if FRAMES
+#include "umcub_lite.h"
 #endif
 /* NLIP line starts and boot_serial_input() (on the include path, used
  * without boot_serial too: plain streams still tell NLIP from text). */
@@ -164,6 +170,66 @@ static bool is_smp_packet(const uint8_t *p, size_t len)
     return len >= 8 && (p[0] & 0x07u) <= 3u && (size_t)((p[2] << 8) | p[3]) == len - 8u;
 }
 
+/* SMP only if this build speaks it: without SMP every packet is a lite /
+ * board frame or a text command. */
+static bool smp_packet(const uint8_t *p, size_t len)
+{
+    return UMCUB_CFG_SMP && is_smp_packet(p, len);
+}
+
+static void touch(const umcub_transport_t *t);
+
+#if FRAMES
+/* A recovery protocol (lite upload, board protocol) took a frame: stay in
+ * the bootloader (entry window). */
+static bool frame_seen;
+
+void umcub_mux_send_frame(const umcub_transport_t *t, uint8_t kind, const uint8_t *frame, size_t len)
+{
+    if (!nlip_stream(t)) {
+        tx_packet(t, frame, len);
+        return;
+    }
+    static char line[2 + 4 * ((512 + 2) / 3) + 2];
+    if (len > 512) {
+        return;
+    }
+    line[0] = UMCUB_FRAME_LINE_START;
+    line[1] = (char)kind;
+    int n = base64_encode(frame, (int)len, &line[2], 1);
+    line[2 + n] = '\n';
+    t->write((const uint8_t *)line, (size_t)n + 3u);
+}
+
+#if UMCUB_CFG_PROTO_USER
+void umcub_proto_reply(const umcub_transport_t *t, const uint8_t *data, size_t len)
+{
+    umcub_mux_send_frame(t, UMCUB_FRAME_USER, data, len);
+}
+#endif
+
+/* A frame of `kind` (lite upload or board protocol). */
+static bool frame_rx(const umcub_transport_t *t, uint8_t kind, const uint8_t *f, size_t len)
+{
+    bool taken = false;
+#if UMCUB_CFG_LITE_UPLOAD
+    if (kind == UMCUB_FRAME_LITE) {
+        taken = umcub_lite_rx(t, f, len);
+    }
+#endif
+#if UMCUB_CFG_PROTO_USER
+    if (!taken && kind == UMCUB_FRAME_USER) {
+        taken = umcub_proto_user(t, f, len);
+    }
+#endif
+    if (taken) {
+        touch(t);
+        frame_seen = true;
+    }
+    return taken;
+}
+#endif
+
 /* pending raw packet from a packet transport */
 static uint8_t pkt_buf[UMCUB_CFG_SMP_MTU + 1];
 static size_t pkt_len;
@@ -242,6 +308,25 @@ static void pump_link_stream(unsigned i)
 }
 #endif
 
+#if FRAMES
+/* "05 <kind> <base64> \n" on a plain stream transport. */
+static void frame_line(const umcub_transport_t *t, char *buf, size_t len)
+{
+    static uint8_t frame[(LINE_MAX / 4) * 3 + 3];
+    if (len < 4) {
+        return;
+    }
+    buf[len - 1] = '\0';                   /* drop the newline */
+    if (base64_decode_len(&buf[2]) > (int)sizeof(frame)) {
+        return;
+    }
+    int n = base64_decode(&buf[2], frame);
+    if (n > 0) {
+        (void)frame_rx(t, (uint8_t)buf[1], frame, (size_t)n);
+    }
+}
+#endif
+
 /* Pull bytes of stream transport i until a full line is assembled. */
 static void pump_stream(unsigned i)
 {
@@ -250,8 +335,9 @@ static void pump_stream(unsigned i)
     uint8_t c;
 
     while (l && !l->ready && t->read(&c, 1) == 1) {
-        bool nlip = l->len ? ((uint8_t)l->buf[0] == NLIP_PKT_START1 || (uint8_t)l->buf[0] == NLIP_DATA_START1)
-                           : (c == NLIP_PKT_START1 || c == NLIP_DATA_START1);
+        uint8_t first = l->len ? (uint8_t)l->buf[0] : c;
+        bool nlip = first == NLIP_PKT_START1 || first == NLIP_DATA_START1 ||
+                    (FRAMES && first == 0x05);   /* 05 0C / 05 0D: lite upload / board frame line */
         if (!nlip) {
             /* Console text: a configured command or noise. */
 #if UMCUB_CFG_CMD_ENABLE
@@ -292,13 +378,37 @@ static void pump_stream(unsigned i)
         if (c != '\n') {
             continue;
         }
-        if (l->len > 3) {
+#if FRAMES
+        if ((uint8_t)l->buf[0] == 0x05) {
+            frame_line(t, l->buf, l->len);
+            l->len = 0;
+            continue;
+        }
+#endif
+        if (l->len > 3 && UMCUB_CFG_SMP) {     /* an NLIP line for boot_serial */
             l->buf[l->len] = '\0';
             l->ready = true;
         } else {
             l->len = 0;
         }
     }
+}
+
+/* A packet that is not SMP: lite upload, board protocol or a text command. */
+static void other_packet(const umcub_transport_t *t, const uint8_t *p, size_t len)
+{
+#if FRAMES
+    if (frame_rx(t, p[0] == UMCUB_LITE_MAGIC ? UMCUB_FRAME_LITE : UMCUB_FRAME_USER, p, len)) {
+        return;
+    }
+#endif
+#if UMCUB_CFG_CMD_ENABLE
+    cmd_run(t, (const char *)p, len);
+#else
+    (void)t;
+    (void)p;
+    (void)len;
+#endif
 }
 
 static void pump_all(void)
@@ -352,10 +462,8 @@ static int mux_read(char *str, int cnt, int *newline)
 
     /* A raw packet waits while a stream is in the middle of a multi-line
      * packet: its response must not release that stream's lock. */
-    if (pkt_len && locked < 0 && !is_smp_packet(pkt_buf, pkt_len)) {
-#if UMCUB_CFG_CMD_ENABLE
-        cmd_run(pkt_from, (const char *)pkt_buf, pkt_len);
-#endif
+    if (pkt_len && locked < 0 && !smp_packet(pkt_buf, pkt_len)) {
+        other_packet(pkt_from, pkt_buf, pkt_len);
         pkt_len = 0;
         return 0;
     }
@@ -463,12 +571,16 @@ bool umcub_recovery_wait(uint32_t ms)
     do {
         umcub_port_wdg_feed();
         pump_all();
-        if (pkt_len && !is_smp_packet(pkt_buf, pkt_len)) {
-#if UMCUB_CFG_CMD_ENABLE
-            cmd_run(pkt_from, (const char *)pkt_buf, pkt_len);
-#endif
+        if (pkt_len && !smp_packet(pkt_buf, pkt_len)) {
+            other_packet(pkt_from, pkt_buf, pkt_len);
             pkt_len = 0;
         }
+#if FRAMES
+        if (frame_seen) {
+            frame_seen = false;
+            return true;        /* an upload started: stay in the bootloader */
+        }
+#endif
 #if UMCUB_CFG_CMD_ENABLE
         unsigned d = umcub_cmd_take_decision();
         if (d == UMCUB_CMD_STAY) {
@@ -514,7 +626,7 @@ __attribute__((noreturn)) void umcub_recovery_run(void)
     umcub_port_reset();
 }
 
-#ifdef UMCUB_HOST_TEST
+#if defined(UMCUB_HOST_TEST) && UMCUB_CFG_SMP
 const struct boot_uart_funcs *umcub_mux_funcs_for_test(void)
 {
     return &mux_funcs;
