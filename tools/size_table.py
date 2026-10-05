@@ -39,9 +39,10 @@ CHIPS = [
      "#undef UMCUB_CFG_MCU\n#define UMCUB_CFG_MCU STM32H743xx\n"
      "#undef UMCUB_CFG_PWR_SUPPLY\n#define UMCUB_CFG_PWR_SUPPLY UMCUB_H7_SUPPLY_LDO\n"),
     # Cortex-M3, sized in the 44 KiB bootloader region of the USB layout; no
-    # CAN / Ethernet driver in the port (columns stay empty, "all on" without them).
+    # CAN FD and no Ethernet on this part; "all on" without CAN (shares its
+    # SRAM with USB on the F103).
     ("STM32F103 (Blue Pill, overwrite)", "", None, f'#include "{ROOT}/tools/config/bluepill_usb.h"\n',
-     "bluepill_f103c8", {"TRANSPORT_CAN", "CAN_FD", "TRANSPORT_ETH"}),
+     "bluepill_f103c8", {"CAN_FD", "TRANSPORT_ETH"}, {"TRANSPORT_CAN"}),
 ]
 
 OFF = {"TRANSPORT_UART": 0, "TRANSPORT_USB_CDC": 0, "TRANSPORT_USB_DFU": 0, "TRANSPORT_CAN": 0,
@@ -110,10 +111,11 @@ def build(out, ci, chip, vi, variant):
     _, core, pre, extra = chip[:4]
     board = chip[4] if len(chip) > 4 else BOARD
     unsupported = chip[5] if len(chip) > 5 else set()
+    not_in_all = chip[6] if len(chip) > 6 else set()
     name, settings = variant[0], variant[1]
     lto = len(variant) > 3 and variant[3]
     if name.startswith("everything"):
-        settings = {k: (0 if k in unsupported else v) for k, v in settings.items()}
+        settings = {k: (0 if k in unsupported or k in not_in_all else v) for k, v in settings.items()}
     elif any(settings.get(k) for k in unsupported):
         return None, None                       # not available on this family
     d = out / f"c{ci}_v{vi}"

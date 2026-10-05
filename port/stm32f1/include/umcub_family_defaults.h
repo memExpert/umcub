@@ -30,6 +30,11 @@
 #error "umcub: STM32F1 part not verified yet - add its SRAM size (datasheet) to umcub_family_defaults.h"
 #endif
 
+/* bxCAN: classic CAN only; on F101/F102/F103 it shares 512 bytes of SRAM
+ * with the USB peripheral (RM0008 §24.1): not both at the same time. */
+#define UMCUB_FAMILY_CAN_NO_FD          1
+#define UMCUB_FAMILY_CAN_USB_SHARED_RAM 1
+
 #ifndef UMCUB_CFG_BOOT_ADDR
 #define UMCUB_CFG_BOOT_ADDR             0x08000000
 #endif

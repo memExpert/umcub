@@ -38,6 +38,7 @@ configs=(
   "bluepill-lite|cm3|Release||lite_upload.h|bluepill_f103c8"
   "lto|cm7|Release||lto.h"
   "bluepill-lto|cm3|Release||lto.h|bluepill_f103c8"
+  "bluepill-can|cm3|Release||bluepill_can.h|bluepill_f103c8"
   "encrypt-images|cm7|Release||encrypt_images.h"
   "bluepill-encrypt|cm3|Release||bluepill_encrypt.h|bluepill_f103c8"
   "per-core-cm4-encrypt|cm4|Release|per_core.h|encrypt_only.h"

@@ -5,7 +5,7 @@ umcub (**U**niversal **MCU**boot **B**ootloader) is a bootloader for STM32 micro
 
 - **Not tied to a series.** The boot logic, transports and application library use one hardware API
   (`port/include/umcub_port*.h`); everything series-specific lives in `port/stm32<fam>/`. Ports: STM32H7
-  (reference board NUCLEO-H755ZI-Q, both cores, all transports) and STM32F1 (Blue Pill: UART, USB CDC/DFU).
+  (reference board NUCLEO-H755ZI-Q, both cores, all transports) and STM32F1 (Blue Pill: UART, USB CDC/DFU, bxCAN).
 - **One configuration file.** `boards/<board>/umcub_config.h` is the single source of truth. CMake runs it through
   the preprocessor to decide what to build: a disabled transport (e.g. USB together with tinyUSB) is not compiled at all.
 - **Transports** (each enabled separately), all speaking SMP/mcumgr:
@@ -99,6 +99,10 @@ uses USB itself must make PA12 an input before enabling its USB peripheral. USB 
 window, only in recovery mode. While a debugger holds the MCU in reset (`mode=UR`) D+ floats high again: flash with
 `mode=HOTPLUG`, or with the USB cable unplugged.
 
+CAN (bxCAN, classic CAN, ISO-TP like on the H7) on PB9 TX / PB8 RX with an external transceiver: overlay
+`tools/config/bluepill_can.h` (+2.4 K, still in the 32 KiB region), host side `tools/smp_can.py`. Not together with
+USB: on the F103 both share the same 512 bytes of SRAM (the build refuses it).
+
 ## Build trees and IDEs (CMake presets)
 
 Every preset in `CMakePresets.json` builds the bootloader target `umcub_<board>_<core>` and, with
@@ -180,7 +184,7 @@ same core; check the real size after porting.
 | STM32H755 CM7 (2 images, SINGLE_BOOT) | 18.4 K | 55.0 K | +8.7 K | +11.2 K | +10.6 K | +13.2 K | +2.6 K | +2.6 K | +4.3 K | +10.9 K | +4.1 K |
 | STM32H755 CM4 (PER_CORE) | 16.0 K | 52.1 K | +8.5 K | +11.2 K | +10.6 K | +13.2 K | +2.6 K | +2.6 K | +4.3 K | +10.9 K | +4.0 K |
 | STM32H743 / H753 (single core) | 16.7 K | 52.9 K | +8.5 K | +11.2 K | +10.6 K | +13.2 K | +2.6 K | +2.6 K | +4.3 K | +10.9 K | +4.0 K |
-| STM32F103 (Blue Pill, overwrite) | 12.6 K | 38.8 K | +8.7 K | +9.8 K | +9.1 K | +11.7 K | — | — | — | +9.6 K | +4.1 K |
+| STM32F103 (Blue Pill, overwrite) | 12.6 K | 38.8 K | +8.7 K | +9.8 K | +9.1 K | +11.7 K | +2.4 K | — | — | +9.6 K | +4.1 K |
 
 | MCU | log (level 3) | text commands | verify + hash | readback | umcub link (addressed) | umcub link SECURE | + link encryption | encrypted images |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -194,7 +198,7 @@ same core; check the real size after porting.
 | STM32H7 (128 KiB sectors) | 1 (22.5 K) | 1 (27.1 K) | 1 (38.3 K) | 1 (40.4 K) | 1 (29.7 K) | 1 (31.5 K) | 1 (32.0 K) | 1 (55.0 K) |
 | STM32F2 / F4, F72x / F73x (16, 16, 16, 16, 64, 128 KiB ...) — estimate: Cortex-M4 build | 2 (20.0 K) | 2 (24.5 K) | 3 (35.7 K) | 3 (37.8 K) | 2 (27.1 K) | 2 (28.9 K) | 2 (29.4 K) | 4 (52.1 K) > 3 |
 | STM32F74x ... F77x (32, 32, 32, 32, 128, 256 KiB ...) — estimate: Cortex-M7 build | 1 (22.5 K) | 1 (27.1 K) | 2 (38.3 K) | 2 (40.4 K) | 1 (29.7 K) | 1 (31.5 K) | 2 (32.0 K) | 2 (55.0 K) |
-| STM32F1 (1 / 2 KiB pages) | 16.7 K | 21.2 K | 31.0 K | 33.0 K | — | — | 26.1 K | 38.8 K |
+| STM32F1 (1 / 2 KiB pages) | 16.7 K | 21.2 K | 31.0 K | 33.0 K | 23.7 K | — | 26.1 K | 38.8 K |
 | STM32G4 / L4 (2 KiB pages) — estimate: Cortex-M4 build | 20.0 K | 24.5 K | 35.7 K | 37.8 K | 27.1 K | 28.9 K | 29.4 K | 52.1 K |
 
 | MCU, with LTO | base | UART (+SMP) | UART, lite upload (no SMP) | all on |
@@ -209,7 +213,8 @@ Notes:
 - The H755 CM4 row is the CM4 bootloader of `PER_CORE` mode (Cortex-M4 code). On the board it uses CAN only; the
   other columns are measured with borrowed pins.
 - The H7 bootloader gets one 128 KiB sector, so even "all on" uses less than half of it.
-- STM32F103: UART and USB (CDC, DFU) are ported, no CAN driver yet (board drivers work), no Ethernet on this part.
+- STM32F103: UART, USB (CDC, DFU) and bxCAN (classic CAN, not together with USB: they share their SRAM) are
+  ported, no Ethernet on this part; "all on" is without CAN.
   The row is measured in the 44 KiB region of the USB layout. The Blue Pill default
   (UART, log, text commands) is 26.5 K of its 32 K region; without log and commands 21.2 K.
 - USB is mostly tinyUSB. Ethernet is the own IPv4/ARP/ICMP/UDP/DHCP stack plus the MAC driver. CAN FD only changes
@@ -219,9 +224,11 @@ Notes:
 - Debug builds (`-Og`) are about 18 % larger.
 - **Link-time optimisation** (`UMCUB_CFG_LTO 1` or `-DUMCUB_LTO=ON`, overlay `tools/config/lto.h`, fourth
   table): 3-4 K less on the Cortex-M3 (Blue Pill default 26.5 K -> 23.0 K), 6-7 K on the H7. It is experimental
-  and up to you: inlining makes stack frames larger (MCUboot's image validation 248 -> 848 bytes), so check the stack of
-  your part, and check weak functions you override in the board file. Verified on the Blue Pill: boot, SMP
-  recovery upload, overwrite upgrade from the application.
+  and up to you: inlining makes single stack frames larger (MCUboot's image validation 248 -> 848 bytes); measured on the
+  Blue Pill the peak stays the same (about 1.5-2.9 KiB of the 4 KiB reserve, the deepest path is an SMP upload of
+  an encrypted image), but check the stack of your part (`tools/hw/stack_usage.py`) and weak functions you
+  override in the board file. Verified on the Blue Pill: boot, SMP recovery upload, overwrite upgrade from the
+  application, SECURE + encrypted images.
 - Every byte counts on small parts: the bootloader keeps compiler-generated tables (`-fno-optimize-crc`), 64-bit
   division and MCUboot's assert paths out of the image; disabled features are not compiled.
 
@@ -804,7 +811,7 @@ peripheral a driver touches.
 ## Testing
 
 ```sh
-tools/build_matrix.sh                 # 30 bootloader configurations, examples, IDE checks, host tests; warning-free
+tools/build_matrix.sh                 # 31 bootloader configurations, examples, IDE checks, host tests; warning-free
 ctest --test-dir build/matrix/host    # host tests only
 tests/host/link_e2e.py build/matrix/host   # simulated devices: umcub link bus, smpmgr, host tools, lite upload
 tools/check_docs.py                   # README still matches the repository (size tables, boards, tools, ...)
@@ -821,6 +828,9 @@ readback only inside an encrypted session). `link_e2e.py` runs device simulators
 CAN transport on emulated flash) against the host tools: `umcub_link.py` with three nodes on one bus,
 `umcub_inspect.py` on plain SMP, `smp_can.py` on the CAN transport (python-can `serial` bus on a pty),
 `umcub_lite.py` on bootloaders without SMP (stream and CAN).
+
+Stack use on the board: `tools/hw/stack_usage.py paint`, run a scenario, `tools/hw/stack_usage.py measure`
+(deepest use since the paint; `loop-app` gives a signed application that does not touch the RAM, for boot paths).
 
 Hardware tests: `tools/hw/powerfail_test.py` resets the MCU in the middle of the K-th flash operation (build with
 `tools/config/fault_inject.h`, test only) and checks that an interrupted upgrade or revert (swap modes) or an

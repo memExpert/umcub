@@ -90,14 +90,26 @@ Done (bootloader 28.3 K in 32 K, two 16 K slots, overwrite, USART1 PA9/PA10 1152
   uses it, mux packet path only with packet transports, handoff zeroing loop, link state in .bss: Blue Pill
   30008 -> 27216 B flash, -1.2 K RAM; H7 57668 -> 55844 B. Optional LTO (`UMCUB_CFG_LTO`, experimental):
   Blue Pill 23600 B (boot, SMP recovery upload, overwrite upgrade from the application verified), H7 49544 B (not
-  run on the board yet); stack high-water mark not measured.
+  run on the board yet).
+- [x] Stack high-water mark on the Blue Pill (`tools/hw/stack_usage.py`, 4 KiB reserved), without / with LTO:
+  default config boot 1512 / 1452 B, overwrite upgrade the same (ECDSA verify is the peak), SMP recovery upload +
+  image list 1840 / 1796 B; SECURE + link encryption + encrypted images: SECURE AUTH 1952 / 1944 B, upgrade from an
+  encrypted secondary 2280 / 2376 B, SMP upload of an encrypted image (validated, decrypted in place) 2704 / 2880 B.
+- [x] Encrypted image written by the application (`umcub_slot_*`, `app_upload.py`) into the secondary slot:
+  decrypted by MCUboot during the overwrite, `boot reason: upgraded`, secondary erased afterwards.
+- [x] SECURE with the watchdog at its minimum (`UMCUB_CFG_WATCHDOG_MS` 2000): three authentications (0.9 s each)
+  without a watchdog reset.
 - [x] Blue Pill after the duplication cleanup (`port/common/`, mux line buffers per stream transport, smpclient
   host tools): boot and jump, application request -> recovery, `smpmgr` echo and upload (5.2 KB in 1.4 s),
   `umcub_inspect.py` hash (MATCH) / verify over smpclient, text command `i`, boot of the uploaded 1.1.0.
 
 Open:
 
-- [ ] F1 port of bxCAN; F105/F107 (PREDIV1, 25 MHz HSE, USB OTG FS); XL-density bank 2.
+- [ ] bxCAN on a real bus (transceiver on PB9/PB8 + USB-CAN adapter, `tools/smp_can.py`). Verified so far in
+  loopback + silent mode on the Blue Pill: initialisation (BTR 0xC11E0003 = 500 kbit/s at 36 MHz, sample point
+  88.9 %), a request frame injected over SWD passes the filter, ISO-TP and the text command "i" run, the answer is
+  sent with the TX id; registers checked against RM0008 / ES096 (manual-checker: 9 of 9 match).
+- [ ] F105/F107 (PREDIV1, 25 MHz HSE, USB OTG FS, CAN2); XL-density bank 2.
 
 ## Shared buses: umcub link (plan stages)
 
@@ -134,8 +146,8 @@ Open:
   (0.43 s incl. a command), wrong admin key refused, plain SMP unanswered; through `umcub_link.py serve` over UART
   and USB CDC: `smpmgr` upload of an encrypted image (validated, decrypted in place with the 128 KiB buffer, boots),
   a tampered one refused with rc 3, `umcub_inspect.py` read / verify / hash inside the encrypted session.
-- [ ] Hardware: RS485 bus; encrypted image over DFU and from the application; stack depth of the AUTH check and the
-  watchdog on the F1.
+- [ ] Hardware: RS485 bus; encrypted image over USB DFU and from the application on the H7 (application path
+  verified on the Blue Pill).
 
 ## Known limitations / ideas
 

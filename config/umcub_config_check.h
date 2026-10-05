@@ -83,6 +83,14 @@
 #error "umcub: UMCUB_CFG_USB_DFU_IMAGE out of range"
 #endif
 
+#if defined(UMCUB_FAMILY_CAN_NO_FD) && UMCUB_CFG_TRANSPORT_CAN && UMCUB_CFG_CAN_FD && \
+    UMCUB_CFG_CAN_DRIVER == UMCUB_DRIVER_PORT
+#error "umcub: the CAN controller of this family has no CAN FD (UMCUB_CFG_CAN_FD)"
+#endif
+#if defined(UMCUB_FAMILY_CAN_USB_SHARED_RAM) && UMCUB_CFG_TRANSPORT_CAN && UMCUB_CFG_USB && \
+    UMCUB_CFG_CAN_DRIVER == UMCUB_DRIVER_PORT
+#error "umcub: CAN and USB share their SRAM on this part - enable only one of them"
+#endif
 #if UMCUB_CFG_CAN_DRIVER != UMCUB_DRIVER_PORT && UMCUB_CFG_CAN_DRIVER != UMCUB_DRIVER_BOARD
 #error "umcub: UMCUB_CFG_CAN_DRIVER must be UMCUB_DRIVER_PORT or UMCUB_DRIVER_BOARD"
 #endif

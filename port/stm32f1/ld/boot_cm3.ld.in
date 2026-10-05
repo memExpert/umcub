@@ -11,7 +11,7 @@ MEMORY
 }
 
 _Min_Heap_Size  = 0;
-_Min_Stack_Size = 0x1000;   /* ECDSA verify (tinycrypt) peaks below 2 KiB */
+_Min_Stack_Size = 0x1000;   /* measured peak 2.9 KiB: SMP upload of an encrypted image (tools/hw/stack_usage.py) */
 
 _estack_main = ORIGIN(RAM) + LENGTH(RAM);
 _estack = _estack_main;
