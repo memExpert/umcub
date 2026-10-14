@@ -146,8 +146,13 @@ Open:
   (0.43 s incl. a command), wrong admin key refused, plain SMP unanswered; through `umcub_link.py serve` over UART
   and USB CDC: `smpmgr` upload of an encrypted image (validated, decrypted in place with the 128 KiB buffer, boots),
   a tampered one refused with rc 3, `umcub_inspect.py` read / verify / hash inside the encrypted session.
-- [ ] Hardware: RS485 bus; encrypted image over USB DFU and from the application on the H7 (application path
-  verified on the Blue Pill).
+- [x] Hardware, Blue Pill RS485 (ADDRESSED, USART3 PB10/PB11, software DE on PB12, MAX485 module at 5 V, USB-RS485
+  adapter): raw bytes both ways, discover, info by UID, smpmgr state-read and upload 5 KB in ~3 s through
+  `umcub_link.py serve`, boots the new image. SECURE (36 K region, `UMCUB_CFG_LINK_REQUIRE_RDP 0` at RDP 0): discover,
+  authentication + MAC-protected `cmd i` in ~1 s, wrong admin key / wrong device key / no keys refused, plain SMP
+  unanswered, smpmgr upload 5 KB in ~3 s through `serve`, boots the new image.
+- [ ] Hardware: encrypted image over USB DFU and from the application on the H7 (application
+  path verified on the Blue Pill).
 
 ## Known limitations / ideas
 

@@ -336,7 +336,9 @@ Frames: magic, version, type, flags, destination, source, sequence number, lengt
 Packet transports (CAN ISO-TP, UDP, board packet transports) carry them as they are, stream transports (UART, USB
 CDC) as a line `0x05 0x0B <base64> \n`. The format and the handshake are described in
 [`transport/include/umcub_link.h`](transport/include/umcub_link.h). RS485 needs the driver-enable pin
-(`UMCUB_CFG_UART_DE_PIN`; hardware DE on the H7, software on the F1) and no log on that UART.
+(`UMCUB_CFG_UART_DE_PIN`; hardware DE on the H7, software on the F1) and no log on that UART. A 5 V transceiver
+(MAX485 and alike) does not drive the bus properly from 3.3 V: power it from 5 V and put its RO output on a
+5 V-tolerant RX pin, or use a 3.3 V part (MAX3485, SP3485).
 
 **SECURE mode.** The host answers a fresh 32-byte challenge with an ephemeral EC P-256 key, its own nonce and an
 ECDSA signature made with the **admin key**. The bootloader checks the signature with the embedded public half,
