@@ -1,6 +1,6 @@
 /* UMCUB_CONFIG_POST for the simulators without SMP (umcub_sim_lite,
  * umcub_sim_can_lite): lite upload protocol + text commands, for
- * tools/umcub_lite.py in tests/host/link_e2e.py. */
+ * tools/host/umcub_lite.py in tests/host/link_e2e.py. */
 #undef UMCUB_CFG_LOG_LEVEL
 #define UMCUB_CFG_LOG_LEVEL 0
 #undef UMCUB_CFG_UART_LINK

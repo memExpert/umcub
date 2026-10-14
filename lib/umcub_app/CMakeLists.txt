@@ -47,13 +47,13 @@ endif()
 
 target_include_directories(${UMCUB_APP_LIB}
   PUBLIC
-    ${CMAKE_CURRENT_LIST_DIR}/include
+    ${UMCUB_ROOT}/include
     ${UMCUB_ROOT}/config
   PRIVATE
     ${UMCUB_CONFIG_INCLUDES}
     ${UMCUB_FAMILY_INCLUDES}
     ${UMCUB_ROOT}/port/include
-    ${UMCUB_ROOT}/mcuboot_port/include
+    ${UMCUB_ROOT}/image/mcuboot/include
     ${MCUBOOT}/boot/bootutil/include
 )
 target_compile_definitions(${UMCUB_APP_LIB} PRIVATE ${UMCUB_CONFIG_DEFS})

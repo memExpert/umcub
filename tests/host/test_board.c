@@ -12,7 +12,7 @@
 #include "umcub_port.h"
 #include "umcub_port_can.h"
 #include "umcub_port_eth.h"
-#include "umcub_transport.h"
+#include "umcub_proto.h"
 #include "umcub_handoff.h"
 #include "umcub_log.h"
 #include "umcub_cmd.h"

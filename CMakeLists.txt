@@ -50,16 +50,17 @@ set(TINYCRYPT ${MCUBOOT}/ext/tinycrypt/lib)
 set(BOOT_SOURCES
   boot/main.c
   boot/startup.c
-  boot/log.c
-  boot/handoff.c
   boot/info.c
-  boot/cmd.c
-  boot/inspect.c
-  mcuboot_port/src/flash_map_backend.c
-  mcuboot_port/src/compat.c
-  mcuboot_port/src/hooks.c
+  util/log.c
+  util/state.c
+  util/libc.c
+  util/codec.c
+  image/inspect.c
+  image/mcuboot/flash_map_backend.c
+  image/mcuboot/hooks.c
   transport/registry.c
-  transport/mux.c
+  proto/mux.c
+  proto/cmd.c
   ${UMCUB_FAMILY_BOOT_SOURCES}
 )
 
@@ -84,13 +85,13 @@ set(MCUBOOT_SOURCES
   ${TINYCRYPT}/source/utils.c
 )
 if(UMCUB_CFG_SLOT_WRITER_BOOT)    # USB DFU, lite upload, board protocol write slots themselves
-  list(APPEND BOOT_SOURCES lib/umcub_app/src/slot_writer.c lib/umcub_app/src/umcub.c)
+  list(APPEND BOOT_SOURCES image/slot_writer.c image/umcub.c)
 endif()
 if(UMCUB_CFG_LITE_UPLOAD)         # lite upload protocol (without SMP)
-  list(APPEND BOOT_SOURCES transport/lite.c)
+  list(APPEND BOOT_SOURCES proto/lite.c)
 endif()
 if(UMCUB_CFG_SMP)                 # some transport speaks SMP: MCUboot serial recovery
-  list(APPEND BOOT_SOURCES boot/smp_inspect.c)
+  list(APPEND BOOT_SOURCES proto/smp_inspect.c proto/smp_os.c)
   list(APPEND MCUBOOT_SOURCES
     ${MCUBOOT}/boot/boot_serial/src/boot_serial.c
     ${MCUBOOT}/boot/boot_serial/src/zcbor_bulk.c
@@ -114,11 +115,7 @@ endif()
 set(BOOT_INCLUDES
   ${UMCUB_CONFIG_INCLUDES}
   ${UMCUB_FAMILY_INCLUDES}
-  ${UMCUB_ROOT}/port/include
-  ${UMCUB_ROOT}/boot/include
-  ${UMCUB_ROOT}/lib/umcub_app/include
-  ${UMCUB_ROOT}/mcuboot_port/include
-  ${UMCUB_ROOT}/transport/include
+  ${UMCUB_LAYER_INCLUDES}
   ${MCUBOOT}/boot/bootutil/include
   ${MCUBOOT}/boot/bootutil/src
   ${MCUBOOT}/boot/boot_serial/include
@@ -140,11 +137,11 @@ endif()
 
 # --- transports -------------------------------------------------------------
 if(UMCUB_CFG_LINK_ANY)             # umcub link: addressing / discovery on shared buses
-  list(APPEND BOOT_SOURCES transport/link.c boot/random.c ${UMCUB_FAMILY_ENTROPY_SOURCES})
+  list(APPEND BOOT_SOURCES proto/link.c util/random.c ${UMCUB_FAMILY_ENTROPY_SOURCES})
 endif()
 if(UMCUB_CFG_ENCRYPT_IMAGES)       # MCUboot ECIES-P256 image encryption with the device key
-  # boot/random.c: default_CSPRNG for the blinded ECDH of the key unwrap
-  list(APPEND BOOT_SOURCES mcuboot_port/src/enc_image.c boot/random.c ${UMCUB_FAMILY_ENTROPY_SOURCES})
+  # util/random.c: default_CSPRNG for the blinded ECDH of the key unwrap
+  list(APPEND BOOT_SOURCES image/mcuboot/enc_image.c util/random.c ${UMCUB_FAMILY_ENTROPY_SOURCES})
   list(APPEND MCUBOOT_SOURCES
     ${MCUBOOT}/boot/bootutil/src/encrypted.c
     ${TINYCRYPT}/source/ecc.c
@@ -254,7 +251,7 @@ target_compile_options(${UMCUB_BOOT_TARGET} PRIVATE
 set_source_files_properties(${MCUBOOT_SOURCES} PROPERTIES COMPILE_OPTIONS "-w")
 if("${TINYCRYPT}/source/ecc_dh.c" IN_LIST MCUBOOT_SOURCES)
   # Random-Z blinding of the ECDH scalar multiplication through default_CSPRNG
-  # (boot/random.c): ecc_dh.c does not include ecc_platform_specific.h itself.
+  # (util/random.c): ecc_dh.c does not include ecc_platform_specific.h itself.
   file(WRITE ${CMAKE_BINARY_DIR}/umcub_ecc_rng.h
        "#include <stdint.h>\n#define default_RNG_defined 1\nint default_CSPRNG(uint8_t *dest, unsigned int size);\n")
   set_property(SOURCE ${TINYCRYPT}/source/ecc_dh.c APPEND PROPERTY COMPILE_OPTIONS

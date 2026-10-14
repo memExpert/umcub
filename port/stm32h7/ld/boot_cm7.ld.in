@@ -35,4 +35,4 @@ SECTIONS
   } >BOOTINFO
 }
 
-#include "../../common/cortexm_sections.ld.inc"
+#include "../../arch/cortexm/cortexm_sections.ld.inc"

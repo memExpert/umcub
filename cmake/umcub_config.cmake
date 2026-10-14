@@ -14,6 +14,19 @@
 
 get_filename_component(UMCUB_ROOT "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
 
+# Header directories of the layers (one flat namespace, see the
+# hw-abstraction-architecture skill): L0 include, L1 port, L2 util,
+# L3 image (+ MCUboot glue), L4 transport, L5 proto.
+set(UMCUB_LAYER_INCLUDES
+  ${UMCUB_ROOT}/include
+  ${UMCUB_ROOT}/port/include
+  ${UMCUB_ROOT}/util/include
+  ${UMCUB_ROOT}/image/include
+  ${UMCUB_ROOT}/image/mcuboot/include
+  ${UMCUB_ROOT}/transport/include
+  ${UMCUB_ROOT}/proto/include
+)
+
 function(_umcub_cpp out_var probe_file)
   set(_defs)
   foreach(d IN LISTS UMCUB_CONFIG_DEFS)

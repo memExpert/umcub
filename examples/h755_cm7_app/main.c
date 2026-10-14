@@ -5,7 +5,7 @@
  *   i  show bootloader / image information
  *   c  confirm this image (swap modes: otherwise reverted on next reset)
  *   b  reboot into the bootloader's recovery mode
- *   u  receive an image and write it into a slot (tools/app_upload.py)
+ *   u  receive an image and write it into a slot (tools/host/app_upload.py)
  *   r  reset
  */
 #include <string.h>

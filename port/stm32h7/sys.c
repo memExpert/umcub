@@ -1,6 +1,6 @@
 /*
  * STM32H7 port: system services (reset cause, clocks, GPIO, watchdog); the
- * Cortex-M part (SysTick, deinit, jump) is port/common/cortexm_sys.c.
+ * Cortex-M part (SysTick, deinit, jump) is port/arch/cortexm/cortexm_sys.c.
  */
 #include "h7.h"
 

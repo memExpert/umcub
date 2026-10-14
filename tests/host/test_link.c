@@ -1,5 +1,5 @@
 /*
- * umcub host test: umcub link in ADDRESSED mode (transport/link.c + mux) on a
+ * umcub host test: umcub link in ADDRESSED mode (proto/link.c + mux) on a
  * stream transport (frames as base64 lines) and a packet transport, next to
  * a plain stream transport.
  */

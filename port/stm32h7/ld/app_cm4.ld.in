@@ -3,7 +3,7 @@
  * Preprocessed with umcub_cfg.h and -DUMCUB_APP_IMAGE=<n> -DUMCUB_APP_SLOT=<0|1>.
  */
 #include "umcub_cfg.h"
-#include "../../common/app_slot.ld.inc"
+#include "../../arch/cortexm/app_slot.ld.inc"
 
 MEMORY
 {
@@ -15,4 +15,4 @@ _Min_Heap_Size  = 0x200;
 _Min_Stack_Size = 0x400;
 _estack = ORIGIN(RAM) + LENGTH(RAM);
 
-#include "../../common/cortexm_sections.ld.inc"
+#include "../../arch/cortexm/cortexm_sections.ld.inc"

@@ -2,7 +2,7 @@
  * umcub device simulator: the real mux + umcub link + boot_serial on emulated
  * flash, recovery mode, one stream transport on stdin/stdout. Used by
  * tests/host/link_e2e.py, which puts several of them on one simulated bus
- * next to tools/umcub_link.py and standard SMP clients.
+ * next to tools/host/umcub_link.py and standard SMP clients.
  *
  *   UMCUB_SIM_ADDR  node address (0 = unassigned)
  *   UMCUB_SIM_UID   number mixed into the UID (distinct devices)
@@ -16,7 +16,7 @@
 #include "fake_port.h"
 #include "umcub_cfg.h"
 #include "umcub_port.h"
-#include "umcub_transport.h"
+#include "umcub_proto.h"
 #include "umcub_handoff.h"
 #include "umcub_cmd.h"
 

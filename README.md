@@ -11,10 +11,10 @@ umcub (**U**niversal **MCU**boot **B**ootloader) is a bootloader for STM32 micro
 - **Transports** (each enabled separately), all speaking SMP/mcumgr:
   - UART — SMP serial (`smpmgr`, `mcumgr --conntype serial`);
   - USB (tinyUSB) — CDC-ACM with SMP and/or DFU 1.1 (`dfu-util`);
-  - CAN / CAN-FD — SMP over ISO-TP (`tools/smp_can.py`);
+  - CAN / CAN-FD — SMP over ISO-TP (`tools/host/smp_can.py`);
   - Ethernet — SMP over UDP on a minimal IPv4 stack with DHCP (`mcumgr --conntype udp`);
   - writing an image from the application itself (`umcub_slot_*`) into a selectable slot;
-  - without SMP (about 4.5 K smaller): a lite upload protocol on the same transports (`tools/umcub_lite.py`) and/or
+  - without SMP (about 4.5 K smaller): a lite upload protocol on the same transports (`tools/host/umcub_lite.py`) and/or
     the board's own protocol.
 - **MCUboot upgrade modes**: overwrite, swap-scratch, swap-move, swap-offset, direct-xip, direct-xip with revert.
 - **Signing**: ECDSA-P256 (tinycrypt), keys and signing with `imgtool`.
@@ -35,8 +35,8 @@ cmake --build --preset h755-cm7      # build/h755-cm7/umcub_nucleo_h755zi_q_cm7.
 cmake -S examples/h755_cm7_app -B build/ex-cm7 -G Ninja -DAPP_VERSION=1.0.0 && cmake --build build/ex-cm7
 cmake -S examples/h755_cm4_app -B build/ex-cm4 -G Ninja -DAPP_VERSION=1.0.0 && cmake --build build/ex-cm4
 
-tools/h755_option_bytes.sh single    # the CM4 starts from the bootloader vector table and waits
-tools/flash.sh build/h755-cm7/umcub_nucleo_h755zi_q_cm7.hex \
+tools/hw/h755_option_bytes.sh single    # the CM4 starts from the bootloader vector table and waits
+tools/hw/flash.sh build/h755-cm7/umcub_nucleo_h755zi_q_cm7.hex \
                build/ex-cm7/h755_cm7_app.signed.hex build/ex-cm4/h755_cm4_app.signed.hex
 ```
 
@@ -54,7 +54,7 @@ smpmgr --port /dev/ttyACM0 --line-buffers 8 image upload --slot 1 build/ex-cm4/h
 smpmgr --port /dev/ttyACM0 os reset
 mcumgr --conntype udp --connstring=<ip>:1337 image upload build/ex-cm7/h755_cm7_app.signed.bin
 dfu-util -a 0 -D build/ex-cm7/h755_cm7_app.signed.bin -R    # DFU: alt N = image N
-tools/smp_can.py --channel can0 upload build/ex-cm7/h755_cm7_app.signed.bin
+tools/host/smp_can.py --channel can0 upload build/ex-cm7/h755_cm7_app.signed.bin
 ```
 
 SMP serial recovery writes straight into the **primary** slot (this is how MCUboot works); the image number is the
@@ -74,7 +74,7 @@ STM32_Programmer_CLI -c port=SWD -d build/ex-bp/bluepill_app.signed.hex -v -rst
 
 # USB-UART adapter on PA9/PA10, 115200: log, text commands and SMP on the same port
 smpmgr --port /dev/ttyUSB0 --line-buffers 4 image upload build/ex-bp/bluepill_app.signed.bin   # in recovery
-tools/app_upload.py /dev/ttyUSB0 build/ex-bp/bluepill_app.signed.bin   # from the running application ('u')
+tools/host/app_upload.py /dev/ttyUSB0 build/ex-bp/bluepill_app.signed.bin   # from the running application ('u')
 # (H755 CM7 example: --image 1 updates the CM4 image; --slot primary asks for the primary slot, refused while it runs)
 ```
 
@@ -83,7 +83,7 @@ is no valid image, or when `b` arrives within 300 ms after reset (`UMCUB_CFG_ENT
 `--line-buffers 4` matches `UMCUB_CFG_SMP_MTU` = 512 (20 KiB SRAM).
 
 USB (CDC with SMP and DFU, micro-USB connector) needs more room: preset `bluepill-usb` (overlay
-`tools/config/bluepill_usb.h`: bootloader 44 KiB, two 10 KiB slots; the example in the same tree uses the same
+`tests/configs/bluepill/usb.h`: bootloader 44 KiB, two 10 KiB slots; the example in the same tree uses the same
 layout):
 
 ```sh
@@ -100,7 +100,7 @@ window, only in recovery mode. While a debugger holds the MCU in reset (`mode=UR
 `mode=HOTPLUG`, or with the USB cable unplugged.
 
 CAN (bxCAN, classic CAN, ISO-TP like on the H7) on PB9 TX / PB8 RX with an external transceiver: overlay
-`tools/config/bluepill_can.h` (+2.4 K, still in the 32 KiB region), host side `tools/smp_can.py`. Not together with
+`tests/configs/bluepill/can.h` (+2.4 K, still in the 32 KiB region), host side `tools/host/smp_can.py`. Not together with
 USB: on the F103 both share the same 512 bytes of SRAM (the build refuses it).
 
 ## Build trees and IDEs (CMake presets)
@@ -133,7 +133,7 @@ All options are documented in [`config/umcub_config_template.h`](config/umcub_co
 
 The configuration can be extended without editing the board file through overlay headers:
 `-DUMCUB_CONFIG_PRE=<file>` is included before the board config (for `#ifndef`-guarded options),
-`-DUMCUB_CONFIG_POST=<file>` after it (`#undef`/`#define`). Ready-made variants are in `tools/config/`.
+`-DUMCUB_CONFIG_POST=<file>` after it (`#undef`/`#define`). Ready-made variants are in `tests/configs/` (`mode/`, `transport/`, `feature/`, `bluepill/`).
 
 Configuration errors (overlapping slots, slots not on sector boundaries, missing scratch area, conflicting modes) are
 caught at compile time (`config/umcub_config_check.h`).
@@ -149,13 +149,13 @@ caught at compile time (`config/umcub_config_check.h`).
   the CM4 one in bank 2 (`BOOT_CM4_ADD0 = 0x0810`). Only the CM7 configures power and clocks; the two cores must not
   share transports.
 
-STM32CubeProgrammer 2.23 does not expose `BOOT_CM4_ADD0`/`BCM4` for the H755, so `tools/h755_option_bytes.sh` writes
-them through a small RAM helper run by GDB (`tools/h7_ob/`).
+STM32CubeProgrammer 2.23 does not expose `BOOT_CM4_ADD0`/`BCM4` for the H755, so `tools/hw/h755_option_bytes.sh` writes
+them through a small RAM helper run by GDB (`tools/hw/h7_ob/`).
 
 ## Bootloader size
 
 Flash used by the bootloader (`.text` + `.data`, arm-none-eabi-gcc 15.2, Release `-Os`, swap-scratch,
-ECDSA-P256), and what every transport and feature adds. Regenerate with `tools/size_table.py`.
+ECDSA-P256), and what every transport and feature adds. Regenerate with `tools/build/size_table.py`.
 
 - **base**: MCUboot with signature check, upgrade/revert, the jump to the application, handoff and info block.
   No transport, no log.
@@ -222,7 +222,7 @@ Notes:
 - Base + the columns adds up to "all on" within a few hundred bytes. CDC and DFU together cost less than separately:
   they share the USB core.
 - Debug builds (`-Og`) are about 18 % larger.
-- **Link-time optimisation** (`UMCUB_CFG_LTO 1` or `-DUMCUB_LTO=ON`, overlay `tools/config/lto.h`, fourth
+- **Link-time optimisation** (`UMCUB_CFG_LTO 1` or `-DUMCUB_LTO=ON`, overlay `tests/configs/feature/lto.h`, fourth
   table): 3-4 K less on the Cortex-M3 (Blue Pill default 26.5 K -> 23.0 K), 6-7 K on the H7. It is experimental
   and up to you: inlining makes single stack frames larger (MCUboot's image validation 248 -> 848 bytes); measured on the
   Blue Pill the peak stays the same (about 1.5-2.9 KiB of the 4 KiB reserve, the deepest path is an SMP upload of
@@ -243,14 +243,14 @@ UART bootloader is about 4.5 K smaller (F103: 16.7 K instead of 21.2 K, H7: 22.5
   Begin / data / end frames with a CRC, every frame answered, lost frames repeated; the image goes through the same
   slot writer as from the application (header check, test or permanent mark for the secondary slot, in-place
   decryption and validation of encrypted images in the primary slot). Frames are described in
-  [`transport/include/umcub_lite.h`](transport/include/umcub_lite.h); the host side is `tools/umcub_lite.py`:
+  [`proto/include/umcub_lite.h`](proto/include/umcub_lite.h); the host side is `tools/host/umcub_lite.py`:
 
   ```sh
-  tools/umcub_lite.py --port /dev/ttyUSB0 upload app.signed.bin            # primary slot, like SMP recovery
-  tools/umcub_lite.py --port /dev/ttyUSB0 upload app.signed.bin --slot secondary --test --reset
-  tools/umcub_lite.py --udp 192.168.1.50 upload app.signed.bin
-  tools/umcub_lite.py --can --channel can0 upload app.signed.bin --chunk 512
-  tools/umcub_lite.py --port /dev/ttyUSB0 cmd "verify 0 0"                  # text commands work as before
+  tools/host/umcub_lite.py --port /dev/ttyUSB0 upload app.signed.bin            # primary slot, like SMP recovery
+  tools/host/umcub_lite.py --port /dev/ttyUSB0 upload app.signed.bin --slot secondary --test --reset
+  tools/host/umcub_lite.py --udp 192.168.1.50 upload app.signed.bin
+  tools/host/umcub_lite.py --can --channel can0 upload app.signed.bin --chunk 512
+  tools/host/umcub_lite.py --port /dev/ttyUSB0 cmd "verify 0 0"                  # text commands work as before
   ```
 
   On stream transports a frame is a line `0x05 0x0C <base64> \n`; keep `--chunk` (data bytes per frame, default
@@ -304,7 +304,7 @@ a few lines of host code:
 by the text command `i` and to the application (`umcub_boot_info()->board_type`, `->board_rev`).
 
 With a board type other than 0, every image must carry the same value in a signed TLV (tag `0xA0`, u32 little
-endian). `umcub_sign_image()` and `tools/umcub_image.py sign` add it automatically from the board configuration.
+endian). `umcub_sign_image()` and `tools/host/umcub_image.py sign` add it automatically from the board configuration.
 MCUboot rejects an image with another board type, or without one, before installing it. This holds even when the
 image is signed with the right key, so firmware of another product cannot be booted:
 
@@ -335,7 +335,7 @@ on the bus could drive them. The umcub link puts an envelope around SMP and text
 Frames: magic, version, type, flags, destination, source, sequence number, length, payload, optional 16-byte tag.
 Packet transports (CAN ISO-TP, UDP, board packet transports) carry them as they are, stream transports (UART, USB
 CDC) as a line `0x05 0x0B <base64> \n`. The format and the handshake are described in
-[`transport/include/umcub_link.h`](transport/include/umcub_link.h). RS485 needs the driver-enable pin
+[`proto/include/umcub_link.h`](proto/include/umcub_link.h). RS485 needs the driver-enable pin
 (`UMCUB_CFG_UART_DE_PIN`; hardware DE on the H7, software on the F1) and no log on that UART. A 5 V transceiver
 (MAX485 and alike) does not drive the bus properly from 3.3 V: power it from 5 V and put its RO output on a
 5 V-tolerant RX pin, or use a 3.3 V part (MAX3485, SP3485).
@@ -356,7 +356,7 @@ imgtool keygen -t ecdsa-p256 -k keys/admin.pem      # stays on the hosts allowed
 cmake ... -DUMCUB_DEVICE_KEY=$PWD/keys/device.pem -DUMCUB_HOST_KEY=$PWD/keys/admin.pem
 ```
 
-CMake embeds them with `tools/umcub_keys.py` (`c`: device private key and admin public key for the bootloader;
+CMake embeds them with `tools/host/umcub_keys.py` (`c`: device private key and admin public key for the bootloader;
 `host-c`: the host side for C tools and tests); the device key for [encrypted images](#encrypted-images) with
 `imgtool getpriv`. `tools/keys/dev-device-p256.pem` and `dev-admin-p256.pem` are
 development keys from the repository, the build warns about them.
@@ -380,7 +380,7 @@ Limits:
 - Firmware confidentiality needs two things: `UMCUB_CFG_LINK_ENCRYPT` for the session and
   [encrypted images](#encrypted-images) for what is stored and sent outside it.
 
-**Host side: `tools/umcub_link.py`.** Standard SMP clients do not speak the link. The tool finds the devices, selects
+**Host side: `tools/host/umcub_link.py`.** Standard SMP clients do not speak the link. The tool finds the devices, selects
 one and, as a proxy, serves `mcumgr` / `smpmgr` unchanged:
 
 ```sh
@@ -393,7 +393,7 @@ umcub_link.py --udp 192.168.1.50 --addr 5 serve --udp-listen 127.0.0.1:1337   # 
 ```
 
 SECURE transports need `--admin-key` (private) and `--device-key` (the public half is enough). Your own host
-software can do the same: the frames and the handshake are in `umcub_link.h`, `tools/umcub_link.py` is a complete
+software can do the same: the frames and the handshake are in `umcub_link.h`, `tools/host/umcub_link.py` is a complete
 reference (Python `cryptography`).
 
 ## Encrypted images
@@ -402,7 +402,7 @@ reference (Python `cryptography`).
 the same `UMCUB_DEVICE_KEY` as the SECURE link). An image file then does not show the firmware, wherever it is
 stored or sent. The signature still covers the plain image, so encryption adds confidentiality, not trust.
 
-`umcub_sign_image()` and `tools/umcub_image.py sign` then write two files:
+`umcub_sign_image()` and `tools/host/umcub_image.py sign` then write two files:
 
 | File | Use |
 |---|---|
@@ -447,9 +447,9 @@ The same operations are available in SMP group `UMCUB_CFG_SMP_INSPECT_GROUP` (de
 2 read) for your own host code. Ready-made tool:
 
 ```sh
-tools/umcub_inspect.py --port /dev/ttyACM1 verify 0 1
-tools/umcub_inspect.py --port /dev/ttyACM1 hash 0 1 --file app.signed.bin     # MATCH / MISMATCH
-tools/umcub_inspect.py --udp 192.168.1.50 read 0 0 --out dump.bin              # needs UMCUB_CFG_READBACK
+tools/host/umcub_inspect.py --port /dev/ttyACM1 verify 0 1
+tools/host/umcub_inspect.py --port /dev/ttyACM1 hash 0 1 --file app.signed.bin     # MATCH / MISMATCH
+tools/host/umcub_inspect.py --udp 192.168.1.50 read 0 0 --out dump.bin              # needs UMCUB_CFG_READBACK
 ```
 
 Note: the `hash` shown by the standard `smpmgr image state-read` is read from the TLV inside the image and is **not**
@@ -522,7 +522,7 @@ board driver and implement that interface:
 
 All CAN settings from the config (`UMCUB_CFG_CAN_BITRATE`, `_FD`, `_RX_ID`, `_TX_ID`, `_EXT_ID`, ...) reach the
 driver through `umcub_can_cfg_t`. Everything above the driver works as with the on-chip controller, including
-`tools/smp_can.py`, `mcumgr --conntype udp`, text commands and verify/hash.
+`tools/host/smp_can.py`, `mcumgr --conntype udp`, text commands and verify/hash.
 
 ### 2. Board transport
 
@@ -601,7 +601,7 @@ signing step after the build and a debug setup that flashes the signed image.
 bootloader:
 
 ```sh
-python tools/umcub_image.py info --board nucleo_h755zi_q --core cm7
+python tools/host/umcub_image.py info --board nucleo_h755zi_q --core cm7
 ```
 ```
 image 0 (CM7 application): slot 0x08020000 size 0x60000
@@ -629,12 +629,12 @@ keep free: 0x3800FF00..0x38010000 (bootloader handoff, kept over reset)
 and these include paths (relative to the umcub checkout):
 
 ```
-lib/umcub_app/include
+include
 config
 boards/<board>                         # the bootloader's umcub_config.h
 port/<family>/include                  # e.g. port/stm32h7/include
 port/include
-mcuboot_port/include
+image/mcuboot/include
 third_party/mcuboot/boot/bootutil/include
 ```
 
@@ -644,7 +644,7 @@ in `third_party/` work as well. Defines: the device define (`STM32H755xx`) and, 
 `UMCUB_CONFIG_PRE/POST` overlays, define the same macros, e.g. `UMCUB_CONFIG_POST="path/to/overlay.h"`. The
 matrix build compiles this file with exactly this include list, using GCC and clang (Arm Compiler 6 is clang-based).
 
-**3. Signing after the build.** `tools/umcub_image.py sign` takes the ELF / AXF (or an Intel HEX / raw `.bin`). It
+**3. Signing after the build.** `tools/host/umcub_image.py sign` takes the ELF / AXF (or an Intel HEX / raw `.bin`). It
 checks that the image is linked at the slot origin and fits the slot, and writes `<name>.signed.bin` and
 `<name>.signed.hex` next to it. It uses the same imgtool arguments as `umcub_sign_image()` in CMake; the matrix build
 checks that both give the same image.
@@ -656,7 +656,7 @@ with imgtool's dependencies: `pip install -r tools/requirements.txt` (on Windows
 - **STM32CubeIDE**: *Project → Properties → C/C++ Build → Settings → Build Steps → Post-build steps*. The command
   runs in the build folder, with the CubeIDE toolchain in `PATH`:
   ```
-  python <umcub>/tools/umcub_image.py sign --board nucleo_h755zi_q --core cm7 --image 0 --version 1.2.3 ${ProjName}.elf
+  python <umcub>/tools/host/umcub_image.py sign --board nucleo_h755zi_q --core cm7 --image 0 --version 1.2.3 ${ProjName}.elf
   ```
 - **Keil MDK**: *Options for Target → User → After Build/Rebuild → Run #1*:
   ```
@@ -691,7 +691,7 @@ Updates through the bootloader (`smpmgr`, `mcumgr`, `dfu-util`, CAN, UDP) use `<
 
 **Dual-core H745/H755 with CubeMX dual-core projects.** Each core's project signs its own image. With `SINGLE_BOOT`
 that is `--core cm7 --image 0` for the CM7 and `--core cm4 --image 1` for the CM4. Program the option bytes with
-`tools/h755_option_bytes.sh`, not the CubeMX defaults. The bootloader starts the CM4 application first, then jumps
+`tools/hw/h755_option_bytes.sh`, not the CubeMX defaults. The bootloader starts the CM4 application first, then jumps
 to the CM7 one, so the CubeMX start-up handshake should find the CM4 in STOP as it expects. This is not yet verified
 on hardware. Without a valid CM4 image, the CM4 stays parked in the bootloader. In that case the CubeMX CM7 code that
 waits for `RCC_FLAG_D2CKRDY` times out into `Error_Handler()`; make that wait non-fatal if the CM7 must run alone.
@@ -763,11 +763,11 @@ sizes for the mode, a missing scratch area, an HSE the port cannot use, and so o
 
 **4. Adapt the application.** Use the same board directory and key: CMake with `umcub::app`,
 `umcub_app_linker_script()` and `umcub_sign_image()` (see [Application library](#application-library)), or an IDE
-project with `tools/umcub_image.py` (see [Using umcub from an IDE](#using-umcub-from-an-ide-stm32cubeide-keil-mdk)).
-`tools/umcub_image.py info --board boards/my_board` prints where to link it.
+project with `tools/host/umcub_image.py` (see [Using umcub from an IDE](#using-umcub-from-an-ide-stm32cubeide-keil-mdk)).
+`tools/host/umcub_image.py info --board boards/my_board` prints where to link it.
 
 **5. Program and protect.** Program the bootloader `.hex` and the signed application `.hex`. On dual-core H7 parts,
-also program the option bytes (`tools/h755_option_bytes.sh`). For production, write-protect the bootloader sector
+also program the option bytes (`tools/hw/h755_option_bytes.sh`). For production, write-protect the bootloader sector
 (WRP) and enable RDP.
 
 **6. Optional: `boards/my_board/umcub_board.c`.** It is compiled automatically when present. Use it for your own text
@@ -793,17 +793,17 @@ Things that are easy to get wrong:
 
 ## Adding a series
 
-1. `cmake/families/stm32<fam>.cmake`: CPU flags, sources (with `port/common/cortexm_sys.c` and
+1. `cmake/families/stm32<fam>.cmake`: CPU flags, sources (with `port/arch/cortexm/cortexm_sys.c` and
    `cortexm_common.c`), the `cmsis_device_<fam>` and LL driver submodules.
 2. `port/stm32<fam>/`: `include/umcub_family_defaults.h` (flash write unit, sector size),
    `include/umcub_family_cmsis.h` (the device header), `include/umcub_family_app.inc` (port sources of the
    application library), register-level flash driver (LL has none), clocks (including restoring the reset state
    before the jump), reset cause, GPIO / IWDG, linker templates, then the optional peripherals (UART, CAN, ETH, USB).
-   The Cortex-M part is shared (`port/common/`: SysTick time base, deinit of NVIC and the peripherals the drivers
+   The Cortex-M part is shared (`port/arch/cortexm/`: SysTick time base, deinit of NVIC and the peripherals the drivers
    registered, reset, jump, UID): `umcub_port_init()` calls `umcub_cm_save_clocks()` first and `umcub_cm_start()`
    after the clock setup, `umcub_port_deinit()` calls `umcub_cm_deinit()`.
 3. `boards/<board>/umcub_config.h` (and optionally `umcub_board.c`).
-4. Add the new configuration to `tools/build_matrix.sh`.
+4. Add the new configuration to `tools/build/build_matrix.sh`.
 
 Rules: no `stm32*.h` / LL includes outside `port/<family>/`; all series differences stay in the port; RAM that must
 survive a reset (handoff area) is written with 32-bit stores only (ECC SRAM loses narrower writes on reset).
@@ -813,10 +813,10 @@ peripheral a driver touches.
 ## Testing
 
 ```sh
-tools/build_matrix.sh                 # 31 bootloader configurations, examples, IDE checks, host tests; warning-free
+tools/build/build_matrix.sh                 # 31 bootloader configurations, examples, IDE checks, host tests; warning-free
 ctest --test-dir build/matrix/host    # host tests only
 tests/host/link_e2e.py build/matrix/host   # simulated devices: umcub link bus, smpmgr, host tools, lite upload
-tools/check_docs.py                   # README still matches the repository (size tables, boards, tools, ...)
+tools/build/check_docs.py                   # README still matches the repository (size tables, boards, tools, ...)
 ```
 
 Host tests (`tests/host`) run the real MCUboot (boot_go, boot_serial, ECDSA) on an emulated H7 flash (32-byte
@@ -835,31 +835,40 @@ Stack use on the board: `tools/hw/stack_usage.py paint`, run a scenario, `tools/
 (deepest use since the paint; `loop-app` gives a signed application that does not touch the RAM, for boot paths).
 
 Hardware tests: `tools/hw/powerfail_test.py` resets the MCU in the middle of the K-th flash operation (build with
-`tools/config/fault_inject.h`, test only) and checks that an interrupted upgrade or revert (swap modes) or an
-interrupted overwrite copy always completes. The images are signed with `tools/umcub_image.py` for the
+`tests/configs/feature/fault_inject.h`, test only) and checks that an interrupted upgrade or revert (swap modes) or an
+interrupted overwrite copy always completes. The images are signed with `tools/host/umcub_image.py` for the
 bootloader's board and overlays; `--fault-addr` is `UMCUB_CFG_TEST_FAULT_ADDR` (a RAM word that survives a reset). See
 `TODO.md` for what has been verified on hardware.
 
 ## Layout
 
+Layers, bottom to top; a directory uses only its own and lower layers (checked by `tools/build/check_layers.py`
+in the build matrix):
+
 ```
-boot/            boot core: main (entry decision, boot_go, jump), startup, handoff, info, log, commands, inspection
-mcuboot_port/    MCUboot glue: mcuboot_config.h, flash map backend, shims
-port/include/    hardware API (umcub_port.h, _uart, _can, _eth, _usb)
-port/common/     Cortex-M part shared by the ports (SysTick, deinit, jump, waits) + common linker sections
-port/stm32h7/    STM32H7 port + linker templates
-port/stm32f1/    STM32F1 port (flash, clocks, GPIO, USART) + linker templates
-transport/       mux (SMP, lite upload, board frames), umcub link, uart, usb (tinyUSB CDC/DFU), can (ISO-TP), net (IPv4/UDP/DHCP)
+include/         L0  ABI shared with the application: umcub.h (app API), umcub_handoff.h, umcub_version.h
+config/          L0  template, defaults, types, compile-time checks
+port/            L1  hardware: include/ (port API umcub_port*.h), arch/cortexm/ (SysTick, deinit, jump, waits,
+                     common linker sections), port/stm32h7/, port/stm32f1/ (family ports + linker templates)
+util/            L2  log, random (CSPRNG), state (handoff RAM, node address), libc (snprintf, assert), crc16/base64
+image/           L3  image slots: inspect (verify/hash/read), slot writer + app API (shared with umcub::app),
+                     mcuboot/ = MCUboot glue (mcuboot_config.h, flash map backend, hooks, image encryption, shims)
+transport/       L4  channels: uart, usb (tinyUSB CDC/DFU), can (ISO-TP), net (IPv4/UDP/DHCP), registry
+proto/           L5  mux (SMP, lite upload, board frames, recovery loop), umcub link, lite upload, text commands,
+                     SMP inspection group
+boot/            L6  main (entry decision, boot_go, jump), startup, info block
+boards/          board configurations (umcub_config.h, optional umcub_board.c)
 lib/umcub_app/   application library (umcub::app); umcub_app_all.c = the whole library as one file for IDEs
-config/          template, defaults, compile-time checks
-boards/          board configurations
 examples/        CM7 / CM4 applications for NUCLEO-H755ZI-Q, Blue Pill application
-tools/           setup, build matrix, flashing, option bytes, host tools, keys, hardware tests;
-                 umcub_image.py = slot addresses and signing for IDE projects; size_table.py = size tables;
-                 check_docs.py = README consistency check; umcub_keys.py = umcub link keys as C arrays;
-                 umcub_smp.py = SMP helpers of the host tools (on smp / smpclient);
-                 umcub_lite.py = lite upload protocol (bootloaders without SMP)
+tools/           setup.sh, requirements.txt, keys/ (development keys)
+tools/host/      host tools: umcub_image.py (slot addresses, signing for IDE projects), umcub_inspect.py,
+                 umcub_link.py, umcub_lite.py (lite upload), smp_can.py, app_upload.py, umcub_keys.py
+                 (umcub link keys as C arrays), umcub_smp.py (SMP helpers of the host tools, on smp / smpclient)
+tools/build/     build_matrix.sh, size_table.py (size tables), check_docs.py (README consistency),
+                 check_layers.py (layering)
+tools/hw/        bench: flash.sh, h755_option_bytes.sh (+ h7_ob/), powerfail_test.py, stack_usage.py, udev/
 tests/host/      host tests
+tests/configs/   configuration overlays: mode/, transport/, feature/, bluepill/
 tests/tools/     helpers for the build matrix
 tests/boards/    build-matrix boards (custom_drivers: board drivers + board transport)
 ```

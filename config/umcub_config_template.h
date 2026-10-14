@@ -126,7 +126,7 @@
  * USB DFU, the application (umcub_slot_*) or the board's own protocol. */
 /* #define UMCUB_CFG_SMP_ENABLE           1 */
 /* Built-in lite upload protocol (about 1 K plus the slot writer; host tool
- * tools/umcub_lite.py): begin / data / end frames with CRC on the same
+ * tools/host/umcub_lite.py): begin / data / end frames with CRC on the same
  * transports, written with umcub_slot_* (header check, test or permanent
  * mark, in-place decryption of encrypted images). Default: on without SMP. */
 /* #define UMCUB_CFG_LITE_UPLOAD          (1 - UMCUB_CFG_SMP_ENABLE) */
@@ -179,7 +179,7 @@
 /* #define UMCUB_CFG_READBACK             0 */
 /* Encrypted images (MCUboot ECIES-P256, AES-128-CTR) with the device key
  * (CMake UMCUB_DEVICE_KEY): image files and transfers do not show the
- * firmware. umcub_sign_image() / tools/umcub_image.py encrypt automatically.
+ * firmware. umcub_sign_image() / tools/host/umcub_image.py encrypt automatically.
  * Installed from the secondary slot, the image is decrypted while it is
  * copied; uploaded over SMP into the primary slot, it is decrypted in place
  * after the last chunk. Readback (UMCUB_CFG_READBACK) then answers only inside
@@ -278,7 +278,7 @@
 
 /* Per transport: UMCUB_LINK_PLAIN (default; SMP and text as is, one device per
  * line), UMCUB_LINK_ADDRESSED (only umcub link frames: node address, discovery,
- * standard SMP inside; host side tools/umcub_link.py, which also serves
+ * standard SMP inside; host side tools/host/umcub_link.py, which also serves
  * mcumgr/smpmgr), UMCUB_LINK_SECURE (additionally host authentication and a MAC
  * on every frame). */
 /* #define UMCUB_CFG_UART_LINK            UMCUB_LINK_PLAIN */
@@ -317,7 +317,7 @@
 /* Board type (product id, u32) and hardware revision (u16). Reported to the
  * host (text command "i", SMP) and to the application (umcub_boot_info()).
  * Board type != 0: every image must carry the same value in its signed TLV
- * UMCUB_TLV_BOARD_TYPE (umcub_sign_image() / tools/umcub_image.py add it),
+ * UMCUB_TLV_BOARD_TYPE (umcub_sign_image() / tools/host/umcub_image.py add it),
  * otherwise MCUboot rejects it before installing - firmware of another product
  * can never be booted, even when it is signed with the same key. */
 /* #define UMCUB_CFG_BOARD_TYPE           0 */

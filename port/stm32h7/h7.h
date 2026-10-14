@@ -12,7 +12,7 @@
 #include "stm32h7xx_ll_pwr.h"
 #include "stm32h7xx_ll_rcc.h"
 #include "stm32h7xx_ll_system.h"
-#include "../common/cortexm_port.h"
+#include "../arch/cortexm/cortexm_port.h"
 
 #if defined(CORE_CM4)
 #define H7_IS_CM4 1

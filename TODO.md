@@ -5,7 +5,7 @@
 Done:
 
 - [x] **UMCUB_DUALCORE_SINGLE_BOOT** — both cores start, the CM4 image is updated over SMP (slot 1), and the CM7 still
-  boots with a broken CM4 image (the CM4 stays parked). Option bytes are written with `tools/h755_option_bytes.sh`
+  boots with a broken CM4 image (the CM4 stays parked). Option bytes are written with `tools/hw/h755_option_bytes.sh`
   through the RAM helper `tools/h7_ob`: STM32CubeProgrammer 2.23 hides `BOOT_CM4_ADD0`/`BCM4` for the H755.
 - [x] **UMCUB_DUALCORE_PER_CORE** — CM4 bootloader validates its image, HSEM handshake, both applications run.
 - [x] **Power loss during swap (swap-scratch)** — `tools/hw/powerfail_test.py` with a `UMCUB_CFG_TEST_FAULT_INJECT`
@@ -17,7 +17,7 @@ Done:
 - [x] **Recovery timeout** (`UMCUB_CFG_RECOVERY_TIMEOUT_MS` = 5 s) — no activity: reset into the application after
   exactly 5 s; a command every 2 s keeps the bootloader in recovery. Entry window `UMCUB_CFG_ENTRY_WAIT_MS` verified
   as well (`b` within the first 300 ms stays in the bootloader).
-- [x] **verify / hash / read** over UART and USB CDC (`tools/umcub_inspect.py` and text commands); SMP readback of
+- [x] **verify / hash / read** over UART and USB CDC (`tools/host/umcub_inspect.py` and text commands); SMP readback of
   200 KiB in ~2 s; `dfu-util -U`.
 - [x] UART (USART3 VCP and USART1 on Arduino D0/D1), USB CDC, USB DFU, entry pin B1, application request,
   swap-scratch upgrade / revert / confirm, text commands over UART and USB CDC.
@@ -30,7 +30,7 @@ Done:
   in the direct-xip modes (name clash) and MCUboot's fallthrough warning broke `-Werror` builds - the matrix now
   builds `umcub_app_all.c` in every upgrade mode.
 - [x] H755 regression after the F1 work and the duplication cleanup: signed examples with the board-type TLV,
-  both cores start (`port/common` init / deinit / jump, CM4 park loop and release), USB CDC and DFU in recovery
+  both cores start (`port/arch/cortexm` init / deinit / jump, CM4 park loop and release), USB CDC and DFU in recovery
   (shared `h7_hsi48_on()`, ULPI sleep clock left to tinyUSB), RNG for the SECURE handshake, USB not enumerated in
   the 300 ms entry window (`b` in the window stays), DFU download 1.5.0 in 6.4 s -> test boot, `last update via
   usb-dfu / app / uart`. CM4 updated through image 1's secondary slot from the CM7 application; writing image 1's
@@ -41,13 +41,13 @@ Open:
 - [ ] **Ethernet** — DHCP (DISCOVER/OFFER/REQUEST/ACK, renewal, static fallback), ARP, ping, SMP over UDP
   (`mcumgr --conntype udp`). JP6 and JP7 must be fitted (UM2408 §7.12). Test 100 and 10 Mbit/s separately (the
   ES0445 2.25.10 workaround is active at 10 Mbit/s only). Needs a cable.
-- [ ] **CAN / CAN-FD on a bus** — ISO-TP + SMP with `tools/smp_can.py`. Needs a transceiver on PD0/PD1 and a USB-CAN
+- [ ] **CAN / CAN-FD on a bus** — ISO-TP + SMP with `tools/host/smp_can.py`. Needs a transceiver on PD0/PD1 and a USB-CAN
   adapter. Only the FDCAN initialisation (internal loopback, timing registers) is verified.
 - [ ] Text commands and verify / hash / read over **UDP and CAN** (host tests only).
 - [ ] Downgrade prevention (`UMCUB_CFG_DOWNGRADE_PREVENTION`) in swap modes.
 - [ ] **IDE workflow** (README "Using umcub from an IDE") in real STM32CubeIDE and Keil MDK projects: post-build
   signing, debug download of the signed image, Keil key codes (`#L`, `$L@L`), armclang as preprocessor. So far
-  verified: `umcub_app_all.c` compiles with the documented include list (GCC, clang); `tools/umcub_image.py` gives
+  verified: `umcub_app_all.c` compiles with the documented include list (GCC, clang); `tools/host/umcub_image.py` gives
   the same image as CMake (header, payload, hash) from ELF and HEX; a tool-signed image boots on the board.
 - [ ] **Bluetooth UART bridge** (HC-05/HC-06 SPP on USART1 D0/D1, PC over RFCOMM): SMP upload, text commands,
   verify / hash over a slow, packetizing link without flow control.
@@ -64,10 +64,10 @@ Done (bootloader 28.3 K in 32 K, two 16 K slots, overwrite, USART1 PA9/PA10 1152
   ECDSA, + 300 ms entry window), jump to the application, handoff + info block read by the application.
 - [x] Recovery entry: application request, `b` within the 300 ms window, no valid image; `a` boots the application.
 - [x] SMP serial recovery: `state-read`, upload (4.9 KB in 1.3 s), `os reset`; text command `i`;
-  `verify` / `hash` via `tools/umcub_inspect.py`.
-- [x] Overwrite upgrade from the application (`umcub_slot_*`, `tools/app_upload.py`): secondary -> primary,
+  `verify` / `hash` via `tools/host/umcub_inspect.py`.
+- [x] Overwrite upgrade from the application (`umcub_slot_*`, `tools/host/app_upload.py`): secondary -> primary,
   `boot reason: upgraded`, `last update via app`.
-- [x] USB (overlay `tools/config/bluepill_usb.h`, 40.7 K in 44 K): enumeration in recovery, text command and SMP
+- [x] USB (overlay `tests/configs/bluepill/usb.h`, 40.7 K in 44 K): enumeration in recovery, text command and SMP
   over CDC (4.9 KB in 0.7 s), verify / hash, DFU download with `-R` (2.1 s) -> overwrite upgrade, clean detach
   (D+ held low outside the bootloader's USB; no enumeration attempts in the kernel log during boot or in the app).
 - [x] Watchdog (`UMCUB_CFG_WATCHDOG_MS` = 2 s, IWDG on LSI): an application that feeds it runs without resets, one
@@ -82,7 +82,7 @@ Done (bootloader 28.3 K in 32 K, two 16 K slots, overwrite, USART1 PA9/PA10 1152
   image keeps running, `boot reason: normal`) and in the primary slot (SMP upload: "is for board type ...",
   recovery); `verify` reports it invalid. Found and fixed: the boot reason said `upgraded` although MCUboot had
   refused the update - now confirmed by the primary image having changed.
-- [x] Recovery without SMP (`UMCUB_CFG_SMP_ENABLE 0`, 24.5 K with log and commands): `tools/umcub_lite.py` upload
+- [x] Recovery without SMP (`UMCUB_CFG_SMP_ENABLE 0`, 24.5 K with log and commands): `tools/host/umcub_lite.py` upload
   over UART into the primary slot (5.2 KB in 0.9 s, boots, `last update via uart`) and into the secondary slot with
   a test mark (overwrite upgrade); a tampered image in the secondary slot is refused by MCUboot, the old image runs.
 - [x] Size pass: snprintf no longer linked through `MCUBOOT_USE_SNPRINTF 0`, no CRC table (`-fno-optimize-crc`),
@@ -99,13 +99,13 @@ Done (bootloader 28.3 K in 32 K, two 16 K slots, overwrite, USART1 PA9/PA10 1152
   decrypted by MCUboot during the overwrite, `boot reason: upgraded`, secondary erased afterwards.
 - [x] SECURE with the watchdog at its minimum (`UMCUB_CFG_WATCHDOG_MS` 2000): three authentications (0.9 s each)
   without a watchdog reset.
-- [x] Blue Pill after the duplication cleanup (`port/common/`, mux line buffers per stream transport, smpclient
+- [x] Blue Pill after the duplication cleanup (`port/arch/cortexm/`, mux line buffers per stream transport, smpclient
   host tools): boot and jump, application request -> recovery, `smpmgr` echo and upload (5.2 KB in 1.4 s),
   `umcub_inspect.py` hash (MATCH) / verify over smpclient, text command `i`, boot of the uploaded 1.1.0.
 
 Open:
 
-- [ ] bxCAN on a real bus (transceiver on PB9/PB8 + USB-CAN adapter, `tools/smp_can.py`). Verified so far in
+- [ ] bxCAN on a real bus (transceiver on PB9/PB8 + USB-CAN adapter, `tools/host/smp_can.py`). Verified so far in
   loopback + silent mode on the Blue Pill: initialisation (BTR 0xC11E0003 = 500 kbit/s at 36 MHz, sample point
   88.9 %), a request frame injected over SWD passes the filter, ISO-TP and the text command "i" run, the answer is
   sent with the TX id; registers checked against RM0008 / ES096 (manual-checker: 9 of 9 match).
@@ -117,7 +117,7 @@ Open:
 - [x] 2. UART config struct, RS485 DE (H7 hardware, F1 software), entropy and RDP level in the ports.
 - [x] 3. umcub link ADDRESSED (frames, node address / UID selection, discovery) through the mux; host test.
 - [x] 4. SECURE: challenge signed with the admin key, ECDH with the device key, HKDF, per-frame HMAC, replay
-  protection, AES-CTR payload encryption, RDP policy, idle timeout, key embedding (`tools/umcub_keys.py`);
+  protection, AES-CTR payload encryption, RDP policy, idle timeout, key embedding (`tools/host/umcub_keys.py`);
   host test `umcub_host_link_secure` (also under ASan/UBSan). Builds: H7 `link-secure` (all transports, with
   encryption) 60.3 K, Blue Pill `bluepill-rs485-secure` 31.8 K in a 36 K region (36 K + 2 x 14 K slots) - on the
   F1 SECURE needs more than the default 32 K region.
@@ -127,7 +127,7 @@ Open:
   secondary; readback only inside an encrypted link session. Host tests `umcub_host_swap_scratch_enc`,
   `umcub_host_link_secure`; builds `encrypt-images` (H7) 64.3 K, `bluepill-encrypt` 35.7 K in a 37.75 K region,
   `per-core-cm4-encrypt`.
-- [x] 6. `tools/umcub_link.py`: discover, info, cmd, `serve` proxy (pty / UDP) for mcumgr/smpmgr; end-to-end test
+- [x] 6. `tools/host/umcub_link.py`: discover, info, cmd, `serve` proxy (pty / UDP) for mcumgr/smpmgr; end-to-end test
   `tests/host/link_e2e.py` (part of the build matrix): 3 simulated SECURE devices (`umcub_sim_secure`) on one bus -
   discovery, only the addressed node answers, selection by UID, wrong admin key refused, smpmgr echo / upload of an
   encrypted image (decrypted in place) / state-read through the proxy.
@@ -164,7 +164,7 @@ Open:
   the primary slot is validated before the in-place decryption.
 - [ ] MCUboot submodule is v2.4.0: `main` already wipes the AES key on every path of `boot_serial_encryption.c`.
   Its in-place decryption still needs a sector-sized VLA on the stack, assumes uniform sectors and does not
-  validate first, so `mcuboot_port/src/enc_image.c` replaces it (issue draft prepared). Drop our copy once upstream
+  validate first, so `image/mcuboot/enc_image.c` replaces it (issue draft prepared). Drop our copy once upstream
   takes a port-provided buffer; update the submodule after the next release.
 - [ ] Recovery over the network / CAN is not authenticated without `UMCUB_LINK_SECURE` (see README, "Mode notes
   and limitations").

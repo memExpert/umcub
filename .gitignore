@@ -1,4 +1,4 @@
-build/
+/build/
 .venv/
 examples/*/build/
 __pycache__/

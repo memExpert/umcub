@@ -1,7 +1,7 @@
 /*
  * CAN / CAN-FD transport: raw SMP packets over ISO-TP.
  *   host -> device: UMCUB_CFG_CAN_RX_ID, device -> host: UMCUB_CFG_CAN_TX_ID
- * Host side: tools/smp_can.py (python-can).
+ * Host side: tools/host/smp_can.py (python-can).
  */
 #include "umcub_cfg.h"
 #include "umcub_log.h"
@@ -10,13 +10,12 @@
 #include "umcub_transport.h"
 #include "umcub_handoff.h"
 #include "isotp.h"
-#include "umcub_boot.h"
+#include "umcub_state.h"
 
 extern const umcub_transport_t umcub_transport_can;
 
 #if UMCUB_CFG_CAN_LINK
-#include "umcub_link.h"
-static uint8_t rx_msg[UMCUB_LINK_FRAME_MAX];    /* a link frame around a full SMP packet */
+static uint8_t rx_msg[UMCUB_TRANSPORT_LINK_PACKET_MAX];  /* a link frame around a full SMP packet */
 #else
 static uint8_t rx_msg[UMCUB_CFG_SMP_MTU];
 #endif

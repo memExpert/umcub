@@ -9,9 +9,9 @@
  */
 #define UMCUB_BUILDING_APP 1
 
-#include "src/umcub.c"
-#include "src/slot_writer.c"
-#include "../../mcuboot_port/src/flash_map_backend.c"
+#include "../../image/umcub.c"
+#include "../../image/slot_writer.c"
+#include "../../image/mcuboot/flash_map_backend.c"
 /* MCUboot's own source: its warnings (implicit fallthrough in the direct-xip
  * paths of boot_set_next()) are not ours to fix - keep -Werror projects building. */
 #if defined(__GNUC__)

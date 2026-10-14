@@ -13,7 +13,7 @@
 #include "umcub_port.h"
 #include "umcub_port_can.h"
 #include "umcub_port_eth.h"
-#include "umcub_transport.h"
+#include "umcub_proto.h"
 #include "umcub_log.h"
 #include "umcub.h"
 #include "bootutil/bootutil.h"
@@ -487,7 +487,7 @@ static void test_swap_revert_confirm(const uint8_t *v2, size_t v2_len)
 }
 
 /* An image signed with the right key but for another board type is never
- * installed (MCUboot image check hook, mcuboot_port/src/hooks.c). */
+ * installed (MCUboot image check hook, image/mcuboot/hooks.c). */
 static void test_board_type(const uint8_t *foreign, size_t len)
 {
 #if UMCUB_CFG_BOARD_TYPE == 0

@@ -12,8 +12,7 @@
 #include "umcub_log.h"
 #include "umcub.h"
 #include "umcub_handoff.h"
-
-void umcub_handoff_note_transport(uint8_t id);
+#include "umcub_state.h"
 
 static umcub_slot_writer_t writer;
 static bool active;

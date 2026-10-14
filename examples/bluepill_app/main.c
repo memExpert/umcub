@@ -6,7 +6,7 @@
  * port:
  *   i  show bootloader / image information
  *   b  reboot into the bootloader's recovery mode
- *   u  receive an image and write it into the secondary slot (tools/app_upload.py)
+ *   u  receive an image and write it into the secondary slot (tools/host/app_upload.py)
  *   w  stop feeding the watchdog (UMCUB_CFG_WATCHDOG_MS: reset follows)
  *   r  reset
  */

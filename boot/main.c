@@ -8,10 +8,10 @@
  */
 #include <string.h>
 #include "umcub_cfg.h"
-#include "umcub_boot.h"
+#include "umcub_state.h"
 #include "umcub_log.h"
 #include "umcub_port.h"
-#include "umcub_transport.h"
+#include "umcub_proto.h"
 #include "umcub_version.h"
 #include "bootutil/bootutil.h"
 #include "bootutil/image.h"

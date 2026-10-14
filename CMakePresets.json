@@ -28,7 +28,7 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "UMCUB_CORE": "cm7",
-        "UMCUB_CONFIG_PRE": "${sourceDir}/tools/config/per_core.h"
+        "UMCUB_CONFIG_PRE": "${sourceDir}/tests/configs/feature/per_core.h"
       }
     },
     {
@@ -38,7 +38,7 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "UMCUB_CORE": "cm4",
-        "UMCUB_CONFIG_PRE": "${sourceDir}/tools/config/per_core.h"
+        "UMCUB_CONFIG_PRE": "${sourceDir}/tests/configs/feature/per_core.h"
       }
     },
     {
@@ -54,7 +54,7 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "UMCUB_BOARD": "bluepill_f103c8",
-        "UMCUB_CONFIG_POST": "${sourceDir}/tools/config/bluepill_usb.h"
+        "UMCUB_CONFIG_POST": "${sourceDir}/tests/configs/bluepill/usb.h"
       }
     }
   ],

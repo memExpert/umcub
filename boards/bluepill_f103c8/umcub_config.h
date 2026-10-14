@@ -46,7 +46,7 @@
 #define UMCUB_CFG_UART_RX_PIN           UMCUB_PIN('A', 10, 0)
 
 /* bxCAN on PB9 (TX) / PB8 (RX) - needs a transceiver; not together with USB
- * (shared SRAM). Enable with UMCUB_CFG_TRANSPORT_CAN (tools/config/bluepill_can.h). */
+ * (shared SRAM). Enable with UMCUB_CFG_TRANSPORT_CAN (tests/configs/bluepill/can.h). */
 #define UMCUB_CFG_CAN_TX_PIN            UMCUB_PIN('B', 9, 0)
 #define UMCUB_CFG_CAN_RX_PIN            UMCUB_PIN('B', 8, 0)
 

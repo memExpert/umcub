@@ -7,12 +7,12 @@
  *   bank1: S0 boot | S1-S3 img0 (CM7) primary | S4-S6 img0 secondary | S7 scratch
  *   bank2: S0-S2 img1 (CM4) primary | S3-S5 img1 secondary | S6-S7 free
  *   Option bytes: BCM7=1, BCM4=1, BOOT_CM7_ADD0=0x0800, BOOT_CM4_ADD0=0x0800
- *   (tools/h755_option_bytes.sh single)
+ *   (tools/hw/h755_option_bytes.sh single)
  *
  * UMCUB_DUALCORE_PER_CORE:
  *   bank1: S0 CM7 boot | S1-S3 CM7 primary | S4-S6 CM7 secondary | S7 scratch
  *   bank2: S0 CM4 boot | S1-S3 CM4 primary | S4-S6 CM4 secondary | S7 scratch
- *   Option bytes: BOOT_CM4_ADD0=0x0810 (tools/h755_option_bytes.sh per-core)
+ *   Option bytes: BOOT_CM4_ADD0=0x0810 (tools/hw/h755_option_bytes.sh per-core)
  */
 #ifndef UMCUB_CONFIG_H
 #define UMCUB_CONFIG_H

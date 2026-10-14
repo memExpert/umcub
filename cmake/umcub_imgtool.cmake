@@ -14,7 +14,7 @@ if(NOT UMCUB_IMGTOOL)
 endif()
 
 # imgtool arguments for the board type TLV (protected): "--custom-tlv 0xa0 0x<u32 LE>",
-# empty when UMCUB_CFG_BOARD_TYPE is 0. Same encoding as tools/umcub_image.py.
+# empty when UMCUB_CFG_BOARD_TYPE is 0. Same encoding as tools/host/umcub_image.py.
 function(umcub_board_type_tlv_args out_var board_type)
   set(_args)
   if(board_type)
@@ -73,7 +73,7 @@ function(umcub_generate_enc_key device out)
 endfunction()
 
 # umcub_generate_link_keys(<device.pem> <admin.pem> <out.c>)
-# umcub link SECURE keys for the bootloader (tools/umcub_keys.py): the private
+# umcub link SECURE keys for the bootloader (tools/host/umcub_keys.py): the private
 # device key and the public half of the admin key.
 function(umcub_generate_link_keys device admin out)
   foreach(_k "${device}" "${admin}")
@@ -90,7 +90,7 @@ function(umcub_generate_link_keys device admin out)
 endfunction()
 
 # umcub_keys_command(<c|host-c> <device.pem> <admin.pem or ""> <out.c>):
-# rule running tools/umcub_keys.py with the Python next to imgtool (it has
+# rule running tools/host/umcub_keys.py with the Python next to imgtool (it has
 # `cryptography`, an imgtool dependency).
 function(umcub_keys_command mode device admin out)
   if("${device}" MATCHES "/tools/keys/dev-[a-z]+-p256.pem$" AND NOT mode STREQUAL "host-c")
@@ -107,8 +107,8 @@ function(umcub_keys_command mode device admin out)
     find_program(_py NAMES python3 python REQUIRED NO_CACHE)
   endif()
   add_custom_command(OUTPUT "${out}"
-    COMMAND "${_py}" "${UMCUB_ROOT}/tools/umcub_keys.py" ${mode} --device "${device}" ${_admin_args} -o "${out}"
-    DEPENDS "${device}" ${admin} "${UMCUB_ROOT}/tools/umcub_keys.py"
+    COMMAND "${_py}" "${UMCUB_ROOT}/tools/host/umcub_keys.py" ${mode} --device "${device}" ${_admin_args} -o "${out}"
+    DEPENDS "${device}" ${admin} "${UMCUB_ROOT}/tools/host/umcub_keys.py"
     COMMENT "umcub link keys (${mode})"
     VERBATIM)
 endfunction()

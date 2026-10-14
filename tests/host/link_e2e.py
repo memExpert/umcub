@@ -4,13 +4,13 @@
   link_e2e.py <build/host dir> [--python .venv/bin/python]
 
 Starts device simulators (tests/host/sim_device.c: real mux, umcub link,
-boot_serial on emulated flash) and a bus hub that gives tools/umcub_link.py a
+boot_serial on emulated flash) and a bus hub that gives tools/host/umcub_link.py a
 serial port (pty): every byte from the host reaches every device, device lines
 are merged back. Checks discovery, addressing (only the addressed device
 answers), selection by UID, the SECURE handshake, a wrong admin key, and
 standard smpmgr through `umcub_link.py serve`. Then the SMP host tools on a
-plain device (umcub_sim_plain: tools/umcub_inspect.py) and on the CAN transport
-(umcub_sim_can, python-can "serial" bus on a pty: tools/smp_can.py).
+plain device (umcub_sim_plain: tools/host/umcub_inspect.py) and on the CAN transport
+(umcub_sim_can, python-can "serial" bus on a pty: tools/host/smp_can.py).
 """
 import argparse
 import base64
@@ -26,7 +26,7 @@ import time
 import tty
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-LINK = os.path.join(ROOT, "tools/umcub_link.py")
+LINK = os.path.join(ROOT, "tools/host/umcub_link.py")
 KEYS = os.path.join(ROOT, "tools/keys")
 
 failures = 0
@@ -110,17 +110,17 @@ class ByteHub(threading.Thread):
 
 
 def can_tools(build, py):
-    """tools/smp_can.py (smpclient + ISO-TP) against the real umcub CAN transport."""
+    """tools/host/smp_can.py (smpclient + ISO-TP) against the real umcub CAN transport."""
     print("[e2e] CAN: smp_can.py echo / upload / list over ISO-TP", flush=True)
     sim = subprocess.Popen([os.path.join(build, "umcub_sim_can")], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
     hub = ByteHub(sim)
     hub.start()
-    can = [py, os.path.join(ROOT, "tools/smp_can.py"), "--interface", "serial", "--channel", hub.path]
+    can = [py, os.path.join(ROOT, "tools/host/smp_can.py"), "--interface", "serial", "--channel", hub.path]
     try:
         p = subprocess.run(can + ["echo", "hello-can"], capture_output=True, text=True, timeout=60)
         check(p.returncode == 0 and "hello-can" in p.stdout, "smp_can.py echo")
         with tempfile.TemporaryDirectory() as d:
-            subprocess.run([py, os.path.join(ROOT, "tools/umcub_image.py"), "sign", "--board", "nucleo_h755zi_q",
+            subprocess.run([py, os.path.join(ROOT, "tools/host/umcub_image.py"), "sign", "--board", "nucleo_h755zi_q",
                             "--core", "cm7", "--pre", os.path.join(ROOT, "tests/host/cfg_swap_scratch.h"),
                             "--post", os.path.join(ROOT, "tests/host/sim_can_post.h"), "--version", "3.1.4",
                             os.path.join(build, "payload.bin"), "-o", os.path.join(d, "app")],
@@ -137,10 +137,10 @@ def can_tools(build, py):
 
 
 def lite_tools(build, py):
-    """Bootloaders without SMP: tools/umcub_lite.py on a stream (pty) and on CAN."""
+    """Bootloaders without SMP: tools/host/umcub_lite.py on a stream (pty) and on CAN."""
     print("[e2e] without SMP: umcub_lite.py upload over a stream and over CAN, verify", flush=True)
     with tempfile.TemporaryDirectory() as d:
-        subprocess.run([py, os.path.join(ROOT, "tools/umcub_image.py"), "sign", "--board", "nucleo_h755zi_q",
+        subprocess.run([py, os.path.join(ROOT, "tools/host/umcub_image.py"), "sign", "--board", "nucleo_h755zi_q",
                         "--core", "cm7", "--pre", os.path.join(ROOT, "tests/host/cfg_swap_scratch.h"),
                         "--post", os.path.join(ROOT, "tests/host/sim_lite_post.h"), "--version", "4.0.1",
                         os.path.join(build, "payload.bin"), "-o", os.path.join(d, "app")],
@@ -150,7 +150,7 @@ def lite_tools(build, py):
         data = bytearray(open(img, "rb").read())
         data[0x800] ^= 1
         open(bad, "wb").write(data)
-        lite = [py, os.path.join(ROOT, "tools/umcub_lite.py")]
+        lite = [py, os.path.join(ROOT, "tools/host/umcub_lite.py")]
 
         sim = subprocess.Popen([os.path.join(build, "umcub_sim_lite")], stdin=subprocess.PIPE,
                                stdout=subprocess.PIPE, env=dict(os.environ, UMCUB_SIM_ADDR="0", UMCUB_SIM_UID="9"))
@@ -190,16 +190,16 @@ def lite_tools(build, py):
 
 
 def plain_tools(build, py, smpmgr):
-    """Standard SMP on one plain device: smpmgr upload, tools/umcub_inspect.py (smpclient)."""
+    """Standard SMP on one plain device: smpmgr upload, tools/host/umcub_inspect.py (smpclient)."""
     print("[e2e] plain SMP: smpmgr upload, umcub_inspect.py verify / hash / read", flush=True)
     sim = subprocess.Popen([os.path.join(build, "umcub_sim_plain")], stdin=subprocess.PIPE,
                            stdout=subprocess.PIPE, env=dict(os.environ, UMCUB_SIM_ADDR="0", UMCUB_SIM_UID="7"))
     hub = Hub([sim])
     hub.start()
-    inspect = [py, os.path.join(ROOT, "tools/umcub_inspect.py"), "--port", hub.path, "--timeout", "5"]
+    inspect = [py, os.path.join(ROOT, "tools/host/umcub_inspect.py"), "--port", hub.path, "--timeout", "5"]
     try:
         with tempfile.TemporaryDirectory() as d:
-            subprocess.run([py, os.path.join(ROOT, "tools/umcub_image.py"), "sign", "--board", "nucleo_h755zi_q",
+            subprocess.run([py, os.path.join(ROOT, "tools/host/umcub_image.py"), "sign", "--board", "nucleo_h755zi_q",
                             "--core", "cm7", "--pre", os.path.join(ROOT, "tests/host/cfg_swap_scratch.h"),
                             "--post", os.path.join(ROOT, "tests/host/sim_plain_post.h"), "--version", "2.0.1",
                             os.path.join(build, "payload.bin"), "-o", os.path.join(d, "app")],
@@ -289,7 +289,7 @@ def main():
             check("hello-umcub" in p.stdout, "smpmgr os echo")
             # Image for the simulator's configuration (board type TLV, encrypted with the device key),
             # signed the way an IDE project would do it.
-            subprocess.run([py, os.path.join(ROOT, "tools/umcub_image.py"), "sign", "--board", "nucleo_h755zi_q",
+            subprocess.run([py, os.path.join(ROOT, "tools/host/umcub_image.py"), "sign", "--board", "nucleo_h755zi_q",
                             "--core", "cm7", "--pre", os.path.join(ROOT, "tests/host/cfg_swap_scratch.h"),
                             "--post", os.path.join(ROOT, "tests/host/test_link_secure_post.h"), "--version",
                             "1.2.3", os.path.join(a.build, "payload.bin"), "-o", os.path.join(d, "app")],

@@ -39,7 +39,7 @@ typedef struct umcub_transport {
      * upsets some host controllers. init/deinit/poll/read
      * of such a transport must cope with never having been started. */
     bool skip_entry_window;
-    /* UMCUB_LINK_* (umcub_link.h); 0 = plain SMP / text. */
+    /* UMCUB_LINK_* (umcub_config_types.h); 0 = plain SMP / text. */
     uint8_t link;
 } umcub_transport_t;
 
@@ -48,18 +48,19 @@ typedef struct umcub_transport {
                              (UMCUB_CFG_TRANSPORT_CAN != 0) + (UMCUB_CFG_TRANSPORT_ETH != 0) + \
                              (UMCUB_CFG_TRANSPORT_USER != 0))
 
+/* Largest packet a packet transport on a umcub link receives: a link frame
+ * (14-byte header + 16-byte tag) around a full SMP packet. Checked against
+ * UMCUB_LINK_FRAME_MAX in proto/include/umcub_link.h. */
+#define UMCUB_TRANSPORT_LINK_PACKET_MAX (14u + UMCUB_CFG_SMP_MTU + 16u)
+
 /* Registry (transport/registry.c): every transport enabled in umcub_config.h. */
 extern const umcub_transport_t *const umcub_transports[];
 extern const unsigned umcub_transport_count;
 
-/* Called by packet transports when a complete SMP packet arrived. The
- * buffer must stay valid until the call returns; returns false if the mux is
- * busy (packet dropped, host will retry). */
+/* Called by packet transports when a complete packet arrived; implemented by
+ * the protocol layer (proto/mux.c). The buffer must stay valid until the call
+ * returns; returns false if the mux is busy (packet dropped, host will retry). */
 bool umcub_smp_packet_rx(const umcub_transport_t *t, const uint8_t *pkt, size_t len);
-
-/* True while the request being handled came over an encrypted umcub link
- * session (SECURE + UMCUB_CFG_LINK_ENCRYPT): readback of encrypted images. */
-bool umcub_mux_request_confidential(void);
 
 /* Lifecycle used by the boot core. */
 void umcub_transports_init(void);
@@ -67,24 +68,5 @@ void umcub_transports_init(void);
 void umcub_transports_init_entry_window(void);
 void umcub_transports_deinit(void);
 void umcub_transports_poll(void);
-
-/* UMCUB_CFG_PROTO_USER: implemented by the board (boards/<b>/umcub_board.c).
- * A frame that is neither SMP, a lite upload frame nor a text command: a
- * packet of a packet transport, a umcub link DATA payload, or the decoded
- * line "0x05 0x0D <base64> \n" of a plain stream transport. Return true if
- * it was yours (the bootloader then stays in recovery during the entry
- * window). Write images with umcub_slot_* (umcub.h). */
-bool umcub_proto_user(const umcub_transport_t *t, const uint8_t *data, size_t len);
-/* Answer `t` with one frame (a packet, or a 0x05 0x0D line on a plain stream). */
-void umcub_proto_reply(const umcub_transport_t *t, const uint8_t *data, size_t len);
-
-/* Poll for up to `ms`; true as soon as a host started talking SMP (the
- * request is kept and served by umcub_recovery_run()). */
-bool umcub_recovery_wait(uint32_t ms);
-/* Serve SMP until the host resets the device. Never returns. */
-__attribute__((noreturn)) void umcub_recovery_run(void);
-
-/* Transport that last delivered an SMP request (UMCUB_TRANSPORT_*). */
-uint8_t umcub_recovery_last_transport(void);
 
 #endif /* UMCUB_TRANSPORT_H */

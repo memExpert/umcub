@@ -8,7 +8,7 @@
 #include "umcub_port.h"
 #include "umcub_port_can.h"
 #include "umcub_port_eth.h"
-#include "umcub_transport.h"
+#include "umcub_proto.h"
 #include "umcub_handoff.h"
 #include "stm32h7xx.h"
 

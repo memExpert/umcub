@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Power-loss test of MCUboot upgrade/revert on real hardware (SWD, STM32_Programmer_CLI).
 
-Needs a bootloader built with -DUMCUB_CONFIG_POST=tools/config/fault_inject.h
+Needs a bootloader built with -DUMCUB_CONFIG_POST=tests/configs/feature/fault_inject.h
 (UMCUB_CFG_TEST_FAULT_INJECT): it resets the MCU in the middle of the K-th
 flash operation (sector erase or flash-word program already started), which
 leaves half-erased sectors / half-programmed words like a power cut.
@@ -14,7 +14,7 @@ Swap modes (--mode swap), for every K:
   5. check: primary == v1, secondary == v2 (revert completed)
 Overwrite (--mode overwrite): steps 1-3, check primary == v2 only.
 
-Images are signed with tools/umcub_image.py for the bootloader's configuration
+Images are signed with tools/host/umcub_image.py for the bootloader's configuration
 (--board / --core / --pre / --post, as for the build), so header size, alignment
 and the board-type TLV match.
 
@@ -22,7 +22,7 @@ and the board-type TLV match.
   tools/hw/powerfail_test.py --boot build/hw/boot_fault/umcub_nucleo_h755zi_q_cm7.hex \\
       --app build/hw/sb_app_cm7/h755_cm7_app.bin --board nucleo_h755zi_q --core cm7 --points 40
   swap-offset (the update sits one sector into the secondary slot, the revert copy at its start):
-  ... --pre tools/config/mode_swap_offset.h --secondary 0x080A0000 --revert-copy 0x08080000
+  ... --pre tests/configs/mode/swap_offset.h --secondary 0x080A0000 --revert-copy 0x08080000
   Blue Pill (overwrite, 16 KiB slots, 1 KiB pages, no NRST on the SWD header):
   tools/hw/powerfail_test.py --boot build/bp_fault/umcub_bluepill_f103c8_cm3.hex \\
       --app build/bluepill/examples/bluepill_app/bluepill_app.bin --board bluepill_f103c8 \\
@@ -58,10 +58,10 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--boot", required=True, help="fault-injection bootloader .hex")
     ap.add_argument("--app", required=True, help="raw application .bin (unsigned) used as payload start")
-    ap.add_argument("--board", required=True, help="board of the bootloader (tools/umcub_image.py --board)")
+    ap.add_argument("--board", required=True, help="board of the bootloader (tools/host/umcub_image.py --board)")
     ap.add_argument("--core", help="dual-core parts: cm7 / cm4")
     ap.add_argument("--pre", help="UMCUB_CONFIG_PRE of the bootloader build")
-    ap.add_argument("--post", default=os.path.join(ROOT, "tools/config/fault_inject.h"),
+    ap.add_argument("--post", default=os.path.join(ROOT, "tests/configs/feature/fault_inject.h"),
                     help="UMCUB_CONFIG_POST of the bootloader build")
     ap.add_argument("--mode", choices=("swap", "overwrite"), default="swap")
     ap.add_argument("--primary", type=lambda s: int(s, 0), default=0x08020000)
@@ -106,7 +106,7 @@ def main():
         return open(path, "rb").read()
 
     def sign(payload, version, out, pad):
-        args = [PY, os.path.join(ROOT, "tools/umcub_image.py"), "sign", "--board", a.board, "--version", version]
+        args = [PY, os.path.join(ROOT, "tools/host/umcub_image.py"), "sign", "--board", a.board, "--version", version]
         for opt in ("core", "pre", "post"):
             if getattr(a, opt):
                 args += [f"--{opt}", getattr(a, opt)]
