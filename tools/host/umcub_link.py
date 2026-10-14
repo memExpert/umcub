@@ -70,6 +70,7 @@ class SerialBus:
         import serial
         self.s = serial.Serial(port, baud, timeout=0)
         self.buf = b""
+        self.noise = 0          # lines that were not frames: on a shared bus, answers that collided
 
     def send(self, frame):
         self.s.write(LINE_START + base64.b64encode(frame) + b"\n")
@@ -87,9 +88,14 @@ class SerialBus:
                         return base64.b64decode(line[i + 2:].strip(), validate=True)
                     except ValueError:
                         pass
+                if line.strip():
+                    self.noise += 1
                 nl = self.buf.find(b"\n")
             left = end - time.monotonic()
             if left <= 0:
+                if self.buf.strip():
+                    self.noise += 1         # a line cut short (its newline lost in a collision)
+                    self.buf = b""
                 return None
             self.s.timeout = min(left, 0.05)
             chunk = self.s.read(4096)
@@ -102,6 +108,7 @@ class UdpBus:
         self.addr = (host, port)
         self.s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        self.noise = 0          # datagrams do not collide; counts frames that do not parse
 
     def send(self, frame):
         self.s.sendto(frame, self.addr)
@@ -218,7 +225,10 @@ class Link:
             if raw is None:
                 return None
             fr = parse_frame(raw)
-            if not fr or fr["dst"] != HOST_ADDR or fr["type"] not in types:
+            if not fr:
+                self.bus.noise += 1
+                continue
+            if fr["dst"] != HOST_ADDR or fr["type"] not in types:
                 continue
             if src is not None and fr["src"] != src:
                 continue
@@ -286,10 +296,15 @@ class Link:
             self.send(T_CLOSE)
             self.session = None
 
-    def discover(self, rounds=3, slots=16, slot_ms=20):
+    def discover(self, rounds=8, slots=16, slot_ms=20):
+        """Devices answer DISCOVER in a random slot; two in the same slot collide
+        and the host gets garbage. Found UIDs are listed in the next DISCOVER
+        (they stay silent), the others draw new slots. Ends after a quiet round
+        (nothing new, nothing garbled) or after `rounds` rounds."""
         found = {}
         for _ in range(rounds):
             known = b"".join(bytes.fromhex(u) for u in list(found)[:80])
+            noise = self.bus.noise
             self.send(T_DISCOVER, struct.pack("<BH", slots, slot_ms) + known, dst=BROADCAST)
             end = time.monotonic() + slots * slot_ms / 1000.0 + 0.3
             new = 0
@@ -300,7 +315,7 @@ class Link:
                     if ident and ident["uid"] not in found:
                         found[ident["uid"]] = ident
                         new += 1
-            if not new:
+            if not new and self.bus.noise == noise:
                 break
         return list(found.values())
 
@@ -365,7 +380,7 @@ def main():
     ap.add_argument("--timeout", type=float, default=3.0)
     sub = ap.add_subparsers(dest="cmd", required=True)
     d = sub.add_parser("discover")
-    d.add_argument("--rounds", type=int, default=3)
+    d.add_argument("--rounds", type=int, default=8, help="at most; stops after a quiet round")
     d.add_argument("--slots", type=int, default=16)
     d.add_argument("--slot-ms", type=int, default=20)
     sub.add_parser("info")

@@ -151,6 +151,12 @@ Open:
   `umcub_link.py serve`, boots the new image. SECURE (36 K region, `UMCUB_CFG_LINK_REQUIRE_RDP 0` at RDP 0): discover,
   authentication + MAC-protected `cmd i` in ~1 s, wrong admin key / wrong device key / no keys refused, plain SMP
   unanswered, smpmgr upload 5 KB in ~3 s through `serve`, boots the new image.
+- [x] Hardware, two Blue Pills on one RS485 bus (ADDRESSED, both unassigned, MAX485 modules, USB-RS485 adapter):
+  `discover` finds both UIDs every time, `--uid` reaches only the selected board, an unknown UID gets no answer.
+  With `--slots 2` (forced collisions) the old stop rule ended 3 of 10 runs with no device, the new one (continue
+  while a round brought garbage) found both in 10 of 10. Bench lesson: a MAX485 module pulls DE and /RE up - an
+  open DE/RE wire leaves the driver on, the receiver off and the whole bus jammed.
+- [ ] Hardware: node addresses 1 and 2 set by the application, `--addr` on the shared bus.
 - [ ] Hardware: encrypted image over USB DFU and from the application on the H7 (application
   path verified on the Blue Pill).
 

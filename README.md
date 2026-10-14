@@ -381,7 +381,12 @@ Limits:
   [encrypted images](#encrypted-images) for what is stored and sent outside it.
 
 **Host side: `tools/host/umcub_link.py`.** Standard SMP clients do not speak the link. The tool finds the devices, selects
-one and, as a proxy, serves `mcumgr` / `smpmgr` unchanged:
+one and, as a proxy, serves `mcumgr` / `smpmgr` unchanged.
+
+`discover` broadcasts DISCOVER with a number of slots; every device answers ANNOUNCE in a random slot. Two devices
+in one slot collide and the host receives garbage; the next round lists the UIDs found so far (those stay silent)
+and the rest draw new slots. Rounds end after a quiet one - nothing new and nothing garbled - or after `--rounds`
+(default 8). Fewer `--slots` make discovery faster and collisions more likely.
 
 ```sh
 umcub_link.py --port /dev/ttyUSB0 discover                     # all devices on the bus (random back-off rounds)
