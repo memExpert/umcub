@@ -118,6 +118,19 @@ bool umcub_inspect_confidential(void)
 #endif
 }
 
+void umcub_mux_flush(uint32_t ms)
+{
+#if UMCUB_CFG_LINK_ANY
+    /* The request is answered: what runs from the polling below (a USB DFU
+     * readback) must not inherit its encrypted session. */
+    req_from = NULL;
+#endif
+    uint32_t start = umcub_port_millis();
+    while ((uint32_t)(umcub_port_millis() - start) < ms) {
+        umcub_transports_poll();
+    }
+}
+
 static uint8_t last_transport;
 static uint32_t last_activity;
 static bool in_recovery;

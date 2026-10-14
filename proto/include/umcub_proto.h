@@ -20,6 +20,11 @@ bool umcub_proto_user(const umcub_transport_t *t, const uint8_t *data, size_t le
 /* Answer `t` with one frame (a packet, or a 0x05 0x0D line on a plain stream). */
 void umcub_proto_reply(const umcub_transport_t *t, const uint8_t *data, size_t len);
 
+/* Before a reset from inside a request (SMP, text command, lite): ends the
+ * request and polls the transports for `ms` so the answer leaves (USB,
+ * Ethernet need polling). */
+void umcub_mux_flush(uint32_t ms);
+
 /* Poll for up to `ms`; true as soon as a host started talking SMP (the
  * request is kept and served by umcub_recovery_run()). */
 bool umcub_recovery_wait(uint32_t ms);

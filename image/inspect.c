@@ -189,7 +189,8 @@ int umcub_inspect_read(int image, int slot, uint32_t off, void *buf, uint32_t le
     }
 #if UMCUB_CFG_ENCRYPT_IMAGES
     /* Installed images are plain text in flash: only over a channel that is
-     * itself encrypted (never USB DFU, which is not a mux request). */
+     * itself encrypted (never USB DFU, which is not a mux request - also not
+     * while a request waits for its reset, umcub_mux_flush()). */
     if (!umcub_inspect_confidential()) {
         return UMCUB_EPERM;
     }

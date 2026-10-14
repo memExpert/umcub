@@ -7,6 +7,7 @@
 
 #if UMCUB_CFG_LITE_UPLOAD
 #include "umcub_lite.h"
+#include "umcub_proto.h"
 #include "umcub.h"
 #include "umcub_log.h"
 #include "umcub_port.h"
@@ -121,9 +122,7 @@ bool umcub_lite_rx(const umcub_transport_t *t, const uint8_t *f, size_t len)
         break;
     case 'R':
         answer(t, UMCUB_OK);
-        for (uint32_t start = umcub_port_millis(); (uint32_t)(umcub_port_millis() - start) < 50u;) {
-            umcub_transports_poll();        /* let the answer leave (USB, Ethernet) */
-        }
+        umcub_mux_flush(50);                /* let the answer leave (USB, Ethernet) */
         umcub_port_reset();
         break;
     default:

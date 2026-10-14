@@ -188,24 +188,24 @@ same core; check the real size after porting.
 
 | MCU | log (level 3) | text commands | verify + hash | readback | umcub link (addressed) | umcub link SECURE | + link encryption | encrypted images |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| STM32H755 CM7 (2 images, SINGLE_BOOT) | +3.6 K | +2.3 K | +1.0 K | +0.2 K | +1.9 K | +4.8 K | +1.6 K | +7.1 K |
+| STM32H755 CM7 (2 images, SINGLE_BOOT) | +3.6 K | +2.3 K | +1.0 K | +0.2 K | +1.9 K | +4.9 K | +1.6 K | +7.1 K |
 | STM32H755 CM4 (PER_CORE) | +3.4 K | +2.3 K | +1.0 K | +0.2 K | +1.9 K | +4.9 K | +1.6 K | +6.4 K |
-| STM32H743 / H753 (single core) | +3.4 K | +2.3 K | +1.0 K | +0.2 K | +1.9 K | +4.8 K | +1.6 K | +6.6 K |
-| STM32F103 (Blue Pill, overwrite) | +3.1 K | +2.1 K | +1.0 K | +0.2 K | +1.9 K | +4.9 K | +1.6 K | +6.4 K |
+| STM32H743 / H753 (single core) | +3.4 K | +2.3 K | +1.0 K | +0.2 K | +1.9 K | +4.9 K | +1.6 K | +6.6 K |
+| STM32F103 (Blue Pill, overwrite) | +3.1 K | +2.1 K | +1.0 K | +0.2 K | +2.0 K | +4.9 K | +1.6 K | +6.4 K |
 
 | Flash layout | UART, lite (no SMP) | UART | UART + USB CDC | UART + USB CDC + DFU | UART + CAN | UART + Ethernet | UART, link SECURE | all on |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
 | STM32H7 (128 KiB sectors) | 1 (22.5 K) | 1 (27.1 K) | 1 (38.3 K) | 1 (40.4 K) | 1 (29.7 K) | 1 (31.5 K) | 1 (32.0 K) | 1 (55.0 K) |
-| STM32F2 / F4, F72x / F73x (16, 16, 16, 16, 64, 128 KiB ...) — estimate: Cortex-M4 build | 2 (20.0 K) | 2 (24.5 K) | 3 (35.7 K) | 3 (37.8 K) | 2 (27.1 K) | 2 (28.9 K) | 2 (29.4 K) | 4 (52.1 K) > 3 |
+| STM32F2 / F4, F72x / F73x (16, 16, 16, 16, 64, 128 KiB ...) — estimate: Cortex-M4 build | 2 (20.1 K) | 2 (24.5 K) | 3 (35.7 K) | 3 (37.8 K) | 2 (27.1 K) | 2 (28.9 K) | 2 (29.4 K) | 4 (52.1 K) > 3 |
 | STM32F74x ... F77x (32, 32, 32, 32, 128, 256 KiB ...) — estimate: Cortex-M7 build | 1 (22.5 K) | 1 (27.1 K) | 2 (38.3 K) | 2 (40.4 K) | 1 (29.7 K) | 1 (31.5 K) | 2 (32.0 K) | 2 (55.0 K) |
 | STM32F1 (1 / 2 KiB pages) | 16.7 K | 21.2 K | 31.0 K | 33.0 K | 23.7 K | — | 26.1 K | 38.8 K |
-| STM32G4 / L4 (2 KiB pages) — estimate: Cortex-M4 build | 20.0 K | 24.5 K | 35.7 K | 37.8 K | 27.1 K | 28.9 K | 29.4 K | 52.1 K |
+| STM32G4 / L4 (2 KiB pages) — estimate: Cortex-M4 build | 20.1 K | 24.5 K | 35.7 K | 37.8 K | 27.1 K | 28.9 K | 29.4 K | 52.1 K |
 
 | MCU, with LTO | base | UART (+SMP) | UART, lite upload (no SMP) | all on |
 |---|---:|---:|---:|---:|
-| STM32H755 CM7 (2 images, SINGLE_BOOT) | 15.5 K (-2.9 K) | 23.9 K (-3.2 K) | 19.2 K (-3.2 K) | 48.9 K (-6.1 K) |
+| STM32H755 CM7 (2 images, SINGLE_BOOT) | 15.5 K (-2.9 K) | 23.9 K (-3.2 K) | 19.2 K (-3.2 K) | 48.8 K (-6.1 K) |
 | STM32H755 CM4 (PER_CORE) | 13.1 K (-2.9 K) | 21.1 K (-3.4 K) | 16.8 K (-3.3 K) | 45.9 K (-6.2 K) |
-| STM32H743 / H753 (single core) | 13.8 K (-2.9 K) | 21.9 K (-3.4 K) | 17.5 K (-3.3 K) | 46.6 K (-6.2 K) |
+| STM32H743 / H753 (single core) | 13.8 K (-2.9 K) | 21.9 K (-3.4 K) | 17.5 K (-3.3 K) | 46.6 K (-6.3 K) |
 | STM32F103 (Blue Pill, overwrite) | 10.0 K (-2.5 K) | 18.0 K (-3.2 K) | 13.6 K (-3.1 K) | 33.6 K (-5.2 K) |
 <!-- size-table:end -->
 

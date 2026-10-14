@@ -8,7 +8,7 @@
 #include "umcub_cmd.h"
 #include "umcub_log.h"
 #include "umcub_port.h"
-#include "umcub_transport.h"
+#include "umcub_proto.h"
 #include "umcub_version.h"
 #include "umcub_inspect.h"
 #include "bootutil/bootutil_public.h"
@@ -137,10 +137,7 @@ static void say(umcub_cmd_reply_t reply, const char *fmt, ...)
 static __attribute__((noreturn)) void flush_and_reset(umcub_cmd_reply_t reply)
 {
     reply(NULL);
-    uint32_t start = umcub_port_millis();
-    while ((uint32_t)(umcub_port_millis() - start) < 50u) {
-        umcub_transports_poll();
-    }
+    umcub_mux_flush(50);
     umcub_port_reset();
 }
 

@@ -5,6 +5,7 @@
  * the device key, HKDF, per-frame MAC, AES-CTR.
  */
 #define _GNU_SOURCE     /* memmem */
+#include <setjmp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,6 +17,7 @@
 #include "umcub_link.h"
 #include "umcub_handoff.h"
 #include "umcub_cmd.h"
+#include "umcub_inspect.h"
 #include "boot_serial/boot_serial.h"
 #include "base64/base64.h"
 #include "tinycrypt/constants.h"
@@ -88,7 +90,17 @@ static const umcub_transport_t t_pkt = {
 };
 const umcub_transport_t *const umcub_transports[] = { &t_sec, &t_pkt, 0 };
 const unsigned umcub_transport_count = 2;
-void umcub_transports_poll(void) {}
+/* What a USB DFU readback would get while the transports are polled
+ * (test_no_session_while_resetting). */
+static int probe_polls = -1, probe_leaks;
+void umcub_transports_poll(void)
+{
+    if (probe_polls >= 0) {
+        uint8_t b[8];
+        probe_polls++;
+        probe_leaks += umcub_inspect_confidential() || umcub_inspect_read(0, 1, 0, b, sizeof(b)) != UMCUB_EPERM;
+    }
+}
 void umcub_transports_init(void) {}
 void umcub_transports_deinit(void) {}
 
@@ -512,6 +524,26 @@ static void test_readback_in_session(void)
     CHECK(session_cmd("read 0 0 0 8", "00000000 0000000000000000"));
 }
 
+static void test_no_session_while_resetting(void)
+{
+    printf("[secure] reset from the encrypted session: no readback while the answer drains\n");
+    CHECK(handshake(NODE));
+    jmp_buf jb;
+    fake_reset_jmp = &jb;
+    probe_polls = 0;
+    probe_leaks = 0;
+    if (setjmp(jb) == 0) {
+        reset_io();
+        send(UMCUB_LT_DATA, 0, NODE, "reset", 5, true);
+        run(10);
+        CHECK(!"no reset");
+    }
+    fake_reset_jmp = NULL;
+    CHECK(probe_polls > 0);                         /* polled before the reset */
+    CHECK(probe_leaks == 0);
+    probe_polls = -1;
+}
+
 static void test_failed_auth_keeps_session(void)
 {
     printf("[secure] a failed AUTH from someone else leaves the session open\n");
@@ -669,6 +701,7 @@ int main(void)
     test_entropy_failure();
     test_rdp_closed();
     test_garbage();
+    test_no_session_while_resetting();     /* last: leaves the mux mid-request */
     printf(failures ? "\n%d FAILURE(S)\n" : "\nALL TESTS PASSED\n", failures);
     return failures ? 1 : 0;
 }
