@@ -8,7 +8,6 @@ extern const umcub_transport_t umcub_transport_uart;
 extern const umcub_transport_t umcub_transport_usb;
 extern const umcub_transport_t umcub_transport_can;
 extern const umcub_transport_t umcub_transport_eth;
-extern const umcub_transport_t umcub_transport_user;   /* boards/<b>/umcub_board.c */
 
 const umcub_transport_t *const umcub_transports[] = {
 #if UMCUB_CFG_TRANSPORT_UART

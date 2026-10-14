@@ -9,6 +9,7 @@
 #include "umcub_port.h"
 #include "umcub_random.h"
 #include "umcub_version.h"
+#include "umcub_keys.h"
 #include "base64/base64.h"
 #if UMCUB_CFG_LINK_SECURE_ANY
 #include "tinycrypt/constants.h"
@@ -58,9 +59,7 @@ static bool accept_peer;
 #define KEY_ENC_D2H     80u
 #define LABEL           "umcub-link-v1"
 
-/* tools/host/umcub_keys.py output (CMake UMCUB_DEVICE_KEY / UMCUB_HOST_KEY). */
-extern const uint8_t umcub_link_device_priv[32];
-extern const uint8_t umcub_link_admin_pub[PUB_LEN];
+_Static_assert(sizeof(umcub_link_admin_pub) == PUB_LEN, "umcub_keys.h: admin key is X || Y");
 
 /* The open challenge (one AUTH) and the session: one host at a time. */
 #define CHALLENGE_MS    10000u      /* an AUTH must follow its CHALLENGE within this time */

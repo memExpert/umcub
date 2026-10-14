@@ -53,6 +53,10 @@ typedef struct umcub_transport {
  * UMCUB_LINK_FRAME_MAX in proto/include/umcub_link.h. */
 #define UMCUB_TRANSPORT_LINK_PACKET_MAX (14u + UMCUB_CFG_SMP_MTU + 16u)
 
+/* UMCUB_CFG_TRANSPORT_USER: defined by the board (boards/<b>/umcub_board.c),
+ * no default - the build fails to link without it. */
+extern const umcub_transport_t umcub_transport_user;
+
 /* Registry (transport/registry.c): every transport enabled in umcub_config.h. */
 extern const umcub_transport_t *const umcub_transports[];
 extern const unsigned umcub_transport_count;

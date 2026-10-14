@@ -16,7 +16,7 @@
 #include "tinycrypt/sha256.h"
 #if UMCUB_CFG_LINK_SECURE_ANY
 #include "tinycrypt/hmac.h"
-extern const uint8_t umcub_link_device_priv[32];
+#include "umcub_keys.h"
 #endif
 
 #define ENT_LEN         32u

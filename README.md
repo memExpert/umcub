@@ -257,8 +257,8 @@ UART bootloader is about 4.5 K smaller (F103: 16.7 K instead of 21.2 K, H7: 22.5
   256) below about 3/4 of `UMCUB_CFG_SMP_MTU` (the line buffer). Packet transports carry one frame per packet.
 - **the board's own protocol** (`UMCUB_CFG_PROTO_USER`, also next to SMP): every frame that is neither SMP, lite
   nor a text command goes to `umcub_proto_user(t, data, len)` in `boards/<b>/umcub_board.c` - a packet of a
-  packet transport, a umcub link DATA payload, or a line `0x05 0x0D <base64> \n` on a stream. Answer with
-  `umcub_proto_reply()`; write images with `umcub_slot_*` (`umcub.h`), which is part of the bootloader then.
+  packet transport, a umcub link DATA payload, or a line `0x05 0x0D <base64> \n` on a stream. Both are declared
+  in `umcub_proto.h` (`#include "umcub_proto.h"`). Answer with `umcub_proto_reply()`; write images with `umcub_slot_*` (`umcub.h`), which is part of the bootloader then.
 - USB DFU and updates from the application, as with SMP.
 
 Text commands (`verify`, `hash`, `read`, `i`, ...), the umcub link (ADDRESSED and SECURE: DATA payloads are lite
@@ -534,11 +534,11 @@ ones; responses go back to the transport the request came from.
 #define UMCUB_CFG_TRANSPORT_USER  1
 
 /* umcub_board.c - a packet transport, e.g. a W5500 UDP socket */
-#include "umcub_transport.h"
+#include "umcub_transport.h"      /* also declares umcub_transport_user */
 #include "umcub_handoff.h"
 
-extern const umcub_transport_t umcub_transport_user;
-static uint8_t rx[UMCUB_CFG_SMP_MTU];
+/* a full SMP packet; on a umcub link (UMCUB_CFG_USER_LINK) a link frame around one */
+static uint8_t rx[UMCUB_CFG_USER_LINK ? UMCUB_TRANSPORT_LINK_PACKET_MAX : UMCUB_CFG_SMP_MTU];
 
 static int  w5500_init(void)   { /* SPI + chip setup, open UDP socket */ return 0; }
 static void w5500_deinit(void) { /* close socket, SPI/GPIO/EXTI back to reset state */ }
@@ -846,11 +846,12 @@ Layers, bottom to top; a directory uses only its own and lower layers (checked b
 in the build matrix):
 
 ```
-include/         L0  ABI shared with the application: umcub.h (app API), umcub_handoff.h, umcub_version.h
+include/         L0  ABI shared with the application: umcub.h (app API), umcub_handoff.h
 config/          L0  template, defaults, types, compile-time checks
 port/            L1  hardware: include/ (port API umcub_port*.h), arch/cortexm/ (SysTick, deinit, jump, waits,
                      common linker sections), port/stm32h7/, port/stm32f1/ (family ports + linker templates)
-util/            L2  log, random (CSPRNG), state (handoff RAM, node address), libc (snprintf, assert), crc16/base64
+util/            L2  log, random (CSPRNG), state (handoff RAM, node address), libc (snprintf, assert), crc16/base64,
+                     version, link keys (generated)
 image/           L3  image slots: inspect (verify/hash/read), slot writer + app API (shared with umcub::app),
                      mcuboot/ = MCUboot glue (mcuboot_config.h, flash map backend, hooks, image encryption, shims)
 transport/       L4  channels: uart, usb (tinyUSB CDC/DFU), can (ISO-TP), net (IPv4/UDP/DHCP), registry
@@ -872,6 +873,12 @@ tests/configs/   configuration overlays: mode/, transport/, feature/, bluepill/
 tests/tools/     helpers for the build matrix
 tests/boards/    build-matrix boards (custom_drivers: board drivers + board transport)
 ```
+
+Moved by the layer restructure (code written against the old tree): `lib/umcub_app/include` -> `include`,
+`mcuboot_port/include` -> `image/mcuboot/include` (IDE include list above); in board files `umcub_boot.h` ->
+`umcub_state.h`, and `umcub_proto_user()` / `umcub_proto_reply()` are declared in `umcub_proto.h` instead of
+`umcub_transport.h`; config overlays `tools/config/<x>.h` -> `tests/configs/<group>/<x>.h`; host tools
+`tools/<x>.py` -> `tools/host/<x>.py`.
 
 ## Mode notes and limitations
 

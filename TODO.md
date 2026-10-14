@@ -6,7 +6,7 @@ Done:
 
 - [x] **UMCUB_DUALCORE_SINGLE_BOOT** — both cores start, the CM4 image is updated over SMP (slot 1), and the CM7 still
   boots with a broken CM4 image (the CM4 stays parked). Option bytes are written with `tools/hw/h755_option_bytes.sh`
-  through the RAM helper `tools/h7_ob`: STM32CubeProgrammer 2.23 hides `BOOT_CM4_ADD0`/`BCM4` for the H755.
+  through the RAM helper `tools/hw/h7_ob`: STM32CubeProgrammer 2.23 hides `BOOT_CM4_ADD0`/`BCM4` for the H755.
 - [x] **UMCUB_DUALCORE_PER_CORE** — CM4 bootloader validates its image, HSEM handshake, both applications run.
 - [x] **Power loss during swap (swap-scratch)** — `tools/hw/powerfail_test.py` with a `UMCUB_CFG_TEST_FAULT_INJECT`
   build: reset in the middle of a sector erase / flash-word program at 88 points (44 upgrade, 44 revert, spread over
