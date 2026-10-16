@@ -402,6 +402,7 @@ umcub_link.py --port /dev/ttyUSB0 --uid 53ff7206... cmd i      # unassigned node
 umcub_link.py --port /dev/ttyUSB0 --addr 5 --admin-key admin.pem --device-key device.pem serve --pty-link /tmp/smp
 smpmgr --port /tmp/smp --line-buffers 4 image upload app.encrypted.bin    # through the proxy
 umcub_link.py --udp 192.168.1.50 --addr 5 serve --udp-listen 127.0.0.1:1337   # mcumgr --conntype udp
+umcub_link.py --port /dev/ttyUSB1 sniff                        # listen only: every frame on the bus, decoded
 ```
 
 SECURE transports need `--admin-key` (private) and `--device-key` (the public half is enough). Your own host

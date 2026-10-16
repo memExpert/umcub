@@ -6,6 +6,7 @@
   umcub_link.py --port /dev/ttyUSB0 --uid 4300.. cmd i
   umcub_link.py --port /dev/ttyUSB0 --addr 5 --admin-key admin.pem --device-key device.pem serve --pty
   umcub_link.py --udp 192.168.1.50 --addr 5 serve --udp-listen 127.0.0.1:1337
+  umcub_link.py --port /dev/ttyUSB1 sniff        listen only: print every frame on the bus
 
 `serve` is a proxy for standard SMP clients: it opens a pseudo terminal (point
 smpmgr / mcumgr --conntype serial at the printed path) or a local UDP port
@@ -13,6 +14,11 @@ smpmgr / mcumgr --conntype serial at the printed path) or a local UDP port
 doing addressing and - on SECURE transports - the authentication, the frame
 MACs and the payload encryption. The protocol is described in
 proto/include/umcub_link.h.
+
+`sniff` never transmits: point it at a receiver that only listens to the bus
+(e.g. an RS-485 transceiver with its driver disabled) to see both directions.
+In ADDRESSED the DATA payloads are readable; in SECURE with payload encryption
+only the frame metadata is.
 
 SECURE transports need --admin-key (private EC P-256 key; the bootloader holds
 its public half) and --device-key (the device key, public half is enough).
@@ -320,6 +326,58 @@ class Link:
         return list(found.values())
 
 
+FRAME_NAMES = {T_DISCOVER: "DISCOVER", T_ANNOUNCE: "ANNOUNCE", T_HELLO: "HELLO", T_CHALLENGE: "CHALLENGE",
+               T_AUTH: "AUTH", T_AUTH_OK: "AUTH_OK", T_DATA: "DATA", T_CLOSE: "CLOSE"}
+
+
+def describe_frame(f):
+    """One frame as text: type, src -> dst, seq, flags, payload summary."""
+    fr = parse_frame(f)
+    if not fr:
+        return f"?? {len(f)} B, not a link frame: {f[:32].hex()}"
+    name = {BROADCAST: "bcast", HOST_ADDR: "host"}
+    flags = ",".join(n for b, n in ((F_MAC, "MAC"), (F_ENC, "ENC"), (F_UID, "UID")) if fr["flags"] & b) or "-"
+    s = (f"{FRAME_NAMES.get(fr['type'], fr['type']):9} {name.get(fr['src'], fr['src']):>5} -> "
+         f"{name.get(fr['dst'], fr['dst']):<5} seq={fr['seq']:<10} [{flags}] len={len(fr['payload'])}")
+    p = fr["payload"]
+    i = identity(p) if fr["type"] in (T_ANNOUNCE, T_CHALLENGE) else None
+    if i:
+        s += (f"\n    uid {i['uid']} addr {i['addr']} board 0x{i['board_type']:08x} rev {i['board_rev']} "
+              f"{LINK_NAMES.get(i['link'], '?')}{' enc' if i['enc'] else ''}{' closed' if i['closed'] else ''}"
+              f" umcub {i['version']}")
+    elif fr["type"] == T_DATA and fr["flags"] & F_ENC:
+        s += f"\n    <encrypted {len(p)} B>"
+    elif p and all(32 <= c < 127 or c in (9, 10, 13) for c in p):
+        s += f"\n    {p.decode('ascii').strip()!r}"
+    elif p:
+        s += f"\n    {p[:48].hex()}{'...' if len(p) > 48 else ''}"
+    return s
+
+
+def sniff(port, baud, raw=False):
+    """Print every link frame seen on a serial port; never writes to it."""
+    import serial
+    s = serial.Serial(port, baud, timeout=0.1)
+    s.reset_input_buffer()
+    print(f"# listening on {port} at {baud} baud (no transmit), Ctrl-C to stop", flush=True)
+    buf, t0 = b"", time.monotonic()
+    while True:
+        buf += s.read(512)
+        while b"\n" in buf:
+            line, buf = buf.split(b"\n", 1)
+            ts = f"{time.monotonic() - t0:8.3f}"
+            i = line.find(LINE_START)
+            if i >= 0:
+                try:
+                    print(f"{ts}  {describe_frame(base64.b64decode(line[i + 2:].strip(), validate=True))}",
+                          flush=True)
+                    continue
+                except ValueError:
+                    pass
+            if raw and line.strip():
+                print(f"{ts}  raw {line[:64].hex()}", flush=True)
+
+
 def serve(link, a):
     link.hello()
     print(f"connected to node {link.ident['addr']} uid {link.ident['uid']} "
@@ -386,12 +444,22 @@ def main():
     sub.add_parser("info")
     c = sub.add_parser("cmd")
     c.add_argument("text")
+    sn = sub.add_parser("sniff", help="listen only: decode every frame on the bus (serial port)")
+    sn.add_argument("--raw", action="store_true", help="also print lines that are not link frames")
     s = sub.add_parser("serve")
     s.add_argument("--pty", action="store_true", help="pseudo terminal for SMP serial clients (default)")
     s.add_argument("--pty-link", help="also create this symlink to the pty")
     s.add_argument("--udp-listen", help="local HOST:PORT for SMP over UDP clients")
     a = ap.parse_args()
 
+    if a.cmd == "sniff":
+        if not a.port:
+            sys.exit("sniff needs --port")
+        try:
+            sniff(a.port, a.baud, a.raw)
+        except KeyboardInterrupt:
+            pass
+        return
     bus = SerialBus(a.port, a.baud) if a.port else UdpBus(a.udp, a.udp_port)
     link = Link(bus, a.addr, a.uid, a.admin_key, a.device_key, a.timeout)
     try:
