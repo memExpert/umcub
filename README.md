@@ -36,7 +36,7 @@ cmake -S examples/h755_cm7_app -B build/ex-cm7 -G Ninja -DAPP_VERSION=1.0.0 && c
 cmake -S examples/h755_cm4_app -B build/ex-cm4 -G Ninja -DAPP_VERSION=1.0.0 && cmake --build build/ex-cm4
 
 tools/hw/h755_option_bytes.sh single    # the CM4 starts from the bootloader vector table and waits
-tools/hw/flash.sh build/h755-cm7/umcub_nucleo_h755zi_q_cm7.hex \
+tools/hw/probe.py flash build/h755-cm7/umcub_nucleo_h755zi_q_cm7.hex \
                build/ex-cm7/h755_cm7_app.signed.hex build/ex-cm4/h755_cm4_app.signed.hex
 ```
 
@@ -844,14 +844,18 @@ CAN transport on emulated flash) against the host tools: `umcub_link.py` with th
 `umcub_inspect.py` on plain SMP, `smp_can.py` on the CAN transport (python-can `serial` bus on a pty),
 `umcub_lite.py` on bootloaders without SMP (stream and CAN).
 
+The bench tools reach the target through `tools/hw/probe.py` (a thin SWD layer): `--probe stm32cube` uses
+STM32_Programmer_CLI (`$STM32_PROGRAMMER_CLI` or PATH), `--probe pyocd` uses pyOCD (`--target`, `--pack` for the
+part); `$UMCUB_PROBE` sets the default. `probe.py flash a.hex b.bin@0x08008000` programs and resets.
+
 Stack use on the board: `tools/hw/stack_usage.py paint`, run a scenario, `tools/hw/stack_usage.py measure`
 (deepest use since the paint; `loop-app` gives a signed application that does not touch the RAM, for boot paths).
 
 Hardware tests: `tools/hw/powerfail_test.py` resets the MCU in the middle of the K-th flash operation (build with
 `tests/configs/feature/fault_inject.h`, test only) and checks that an interrupted upgrade or revert (swap modes) or an
 interrupted overwrite copy always completes. The images are signed with `tools/host/umcub_image.py` for the
-bootloader's board and overlays; `--fault-addr` is `UMCUB_CFG_TEST_FAULT_ADDR` (a RAM word that survives a reset). See
-`TODO.md` for what has been verified on hardware.
+bootloader's board and overlays; `--fault-addr` is `UMCUB_CFG_TEST_FAULT_ADDR` (a RAM word that survives a reset).
+`TODO.md` lists what is still open on hardware.
 
 ## Layout
 
@@ -880,7 +884,8 @@ tools/host/      host tools: umcub_image.py (slot addresses, signing for IDE pro
                  (umcub link keys as C arrays), umcub_smp.py (SMP helpers of the host tools, on smp / smpclient)
 tools/build/     build_matrix.sh, size_table.py (size tables), check_docs.py (README consistency),
                  check_layers.py (layering)
-tools/hw/        bench: flash.sh, h755_option_bytes.sh (+ h7_ob/), powerfail_test.py, stack_usage.py, udev/
+tools/hw/        bench (SWD through probe.py: STM32_Programmer_CLI or pyOCD): probe.py (flash / read / write /
+                 erase / reset), h755_option_bytes.sh (+ h7_ob/), powerfail_test.py, stack_usage.py, udev/
 tests/host/      host tests
 tests/configs/   configuration overlays: mode/, transport/, feature/, bluepill/
 tests/tools/     helpers for the build matrix

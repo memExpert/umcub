@@ -6,3 +6,6 @@ python-can>=4.3
 can-isotp>=2.0
 cbor2>=5.6
 pyserial>=3.5
+
+# Optional: alternative SWD backend for tools/hw/probe.py (--probe pyocd).
+# pyocd>=0.37
