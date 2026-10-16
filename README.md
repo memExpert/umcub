@@ -315,11 +315,18 @@ E: Image in the primary slot is not valid!
 
 `verify` applies the same rule. Images signed before a board type was set lack the TLV and have to be re-signed.
 
-**Node address.** The address of a device on a shared bus (RS485, CAN, ...) comes from the application:
-`umcub_set_node_address(addr)` stores it in the handoff RAM, where it survives resets but not power cycles, so
-call it on every start. A board can also supply it with `bool umcub_board_node_address(uint16_t *addr)` in
-`umcub_board.c` (DIP switches, EEPROM). 0 means unassigned. The bootloader reports the address it uses
-(`i`, `umcub_boot_info()->node_addr`).
+**Node address.** The address of a device on a shared bus (RS485, CAN, ...). The bootloader takes the first of:
+
+1. the application: `umcub_set_node_address(addr)` stores it in the handoff RAM, where it survives resets but not
+   power cycles, so call it on every start;
+2. `UMCUB_CFG_NODE_ADDR_FLASH`: the address of a 32-bit word in flash holding `UMCUB_NODE_ADDR_WORD(addr)`
+   (`umcub.h`, `addr | ~addr << 16`). Put it into a field of the application's own settings structure at a fixed
+   address and the node is addressable right after power-up, before the application has run - no flash page of
+   its own. The word must lie outside the image slots (checked at compile time); erased flash means "no address";
+3. the board hook `bool umcub_board_node_address(uint16_t *addr)` in `umcub_board.c` (DIP switches, EEPROM).
+
+0 means unassigned: the node is then reachable by its UID only. The bootloader reports the address it uses (`i`,
+`umcub_boot_info()->node_addr`).
 
 ## Shared buses: umcub link (addressing, SECURE mode)
 
@@ -818,7 +825,7 @@ peripheral a driver touches.
 ## Testing
 
 ```sh
-tools/build/build_matrix.sh                 # 31 bootloader configurations, examples, IDE checks, host tests; warning-free
+tools/build/build_matrix.sh                 # 32 bootloader configurations, examples, IDE checks, host tests; warning-free
 ctest --test-dir build/matrix/host    # host tests only
 tests/host/link_e2e.py build/matrix/host   # simulated devices: umcub link bus, smpmgr, host tools, lite upload
 tools/build/check_docs.py                   # README still matches the repository (size tables, boards, tools, ...)

@@ -39,6 +39,9 @@
 #ifndef UMCUB_CFG_BOARD_REV
 #define UMCUB_CFG_BOARD_REV             0
 #endif
+#ifndef UMCUB_CFG_NODE_ADDR_FLASH
+#define UMCUB_CFG_NODE_ADDR_FLASH       0
+#endif
 #ifndef UMCUB_CFG_TRAILER_RESERVE
 #define UMCUB_CFG_TRAILER_RESERVE       0x2000
 #endif

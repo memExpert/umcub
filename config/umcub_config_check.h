@@ -152,4 +152,15 @@
 #warning "umcub: no transport enabled - updates only via the application (umcub_slot_*)"
 #endif
 
+#define UMCUB_IN_AREA_(a, base, size) ((size) > 0 && (a) + 4 > (base) && (a) < (base) + (size))
+#if UMCUB_CFG_NODE_ADDR_FLASH != 0 && \
+    ((UMCUB_CFG_NODE_ADDR_FLASH % 4) || \
+     UMCUB_IN_AREA_(UMCUB_CFG_NODE_ADDR_FLASH, UMCUB_CFG_IMG0_PRIMARY_ADDR, UMCUB_CFG_IMG0_PRIMARY_SIZE) || \
+     UMCUB_IN_AREA_(UMCUB_CFG_NODE_ADDR_FLASH, UMCUB_CFG_IMG0_SECONDARY_ADDR, UMCUB_CFG_IMG0_SECONDARY_SIZE) || \
+     UMCUB_IN_AREA_(UMCUB_CFG_NODE_ADDR_FLASH, UMCUB_CFG_IMG1_PRIMARY_ADDR, UMCUB_CFG_IMG1_PRIMARY_SIZE) || \
+     UMCUB_IN_AREA_(UMCUB_CFG_NODE_ADDR_FLASH, UMCUB_CFG_IMG1_SECONDARY_ADDR, UMCUB_CFG_IMG1_SECONDARY_SIZE) || \
+     UMCUB_IN_AREA_(UMCUB_CFG_NODE_ADDR_FLASH, UMCUB_CFG_SCRATCH_ADDR, UMCUB_CFG_SCRATCH_SIZE))
+#error "umcub: UMCUB_CFG_NODE_ADDR_FLASH must be 4-byte aligned and outside the image slots and the scratch area"
+#endif
+
 #endif /* UMCUB_CONFIG_CHECK_H */

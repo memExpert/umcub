@@ -59,6 +59,14 @@ __attribute__((noreturn)) void umcub_enter_bootloader(uint32_t arg);
  * 0 = unassigned. umcub_boot_info()->node_addr shows what the bootloader used. */
 void umcub_set_node_address(uint16_t addr);
 
+/* The node address as stored for the bootloader: in the handoff RAM, and in
+ * the flash word UMCUB_CFG_NODE_ADDR_FLASH (put this value into a field of
+ * your settings structure at that address to have the address right after
+ * power-up). Erased flash (all 1s) is "no address" (the next source is
+ * tried); UMCUB_NODE_ADDR_WORD(0) is "unassigned". */
+#define UMCUB_NODE_ADDR_WORD(addr) \
+    ((uint32_t)(uint16_t)(addr) | ((uint32_t)(uint16_t)~(uint16_t)(addr) << 16))
+
 /* Mark the running image as good (swap and direct-xip-revert modes:
  * otherwise the bootloader reverts it on the next reset). */
 int umcub_confirm(void);

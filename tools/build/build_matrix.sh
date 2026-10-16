@@ -39,6 +39,7 @@ configs=(
   "bluepill-rs485|cm3|Release||bluepill/rs485.h|bluepill_f103c8"
   "link-addressed|cm7|Release||feature/link_addressed.h"
   "bluepill-rs485-link|cm3|Release||bluepill/rs485_link.h|bluepill_f103c8"
+  "bluepill-node-addr-flash|cm3|Release||bluepill/node_addr_flash.h|bluepill_f103c8"
   "link-secure|cm7|Release||feature/link_secure.h"
   "bluepill-rs485-secure|cm3|Release||bluepill/rs485_secure.h|bluepill_f103c8"
   "lite-upload|cm7|Release||feature/lite_upload.h"

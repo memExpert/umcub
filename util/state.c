@@ -45,6 +45,21 @@ bool umcub_handoff_node_request(uint16_t *addr)
     return true;
 }
 
+#if UMCUB_CFG_NODE_ADDR_FLASH
+/* UMCUB_NODE_ADDR_WORD() in flash, e.g. in the application's settings. */
+static bool flash_node_address(uint16_t *addr)
+{
+    uint32_t v;
+    if (umcub_flash_read(UMCUB_CFG_NODE_ADDR_FLASH, &v, sizeof(v)) != 0 || (uint16_t)(v >> 16) != (uint16_t)~v) {
+        return false;
+    }
+    *addr = (uint16_t)v;
+    return true;
+}
+#else
+#define flash_node_address(addr) false
+#endif
+
 /* Board hook (umcub_board.c): address from DIP switches, EEPROM, ... */
 __attribute__((weak)) bool umcub_board_node_address(uint16_t *addr)
 {
@@ -58,12 +73,11 @@ void umcub_node_init(void)
 {
     uint16_t a;
     /* 0 = unassigned, 0xFFFF = broadcast: never a node's own address. */
-    if ((umcub_handoff_node_request(&a) || umcub_board_node_address(&a)) && a != 0xFFFFu) {
+    if ((umcub_handoff_node_request(&a) || flash_node_address(&a) || umcub_board_node_address(&a)) && a != 0xFFFFu) {
         node_addr = a;
     } else {
         node_addr = 0;          /* unassigned: reachable by UID only (see umcub link) */
     }
-    /* TODO: address stored in a flash page of its own (not implemented). */
 }
 
 /* Counter of boots since power-up (handoff RAM): makes nonces differ between

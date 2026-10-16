@@ -88,7 +88,7 @@ __attribute__((noreturn)) void umcub_enter_bootloader(uint32_t arg)
 
 void umcub_set_node_address(uint16_t addr)
 {
-    HANDOFF->node_addr_req = (uint32_t)addr | ((uint32_t)(uint16_t)~addr << 16);
+    HANDOFF->node_addr_req = UMCUB_NODE_ADDR_WORD(addr);
     HANDOFF->node_magic = UMCUB_NODE_MAGIC;     /* 32-bit stores only (ECC SRAM) */
 #ifndef UMCUB_HOST_TEST
     __asm volatile("dsb" ::: "memory");

@@ -323,10 +323,17 @@
 /* #define UMCUB_CFG_BOARD_TYPE           0 */
 /* #define UMCUB_CFG_BOARD_REV            0 */
 
-/* The node address on a shared bus comes from the application
- * (umcub_set_node_address(), kept over resets) or from the board hook
+/* The node address on a shared bus, in this order: from the application
+ * (umcub_set_node_address(), kept over resets, not over power-off), from
+ * UMCUB_CFG_NODE_ADDR_FLASH, or from the board hook
  * bool umcub_board_node_address(uint16_t *addr) in umcub_board.c (DIP switch,
  * EEPROM, ...); 0 = unassigned. */
+/* Address of a 32-bit word in flash holding the node address as
+ * UMCUB_NODE_ADDR_WORD(addr) (umcub.h: addr | ~addr << 16), e.g. a field of
+ * the application's own settings structure: the address is then known right
+ * after power-up, before the application has run. Must lie outside the image
+ * slots (updates rewrite them). 0 = not used. */
+/* #define UMCUB_CFG_NODE_ADDR_FLASH      0 */
 
 /* ======================================================================== */
 /* Misc                                                                     */
