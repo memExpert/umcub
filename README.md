@@ -49,8 +49,8 @@ reset, when the application asks for it (key `b` in the example), or when there 
 
 ```sh
 smpmgr --port /dev/ttyACM0 image state-read                 # or: mcumgr --conntype serial ...
-smpmgr --port /dev/ttyACM0 --line-buffers 8 image upload build/ex-cm7/h755_cm7_app.signed.bin
-smpmgr --port /dev/ttyACM0 --line-buffers 8 image upload --slot 1 build/ex-cm4/h755_cm4_app.signed.bin
+smpmgr --port /dev/ttyACM0 image upload build/ex-cm7/h755_cm7_app.signed.bin
+smpmgr --port /dev/ttyACM0 image upload --slot 1 build/ex-cm4/h755_cm4_app.signed.bin
 smpmgr --port /dev/ttyACM0 os reset
 mcumgr --conntype udp --connstring=<ip>:1337 image upload build/ex-cm7/h755_cm7_app.signed.bin
 smpmgr --ip <ip> image upload build/ex-cm7/h755_cm7_app.signed.bin              # UDP (default --mtu 1500)
@@ -59,9 +59,10 @@ tools/host/smp_can.py --channel can0 upload build/ex-cm7/h755_cm7_app.signed.bin
 ```
 
 SMP serial recovery writes straight into the **primary** slot (this is how MCUboot works); the image number is the
-`image` field (`smpmgr --slot`, `mcumgr -n`; 1 = CM4). `--line-buffers 8` fits `UMCUB_CFG_SMP_MTU`
-(8 lines of 128 bytes; the default is 1472 with Ethernet - one full UDP datagram, what smpmgr sends over UDP -
-otherwise 1024). DFU and `umcub_slot_*` write into the **secondary** slot and mark the image for a test boot.
+`image` field (`smpmgr --slot`, `mcumgr -n`; 1 = CM4). The bootloader answers MCUMGR_PARAMETERS
+(`UMCUB_CFG_SMP_PARAMS`), so smpmgr sizes serial packets to `UMCUB_CFG_SMP_MTU` by itself (default 1472 with
+Ethernet - one full UDP datagram, what smpmgr sends over UDP - otherwise 1024); other hosts: `--line-buffers`
+lines of 128 bytes within it. DFU and `umcub_slot_*` write into the **secondary** slot and mark the image for a test boot.
 
 ## Quick start (Blue Pill, STM32F103C8T6)
 
@@ -128,9 +129,10 @@ All options are documented in [`config/umcub_config_template.h`](config/umcub_co
 | MCUboot | `UMCUB_CFG_UPGRADE_MODE`, `UMCUB_CFG_SIGNATURE`, `UMCUB_CFG_DOWNGRADE_PREVENTION`, `UMCUB_CFG_VALIDATE_PRIMARY` |
 | Slot inspection | `UMCUB_CFG_INSPECT_VERIFY`, `UMCUB_CFG_INSPECT_HASH`, `UMCUB_CFG_READBACK`, `UMCUB_CFG_SMP_INSPECT_GROUP` |
 | Text commands | `UMCUB_CFG_CMD_ENABLE`, `UMCUB_CFG_CMD_IMMEDIATE`, `UMCUB_CFG_CMD_REPLY`, `UMCUB_CFG_CMD_TABLE` |
+| Image checks | `UMCUB_CFG_BOARD_TYPE`, `UMCUB_CFG_BOARD_REV`, `UMCUB_CFG_IMAGE_VECTOR_CHECK` |
 | Bootloader entry | `UMCUB_CFG_ENTRY_ON_REQUEST`, `..._ON_NO_IMAGE`, `..._GPIO(_PIN/_ACTIVE/_PULL)`, `..._WAIT_MS`, `UMCUB_CFG_RECOVERY_TIMEOUT_MS` |
 | Transports | `UMCUB_CFG_TRANSPORT_{UART,USB_CDC,USB_DFU,CAN,ETH,USER}` plus their parameters, `UMCUB_CFG_{CAN,ETH}_DRIVER` |
-| Recovery protocols | `UMCUB_CFG_SMP_ENABLE`, `UMCUB_CFG_LITE_UPLOAD`, `UMCUB_CFG_PROTO_USER` |
+| Recovery protocols | `UMCUB_CFG_SMP_ENABLE`, `UMCUB_CFG_SMP_MTU`, `UMCUB_CFG_SMP_PARAMS`, `UMCUB_CFG_LITE_UPLOAD`, `UMCUB_CFG_PROTO_USER` |
 | Misc | `UMCUB_CFG_LTO` (experimental), `UMCUB_CFG_LOG_LEVEL`, `UMCUB_CFG_WATCHDOG_MS`, `UMCUB_CFG_SHARED_RAM_ADDR`, `UMCUB_CFG_APP_WRITE_SLOT` |
 
 The configuration can be extended without editing the board file through overlay headers:
@@ -186,32 +188,32 @@ same core; check the real size after porting.
 <!-- size-table:begin -->
 | MCU | base | all on | UART (+SMP) | USB CDC | USB DFU | USB CDC+DFU | CAN | CAN FD | Ethernet (+DHCP) | DFU only | UART, lite upload (no SMP) |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| STM32H755 CM7 (2 images, SINGLE_BOOT) | 18.4 K | 55.0 K | +8.7 K | +11.2 K | +10.6 K | +13.2 K | +2.6 K | +2.6 K | +4.4 K | +10.9 K | +4.1 K |
-| STM32H755 CM4 (PER_CORE) | 16.0 K | 52.1 K | +8.5 K | +11.2 K | +10.6 K | +13.2 K | +2.6 K | +2.6 K | +4.3 K | +10.9 K | +4.0 K |
-| STM32H743 / H753 (single core) | 16.7 K | 52.9 K | +8.5 K | +11.2 K | +10.6 K | +13.2 K | +2.6 K | +2.6 K | +4.4 K | +10.9 K | +4.0 K |
-| STM32F103 (Blue Pill, overwrite) | 12.6 K | 38.8 K | +8.7 K | +9.8 K | +9.1 K | +11.7 K | +2.4 K | — | — | +9.6 K | +4.1 K |
+| STM32H755 CM7 (2 images, SINGLE_BOOT) | 18.6 K | 55.5 K | +8.7 K | +11.2 K | +10.6 K | +13.2 K | +2.6 K | +2.6 K | +4.4 K | +10.9 K | +4.1 K |
+| STM32H755 CM4 (PER_CORE) | 16.2 K | 52.6 K | +8.5 K | +11.2 K | +10.6 K | +13.2 K | +2.6 K | +2.6 K | +4.3 K | +10.9 K | +4.0 K |
+| STM32H743 / H753 (single core) | 16.9 K | 53.4 K | +8.5 K | +11.2 K | +10.6 K | +13.2 K | +2.6 K | +2.6 K | +4.4 K | +10.9 K | +4.0 K |
+| STM32F103 (Blue Pill, overwrite) | 12.7 K | 39.2 K | +8.7 K | +9.8 K | +9.1 K | +11.7 K | +2.4 K | — | — | +9.6 K | +4.1 K |
 
 | MCU | log (level 3) | text commands | verify + hash | readback | umcub link (addressed) | umcub link SECURE | + link encryption | encrypted images |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| STM32H755 CM7 (2 images, SINGLE_BOOT) | +3.6 K | +2.3 K | +1.0 K | +0.2 K | +1.9 K | +4.9 K | +1.6 K | +7.1 K |
-| STM32H755 CM4 (PER_CORE) | +3.4 K | +2.3 K | +1.0 K | +0.2 K | +1.9 K | +4.9 K | +1.6 K | +6.4 K |
-| STM32H743 / H753 (single core) | +3.4 K | +2.3 K | +1.0 K | +0.2 K | +1.9 K | +4.9 K | +1.6 K | +6.6 K |
-| STM32F103 (Blue Pill, overwrite) | +3.1 K | +2.1 K | +1.0 K | +0.2 K | +2.0 K | +4.9 K | +1.6 K | +6.4 K |
+| STM32H755 CM7 (2 images, SINGLE_BOOT) | +3.7 K | +2.3 K | +1.3 K | +0.2 K | +1.9 K | +4.9 K | +1.6 K | +7.1 K |
+| STM32H755 CM4 (PER_CORE) | +3.5 K | +2.3 K | +1.3 K | +0.2 K | +1.9 K | +4.9 K | +1.6 K | +6.4 K |
+| STM32H743 / H753 (single core) | +3.5 K | +2.3 K | +1.3 K | +0.2 K | +1.9 K | +4.9 K | +1.6 K | +6.6 K |
+| STM32F103 (Blue Pill, overwrite) | +3.1 K | +2.1 K | +1.2 K | +0.2 K | +2.0 K | +4.9 K | +1.6 K | +6.4 K |
 
 | Flash layout | UART, lite (no SMP) | UART | UART + USB CDC | UART + USB CDC + DFU | UART + CAN | UART + Ethernet | UART, link SECURE | all on |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| STM32H7 (128 KiB sectors) | 1 (22.5 K) | 1 (27.1 K) | 1 (38.3 K) | 1 (40.4 K) | 1 (29.7 K) | 1 (31.5 K) | 1 (32.0 K) | 1 (55.0 K) |
-| STM32F2 / F4, F72x / F73x (16, 16, 16, 16, 64, 128 KiB ...) — estimate: Cortex-M4 build | 2 (20.1 K) | 2 (24.5 K) | 3 (35.7 K) | 3 (37.8 K) | 2 (27.1 K) | 2 (28.9 K) | 2 (29.4 K) | 4 (52.1 K) > 3 |
-| STM32F74x ... F77x (32, 32, 32, 32, 128, 256 KiB ...) — estimate: Cortex-M7 build | 1 (22.5 K) | 1 (27.1 K) | 2 (38.3 K) | 2 (40.4 K) | 1 (29.7 K) | 1 (31.5 K) | 2 (32.0 K) | 2 (55.0 K) |
-| STM32F1 (1 / 2 KiB pages) | 16.7 K | 21.2 K | 31.0 K | 33.0 K | 23.7 K | — | 26.1 K | 38.8 K |
-| STM32G4 / L4 (2 KiB pages) — estimate: Cortex-M4 build | 20.1 K | 24.5 K | 35.7 K | 37.8 K | 27.1 K | 28.9 K | 29.4 K | 52.1 K |
+| STM32H7 (128 KiB sectors) | 1 (22.7 K) | 1 (27.3 K) | 1 (38.5 K) | 1 (40.5 K) | 1 (29.9 K) | 1 (31.7 K) | 1 (32.2 K) | 1 (55.5 K) |
+| STM32F2 / F4, F72x / F73x (16, 16, 16, 16, 64, 128 KiB ...) — estimate: Cortex-M4 build | 2 (20.2 K) | 2 (24.7 K) | 3 (35.9 K) | 3 (37.9 K) | 2 (27.3 K) | 2 (29.1 K) | 2 (29.6 K) | 4 (52.6 K) > 3 |
+| STM32F74x ... F77x (32, 32, 32, 32, 128, 256 KiB ...) — estimate: Cortex-M7 build | 1 (22.7 K) | 1 (27.3 K) | 2 (38.5 K) | 2 (40.5 K) | 1 (29.9 K) | 1 (31.7 K) | 2 (32.2 K) | 2 (55.5 K) |
+| STM32F1 (1 / 2 KiB pages) | 16.9 K | 21.4 K | 31.2 K | 33.1 K | 23.9 K | — | 26.3 K | 39.2 K |
+| STM32G4 / L4 (2 KiB pages) — estimate: Cortex-M4 build | 20.2 K | 24.7 K | 35.9 K | 37.9 K | 27.3 K | 29.1 K | 29.6 K | 52.6 K |
 
 | MCU, with LTO | base | UART (+SMP) | UART, lite upload (no SMP) | all on |
 |---|---:|---:|---:|---:|
-| STM32H755 CM7 (2 images, SINGLE_BOOT) | 15.5 K (-2.9 K) | 23.9 K (-3.2 K) | 19.2 K (-3.2 K) | 48.8 K (-6.1 K) |
-| STM32H755 CM4 (PER_CORE) | 13.1 K (-2.9 K) | 21.1 K (-3.4 K) | 16.8 K (-3.3 K) | 45.9 K (-6.2 K) |
-| STM32H743 / H753 (single core) | 13.8 K (-2.9 K) | 21.9 K (-3.4 K) | 17.5 K (-3.3 K) | 46.6 K (-6.2 K) |
-| STM32F103 (Blue Pill, overwrite) | 10.0 K (-2.5 K) | 18.0 K (-3.2 K) | 13.6 K (-3.1 K) | 33.6 K (-5.2 K) |
+| STM32H755 CM7 (2 images, SINGLE_BOOT) | 15.7 K (-2.9 K) | 24.0 K (-3.3 K) | 19.4 K (-3.2 K) | 49.3 K (-6.2 K) |
+| STM32H755 CM4 (PER_CORE) | 13.2 K (-3.0 K) | 21.3 K (-3.4 K) | 16.9 K (-3.4 K) | 46.4 K (-6.3 K) |
+| STM32H743 / H753 (single core) | 13.9 K (-3.0 K) | 22.0 K (-3.4 K) | 17.6 K (-3.4 K) | 47.6 K (-5.7 K) |
+| STM32F103 (Blue Pill, overwrite) | 10.1 K (-2.6 K) | 18.1 K (-3.3 K) | 13.7 K (-3.2 K) | 34.0 K (-5.3 K) |
 <!-- size-table:end -->
 
 Notes:
@@ -319,6 +321,18 @@ E: Image in the primary slot is not valid!
 ```
 
 `verify` applies the same rule. Images signed before a board type was set lack the TLV and have to be re-signed.
+
+**Image in its slot.** With `UMCUB_CFG_IMAGE_VECTOR_CHECK` (default on, about 200 bytes) an image is also rejected
+when the reset vector of its vector table lies outside the slot it runs from (the primary slot; the slot itself with
+direct-xip). This catches a valid, signed image under the wrong image number - e.g. the CM7 application uploaded as
+image 1 of a dual-core part - and applications not linked for the slot. An encrypted image is checked once it is
+plain in the primary slot. On the dual-core H7 the CM4 then stays parked and the CM7 application runs:
+
+```
+E: image 1 slot 0: reset vector 0x08020ba5 not in slot
+W: boot_go failed, trying image 0 alone
+W: second core stays parked (no valid image 1)
+```
 
 **Node address.** The address of a device on a shared bus (RS485, CAN, ...). The bootloader takes the first of:
 
@@ -710,8 +724,11 @@ Updates through the bootloader (`smpmgr`, `mcumgr`, `dfu-util`, CAN, UDP) use `<
 **Dual-core H745/H755 with CubeMX dual-core projects.** Each core's project signs its own image. With `SINGLE_BOOT`
 that is `--core cm7 --image 0` for the CM7 and `--core cm4 --image 1` for the CM4. Program the option bytes with
 `tools/hw/h755_option_bytes.py`, not the CubeMX defaults. The bootloader starts the CM4 application first, then jumps
-to the CM7 one, so the CubeMX start-up handshake should find the CM4 in STOP as it expects. This is not yet verified
-on hardware. Without a valid CM4 image, the CM4 stays parked in the bootloader. In that case the CubeMX CM7 code that
+to the CM7 one, so the CubeMX start-up handshake finds the CM4 in STOP as it expects (CM4 enters STOP, the CM7
+waits for `RCC_FLAG_D2CKRDY` to drop, configures the clocks and wakes the CM4 through HSEM 0). Verified on the
+NUCLEO-H755ZI-Q with ST's `BootCM4_CM7` template (STM32CubeH7, NUCLEO-H745ZI-Q) and the CubeMX system file
+`system_stm32h7xx_dualcore_boot_cm4_cm7.c`, signed with `umcub_image.py`, in `SINGLE_BOOT` and in `PER_CORE`
+(there: `--core cm4 --image 0` with the per-core overlay). Without a valid CM4 image, the CM4 stays parked in the bootloader. In that case the CubeMX CM7 code that
 waits for `RCC_FLAG_D2CKRDY` times out into `Error_Handler()`; make that wait non-fatal if the CM7 must run alone.
 
 **Bootloader inside STM32CubeIDE (optional).** *File → New → Makefile Project with Existing Code* on the umcub

@@ -1,9 +1,13 @@
 /*
- * MCUboot image access hooks (MCUBOOT_IMAGE_ACCESS_HOOKS), compiled when
- * UMCUB_CFG_BOARD_TYPE != 0: an image is accepted only if its signed TLV
- * UMCUB_TLV_BOARD_TYPE matches this bootloader's board type. The hook runs
- * before MCUboot validates the image; after a match MCUboot's own hash and
- * signature check follows, which also covers the TLV (protected area).
+ * MCUboot image access hooks (MCUBOOT_IMAGE_ACCESS_HOOKS). Before MCUboot
+ * validates an image, boot_image_check_hook() rejects
+ *  - with UMCUB_CFG_IMAGE_VECTOR_CHECK, an image whose reset vector lies outside
+ *    the slot it runs from (built for another image / core, or uploaded to the
+ *    wrong image number), and
+ *  - with UMCUB_CFG_BOARD_TYPE != 0, an image whose signed TLV
+ *    UMCUB_TLV_BOARD_TYPE is missing or names another board.
+ * MCUboot's own hash and signature check follows, which also covers the
+ * vector table and the TLV (protected area).
  * All other hooks keep MCUboot's regular behaviour.
  */
 #include <stdbool.h>
@@ -50,18 +54,48 @@ int umcub_image_board_type(const struct flash_area *fa, uint32_t hdr_off, uint32
     return 0;
 }
 
-#if UMCUB_CFG_BOARD_TYPE != 0
+#if UMCUB_CFG_IMAGE_VECTOR_CHECK
+/* The reset vector (word 1 of the vector table after the header) must point
+ * into the slot the image executes from: the primary slot, or the slot itself
+ * with direct-xip. Encrypted content (an encrypted image read as secondary:
+ * the secondary slot, or an upload in the primary slot before its in-place
+ * decryption) is checked once it is plain in the primary slot. Unreadable
+ * headers are left to MCUboot. */
+static bool umcub_image_vector_ok(int img_index, int slot, const struct flash_area *fa, uint32_t hdr_off)
+{
+    struct image_header hdr;
+    uint32_t reset;
+    if (flash_area_read(fa, hdr_off, &hdr, sizeof(hdr)) != 0 || hdr.ih_magic != IMAGE_MAGIC ||
+        ((hdr.ih_flags & (IMAGE_F_ENCRYPTED_AES128 | IMAGE_F_ENCRYPTED_AES256)) != 0 &&
+         flash_area_get_id(fa) == FLASH_AREA_IMAGE_SECONDARY(img_index)) ||
+        flash_area_read(fa, hdr_off + hdr.ih_hdr_size + 4u, &reset, sizeof(reset)) != 0) {
+        return true;
+    }
+    const struct flash_area *run = fa;
+#if !defined(MCUBOOT_DIRECT_XIP)
+    if (slot != 0 && flash_area_open((uint8_t)flash_area_id_from_multi_image_slot(img_index, 0), &run) != 0) {
+        return false;
+    }
+#endif
+    uint32_t start = flash_area_get_off(run) + hdr.ih_hdr_size;
+    bool ok = (reset & ~1u) - start < flash_area_get_size(run) - hdr.ih_hdr_size;
+    if (run != fa) {
+        flash_area_close(run);
+    }
+    if (!ok) {
+        UMCUB_LOG_ERR("image %d slot %d: reset vector 0x%08lx not in slot", img_index, slot, (unsigned long)reset);
+    }
+    return ok;
+}
+#endif
+
 /* Every image header present in the slot is checked: in swap-offset mode the
  * secondary slot holds an image at offset 0 (previous image, revert copy) and/or
  * one sector further (the update) - which one MCUboot uses depends on the swap
- * state, so both must belong to this board. Headers whose TLV block cannot be
- * read (stale, half-erased copies) are left to MCUboot's own validation. */
-fih_ret boot_image_check_hook(int img_index, int slot)
+ * state, so both must pass. Headers whose TLV block cannot be read (stale,
+ * half-erased copies) are left to MCUboot's own validation. */
+bool umcub_image_check(int img_index, int slot, const struct flash_area *fa)
 {
-    const struct flash_area *fa;
-    if (flash_area_open((uint8_t)flash_area_id_from_multi_image_slot(img_index, slot), &fa) != 0) {
-        FIH_RET(FIH_FAILURE);
-    }
     uint32_t offs[2] = { 0, 0 };
     unsigned n = 1;
 #if defined(MCUBOOT_SWAP_USING_OFFSET)
@@ -72,9 +106,13 @@ fih_ret boot_image_check_hook(int img_index, int slot)
 #endif
     bool bad = false;
     for (unsigned i = 0; i < n && !bad; i++) {
+#if UMCUB_CFG_IMAGE_VECTOR_CHECK
+        bad = !umcub_image_vector_ok(img_index, slot, fa, offs[i]);
+#endif
+#if UMCUB_CFG_BOARD_TYPE != 0
         uint32_t type = 0;
-        int rc = umcub_image_board_type(fa, offs[i], &type);
-        if (rc == 0 && type != UMCUB_CFG_BOARD_TYPE) {
+        int rc = bad ? 0 : umcub_image_board_type(fa, offs[i], &type);
+        if (rc == 0 && !bad && type != UMCUB_CFG_BOARD_TYPE) {
             UMCUB_LOG_ERR("image %d slot %d is for board type 0x%08lx, this is 0x%08lx", img_index, slot,
                           (unsigned long)type, (unsigned long)UMCUB_CFG_BOARD_TYPE);
             bad = true;
@@ -83,21 +121,25 @@ fih_ret boot_image_check_hook(int img_index, int slot)
                           (unsigned long)UMCUB_CFG_BOARD_TYPE);
             bad = true;
         }
+#endif
     }
+    (void)img_index;
+    return !bad;
+}
+
+fih_ret boot_image_check_hook(int img_index, int slot)
+{
+    const struct flash_area *fa;
+    if (flash_area_open((uint8_t)flash_area_id_from_multi_image_slot(img_index, slot), &fa) != 0) {
+        FIH_RET(FIH_FAILURE);
+    }
+    bool ok = umcub_image_check(img_index, slot, fa);
     flash_area_close(fa);
-    if (bad) {
+    if (!ok) {
         FIH_RET(FIH_FAILURE);
     }
     FIH_RET(FIH_BOOT_HOOK_REGULAR);     /* MCUboot's hash + signature validation follows */
 }
-#else
-fih_ret boot_image_check_hook(int img_index, int slot)
-{
-    (void)img_index;
-    (void)slot;
-    FIH_RET(FIH_BOOT_HOOK_REGULAR);     /* no board type configured */
-}
-#endif
 
 int boot_read_image_header_hook(int img_index, int slot, struct image_header *img_head)
 {

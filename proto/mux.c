@@ -34,6 +34,7 @@
 #define FRAMES (UMCUB_CFG_LITE_UPLOAD || UMCUB_CFG_PROTO_USER)
 #if UMCUB_CFG_SMP || FRAMES
 #include "base64/base64.h"
+#include "crc/crc16.h"
 #endif
 #if FRAMES
 #include "umcub_lite.h"
@@ -271,6 +272,47 @@ static bool nlip_start(const char *b, uint8_t c1, uint8_t c2)
     return (uint8_t)b[0] == c1 && (uint8_t)b[1] == c2;
 }
 
+#if UMCUB_CFG_SMP && UMCUB_CFG_INSPECT && UMCUB_CFG_SMP_PARAMS
+/* MCUMGR_PARAMETERS (os group 0, id 6, read): boot_serial answers ENOTSUP to
+ * os commands it does not know and gives only other groups to the per-user
+ * hook, so the request is renamed to the per-user group on its way in;
+ * proto/smp_inspect.c answers it under its real name. Hosts (smpmgr) then
+ * size serial packets to the buffer. h: SMP header (op, flags, len[2],
+ * group[2], seq, id). */
+static bool rename_params(uint8_t *h, size_t len)
+{
+    if (len < 8 || (h[0] & 7u) != 0 || h[4] != 0 || h[5] != 0 || h[7] != 6) {
+        return false;
+    }
+    h[4] = (uint8_t)(UMCUB_CFG_SMP_INSPECT_GROUP >> 8);
+    h[5] = (uint8_t)UMCUB_CFG_SMP_INSPECT_GROUP;
+    h[7] = UMCUB_SMP_PARAMS_ID;
+    return true;
+}
+
+/* The same in a one-line NLIP packet "06 09 base64([len:2][hdr+payload][crc:2]) \n",
+ * re-encoded in place (same length). */
+static void line_rename_params(char *line, int len)
+{
+    uint8_t f[18];
+    if (len > 2 + 24 + 1 || !nlip_start(line, NLIP_PKT_START1, NLIP_PKT_START2)) {
+        return;
+    }
+    int n = base64_decode(&line[2], f);
+    if (n < 12 || (f[0] << 8 | f[1]) != n - 2 || !rename_params(&f[2], (size_t)n - 4u)) {
+        return;
+    }
+    uint16_t crc = crc16_ccitt(CRC16_INITIAL_CRC, &f[2], n - 4);
+    f[n - 2] = (uint8_t)(crc >> 8);
+    f[n - 1] = (uint8_t)crc;
+    (void)base64_encode(f, n, &line[2], 1);
+    line[len - 1] = '\n';
+}
+#else
+#define rename_params(h, len) ((void)0)
+#define line_rename_params(line, len) ((void)0)
+#endif
+
 static bool queue_packet(const umcub_transport_t *t, const uint8_t *pkt, size_t len)
 {
     if (!PACKETS || pkt_len != 0 || len == 0 || len > UMCUB_CFG_SMP_MTU) {
@@ -492,6 +534,7 @@ static int mux_read(char *str, int cnt, int *newline)
         resp_text_len = 0;
         resp_raw_len = 0;
         req_from = pkt_from;
+        (void)rename_params(pkt_buf, pkt_len);
         boot_serial_input((char *)pkt_buf, (int)pkt_len);
         req_from = NULL;
         pkt_len = 0;
@@ -515,6 +558,7 @@ static int mux_read(char *str, int cnt, int *newline)
             return 0;
         }
         memcpy(str, l->buf, (size_t)len + 1u);
+        line_rename_params(str, len);
         l->ready = false;
         l->len = 0;
         if (nlip_start(str, NLIP_PKT_START1, NLIP_PKT_START2)) {

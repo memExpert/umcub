@@ -27,9 +27,16 @@ umcub_generate_enc_key(${_dev_key} ${CMAKE_BINARY_DIR}/umcub_enc_key.c)
 file(GLOB BOOTUTIL_SRCS ${MCUBOOT}/boot/bootutil/src/*.c)
 list(FILTER BOOTUTIL_SRCS EXCLUDE REGEX "(encrypted|ed25519|image_rsa|ram_load|boot_record|_psa|_mbedtls)")
 
+# Payloads with a vector table: the reset vector points into image 0's primary
+# slot, or (payload_wrong.bin) to the start of flash - an application not linked for the slot.
 set(_bin ${CMAKE_BINARY_DIR}/payload.bin)
-add_custom_command(OUTPUT ${_bin}
-  COMMAND python3 ${CMAKE_CURRENT_LIST_DIR}/gen_payload.py ${_bin} 150000)
+set(_bin_wrong ${CMAKE_BINARY_DIR}/payload_wrong.bin)
+math(EXPR _reset "${UMCUB_CFG_IMG0_PRIMARY_ADDR} + 0x400 + 0x200" OUTPUT_FORMAT HEXADECIMAL)
+set(_reset_wrong 0x08000200)
+add_custom_command(OUTPUT ${_bin} DEPENDS ${CMAKE_CURRENT_LIST_DIR}/gen_payload.py
+  COMMAND python3 ${CMAKE_CURRENT_LIST_DIR}/gen_payload.py ${_bin} 150000 ${_reset})
+add_custom_command(OUTPUT ${_bin_wrong} DEPENDS ${CMAKE_CURRENT_LIST_DIR}/gen_payload.py
+  COMMAND python3 ${CMAKE_CURRENT_LIST_DIR}/gen_payload.py ${_bin_wrong} 150000 ${_reset_wrong})
 
 set_source_files_properties(${BOOTUTIL_SRCS} ${MCUBOOT}/boot/boot_serial/src/boot_serial.c
   ${MCUBOOT}/boot/zcbor/src/zcbor_common.c ${MCUBOOT}/boot/zcbor/src/zcbor_decode.c
@@ -115,7 +122,8 @@ function(umcub_host_variant name)
     set(_max ${UMCUB_CFG_IMG0_SECONDARY_SIZE})
   endif()
   math(EXPR _sectors "${_max} / ${UMCUB_CFG_FAMILY_MIN_SECTOR}")
-  # 1.0.0 and 1.1.0 for this board type, 1.2.0 signed with the same key but for another board.
+  # 1.0.0 and 1.1.0 for this board type, 1.2.0 signed with the same key but for another board,
+  # 1.3.0 (plain variants only) linked for the start of flash.
   umcub_board_type_tlv_args(_tlv "${UMCUB_CFG_BOARD_TYPE}")
   math(EXPR _other "${UMCUB_CFG_BOARD_TYPE} + 1")
   umcub_board_type_tlv_args(_tlv_other "${_other}")
@@ -126,10 +134,17 @@ function(umcub_host_variant name)
   if(UMCUB_CFG_ENCRYPT_IMAGES)
     set(_enc --encrypt ${_dev_key})
   endif()
-  foreach(v 1.0.0 1.1.0 1.2.0 plain-1.0.0 plain-1.1.0)
+  foreach(v 1.0.0 1.1.0 1.2.0 1.3.0 plain-1.0.0 plain-1.1.0)
     set(_o ${CMAKE_BINARY_DIR}/${name}_${v}.bin)
     string(REPLACE "plain-" "" _ver ${v})
     set(_e ${_enc})
+    set(_in ${_bin})
+    if(v STREQUAL "1.3.0")
+      if(UMCUB_CFG_ENCRYPT_IMAGES)
+        continue()
+      endif()
+      set(_in ${_bin_wrong})
+    endif()
     if(v MATCHES "^plain-")
       if(NOT UMCUB_CFG_ENCRYPT_IMAGES)
         continue()
@@ -141,9 +156,9 @@ function(umcub_host_variant name)
     else()
       set(_t ${_tlv})
     endif()
-    add_custom_command(OUTPUT ${_o} DEPENDS ${_bin}
+    add_custom_command(OUTPUT ${_o} DEPENDS ${_in}
       COMMAND ${UMCUB_IMGTOOL} sign -k ${UMCUB_SIGNING_KEY} --version ${_ver} --header-size 0x400 --pad-header
-              --slot-size ${_slot} --align 32 --max-align 32 --max-sectors ${_sectors} ${_t} ${_e} ${_bin} ${_o})
+              --slot-size ${_slot} --align 32 --max-align 32 --max-sectors ${_sectors} ${_t} ${_e} ${_in} ${_o})
     list(APPEND _imgs ${_o})
   endforeach()
   add_custom_target(${t}_images ALL DEPENDS ${_imgs})

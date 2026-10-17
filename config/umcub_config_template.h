@@ -129,6 +129,10 @@
  * Default 1472 with Ethernet (a full UDP datagram, what smpmgr sends), else
  * 1024. Hosts must not send more: smpmgr --mtu / --line-buffers. */
 /* #define UMCUB_CFG_SMP_MTU              1024 */
+/* Answer MCUMGR_PARAMETERS (os group, id 6) with {buf_size: UMCUB_CFG_SMP_MTU,
+ * buf_count: 1}: smpmgr then sizes serial packets itself (no --line-buffers).
+ * Needs the inspect group (UMCUB_CFG_INSPECT_*). About 250 bytes. */
+/* #define UMCUB_CFG_SMP_PARAMS           1 */
 /* Built-in lite upload protocol (about 1 K plus the slot writer; host tool
  * tools/host/umcub_lite.py): begin / data / end frames with CRC on the same
  * transports, written with umcub_slot_* (header check, test or permanent
@@ -326,6 +330,10 @@
  * can never be booted, even when it is signed with the same key. */
 /* #define UMCUB_CFG_BOARD_TYPE           0 */
 /* #define UMCUB_CFG_BOARD_REV            0 */
+/* Reject an image whose reset vector lies outside the slot it runs from (built
+ * for another image / core, or uploaded with the wrong image number), before
+ * MCUboot validates it. About 200 bytes. */
+/* #define UMCUB_CFG_IMAGE_VECTOR_CHECK   1 */
 
 /* The node address on a shared bus, in this order: from the application
  * (umcub_set_node_address(), kept over resets, not over power-off), from

@@ -14,6 +14,12 @@
  * The value is authentic only once the image itself has been validated. */
 int umcub_image_board_type(const struct flash_area *fa, uint32_t hdr_off, uint32_t *type);
 
+/* The umcub checks done before MCUboot validates an image (image/mcuboot/hooks.c):
+ * reset vector inside the slot it runs from (UMCUB_CFG_IMAGE_VECTOR_CHECK) and
+ * board type (UMCUB_CFG_BOARD_TYPE != 0), for image `img_index` in `slot` read
+ * through `fa`. true = passed (or nothing to check). */
+bool umcub_image_check(int img_index, int slot, const struct flash_area *fa);
+
 /* Set when MCUboot performs an upgrade or revert of image 0 in boot_go()
  * (boot_perform_update_hook): not when it refuses one (invalid image, other
  * board type, downgrade). */

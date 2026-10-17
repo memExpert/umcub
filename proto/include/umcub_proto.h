@@ -10,6 +10,10 @@
 #include <stdint.h>
 #include "umcub_transport.h"
 
+/* Command id in UMCUB_CFG_SMP_INSPECT_GROUP that stands in for
+ * MCUMGR_PARAMETERS on its way through boot_serial (proto/mux.c). */
+#define UMCUB_SMP_PARAMS_ID 0xFFu
+
 /* UMCUB_CFG_PROTO_USER: implemented by the board (boards/<b>/umcub_board.c).
  * A frame that is neither SMP, a lite upload frame nor a text command: a
  * packet of a packet transport, a umcub link DATA payload, or the decoded

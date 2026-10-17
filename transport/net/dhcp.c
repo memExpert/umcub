@@ -64,8 +64,13 @@ static void send_msg(uint8_t type)
     *o++ = 55; *o++ = 4; *o++ = 1; *o++ = 3; *o++ = 51; *o++ = 54;
     *o++ = 255;
 
+    /* Source 0.0.0.0 until a lease is bound (RFC 2131 4.1), also while the
+     * static fallback address is in use. */
     net_peer_t to = { .ip = NET_IP_BROADCAST, .port = 67 };
+    bool configured = net_if.configured;
+    net_if.configured = state == ST_RENEWING;
     (void)net_udp_send(&to, 68, pkt, sizeof(pkt));
+    net_if.configured = configured;
 }
 
 static void schedule_retry(void)

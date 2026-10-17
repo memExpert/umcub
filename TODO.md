@@ -2,17 +2,9 @@
 
 ## Hardware verification (NUCLEO-H755ZI-Q)
 
-- [ ] SMP requests larger than `UMCUB_CFG_SMP_MTU` are dropped without an answer (the host times out). smpmgr asks
-  for MCUMGR_PARAMETERS (os group, id 6) and gets ENOTSUP; answering it with the buffer size would let smpmgr size
-  serial uploads itself (its UDP transport ignores it - hence the 1472 default with Ethernet). Size cost?
-- [ ] An image signed for another image index boots: the CM7 application uploaded as image 1 ran on the CM4 and
-  confirmed itself there. Check that an image's reset vector / load address lies in its own slot before booting it.
-- [ ] DHCP client: after the static fallback, DISCOVER / REQUEST go out with the fallback address as the IP source
-  (RFC 2131 4.1: 0.0.0.0 until a lease is bound).
 - [ ] **CAN / CAN-FD on a bus** — ISO-TP + SMP with `tools/host/smp_can.py`. Needs a transceiver on PD0/PD1 and a USB-CAN
-  adapter. Only the FDCAN initialisation (internal loopback, timing registers) is verified.
-- [ ] Text commands and verify / hash / read over **UDP and CAN** (host tests only).
-- [ ] Downgrade prevention (`UMCUB_CFG_DOWNGRADE_PREVENTION`) in swap modes.
+  adapter. Only the FDCAN initialisation (internal loopback, timing registers) is verified. Also text commands and
+  verify / hash / read over CAN (verified over UDP).
 - [ ] **IDE workflow** (README "Using umcub from an IDE") in real STM32CubeIDE and Keil MDK projects: post-build
   signing, debug download of the signed image, Keil key codes (`#L`, `$L@L`), armclang as preprocessor. So far
   verified: `umcub_app_all.c` compiles with the documented include list (GCC, clang); `tools/host/umcub_image.py` gives
@@ -21,8 +13,6 @@
   verify / hash over a slow, packetizing link without flow control.
 - [ ] Board drivers / board transport with a real external controller (e.g. MCP2518FD, ENC28J60, W5500).
   So far: build matrix (`tests/boards/custom_drivers`) and host test `umcub_host_board`.
-- [ ] CubeMX dual-core start-up handshake (CM7 waits for the CM4 to enter STOP, HSEM 0) together with SINGLE_BOOT
-  and PER_CORE.
 
 ## Hardware verification (Blue Pill, STM32F103C8T6)
 
@@ -34,8 +24,8 @@
 
 ## Shared buses: umcub link
 
-- [ ] Hardware: encrypted image over USB DFU and from the application on the H7 (application
-  path verified on the Blue Pill).
+- [ ] Hardware: encrypted image over USB DFU on the H7 (needs a cable on CN13; the application path is verified on
+  the H7 and the Blue Pill).
 
 ## Known limitations / ideas
 

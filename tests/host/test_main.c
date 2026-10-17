@@ -512,6 +512,25 @@ static void test_board_type(const uint8_t *foreign, size_t len)
     flash_area_close(fa);
 }
 
+static void test_vector_slot(const uint8_t *wrong, size_t len)
+{
+#if UMCUB_CFG_ENCRYPT_IMAGES || !UMCUB_CFG_IMAGE_VECTOR_CHECK
+    (void)wrong;
+    (void)len;
+    printf("[vector check] encrypted variant / check off: skipped\n");
+    return;
+#endif
+    char ver[16];
+    printf("[vector check] image linked for the start of flash refused, 1.1.0 keeps running\n");
+    write_secondary(wrong, len);
+    CHECK(boot_ok(ver) && strcmp(ver, "1.1.0") == 0);
+    struct image_header h;
+    const struct flash_area *fa;
+    CHECK(flash_area_open(FLASH_AREA_IMAGE_SECONDARY(0), &fa) == 0);
+    CHECK(flash_area_read(fa, 0, &h, sizeof(h)) == 0 && h.ih_magic != IMAGE_MAGIC);   /* erased by MCUboot */
+    flash_area_close(fa);
+}
+
 static void test_streams_interleaved(const uint8_t *img, size_t len)
 {
     printf("[stream transports] interleaved NLIP: upload on s0, echo on s1, list on s0\n");
@@ -557,6 +576,39 @@ static void test_streams_interleaved(const uint8_t *img, size_t len)
     CHECK(rl > 8 && cbor_find_uint(rsp + 8, rl - 8, "off") == 512);
     rl = nlip_decode(streams[1].out, streams[1].out_len, rsp);
     CHECK(rl > 8 && contains(rsp, rl, "from s1"));
+}
+
+/* MCUMGR_PARAMETERS (os group 0, id 6) over the packet and the stream path. */
+static void test_params(void)
+{
+#if !(UMCUB_CFG_SMP_PARAMS && UMCUB_CFG_INSPECT)
+    printf("[mcumgr params] off: skipped\n");
+    return;
+#endif
+    printf("[mcumgr params] buf_size over packet and stream transports\n");
+    memset(streams, 0, sizeof(streams));
+    stream_polls = 0;                       /* polls past the limit longjmp out of boot_serial_start() */
+    cbor_t c = { .n = 0 };
+    cb_map(&c, 0);
+    uint8_t pkt[64];
+    size_t pl = smp_frame(pkt, 0, 0, 6, &c);
+    pkt[0] |= 0x08;                         /* SMP version 2, as smpmgr sends it */
+    smp_packet_request(pkt, pl);
+    CHECK(pkt_rsp_len > 8 && (pkt_rsp[0] & 7) == 1 && pkt_rsp[4] == 0 && pkt_rsp[5] == 0 && pkt_rsp[7] == 6 &&
+          cbor_find_uint(pkt_rsp + 8, pkt_rsp_len - 8, "buf_size") == UMCUB_CFG_SMP_MTU);
+
+    static char in0[256];
+    streams[0].in = (uint8_t *)in0;
+    streams[0].in_len = nlip_encode(pkt, pl, in0);
+    stream_polls = 0;
+    if (setjmp(stream_done) == 0) {
+        boot_serial_start(umcub_mux_funcs_for_test());
+    }
+    uint8_t rsp[256];
+    size_t rl = nlip_decode(streams[0].out, streams[0].out_len, rsp);
+    CHECK(rl > 8 && (rsp[0] & 7) == 1 && rsp[4] == 0 && rsp[5] == 0 && rsp[7] == 6 &&
+          cbor_find_uint(rsp + 8, rl - 8, "buf_size") == UMCUB_CFG_SMP_MTU &&
+          cbor_find_uint(rsp + 8, rl - 8, "buf_count") == 1);
 }
 
 /* --- text commands ------------------------------------------------------- */
@@ -872,6 +924,7 @@ static void test_net(void)
     CHECK(eth_out_n == 1);
     const uint8_t *d = eth_out[0] + 42;     /* DISCOVER payload */
     CHECK(eth_out_len[0] >= 42 + 240 && net_get16(eth_out[0] + 36) == 67);
+    CHECK(net_get32(eth_out[0] + 26) == 0);     /* IP source 0.0.0.0 */
     uint32_t xid = net_get32(d + 4);
 
     uint8_t bootp[300] = { 2, 1, 6, 0 };
@@ -885,11 +938,20 @@ static void test_net(void)
     static const uint8_t bc[6] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
     size_t fl = ip_udp(f, 0xC0A80A01, 0xFFFFFFFF, 67, 68, bootp, sizeof(bootp), bc);
     net_input(f, fl);                       /* OFFER -> REQUEST */
-    CHECK(eth_out_n == 2 && eth_out[1][42 + 240 + 2] == 3);
+    CHECK(eth_out_n == 2 && eth_out[1][42 + 240 + 2] == 3 && net_get32(eth_out[1] + 26) == 0);
     bootp[240 + 2] = 5;                     /* ACK */
     fl = ip_udp(f, 0xC0A80A01, 0xFFFFFFFF, 67, 68, bootp, sizeof(bootp), bc);
     net_input(f, fl);
     CHECK(net_if.configured && net_if.ip == 0xC0A80A2A && net_if.netmask == 0xFFFFFF00);
+
+    /* With the static fallback address in use, DISCOVER still goes out from 0.0.0.0. */
+    net_if_t bound = net_if;
+    net_if.ip = 0xC0A80132;
+    eth_out_n = 0;
+    dhcp_start();
+    dhcp_tick();
+    CHECK(eth_out_n == 1 && net_get32(eth_out[0] + 26) == 0 && net_if.configured && net_if.ip == 0xC0A80132);
+    net_if = bound;
 
     /* ARP who-has 192.168.10.42 */
     uint8_t arp[42];
@@ -948,17 +1010,20 @@ static void log_sink(const char *s, size_t len)
 
 int main(int argc, char **argv)
 {
-    int want_args = UMCUB_CFG_ENCRYPT_IMAGES ? 6 : 4;
+    int want_args = UMCUB_CFG_ENCRYPT_IMAGES ? 6 : 5;
     if (argc != want_args) {
         fprintf(stderr, "usage: %s v1.signed.bin v2.signed.bin foreign.signed.bin%s\n", argv[0],
-                UMCUB_CFG_ENCRYPT_IMAGES ? " v1.plain.bin v2.plain.bin (first three encrypted)" : "");
+                UMCUB_CFG_ENCRYPT_IMAGES ? " v1.plain.bin v2.plain.bin (first three encrypted)"
+                                         : " wrong-slot.signed.bin");
         return 2;
     }
     size_t v1_len, v2_len, foreign_len, plain_len;
     uint8_t *v1 = load(argv[1], &v1_len);
     uint8_t *v2 = load(argv[2], &v2_len);
     uint8_t *foreign = load(argv[3], &foreign_len);
-    const uint8_t *v1_flash = in_flash(v1, v1_len, argc > 4 ? load(argv[4], &plain_len) : NULL);
+    size_t wrong_len = 0;
+    uint8_t *wrong = UMCUB_CFG_ENCRYPT_IMAGES ? NULL : load(argv[4], &wrong_len);
+    const uint8_t *v1_flash = in_flash(v1, v1_len, argc > 5 ? load(argv[4], &plain_len) : NULL);
     const uint8_t *v2_flash = in_flash(v2, v2_len, argc > 5 ? load(argv[5], &plain_len) : NULL);
     setvbuf(stdout, NULL, _IONBF, 0);
     umcub_log_set_sink(log_sink);
@@ -967,8 +1032,10 @@ int main(int argc, char **argv)
     test_secondary_views(v2, v2_len);
     test_swap_revert_confirm(v2, v2_len);
     test_board_type(foreign, foreign_len);
+    test_vector_slot(wrong, wrong_len);
     test_inspect(v2_flash, v2_len);
     test_streams_interleaved(v1, v1_len);
+    test_params();
     test_commands();
     test_isotp();
     test_net();

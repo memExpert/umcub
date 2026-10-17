@@ -36,6 +36,9 @@
 #ifndef UMCUB_CFG_BOARD_TYPE
 #define UMCUB_CFG_BOARD_TYPE            0
 #endif
+#ifndef UMCUB_CFG_IMAGE_VECTOR_CHECK
+#define UMCUB_CFG_IMAGE_VECTOR_CHECK    1
+#endif
 #ifndef UMCUB_CFG_BOARD_REV
 #define UMCUB_CFG_BOARD_REV             0
 #endif
@@ -369,6 +372,11 @@
 /* SMP upload "image" field addresses slots directly (see mcuboot_config.h). */
 #ifndef UMCUB_CFG_SMP_DIRECT_UPLOAD
 #define UMCUB_CFG_SMP_DIRECT_UPLOAD     0
+#endif
+
+/* Answer MCUMGR_PARAMETERS (needs UMCUB_CFG_INSPECT: the per-user group). */
+#ifndef UMCUB_CFG_SMP_PARAMS
+#define UMCUB_CFG_SMP_PARAMS            1
 #endif
 
 /* SMP packet size limit (decoded). Large enough for one MTU of any transport;

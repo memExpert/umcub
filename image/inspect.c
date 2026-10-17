@@ -5,6 +5,7 @@
 #include "umcub_cfg.h"
 #include "umcub_port.h"
 #include "umcub_inspect.h"
+#include "umcub_image_info.h"
 #include "bootutil/boot_hooks.h"
 #include "bootutil/bootutil.h"
 #include "bootutil/image.h"
@@ -114,13 +115,10 @@ int umcub_inspect_validate(int image, int slot, const struct flash_area *area)
     } else
 #endif
     FIH_CALL(bootutil_img_validate, fih_rc, st, &h, &fa, tmp, sizeof(tmp), NULL, 0, NULL);
-#if UMCUB_CFG_BOARD_TYPE != 0
-    /* Same rule as at boot: an image for another board type is not valid here. */
-    if (FIH_EQ(fih_rc, FIH_SUCCESS)) {
-        FIH_CALL(boot_image_check_hook, fih_rc, image, slot);
-        if (FIH_EQ(fih_rc, FIH_BOOT_HOOK_REGULAR)) {
-            fih_rc = FIH_SUCCESS;
-        }
+#if UMCUB_CFG_BOARD_TYPE != 0 || UMCUB_CFG_IMAGE_VECTOR_CHECK
+    /* Same rules as at boot: board type, reset vector in its slot. */
+    if (FIH_EQ(fih_rc, FIH_SUCCESS) && !umcub_image_check(image, slot, &fa)) {
+        fih_rc = FIH_FAILURE;
     }
 #endif
     boot_close_all_flash_areas(st);
