@@ -35,7 +35,7 @@ cmake --build --preset h755-cm7      # build/h755-cm7/umcub_nucleo_h755zi_q_cm7.
 cmake -S examples/h755_cm7_app -B build/ex-cm7 -G Ninja -DAPP_VERSION=1.0.0 && cmake --build build/ex-cm7
 cmake -S examples/h755_cm4_app -B build/ex-cm4 -G Ninja -DAPP_VERSION=1.0.0 && cmake --build build/ex-cm4
 
-tools/hw/h755_option_bytes.sh single    # the CM4 starts from the bootloader vector table and waits
+tools/hw/h755_option_bytes.py single    # the CM4 starts from the bootloader vector table and waits (pyOCD)
 tools/hw/probe.py flash build/h755-cm7/umcub_nucleo_h755zi_q_cm7.hex \
                build/ex-cm7/h755_cm7_app.signed.hex build/ex-cm4/h755_cm4_app.signed.hex
 ```
@@ -53,6 +53,7 @@ smpmgr --port /dev/ttyACM0 --line-buffers 8 image upload build/ex-cm7/h755_cm7_a
 smpmgr --port /dev/ttyACM0 --line-buffers 8 image upload --slot 1 build/ex-cm4/h755_cm4_app.signed.bin
 smpmgr --port /dev/ttyACM0 os reset
 mcumgr --conntype udp --connstring=<ip>:1337 image upload build/ex-cm7/h755_cm7_app.signed.bin
+smpmgr --ip <ip> --mtu 512 image upload build/ex-cm7/h755_cm7_app.signed.bin   # UDP: --mtu <= UMCUB_CFG_SMP_MTU
 dfu-util -a 0 -D build/ex-cm7/h755_cm7_app.signed.bin -R    # DFU: alt N = image N
 tools/host/smp_can.py --channel can0 upload build/ex-cm7/h755_cm7_app.signed.bin
 ```
@@ -149,8 +150,11 @@ caught at compile time (`config/umcub_config_check.h`).
   the CM4 one in bank 2 (`BOOT_CM4_ADD0 = 0x0810`). Only the CM7 configures power and clocks; the two cores must not
   share transports.
 
-STM32CubeProgrammer 2.23 does not expose `BOOT_CM4_ADD0`/`BCM4` for the H755, so `tools/hw/h755_option_bytes.sh` writes
-them through a small RAM helper run by GDB (`tools/hw/h7_ob/`).
+STM32CubeProgrammer 2.23 does not expose `BOOT_CM4_ADD0`/`BCM4` for the H755, so `tools/hw/h755_option_bytes.py` writes
+the FLASH option registers directly in one pyOCD session (`show` prints them). It does not run on the stm32cube
+backend, which reconnects for every register access: an option byte change must run in one debug session, otherwise
+the option bytes can end up corrupted (RDP level 1 and PCROP areas; undoing that needs an RDP regression, which erases
+the flash).
 
 ## Bootloader size
 
@@ -181,9 +185,9 @@ same core; check the real size after porting.
 <!-- size-table:begin -->
 | MCU | base | all on | UART (+SMP) | USB CDC | USB DFU | USB CDC+DFU | CAN | CAN FD | Ethernet (+DHCP) | DFU only | UART, lite upload (no SMP) |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| STM32H755 CM7 (2 images, SINGLE_BOOT) | 18.4 K | 55.0 K | +8.7 K | +11.2 K | +10.6 K | +13.2 K | +2.6 K | +2.6 K | +4.3 K | +10.9 K | +4.1 K |
+| STM32H755 CM7 (2 images, SINGLE_BOOT) | 18.4 K | 55.0 K | +8.7 K | +11.2 K | +10.6 K | +13.2 K | +2.6 K | +2.6 K | +4.4 K | +10.9 K | +4.1 K |
 | STM32H755 CM4 (PER_CORE) | 16.0 K | 52.1 K | +8.5 K | +11.2 K | +10.6 K | +13.2 K | +2.6 K | +2.6 K | +4.3 K | +10.9 K | +4.0 K |
-| STM32H743 / H753 (single core) | 16.7 K | 52.9 K | +8.5 K | +11.2 K | +10.6 K | +13.2 K | +2.6 K | +2.6 K | +4.3 K | +10.9 K | +4.0 K |
+| STM32H743 / H753 (single core) | 16.7 K | 52.9 K | +8.5 K | +11.2 K | +10.6 K | +13.2 K | +2.6 K | +2.6 K | +4.4 K | +10.9 K | +4.0 K |
 | STM32F103 (Blue Pill, overwrite) | 12.6 K | 38.8 K | +8.7 K | +9.8 K | +9.1 K | +11.7 K | +2.4 K | — | — | +9.6 K | +4.1 K |
 
 | MCU | log (level 3) | text commands | verify + hash | readback | umcub link (addressed) | umcub link SECURE | + link encryption | encrypted images |
@@ -205,7 +209,7 @@ same core; check the real size after porting.
 |---|---:|---:|---:|---:|
 | STM32H755 CM7 (2 images, SINGLE_BOOT) | 15.5 K (-2.9 K) | 23.9 K (-3.2 K) | 19.2 K (-3.2 K) | 48.8 K (-6.1 K) |
 | STM32H755 CM4 (PER_CORE) | 13.1 K (-2.9 K) | 21.1 K (-3.4 K) | 16.8 K (-3.3 K) | 45.9 K (-6.2 K) |
-| STM32H743 / H753 (single core) | 13.8 K (-2.9 K) | 21.9 K (-3.4 K) | 17.5 K (-3.3 K) | 46.6 K (-6.3 K) |
+| STM32H743 / H753 (single core) | 13.8 K (-2.9 K) | 21.9 K (-3.4 K) | 17.5 K (-3.3 K) | 46.6 K (-6.2 K) |
 | STM32F103 (Blue Pill, overwrite) | 10.0 K (-2.5 K) | 18.0 K (-3.2 K) | 13.6 K (-3.1 K) | 33.6 K (-5.2 K) |
 <!-- size-table:end -->
 
@@ -704,7 +708,7 @@ Updates through the bootloader (`smpmgr`, `mcumgr`, `dfu-util`, CAN, UDP) use `<
 
 **Dual-core H745/H755 with CubeMX dual-core projects.** Each core's project signs its own image. With `SINGLE_BOOT`
 that is `--core cm7 --image 0` for the CM7 and `--core cm4 --image 1` for the CM4. Program the option bytes with
-`tools/hw/h755_option_bytes.sh`, not the CubeMX defaults. The bootloader starts the CM4 application first, then jumps
+`tools/hw/h755_option_bytes.py`, not the CubeMX defaults. The bootloader starts the CM4 application first, then jumps
 to the CM7 one, so the CubeMX start-up handshake should find the CM4 in STOP as it expects. This is not yet verified
 on hardware. Without a valid CM4 image, the CM4 stays parked in the bootloader. In that case the CubeMX CM7 code that
 waits for `RCC_FLAG_D2CKRDY` times out into `Error_Handler()`; make that wait non-fatal if the CM7 must run alone.
@@ -780,7 +784,7 @@ project with `tools/host/umcub_image.py` (see [Using umcub from an IDE](#using-u
 `tools/host/umcub_image.py info --board boards/my_board` prints where to link it.
 
 **5. Program and protect.** Program the bootloader `.hex` and the signed application `.hex`. On dual-core H7 parts,
-also program the option bytes (`tools/hw/h755_option_bytes.sh`). For production, write-protect the bootloader sector
+also program the option bytes (`tools/hw/h755_option_bytes.py`). For production, write-protect the bootloader sector
 (WRP) and enable RDP.
 
 **6. Optional: `boards/my_board/umcub_board.c`.** It is compiled automatically when present. Use it for your own text
@@ -885,7 +889,8 @@ tools/host/      host tools: umcub_image.py (slot addresses, signing for IDE pro
 tools/build/     build_matrix.sh, size_table.py (size tables), check_docs.py (README consistency),
                  check_layers.py (layering)
 tools/hw/        bench (SWD through probe.py: STM32_Programmer_CLI or pyOCD): probe.py (flash / read / write /
-                 erase / reset), h755_option_bytes.sh (+ h7_ob/), powerfail_test.py, stack_usage.py, udev/
+                 erase / reset), h755_option_bytes.py, dhcp_server.py (DHCP server for one direct link),
+                 powerfail_test.py, stack_usage.py, udev/
 tests/host/      host tests
 tests/configs/   configuration overlays: mode/, transport/, feature/, bluepill/
 tests/tools/     helpers for the build matrix

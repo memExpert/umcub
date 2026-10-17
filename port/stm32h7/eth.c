@@ -203,9 +203,9 @@ bool umcub_port_eth_link(void)
         }
         ETH->MACCR = cr;
         /* ES0445 2.25.10: in RMII 10 Mbit/s the MAC may flag a fake dribble
-         * nibble together with a CRC error and drop good packets. Forward
-         * error packets and accept "DE + CE only" ones (IP/UDP checksums
-         * still reject real corruption). */
+         * nibble (DE, seen on hardware also without CE) and drop good packets.
+         * Forward error packets and accept "DE (+ CE) only" ones (IP/UDP
+         * checksums still reject real corruption). */
         speed10 = !(cr & ETH_MACCR_FES);
         if (speed10) {
             ETH->MTLRQOMR |= ETH_MTLRQOMR_FEP;
@@ -257,7 +257,7 @@ size_t umcub_port_eth_rx(uint8_t *buf, size_t max)
     }
     size_t len = 0;
     uint32_t errs = s & (RDES3_DE | RDES3_RE | RDES3_OE | RDES3_RWT | RDES3_GP | RDES3_CE);
-    bool ok = !(s & RDES3_ES) || (speed10 && errs == (RDES3_DE | RDES3_CE));
+    bool ok = !(s & RDES3_ES) || (speed10 && (errs & RDES3_DE) && !(errs & ~(RDES3_DE | RDES3_CE)));
     if ((s & DES3_FD) && (s & DES3_LD) && ok) {
         len = s & RDES3_PL;                        /* FCS stripped by the MAC (CST) */
         if (len > max) {

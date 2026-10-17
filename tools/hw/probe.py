@@ -13,7 +13,8 @@ Backends (--probe or $UMCUB_PROBE):
   probe.py write32 0x20004F00 0x1 0x2
   probe.py erase 0x08008000 0x8000 | erase all
   probe.py reset [--hw]
---connect attach (default, running code keeps running) or under-reset.
+--connect attach (default, running code keeps running) or under-reset; --serial picks one
+of several probes ($UMCUB_PROBE_SERIAL).
 """
 import argparse
 import os
@@ -32,17 +33,18 @@ class ProbeError(Exception):
 class Stm32Cube:
     """STM32_Programmer_CLI, one call per operation."""
 
-    def __init__(self, connect="attach", sector_size=None, flash_base=0x08000000, cli=None, **_):
+    def __init__(self, connect="attach", sector_size=None, flash_base=0x08000000, cli=None, serial=None, **_):
         self.cli = cli or os.environ.get("STM32_PROGRAMMER_CLI") or shutil.which("STM32_Programmer_CLI")
         if not self.cli:
             raise ProbeError("STM32_Programmer_CLI not found: set $STM32_PROGRAMMER_CLI or add it to PATH")
         self.mode = {"attach": "HOTPLUG", "under-reset": "UR"}[connect]
         self.sector_size, self.flash_base = sector_size, flash_base
+        self.port = ["port=SWD", f"mode={self.mode}"] + ([f"sn={serial}"] if serial else [])
 
     def _run(self, *args, tries=5):
         out = ""
         for attempt in range(tries):
-            r = subprocess.run([self.cli, "-c", "port=SWD", f"mode={self.mode}", *args],
+            r = subprocess.run([self.cli, "-c", *self.port, *args],
                                capture_output=True, text=True)
             out = re.sub(r"\x1b\[[0-9;]*m", "", r.stdout + r.stderr)
             # Connect noise ("core ID", option database) is harmless when the command ran.
@@ -64,7 +66,7 @@ class Stm32Cube:
     def write32(self, addr, words):
         # Registers such as BSRR read back differently: the CLI then reports a
         # verify failure although the write happened - not checked here.
-        subprocess.run([self.cli, "-c", "port=SWD", f"mode={self.mode}", "-w32", hex(addr),
+        subprocess.run([self.cli, "-c", *self.port, "-w32", hex(addr),
                         *[hex(w) for w in words]], capture_output=True)
 
     def read_mem(self, addr, size):
@@ -102,7 +104,7 @@ class Stm32Cube:
 class PyOcd:
     """pyOCD through its Python API; one session for all operations."""
 
-    def __init__(self, connect="attach", target=None, pack=None, **_):
+    def __init__(self, connect="attach", target=None, pack=None, serial=None, **_):
         try:
             from pyocd.core.helpers import ConnectHelper
         except ImportError:
@@ -114,7 +116,7 @@ class PyOcd:
         opts = {"target_override": target, "connect_mode": connect.replace("-", "_")}
         if pack:
             opts["pack"] = pack
-        self.session = ConnectHelper.session_with_chosen_probe(return_first=True, options=opts)
+        self.session = ConnectHelper.session_with_chosen_probe(return_first=True, unique_id=serial, options=opts)
         if self.session is None:
             raise ProbeError("pyocd: no debug probe found")
         self.session.open()
@@ -176,11 +178,13 @@ def add_arguments(ap):
     ap.add_argument("--pack", help="pyocd: CMSIS-Pack file")
     ap.add_argument("--sector-size", type=num, help="stm32cube: erase sector / page size")
     ap.add_argument("--flash-base", type=num, default=0x08000000)
+    ap.add_argument("--serial", default=os.environ.get("UMCUB_PROBE_SERIAL"),
+                    help="serial number of the debug probe when several are connected")
 
 
 def open_probe(a, connect=None):
     return BACKENDS[a.probe](connect=connect or a.connect, target=a.target, pack=a.pack,
-                             sector_size=a.sector_size, flash_base=a.flash_base)
+                             sector_size=a.sector_size, flash_base=a.flash_base, serial=a.serial)
 
 
 def main():

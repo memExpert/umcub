@@ -2,9 +2,13 @@
 
 ## Hardware verification (NUCLEO-H755ZI-Q)
 
-- [ ] **Ethernet** — DHCP (DISCOVER/OFFER/REQUEST/ACK, renewal, static fallback), ARP, ping, SMP over UDP
-  (`mcumgr --conntype udp`). JP6 and JP7 must be fitted (UM2408 §7.12). Test 100 and 10 Mbit/s separately (the
-  ES0445 2.25.10 workaround is active at 10 Mbit/s only). Needs a cable.
+- [ ] SMP requests larger than `UMCUB_CFG_SMP_MTU` are dropped without an answer. smpmgr asks for
+  MCUMGR_PARAMETERS (os group, id 6), gets ENOTSUP and then sends 1464-byte upload chunks over UDP, which time out
+  (`--mtu 512` works). Answer MCUMGR_PARAMETERS with the buffer size, or reject oversized requests (size cost?).
+- [ ] An image signed for another image index boots: the CM7 application uploaded as image 1 ran on the CM4 and
+  confirmed itself there. Check that an image's reset vector / load address lies in its own slot before booting it.
+- [ ] DHCP client: after the static fallback, DISCOVER / REQUEST go out with the fallback address as the IP source
+  (RFC 2131 4.1: 0.0.0.0 until a lease is bound).
 - [ ] **CAN / CAN-FD on a bus** — ISO-TP + SMP with `tools/host/smp_can.py`. Needs a transceiver on PD0/PD1 and a USB-CAN
   adapter. Only the FDCAN initialisation (internal loopback, timing registers) is verified.
 - [ ] Text commands and verify / hash / read over **UDP and CAN** (host tests only).
@@ -48,7 +52,5 @@
   and limitations").
 - [ ] When the application writes a slot in the same flash bank it executes from, the CPU stalls for the duration of a
   sector erase (~2 s on the H7).
-- [ ] tools/hw/h755_option_bytes.sh still drives ST-LINK gdbserver + a RAM helper (h7_ob/); rewrite it on
-  tools/hw/probe.py register writes (the ob_write.c sequence) when a NUCLEO-H755 is attached to verify it.
 - [ ] Ports for other series (G4, F7, G0, L4).
 - [ ] Bootloader build with Arm Compiler 6 / Keil (now GCC only: startup, linker templates, newlib overrides).

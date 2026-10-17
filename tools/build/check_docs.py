@@ -49,7 +49,7 @@ def main():
     presets = json.loads((ROOT / "CMakePresets.json").read_text())["configurePresets"]
     need("CMake preset", [p["name"] for p in presets if not p.get("hidden")])
     need("tool", [p.name for p in (ROOT / "tools").rglob("*")
-                  if p.suffix in (".py", ".sh") and "__pycache__" not in p.parts and p.parent.name != "h7_ob"])
+                  if p.suffix in (".py", ".sh") and "__pycache__" not in p.parts])
     need("source directory", [f"{d}/" for d in ("include", "config", "port", "util", "image", "transport", "proto",
                                                  "boot", "lib/umcub_app", "tests/configs")])
 
