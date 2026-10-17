@@ -16,10 +16,6 @@
 
 ## Hardware verification (Blue Pill, STM32F103C8T6)
 
-- [ ] bxCAN on a real bus (transceiver on PB9/PB8 + USB-CAN adapter, `tools/host/smp_can.py`). Verified so far in
-  loopback + silent mode on the Blue Pill: initialisation (BTR 0xC11E0003 = 500 kbit/s at 36 MHz, sample point
-  88.9 %), a request frame injected over SWD passes the filter, ISO-TP and the text command "i" run, the answer is
-  sent with the TX id; registers checked against RM0008 / ES096 (manual-checker: 9 of 9 match).
 - [ ] F105/F107 (PREDIV1, 25 MHz HSE, USB OTG FS, CAN2); XL-density bank 2.
 
 ## Known limitations / ideas

@@ -9,7 +9,9 @@
 """
 import asyncio
 import binascii
+import errno
 import logging
+import time
 from enum import IntEnum, unique
 
 from smp import error as smperr
@@ -159,6 +161,21 @@ class SMPIsoTpTransport:
         import can
         import isotp
         self._bus = can.Bus(**self._args)
+        # A device that allows back-to-back consecutive frames (STmin 0) fills
+        # the interface's TX queue (Linux default qlen 10): wait instead of
+        # failing on ENOBUFS.
+        send = self._bus.send
+
+        def send_retry(msg, timeout=None):
+            for _ in range(1000):
+                try:
+                    return send(msg, timeout)
+                except can.CanOperationError as e:
+                    if getattr(e, "error_code", None) != errno.ENOBUFS:
+                        raise
+                    time.sleep(0.001)
+            return send(msg, timeout)
+        self._bus.send = send_retry
         mode = isotp.AddressingMode.Normal_29bits if self._ext else isotp.AddressingMode.Normal_11bits
         addr = isotp.Address(mode, txid=self._tx_id, rxid=self._rx_id)
         params = {"tx_padding": 0xCC, "can_fd": self._fd, "tx_data_length": 64 if self._fd else 8,
