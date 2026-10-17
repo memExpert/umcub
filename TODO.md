@@ -22,11 +22,6 @@
   sent with the TX id; registers checked against RM0008 / ES096 (manual-checker: 9 of 9 match).
 - [ ] F105/F107 (PREDIV1, 25 MHz HSE, USB OTG FS, CAN2); XL-density bank 2.
 
-## Shared buses: umcub link
-
-- [ ] Hardware: encrypted image over USB DFU on the H7 (needs a cable on CN13; the application path is verified on
-  the H7 and the Blue Pill).
-
 ## Known limitations / ideas
 
 - [ ] Security review leftovers: (a) one device key per product - per-device keys (provisioning, key derived from
