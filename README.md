@@ -53,14 +53,15 @@ smpmgr --port /dev/ttyACM0 --line-buffers 8 image upload build/ex-cm7/h755_cm7_a
 smpmgr --port /dev/ttyACM0 --line-buffers 8 image upload --slot 1 build/ex-cm4/h755_cm4_app.signed.bin
 smpmgr --port /dev/ttyACM0 os reset
 mcumgr --conntype udp --connstring=<ip>:1337 image upload build/ex-cm7/h755_cm7_app.signed.bin
-smpmgr --ip <ip> --mtu 512 image upload build/ex-cm7/h755_cm7_app.signed.bin   # UDP: --mtu <= UMCUB_CFG_SMP_MTU
+smpmgr --ip <ip> image upload build/ex-cm7/h755_cm7_app.signed.bin              # UDP (default --mtu 1500)
 dfu-util -a 0 -D build/ex-cm7/h755_cm7_app.signed.bin -R    # DFU: alt N = image N
 tools/host/smp_can.py --channel can0 upload build/ex-cm7/h755_cm7_app.signed.bin
 ```
 
 SMP serial recovery writes straight into the **primary** slot (this is how MCUboot works); the image number is the
-`image` field (`smpmgr --slot`, `mcumgr -n`; 1 = CM4). `--line-buffers 8` matches `UMCUB_CFG_SMP_MTU` = 1024
-(8 lines of 128 bytes). DFU and `umcub_slot_*` write into the **secondary** slot and mark the image for a test boot.
+`image` field (`smpmgr --slot`, `mcumgr -n`; 1 = CM4). `--line-buffers 8` fits `UMCUB_CFG_SMP_MTU`
+(8 lines of 128 bytes; the default is 1472 with Ethernet - one full UDP datagram, what smpmgr sends over UDP -
+otherwise 1024). DFU and `umcub_slot_*` write into the **secondary** slot and mark the image for a test boot.
 
 ## Quick start (Blue Pill, STM32F103C8T6)
 

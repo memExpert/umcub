@@ -2,9 +2,9 @@
 
 ## Hardware verification (NUCLEO-H755ZI-Q)
 
-- [ ] SMP requests larger than `UMCUB_CFG_SMP_MTU` are dropped without an answer. smpmgr asks for
-  MCUMGR_PARAMETERS (os group, id 6), gets ENOTSUP and then sends 1464-byte upload chunks over UDP, which time out
-  (`--mtu 512` works). Answer MCUMGR_PARAMETERS with the buffer size, or reject oversized requests (size cost?).
+- [ ] SMP requests larger than `UMCUB_CFG_SMP_MTU` are dropped without an answer (the host times out). smpmgr asks
+  for MCUMGR_PARAMETERS (os group, id 6) and gets ENOTSUP; answering it with the buffer size would let smpmgr size
+  serial uploads itself (its UDP transport ignores it - hence the 1472 default with Ethernet). Size cost?
 - [ ] An image signed for another image index boots: the CM7 application uploaded as image 1 ran on the CM4 and
   confirmed itself there. Check that an image's reset vector / load address lies in its own slot before booting it.
 - [ ] DHCP client: after the static fallback, DISCOVER / REQUEST go out with the fallback address as the IP source

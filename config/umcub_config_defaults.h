@@ -371,9 +371,15 @@
 #define UMCUB_CFG_SMP_DIRECT_UPLOAD     0
 #endif
 
-/* SMP packet size limit (decoded). Large enough for one MTU of any transport. */
+/* SMP packet size limit (decoded). Large enough for one MTU of any transport;
+ * with Ethernet one full UDP datagram (1500 - 28): smpmgr sends that much over
+ * UDP and ignores the buffer size the server reports. */
 #ifndef UMCUB_CFG_SMP_MTU
+#if UMCUB_CFG_TRANSPORT_ETH
+#define UMCUB_CFG_SMP_MTU               1472
+#else
 #define UMCUB_CFG_SMP_MTU               1024
+#endif
 #endif
 
 #endif /* UMCUB_CONFIG_DEFAULTS_H */

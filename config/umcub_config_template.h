@@ -125,6 +125,10 @@
  * out (about 10 K): images then come through the lite upload protocol below,
  * USB DFU, the application (umcub_slot_*) or the board's own protocol. */
 /* #define UMCUB_CFG_SMP_ENABLE           1 */
+/* Largest SMP packet (decoded); every SMP buffer is this size (RAM only).
+ * Default 1472 with Ethernet (a full UDP datagram, what smpmgr sends), else
+ * 1024. Hosts must not send more: smpmgr --mtu / --line-buffers. */
+/* #define UMCUB_CFG_SMP_MTU              1024 */
 /* Built-in lite upload protocol (about 1 K plus the slot writer; host tool
  * tools/host/umcub_lite.py): begin / data / end frames with CRC on the same
  * transports, written with umcub_slot_* (header check, test or permanent
