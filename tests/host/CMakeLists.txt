@@ -133,6 +133,9 @@ function(umcub_host_variant name)
   set(_enc)
   if(UMCUB_CFG_ENCRYPT_IMAGES)
     set(_enc --encrypt ${_dev_key})
+    if(UMCUB_CFG_SWAP_SAVE_ENCTLV)
+      list(APPEND _enc --save-enctlv)
+    endif()
   endif()
   foreach(v 1.0.0 1.1.0 1.2.0 1.3.0 plain-1.0.0 plain-1.1.0)
     set(_o ${CMAKE_BINARY_DIR}/${name}_${v}.bin)
@@ -170,6 +173,7 @@ umcub_host_variant(swap_move)
 umcub_host_variant(swap_offset)
 umcub_host_variant(swap_scratch_enc)
 umcub_host_variant(swap_scratch_enc_nobt)
+umcub_host_variant(swap_scratch_enc_rawkey)
 
 # Board-supplied drivers (UMCUB_DRIVER_BOARD) and board transport
 # (UMCUB_CFG_TRANSPORT_USER) through the real registry, CAN/ETH transports, mux.

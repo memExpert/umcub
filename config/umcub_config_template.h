@@ -200,6 +200,12 @@
  * or SMP with UMCUB_CFG_SMP_DIRECT_UPLOAD to image 2); an encrypted image
  * uploaded into the primary slot stays invalid. */
 /* #define UMCUB_CFG_ENC_INPLACE          1 */
+/* Swap modes: during an update MCUboot keeps the AES keys of both images in
+ * the slot trailers until the swap is over (resume after a reset, revert).
+ * 1 stores the encrypted key TLVs there instead (MCUBOOT_SWAP_SAVE_ENCTLV):
+ * flash never holds a plain image key, it is unwrapped with the device key
+ * when needed. Signing passes --save-enctlv (bigger trailer). */
+/* #define UMCUB_CFG_SWAP_SAVE_ENCTLV     1 */
 /* SMP group id of verify (0) / hash (1) / read (2) for host software. */
 /* #define UMCUB_CFG_SMP_INSPECT_GROUP    100 */
 

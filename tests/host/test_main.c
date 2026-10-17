@@ -454,6 +454,38 @@ static bool flash_read_hdr_secondary(struct image_header *h)
 }
 #endif
 
+#if UMCUB_CFG_ENCRYPT_IMAGES
+#include "bootutil/enc_key.h"
+/* The AES key of an encrypted image, unwrapped from its ENC_EC256 TLV. */
+static bool image_aes_key(const uint8_t *img, size_t len, uint8_t key[16])
+{
+    size_t off = (size_t)(img[8] | img[9] << 8) + (img[12] | img[13] << 8 | img[14] << 16 | (uint32_t)img[15] << 24);
+    for (int pass = 0; pass < 2 && off + 4 <= len; pass++) {
+        uint16_t magic = (uint16_t)(img[off] | img[off + 1] << 8);
+        size_t end = off + (size_t)(img[off + 2] | img[off + 3] << 8);
+        for (size_t p = off + 4; p + 4 <= end && end <= len;) {
+            uint16_t type = (uint16_t)(img[p] | img[p + 1] << 8), l = (uint16_t)(img[p + 2] | img[p + 3] << 8);
+            if (magic == IMAGE_TLV_INFO_MAGIC && type == IMAGE_TLV_ENC_EC256) {
+                return boot_decrypt_key(&img[p + 4], key) == 0;
+            }
+            p += 4u + l;
+        }
+        off = end;
+    }
+    return false;
+}
+
+static bool flash_contains(const uint8_t *s, size_t n)
+{
+    for (size_t i = 0; i + n <= 2u * 1024u * 1024u; i++) {
+        if (memcmp(&fake_flash[i], s, n) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+#endif
+
 static void test_swap_revert_confirm(const uint8_t *v2, size_t v2_len)
 {
     char ver[16];
@@ -468,6 +500,11 @@ static void test_swap_revert_confirm(const uint8_t *v2, size_t v2_len)
     CHECK(flash_read_hdr_secondary(&sh) && IS_ENCRYPTED(&sh));
     CHECK(umcub_inspect_verify(0, 1) == 0);
     printf("  old image re-encrypted in the secondary slot, verify ok\n");
+    /* The swap keeps the keys in the trailers until it is over (revert). */
+    uint8_t key[16];
+    CHECK(image_aes_key(v2, v2_len, key));
+    CHECK(flash_contains(key, sizeof(key)) == !UMCUB_CFG_SWAP_SAVE_ENCTLV);
+    printf("  AES key of the update %s in flash\n", UMCUB_CFG_SWAP_SAVE_ENCTLV ? "not" : "plain");
 #endif
     CHECK(umcub_is_confirmed(0) == 0);
     umcub_slot_writer_t busy;   /* secondary holds the revert copy now */

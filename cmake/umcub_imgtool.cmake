@@ -227,8 +227,12 @@ function(umcub_sign_image target)
   if(UMCUB_CFG_ENCRYPT_IMAGES)
     # Encrypted copy for updates and distribution; the plain .signed.{bin,hex}
     # is for programmers (MCUboot decrypts only what it installs or receives).
+    set(_enc_args --encrypt "${A_ENCRYPT_KEY}")
+    if(UMCUB_CFG_SWAP_SAVE_ENCTLV AND UMCUB_CFG_UPGRADE_MODE GREATER_EQUAL 2 AND UMCUB_CFG_UPGRADE_MODE LESS_EQUAL 4)
+      list(APPEND _enc_args --save-enctlv)   # trailer holds the key TLVs (MCUBOOT_SWAP_SAVE_ENCTLV)
+    endif()
     add_custom_command(TARGET ${target} POST_BUILD
-      COMMAND "${UMCUB_IMGTOOL}" ${_args} --encrypt "${A_ENCRYPT_KEY}" ${_dir}/${_base}.bin ${_dir}/${_base}.encrypted.bin
+      COMMAND "${UMCUB_IMGTOOL}" ${_args} ${_enc_args} ${_dir}/${_base}.bin ${_dir}/${_base}.encrypted.bin
       COMMENT "Encrypting ${target}"
       VERBATIM)
   endif()

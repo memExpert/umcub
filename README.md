@@ -195,9 +195,9 @@ same core; check the real size after porting.
 
 | MCU | log (level 3) | text commands | verify + hash | readback | umcub link (addressed) | umcub link SECURE | + link encryption | encrypted images |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| STM32H755 CM7 (2 images, SINGLE_BOOT) | +3.7 K | +2.3 K | +1.3 K | +0.2 K | +1.9 K | +4.9 K | +1.6 K | +7.1 K |
-| STM32H755 CM4 (PER_CORE) | +3.5 K | +2.3 K | +1.3 K | +0.2 K | +1.9 K | +4.9 K | +1.6 K | +6.4 K |
-| STM32H743 / H753 (single core) | +3.5 K | +2.3 K | +1.3 K | +0.2 K | +1.9 K | +4.9 K | +1.6 K | +6.6 K |
+| STM32H755 CM7 (2 images, SINGLE_BOOT) | +3.7 K | +2.3 K | +1.3 K | +0.2 K | +1.9 K | +4.9 K | +1.6 K | +7.2 K |
+| STM32H755 CM4 (PER_CORE) | +3.5 K | +2.3 K | +1.3 K | +0.2 K | +1.9 K | +4.9 K | +1.6 K | +6.5 K |
+| STM32H743 / H753 (single core) | +3.5 K | +2.3 K | +1.3 K | +0.2 K | +1.9 K | +4.9 K | +1.6 K | +6.7 K |
 | STM32F103 (Blue Pill, overwrite) | +3.1 K | +2.1 K | +1.2 K | +0.2 K | +2.0 K | +4.9 K | +1.6 K | +6.4 K |
 
 | Flash layout | UART, lite (no SMP) | UART | UART + USB CDC | UART + USB CDC + DFU | UART + CAN | UART + Ethernet | UART, link SECURE | all on |
@@ -446,7 +446,10 @@ stored or sent. The signature still covers the plain image, so encryption adds c
 How an encrypted image is installed:
 - **through the secondary slot** (DFU, application, SMP with `UMCUB_CFG_SMP_DIRECT_UPLOAD`): MCUboot decrypts it
   while it copies or swaps it into the primary slot. In the swap modes the old image is encrypted again on its way
-  into the secondary slot, so a revert works and the plain code is only ever in the primary slot;
+  into the secondary slot if it came encrypted (one written plain by a programmer stays plain), so a revert works and
+  the plain code is only ever in the primary slot. Until the swap is over MCUboot keeps the keys it needs in the slot
+  trailers: with `UMCUB_CFG_SWAP_SAVE_ENCTLV` (default) the encrypted key TLVs, unwrapped with the device key when an
+  interrupted swap resumes - flash never holds a plain image key (H7: +116 bytes, +256 bytes of RAM);
 - **SMP upload into the primary slot** (recovery, the default): after the last chunk the bootloader first checks the
   image (signature over the decrypted payload, board type) and answers the last chunk with an error (rc 3) if it is
   not valid for this device - such an image is left as it is and not booted. A valid image is decrypted in place, sector by sector through one sector of RAM (`UMCUB_CFG_ENC_INPLACE`; 128 KiB on the H7). Like any
@@ -877,6 +880,8 @@ Hardware tests: `tools/hw/powerfail_test.py` resets the MCU in the middle of the
 `tests/configs/feature/fault_inject.h`, test only) and checks that an interrupted upgrade or revert (swap modes) or an
 interrupted overwrite copy always completes. The images are signed with `tools/host/umcub_image.py` for the
 bootloader's board and overlays; `--fault-addr` is `UMCUB_CFG_TEST_FAULT_ADDR` (a RAM word that survives a reset).
+`--encrypted` (bootloader with encrypted images) installs an encrypted update, so every resumed swap has to recover
+the image key from the trailer.
 `TODO.md` lists what is still open on hardware.
 
 ## Layout

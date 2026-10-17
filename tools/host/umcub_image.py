@@ -285,7 +285,10 @@ def cmd_sign(cfg, a):
             if dkey.resolve() == DEV_DEVICE_KEY.resolve():
                 print("warning: encrypting with the development device key from the repository", file=sys.stderr)
             out = base.with_name(base.name + ".encrypted.bin")
-            run_imgtool(args + ["--encrypt", str(dkey), str(raw), str(out)], a.imgtool)
+            eargs = ["--encrypt", str(dkey)]
+            if cfg["SWAP_SAVE_ENCTLV"] and 2 <= mode <= 4:  # trailer holds the key TLVs
+                eargs.append("--save-enctlv")
+            run_imgtool(args + eargs + [str(raw), str(out)], a.imgtool)
             print(f"{out}: the same image encrypted with {dkey.name} (SMP / DFU / application updates)")
 
 

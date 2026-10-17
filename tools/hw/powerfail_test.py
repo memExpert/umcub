@@ -29,6 +29,10 @@ and the board-type TLV match.
       --app build/bluepill/examples/bluepill_app/bluepill_app.bin --board bluepill_f103c8 \\
       --mode overwrite --primary 0x08008000 --secondary 0x0800C000 --erase 0x08008000+0x8000 \\
       --size 12288 --fault-addr 0x20004FF0 --sector-size 0x400 --connect under-reset --reset rst --points 40
+  Encrypted update (--encrypted; bootloader built with tests/configs/feature/encrypt_only.h as PRE and the
+  same --pre here): v2 goes into the secondary slot encrypted, so resuming an interrupted swap needs the key
+  MCUboot kept in the trailer (the AES key, or the key TLV with UMCUB_CFG_SWAP_SAVE_ENCTLV). Upgrade: primary
+  == v2 decrypted; revert: secondary == the encrypted v2 file again.
 """
 import argparse
 import os
@@ -56,6 +60,7 @@ def main():
     ap.add_argument("--post", default=os.path.join(ROOT, "tests/configs/feature/fault_inject.h"),
                     help="UMCUB_CONFIG_POST of the bootloader build")
     ap.add_argument("--mode", choices=("swap", "overwrite"), default="swap")
+    ap.add_argument("--encrypted", action="store_true", help="v2 encrypted (bootloader with UMCUB_CFG_ENCRYPT_IMAGES)")
     ap.add_argument("--primary", type=lambda s: int(s, 0), default=0x08020000)
     ap.add_argument("--secondary", type=lambda s: int(s, 0), default=0x08080000)
     ap.add_argument("--revert-copy", type=lambda s: int(s, 0),
@@ -71,7 +76,8 @@ def main():
     probe.add_arguments(ap)
     ap.add_argument("--points", type=int, default=40)
     ap.add_argument("--first", type=int, default=8, help="fault points at the very first operations")
-    ap.add_argument("--settle", type=float, default=4.0)
+    ap.add_argument("--settle", type=float, default=4.0,
+                    help="minimum wait after a reset; then until the flash operation count stops changing")
     ap.add_argument("--seed", type=int, default=1)
     a = ap.parse_args()
 
@@ -107,6 +113,12 @@ def main():
     hdr_size = int.from_bytes(open(v1, "rb").read()[8:10], "little")
     n_cmp = hdr_size + a.size
     v1b, v2b = open(v1, "rb").read()[:n_cmp], open(v2, "rb").read()[:n_cmp]
+    v2_file, v2_installed = v2, v2b             # what goes into the secondary slot / what primary holds then
+    if a.encrypted:
+        v2_file = v2[:-len(".signed.bin")] + ".encrypted.bin"
+        v2e = open(v2_file, "rb").read()
+        v2_installed = v2e[:hdr_size] + v2b[hdr_size:]  # header of the encrypted image, decrypted payload
+        v2b = v2e[:n_cmp]                       # encrypted again in the secondary slot after a revert
 
     print("flashing fault-injection bootloader")
     p.program(a.boot)
@@ -114,7 +126,7 @@ def main():
     def prepare():
         p.erase(e_addr, e_size)
         p.program(v1, a.primary)
-        p.program(v2, a.secondary)
+        p.program(v2_file, a.secondary)
 
     def arm(k):
         p.write32(a.fault_addr, [FAULT_MAGIC, k, 0, 0])
@@ -127,7 +139,19 @@ def main():
     def boot_and_check(expect_primary, expect_secondary):
         p.reset(hw=a.reset == "hardRst")
         time.sleep(a.settle)
+        # An encrypted swap takes longer: wait until the bootloader stops
+        # counting flash operations (done, application running). One
+        # operation can be a 128 KiB sector erase of ~2 s on the H7, so the
+        # count has to stay the same for 5 s.
         f = read_words(a.fault_addr, 4)
+        quiet = 0
+        for _ in range(180):
+            time.sleep(1.0)
+            g = read_words(a.fault_addr, 4)
+            quiet = quiet + 1 if g[2] == f[2] else 0
+            f = g
+            if quiet >= 5:
+                break
         pri = read_mem(a.primary, len(expect_primary))
         # after an upgrade the secondary holds v1 (revert copy), after a revert v2 (the update again)
         sec_addr = revert_copy if expect_secondary == v1b else a.secondary
@@ -138,13 +162,13 @@ def main():
     # Sizing: count flash operations of a full upgrade (and of a full revert).
     prepare()
     arm(0)
-    f, ok_p, ok_s = boot_and_check(v2b, v1b if swap else None)
+    f, ok_p, ok_s = boot_and_check(v2_installed, v1b if swap else None)
     n_up = f[2]
     print(f"upgrade without faults: {n_up} flash operations, primary==v2 {ok_p}" +
           (f", secondary==v1 {ok_s}" if swap else ""))
     if not (ok_p and ok_s):
         sys.exit("baseline upgrade failed")
-    phases = [("upgrade", n_up, v2b, v1b if swap else None)]
+    phases = [("upgrade", n_up, v2_installed, v1b if swap else None)]
     if swap:
         arm(0)
         f, ok_p, ok_s = boot_and_check(v1b, v2b)
@@ -166,7 +190,7 @@ def main():
             prepare()
             if phase == "revert":
                 arm(0)
-                f, ok_p, ok_s = boot_and_check(v2b, v1b)       # clean test upgrade first
+                f, ok_p, ok_s = boot_and_check(v2_installed, v1b)   # clean test upgrade first
                 if not (ok_p and ok_s):
                     print(f"  {phase} k={k}: setup upgrade failed")
                     failures += 1
