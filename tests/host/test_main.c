@@ -930,22 +930,22 @@ static size_t ip_udp(uint8_t *f, uint32_t src, uint32_t dst, uint16_t sp, uint16
 {
     memcpy(f, dst_mac, 6);
     memcpy(f + 6, host_mac, 6);
-    net_put16(f + 12, 0x0800);
+    umcub_put_be16(f + 12, 0x0800);
     uint8_t *ip = f + 14;
     memset(ip, 0, 28);
     ip[0] = 0x45;
-    net_put16(ip + 2, (uint16_t)(28 + len));
+    umcub_put_be16(ip + 2, (uint16_t)(28 + len));
     ip[8] = 64;
     ip[9] = 17;
-    net_put32(ip + 12, src);
-    net_put32(ip + 16, dst);
+    umcub_put_be32(ip + 12, src);
+    umcub_put_be32(ip + 16, dst);
     uint32_t s = 0;
-    for (int i = 0; i < 20; i += 2) s += net_get16(ip + i);
+    for (int i = 0; i < 20; i += 2) s += umcub_get_be16(ip + i);
     while (s >> 16) s = (s & 0xFFFF) + (s >> 16);
-    net_put16(ip + 10, (uint16_t)~s);
-    net_put16(ip + 20, sp);
-    net_put16(ip + 22, dp);
-    net_put16(ip + 24, (uint16_t)(8 + len));
+    umcub_put_be16(ip + 10, (uint16_t)~s);
+    umcub_put_be16(ip + 20, sp);
+    umcub_put_be16(ip + 22, dp);
+    umcub_put_be16(ip + 24, (uint16_t)(8 + len));
     memcpy(ip + 28, pl, len);       /* UDP checksum 0 = none */
     return 14 + 28 + len;
 }
@@ -960,22 +960,22 @@ static void test_net(void)
     dhcp_tick();
     CHECK(eth_out_n == 1);
     const uint8_t *d = eth_out[0] + 42;     /* DISCOVER payload */
-    CHECK(eth_out_len[0] >= 42 + 240 && net_get16(eth_out[0] + 36) == 67);
-    CHECK(net_get32(eth_out[0] + 26) == 0);     /* IP source 0.0.0.0 */
-    uint32_t xid = net_get32(d + 4);
+    CHECK(eth_out_len[0] >= 42 + 240 && umcub_get_be16(eth_out[0] + 36) == 67);
+    CHECK(umcub_get_be32(eth_out[0] + 26) == 0);     /* IP source 0.0.0.0 */
+    uint32_t xid = umcub_get_be32(d + 4);
 
     uint8_t bootp[300] = { 2, 1, 6, 0 };
-    net_put32(bootp + 4, xid);
-    net_put32(bootp + 16, 0xC0A80A2A);      /* yiaddr 192.168.10.42 */
+    umcub_put_be32(bootp + 4, xid);
+    umcub_put_be32(bootp + 16, 0xC0A80A2A);      /* yiaddr 192.168.10.42 */
     memcpy(bootp + 28, mac, 6);
-    net_put32(bootp + 236, 0x63825363);
+    umcub_put_be32(bootp + 236, 0x63825363);
     uint8_t opts[] = { 53, 1, 2, 54, 4, 192, 168, 10, 1, 1, 4, 255, 255, 255, 0, 51, 4, 0, 0, 0x0E, 0x10, 255 };
     memcpy(bootp + 240, opts, sizeof(opts));
     uint8_t f[1600];
     static const uint8_t bc[6] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
     size_t fl = ip_udp(f, 0xC0A80A01, 0xFFFFFFFF, 67, 68, bootp, sizeof(bootp), bc);
     net_input(f, fl);                       /* OFFER -> REQUEST */
-    CHECK(eth_out_n == 2 && eth_out[1][42 + 240 + 2] == 3 && net_get32(eth_out[1] + 26) == 0);
+    CHECK(eth_out_n == 2 && eth_out[1][42 + 240 + 2] == 3 && umcub_get_be32(eth_out[1] + 26) == 0);
     bootp[240 + 2] = 5;                     /* ACK */
     fl = ip_udp(f, 0xC0A80A01, 0xFFFFFFFF, 67, 68, bootp, sizeof(bootp), bc);
     net_input(f, fl);
@@ -987,55 +987,55 @@ static void test_net(void)
     eth_out_n = 0;
     dhcp_start();
     dhcp_tick();
-    CHECK(eth_out_n == 1 && net_get32(eth_out[0] + 26) == 0 && net_if.configured && net_if.ip == 0xC0A80132);
+    CHECK(eth_out_n == 1 && umcub_get_be32(eth_out[0] + 26) == 0 && net_if.configured && net_if.ip == 0xC0A80132);
     net_if = bound;
 
     /* ARP who-has 192.168.10.42 */
     uint8_t arp[42];
     memset(arp, 0xFF, 6);
     memcpy(arp + 6, host_mac, 6);
-    net_put16(arp + 12, 0x0806);
+    umcub_put_be16(arp + 12, 0x0806);
     uint8_t a[28] = { 0, 1, 8, 0, 6, 4, 0, 1 };
     memcpy(a + 8, host_mac, 6);
-    net_put32(a + 14, 0xC0A80A64);
-    net_put32(a + 24, 0xC0A80A2A);
+    umcub_put_be32(a + 14, 0xC0A80A64);
+    umcub_put_be32(a + 24, 0xC0A80A2A);
     memcpy(arp + 14, a, 28);
     unsigned before = eth_out_n;
     net_input(arp, sizeof(arp));
     CHECK(eth_out_n == before + 1);
     const uint8_t *r = eth_out[before % 16];
-    CHECK(net_get16(r + 12) == 0x0806 && net_get16(r + 20) == 2 && memcmp(r, host_mac, 6) == 0 &&
+    CHECK(umcub_get_be16(r + 12) == 0x0806 && umcub_get_be16(r + 20) == 2 && memcmp(r, host_mac, 6) == 0 &&
           memcmp(r + 22, mac, 6) == 0);
 
     /* ICMP echo */
     uint8_t ping[14 + 20 + 16];
     memcpy(ping, mac, 6);
     memcpy(ping + 6, host_mac, 6);
-    net_put16(ping + 12, 0x0800);
+    umcub_put_be16(ping + 12, 0x0800);
     uint8_t *ip = ping + 14;
     memset(ip, 0, 36);
     ip[0] = 0x45;
-    net_put16(ip + 2, 36);
+    umcub_put_be16(ip + 2, 36);
     ip[8] = 64;
     ip[9] = 1;
-    net_put32(ip + 12, 0xC0A80A64);
-    net_put32(ip + 16, 0xC0A80A2A);
+    umcub_put_be32(ip + 12, 0xC0A80A64);
+    umcub_put_be32(ip + 16, 0xC0A80A2A);
     uint32_t s = 0;
-    for (int i = 0; i < 20; i += 2) s += net_get16(ip + i);
+    for (int i = 0; i < 20; i += 2) s += umcub_get_be16(ip + i);
     while (s >> 16) s = (s & 0xFFFF) + (s >> 16);
-    net_put16(ip + 10, (uint16_t)~s);
+    umcub_put_be16(ip + 10, (uint16_t)~s);
     uint8_t *ic = ip + 20;
     ic[0] = 8;
     memcpy(ic + 8, "pingpong", 8);
     s = 0;
-    for (int i = 0; i < 16; i += 2) s += net_get16(ic + i);
+    for (int i = 0; i < 16; i += 2) s += umcub_get_be16(ic + i);
     while (s >> 16) s = (s & 0xFFFF) + (s >> 16);
-    net_put16(ic + 2, (uint16_t)~s);
+    umcub_put_be16(ic + 2, (uint16_t)~s);
     before = eth_out_n;
     net_input(ping, sizeof(ping));
     CHECK(eth_out_n == before + 1);
     r = eth_out[before % 16];
-    CHECK(net_get16(r + 12) == 0x0800 && r[14 + 9] == 1 && r[34] == 0 && memcmp(r + 42, "pingpong", 8) == 0);
+    CHECK(umcub_get_be16(r + 12) == 0x0800 && r[14 + 9] == 1 && r[34] == 0 && memcmp(r + 42, "pingpong", 8) == 0);
 }
 
 /* ------------------------------------------------------------------------ */

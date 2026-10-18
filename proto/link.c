@@ -6,6 +6,7 @@
 #include "umcub_cfg.h"
 #include "umcub_state.h"
 #include "umcub_link.h"
+#include "umcub_bytes.h"
 #include "umcub_port.h"
 #include "umcub_random.h"
 #include "umcub_version.h"
@@ -94,23 +95,6 @@ static int index_of(const umcub_transport_t *t)
     return -1;
 }
 
-static void put16(uint8_t *p, uint16_t v)
-{
-    p[0] = (uint8_t)v;
-    p[1] = (uint8_t)(v >> 8);
-}
-
-static void put32(uint8_t *p, uint32_t v)
-{
-    put16(p, (uint16_t)v);
-    put16(p + 2, (uint16_t)(v >> 16));
-}
-
-static uint16_t get16(const uint8_t *p)
-{
-    return (uint16_t)(p[0] | (p[1] << 8));
-}
-
 #if UMCUB_CFG_LINK_SECURE_ANY
 /* HMAC-SHA256 over up to three parts. */
 static void hmac3(uint8_t out[TC_SHA256_DIGEST_SIZE], const uint8_t *key, size_t klen,
@@ -145,7 +129,7 @@ static void ctr_crypt(uint8_t *out, const uint8_t *in, size_t len, uint32_t seq,
     struct tc_aes_key_sched_struct ks;
     uint8_t ctr[16] = { 0 };
     uint32_t off = 0;
-    put32(ctr, seq);
+    umcub_put_le32(ctr, seq);
     (void)tc_aes128_set_encrypt_key(&ks, &sess.keys[key_off]);
     (void)tc_ctr_mode(out, (unsigned)len, in, (unsigned)len, ctr, &off, &ks);
     memset(&ks, 0, sizeof(ks));
@@ -167,10 +151,10 @@ static void send_frame(const umcub_transport_t *t, struct link_state *s, uint8_t
     f[1] = UMCUB_LINK_VERSION;
     f[2] = type;
     f[3] = 0;
-    put16(f + 4, dst);
-    put16(f + 6, umcub_node_address());
-    put32(f + 8, s->tx_seq++);
-    put16(f + 12, (uint16_t)len);
+    umcub_put_le16(f + 4, dst);
+    umcub_put_le16(f + 6, umcub_node_address());
+    umcub_put_le32(f + 8, s->tx_seq++);
+    umcub_put_le16(f + 12, (uint16_t)len);
     if (len && payload != f + UMCUB_LINK_HDR) {
         memmove(f + UMCUB_LINK_HDR, payload, len);
     }
@@ -216,9 +200,9 @@ static bool secure_closed(const umcub_transport_t *t)
 static void identity(const umcub_transport_t *t, uint8_t *p)
 {
     umcub_port_uid(p);                              /* 0..11 UID */
-    put16(p + 12, umcub_node_address());            /* 12 node address */
-    put32(p + 14, UMCUB_CFG_BOARD_TYPE);            /* 14 board type */
-    put16(p + 18, UMCUB_CFG_BOARD_REV);             /* 18 board revision */
+    umcub_put_le16(p + 12, umcub_node_address());            /* 12 node address */
+    umcub_put_le32(p + 14, UMCUB_CFG_BOARD_TYPE);            /* 14 board type */
+    umcub_put_le16(p + 18, UMCUB_CFG_BOARD_REV);             /* 18 board revision */
     p[20] = t->link;                                /* 20 UMCUB_LINK_* of this transport + flags */
     if (t->link == UMCUB_LINK_SECURE && UMCUB_CFG_LINK_ENCRYPT) {
         p[20] |= UMCUB_LINK_ANNOUNCE_ENC;
@@ -246,7 +230,7 @@ static void discover(struct link_state *s, uint16_t from, const uint8_t *p, size
         return;
     }
     uint8_t slots = p[0] ? p[0] : 1;
-    uint16_t slot_ms = get16(p + 1);
+    uint16_t slot_ms = umcub_get_le16(p + 1);
     uint8_t uid[UID_LEN];
     umcub_port_uid(uid);
     for (size_t off = 3; off + UID_LEN <= len; off += UID_LEN) {
@@ -260,11 +244,6 @@ static void discover(struct link_state *s, uint16_t from, const uint8_t *p, size
 }
 
 #if UMCUB_CFG_LINK_SECURE_ANY
-static uint32_t get32(const uint8_t *p)
-{
-    return (uint32_t)get16(p) | (uint32_t)get16(p + 2) << 16;
-}
-
 static void end_session(void)
 {
     memset(&sess, 0, sizeof(sess));
@@ -279,7 +258,7 @@ static bool auth(const uint8_t *p, uint16_t host, uint8_t keys[96])
     uECC_Curve curve = uECC_secp256r1();
     uint8_t th[TC_SHA256_DIGEST_SIZE], h2[2];
     struct tc_sha256_state_struct h;
-    put16(h2, host);
+    umcub_put_le16(h2, host);
     (void)tc_sha256_init(&h);
     (void)tc_sha256_update(&h, (const uint8_t *)LABEL, sizeof(LABEL) - 1u);
     (void)tc_sha256_update(&h, h2, sizeof(h2));
@@ -322,9 +301,9 @@ static bool auth(const uint8_t *p, uint16_t host, uint8_t keys[96])
 static void secure_rx(const umcub_transport_t *t, int i, struct link_state *s, const uint8_t *f, size_t len)
 {
     uint8_t type = f[2], flags = f[3];
-    uint16_t src = get16(f + 6);
-    uint32_t seq = get32(f + 8);
-    size_t plen = get16(f + 12);
+    uint16_t src = umcub_get_le16(f + 6);
+    uint32_t seq = umcub_get_le32(f + 8);
+    size_t plen = umcub_get_le16(f + 12);
     const uint8_t *p = f + UMCUB_LINK_HDR;
     uint32_t now = umcub_port_millis();
 
@@ -431,8 +410,8 @@ static void link_rx(const umcub_transport_t *t, const uint8_t *f, size_t len)
     }
     struct link_state *s = &st[i];
     uint8_t type = f[2], flags = f[3];
-    uint16_t dst = get16(f + 4), src = get16(f + 6);
-    size_t plen = get16(f + 12);
+    uint16_t dst = umcub_get_le16(f + 4), src = umcub_get_le16(f + 6);
+    size_t plen = umcub_get_le16(f + 12);
     size_t need = UMCUB_LINK_HDR + plen + ((flags & UMCUB_LF_MAC) ? UMCUB_LINK_TAG : 0u);
     if (plen > UMCUB_CFG_SMP_MTU || need != len) {
         return;                                     /* truncated or oversized */

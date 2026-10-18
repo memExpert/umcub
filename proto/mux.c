@@ -21,6 +21,7 @@
 #include "umcub_log.h"
 #include "umcub_port.h"
 #include "umcub_proto.h"
+#include "umcub_bytes.h"
 #include "umcub_handoff.h"
 #include "umcub_state.h"
 #include "umcub_cmd.h"
@@ -188,7 +189,7 @@ static void cmd_run(const umcub_transport_t *t, const char *text, size_t len)
  * a text command. */
 static bool smp_packet(const uint8_t *p, size_t len)
 {
-    return UMCUB_CFG_SMP && len >= 8 && (p[0] & 0x07u) <= 3u && (size_t)((p[2] << 8) | p[3]) == len - 8u;
+    return UMCUB_CFG_SMP && len >= 8 && (p[0] & 0x07u) <= 3u && umcub_get_be16(p + 2) == len - 8u;
 }
 
 static void touch(const umcub_transport_t *t);
@@ -277,8 +278,7 @@ static bool rename_params(uint8_t *h, size_t len)
     if (len < 8 || (h[0] & 7u) != 0 || h[4] != 0 || h[5] != 0 || h[7] != 6) {
         return false;
     }
-    h[4] = (uint8_t)(UMCUB_CFG_SMP_INSPECT_GROUP >> 8);
-    h[5] = (uint8_t)UMCUB_CFG_SMP_INSPECT_GROUP;
+    umcub_put_be16(&h[4], UMCUB_CFG_SMP_INSPECT_GROUP);
     h[7] = UMCUB_SMP_PARAMS_ID;
     return true;
 }
@@ -292,12 +292,11 @@ static void line_rename_params(char *line, int len)
         return;
     }
     int n = base64_decode(&line[2], f);
-    if (n < 12 || (f[0] << 8 | f[1]) != n - 2 || !rename_params(&f[2], (size_t)n - 4u)) {
+    if (n < 12 || umcub_get_be16(f) != n - 2 || !rename_params(&f[2], (size_t)n - 4u)) {
         return;
     }
     uint16_t crc = crc16_ccitt(CRC16_INITIAL_CRC, &f[2], n - 4);
-    f[n - 2] = (uint8_t)(crc >> 8);
-    f[n - 1] = (uint8_t)crc;
+    umcub_put_be16(&f[n - 2], crc);
     (void)base64_encode(f, n, &line[2], 1);
     line[len - 1] = '\n';
 }
@@ -584,7 +583,7 @@ static void shim_feed(const char *p, int cnt)
         resp_text_len = 0;
 
         if (resp_raw_len >= 2) {
-            size_t total = ((size_t)resp_raw[0] << 8) | resp_raw[1];
+            size_t total = umcub_get_be16(resp_raw);
             if (resp_raw_len >= total + 2u && total >= 2u) {
                 /* [len:2][hdr+payload][crc:2] -> [hdr+payload] */
                 tx_packet(active, &resp_raw[2], total - 2u);

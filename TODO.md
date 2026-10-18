@@ -57,8 +57,6 @@ Larger changes:
   gives umcub_inspect.py CAN support); one serial / UDP line bus class for umcub_lite.py and umcub_link.py;
   shared helpers for tests/host test_link.c and test_link_secure.c; one source list for the three host test
   targets in tests/host/CMakeLists.txt; link_e2e.py on `umcub_link.parse_frame()`.
-- [ ] Byte order helpers (BE + LE get/put) in one L0 header instead of the copies in link.c, lite.c, mux.c,
-  isotp.c and net.h.
 
 Behaviour / security trade-offs (as options):
 - [ ] Validate the primary slot once: remember the hash of a fully validated image and check only the hash on

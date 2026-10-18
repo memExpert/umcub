@@ -3,6 +3,7 @@
  */
 #include <string.h>
 #include "isotp.h"
+#include "umcub_bytes.h"
 #include "umcub_port.h"
 #include "umcub_port_can.h"
 
@@ -65,7 +66,7 @@ size_t isotp_on_frame(isotp_t *t, const uint8_t *d, uint8_t len)
         size_t total = ((size_t)(d[0] & 0xFu) << 8) | d[1];
         size_t hdr = 2;
         if (total == 0 && len >= 6) {   /* > 4095 bytes escape */
-            total = ((size_t)d[2] << 24) | ((size_t)d[3] << 16) | ((size_t)d[4] << 8) | d[5];
+            total = umcub_get_be32(d + 2);
             hdr = 6;
         }
         if (total > t->rx_cap || total < len - hdr) {

@@ -8,6 +8,7 @@
 #if UMCUB_CFG_LITE_UPLOAD
 #include "umcub_lite.h"
 #include "umcub_proto.h"
+#include "umcub_bytes.h"
 #include "umcub.h"
 #include "umcub_log.h"
 #include "umcub_port.h"
@@ -24,18 +25,11 @@ static bool active;
 static uint32_t taken;      /* image bytes accepted (written or buffered) */
 static uint32_t total;
 
-static uint32_t get32(const uint8_t *p)
-{
-    return (uint32_t)p[0] | (uint32_t)p[1] << 8 | (uint32_t)p[2] << 16 | (uint32_t)p[3] << 24;
-}
-
 static void answer(const umcub_transport_t *t, int rc)
 {
-    uint8_t f[9] = { UMCUB_LITE_MAGIC, 'k', (uint8_t)(int8_t)rc, (uint8_t)taken, (uint8_t)(taken >> 8),
-                     (uint8_t)(taken >> 16), (uint8_t)(taken >> 24) };
-    uint16_t crc = crc16_ccitt(0, f, 7);
-    f[7] = (uint8_t)(crc >> 8);
-    f[8] = (uint8_t)crc;
+    uint8_t f[9] = { UMCUB_LITE_MAGIC, 'k', (uint8_t)(int8_t)rc };
+    umcub_put_le32(&f[3], taken);
+    umcub_put_be16(&f[7], crc16_ccitt(0, f, 7));
     umcub_mux_send_frame(t, UMCUB_FRAME_LITE, f, sizeof(f));
 }
 
@@ -49,7 +43,7 @@ static int begin(const uint8_t *p, size_t n)
         active = false;
     }
     taken = 0;
-    total = get32(&p[2]);
+    total = umcub_get_le32(&p[2]);
     int rc = umcub_slot_begin(&writer, p[0], p[1] ? UMCUB_SLOT_SECONDARY : UMCUB_SLOT_PRIMARY, total);
     active = rc == 0;
     UMCUB_LOG_INF("lite: upload image %u slot %u, %lu bytes: rc %d", p[0], p[1], (unsigned long)total, rc);
@@ -61,7 +55,7 @@ static int data(const uint8_t *p, size_t n)
     if (!active || n < 4) {
         return UMCUB_EINVAL;
     }
-    uint32_t off = get32(p);
+    uint32_t off = umcub_get_le32(p);
     size_t len = n - 4;
     if (off + len == taken) {
         return UMCUB_OK;                    /* repeated frame (answer was lost) */

@@ -23,7 +23,7 @@ static const uint8_t bcast_mac[6] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 static uint32_t csum_add(uint32_t sum, const uint8_t *p, size_t len)
 {
     while (len > 1) {
-        sum += net_get16(p);
+        sum += umcub_get_be16(p);
         p += 2;
         len -= 2;
     }
@@ -51,22 +51,22 @@ static void eth_header(uint8_t *f, const uint8_t dst[6], uint16_t type)
 {
     memcpy(f, dst, 6);
     memcpy(f + 6, net_if.mac, 6);
-    net_put16(f + 12, type);
+    umcub_put_be16(f + 12, type);
 }
 
 static size_t ip_header(uint8_t *ip, uint32_t src, uint32_t dst, uint8_t proto, size_t payload)
 {
     ip[0] = 0x45;
     ip[1] = 0;
-    net_put16(ip + 2, (uint16_t)(IP_HDR + payload));
-    net_put16(ip + 4, ip_id++);
-    net_put16(ip + 6, 0x4000);          /* DF */
+    umcub_put_be16(ip + 2, (uint16_t)(IP_HDR + payload));
+    umcub_put_be16(ip + 4, ip_id++);
+    umcub_put_be16(ip + 6, 0x4000);          /* DF */
     ip[8] = 64;
     ip[9] = proto;
-    net_put16(ip + 10, 0);
-    net_put32(ip + 12, src);
-    net_put32(ip + 16, dst);
-    net_put16(ip + 10, csum_fold(csum_add(0, ip, IP_HDR)));
+    umcub_put_be16(ip + 10, 0);
+    umcub_put_be32(ip + 12, src);
+    umcub_put_be32(ip + 16, dst);
+    umcub_put_be16(ip + 10, csum_fold(csum_add(0, ip, IP_HDR)));
     return IP_HDR + payload;
 }
 
@@ -78,10 +78,10 @@ int net_udp_send(const net_peer_t *to, uint32_t src_ip, uint16_t src_port, const
     uint8_t *ip = tx + ETH_HDR;
     uint8_t *udp = ip + IP_HDR;
     eth_header(tx, to->ip == NET_IP_BROADCAST ? bcast_mac : to->mac, ETYPE_IP);
-    net_put16(udp, src_port);
-    net_put16(udp + 2, to->port);
-    net_put16(udp + 4, (uint16_t)(UDP_HDR + len));
-    net_put16(udp + 6, 0);
+    umcub_put_be16(udp, src_port);
+    umcub_put_be16(udp + 2, to->port);
+    umcub_put_be16(udp + 4, (uint16_t)(UDP_HDR + len));
+    umcub_put_be16(udp + 6, 0);
     memmove(udp + UDP_HDR, data, len);
     ip_header(ip, src_ip, to->ip, PROTO_UDP, UDP_HDR + len);
 
@@ -89,7 +89,7 @@ int net_udp_send(const net_peer_t *to, uint32_t src_ip, uint16_t src_port, const
     uint32_t sum = csum_add(0, ip + 12, 8);
     sum += PROTO_UDP + UDP_HDR + (uint32_t)len;
     uint16_t c = csum_fold(csum_add(sum, udp, UDP_HDR + len));
-    net_put16(udp + 6, c ? c : 0xFFFF);
+    umcub_put_be16(udp + 6, c ? c : 0xFFFF);
 
     return umcub_port_eth_tx(tx, ETH_HDR + IP_HDR + UDP_HDR + len);
 }
@@ -97,19 +97,19 @@ int net_udp_send(const net_peer_t *to, uint32_t src_ip, uint16_t src_port, const
 static void arp_input(const uint8_t *f, size_t len)
 {
     const uint8_t *a = f + ETH_HDR;
-    if (len < ETH_HDR + 28 || net_get16(a) != 1 || net_get16(a + 2) != ETYPE_IP ||
-        net_get16(a + 6) != 1 /* request */ || !net_if.configured || net_get32(a + 24) != net_if.ip) {
+    if (len < ETH_HDR + 28 || umcub_get_be16(a) != 1 || umcub_get_be16(a + 2) != ETYPE_IP ||
+        umcub_get_be16(a + 6) != 1 /* request */ || !net_if.configured || umcub_get_be32(a + 24) != net_if.ip) {
         return;
     }
     uint8_t *r = tx + ETH_HDR;
     eth_header(tx, a + 8, ETYPE_ARP);
-    net_put16(r, 1);
-    net_put16(r + 2, ETYPE_IP);
+    umcub_put_be16(r, 1);
+    umcub_put_be16(r + 2, ETYPE_IP);
     r[4] = 6;
     r[5] = 4;
-    net_put16(r + 6, 2);                /* reply */
+    umcub_put_be16(r + 6, 2);                /* reply */
     memcpy(r + 8, net_if.mac, 6);
-    net_put32(r + 14, net_if.ip);
+    umcub_put_be32(r + 14, net_if.ip);
     memcpy(r + 18, a + 8, 10);          /* target = requester mac + ip */
     (void)umcub_port_eth_tx(tx, ETH_HDR + 28);
 }
@@ -125,9 +125,9 @@ static void icmp_input(const uint8_t *f, const uint8_t *ip, const uint8_t *icmp,
     eth_header(tx, f + 6, ETYPE_IP);
     memmove(ricmp, icmp, len);
     ricmp[0] = 0;                       /* echo reply */
-    net_put16(ricmp + 2, 0);
-    net_put16(ricmp + 2, csum_fold(csum_add(0, ricmp, len)));
-    ip_header(rip, net_if.ip, net_get32(ip + 12), PROTO_ICMP, len);
+    umcub_put_be16(ricmp + 2, 0);
+    umcub_put_be16(ricmp + 2, csum_fold(csum_add(0, ricmp, len)));
+    ip_header(rip, net_if.ip, umcub_get_be32(ip + 12), PROTO_ICMP, len);
     (void)umcub_port_eth_tx(tx, ETH_HDR + IP_HDR + len);
 }
 
@@ -136,7 +136,7 @@ void net_input(const uint8_t *f, size_t len)
     if (len < ETH_HDR) {
         return;
     }
-    uint16_t type = net_get16(f + 12);
+    uint16_t type = umcub_get_be16(f + 12);
     if (type == ETYPE_ARP) {
         arp_input(f, len);
         return;
@@ -146,12 +146,12 @@ void net_input(const uint8_t *f, size_t len)
     }
     const uint8_t *ip = f + ETH_HDR;
     size_t ihl = (size_t)(ip[0] & 0xFu) * 4u;
-    size_t total = net_get16(ip + 2);
+    size_t total = umcub_get_be16(ip + 2);
     if ((ip[0] >> 4) != 4 || ihl < IP_HDR || total < ihl || total > len - ETH_HDR ||
-        (net_get16(ip + 6) & 0x3FFFu) != 0 /* fragments */ || csum_fold(csum_add(0, ip, ihl)) != 0) {
+        (umcub_get_be16(ip + 6) & 0x3FFFu) != 0 /* fragments */ || csum_fold(csum_add(0, ip, ihl)) != 0) {
         return;
     }
-    uint32_t dst = net_get32(ip + 16);
+    uint32_t dst = umcub_get_be32(ip + 16);
     bool for_us = dst == NET_IP_BROADCAST ||
                   (net_if.configured && (dst == net_if.ip || dst == (net_if.ip | ~net_if.netmask)));
     const uint8_t *pl = ip + ihl;
@@ -160,17 +160,17 @@ void net_input(const uint8_t *f, size_t len)
     if (ip[9] == PROTO_ICMP && for_us && net_if.configured) {
         icmp_input(f, ip, pl, plen);
     } else if (ip[9] == PROTO_UDP && plen >= UDP_HDR) {
-        size_t ulen = net_get16(pl + 4);
+        size_t ulen = umcub_get_be16(pl + 4);
         if (ulen < UDP_HDR || ulen > plen) {
             return;
         }
-        if (net_get16(pl + 6) != 0) {
+        if (umcub_get_be16(pl + 6) != 0) {
             uint32_t sum = csum_add(0, ip + 12, 8) + PROTO_UDP + (uint32_t)ulen;
             if (csum_fold(csum_add(sum, pl, ulen)) != 0) {
                 return;
             }
         }
-        uint16_t dport = net_get16(pl + 2);
+        uint16_t dport = umcub_get_be16(pl + 2);
         if (dport == 68) {              /* DHCP client: before we own an address */
             dhcp_input(pl + UDP_HDR, ulen - UDP_HDR);
             return;
@@ -180,8 +180,8 @@ void net_input(const uint8_t *f, size_t len)
         }
         net_peer_t from;
         memcpy(from.mac, f + 6, 6);
-        from.ip = net_get32(ip + 12);
-        from.port = net_get16(pl);
+        from.ip = umcub_get_be32(ip + 12);
+        from.port = umcub_get_be16(pl);
         net_udp_input(&from, dport, pl + UDP_HDR, ulen - UDP_HDR);
     }
 }

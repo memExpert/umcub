@@ -40,19 +40,19 @@ static void send_msg(uint8_t type)
     pkt[0] = 1;                                   /* BOOTREQUEST */
     pkt[1] = 1;                                   /* ethernet */
     pkt[2] = 6;
-    net_put32(pkt + 4, xid);
-    net_put16(pkt + 10, 0x8000);                  /* broadcast replies */
+    umcub_put_be32(pkt + 4, xid);
+    umcub_put_be16(pkt + 10, 0x8000);                  /* broadcast replies */
     if (state == ST_RENEWING) {
-        net_put32(pkt + 12, net_if.ip);           /* ciaddr */
+        umcub_put_be32(pkt + 12, net_if.ip);           /* ciaddr */
     }
     memcpy(pkt + 28, net_if.mac, 6);
-    net_put32(pkt + BOOTP_LEN, COOKIE);
+    umcub_put_be32(pkt + BOOTP_LEN, COOKIE);
 
     uint8_t *o = pkt + BOOTP_LEN + 4;
     *o++ = 53; *o++ = 1; *o++ = type;
     if (type == MSG_REQUEST && state == ST_REQUESTING) {
-        *o++ = 50; *o++ = 4; net_put32(o, offered_ip); o += 4;
-        *o++ = 54; *o++ = 4; net_put32(o, server_id); o += 4;
+        *o++ = 50; *o++ = 4; umcub_put_be32(o, offered_ip); o += 4;
+        *o++ = 54; *o++ = 4; umcub_put_be32(o, server_id); o += 4;
     }
     static const char host[] = "umcub-";
     *o++ = 12; *o++ = 10;
@@ -129,8 +129,8 @@ void dhcp_tick(void)
 void dhcp_input(const uint8_t *d, size_t len)
 {
 #if UMCUB_CFG_ETH_DHCP
-    if (len < BOOTP_LEN + 4 || d[0] != 2 || net_get32(d + 4) != xid ||
-        memcmp(d + 28, net_if.mac, 6) != 0 || net_get32(d + BOOTP_LEN) != COOKIE) {
+    if (len < BOOTP_LEN + 4 || d[0] != 2 || umcub_get_be32(d + 4) != xid ||
+        memcmp(d + 28, net_if.mac, 6) != 0 || umcub_get_be32(d + BOOTP_LEN) != COOKIE) {
         return;
     }
     uint8_t type = 0;
@@ -150,12 +150,12 @@ void dhcp_input(const uint8_t *d, size_t len)
         const uint8_t *v = d + i + 2;
         uint8_t l = d[i + 1];
         if (opt == 53 && l == 1) type = v[0];
-        else if (opt == 54 && l == 4) sid = net_get32(v);
-        else if (opt == 1 && l == 4) mask = net_get32(v);
-        else if (opt == 51 && l == 4) lease = net_get32(v);
+        else if (opt == 54 && l == 4) sid = umcub_get_be32(v);
+        else if (opt == 1 && l == 4) mask = umcub_get_be32(v);
+        else if (opt == 51 && l == 4) lease = umcub_get_be32(v);
         i += 2u + l;
     }
-    uint32_t yiaddr = net_get32(d + 16);
+    uint32_t yiaddr = umcub_get_be32(d + 16);
 
     if (type == MSG_OFFER && state == ST_SELECTING && yiaddr) {
         offered_ip = yiaddr;
