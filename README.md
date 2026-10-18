@@ -830,6 +830,8 @@ Things that are easy to get wrong:
   the VTOR alignment of the core (0x200 on Cortex-M3/M4 with up to 128 vectors, 0x400 on the H7).
 - **Watchdog.** If `UMCUB_CFG_WATCHDOG_MS` is set, the application must feed the IWDG: once started it cannot be
   stopped.
+- **Log.** The boot log is off by default. For bring-up set `UMCUB_CFG_LOG_LEVEL 3` (info, about 3.5 K) and watch
+  the UART; switch it off again for production (it also never shares a UART with a umcub link).
 
 ## Adding a series
 

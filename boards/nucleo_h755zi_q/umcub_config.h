@@ -114,10 +114,10 @@
 /* PER_CORE: the CM4 instance uses CAN only (peripherals must not overlap). */
 #define UMCUB_CFG_TRANSPORT_UART        0
 #define UMCUB_CFG_TRANSPORT_CAN         1
-#define UMCUB_CFG_LOG_LEVEL             0
 #else
 #define UMCUB_CFG_TRANSPORT_UART        1
 #define UMCUB_CFG_UART_INSTANCE         3                       /* ST-LINK VCP */
+#define UMCUB_CFG_LOG_LEVEL             3                       /* log on the VCP (development board) */
 #define UMCUB_CFG_UART_BAUD             115200
 #define UMCUB_CFG_UART_TX_PIN           UMCUB_PIN('D', 8, 7)
 #define UMCUB_CFG_UART_RX_PIN           UMCUB_PIN('D', 9, 7)

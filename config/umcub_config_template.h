@@ -358,8 +358,9 @@
 /* Misc                                                                     */
 /* ======================================================================== */
 
-/* 0 none, 1 error, 2 warning, 3 info, 4 debug. Printed on the UART. */
-/* #define UMCUB_CFG_LOG_LEVEL            3 */
+/* Boot log on the UART: 0 off (default), 1 error, 2 warning, 3 info,
+ * 4 debug. For bring-up and debugging; level 3 costs about 3.5 K. */
+/* #define UMCUB_CFG_LOG_LEVEL            0 */
 
 /* EXPERIMENTAL - link-time optimisation of the bootloader (-flto): 3-4 K
  * smaller on Cortex-M3, about 7 K on the H7. Not part of the verified
