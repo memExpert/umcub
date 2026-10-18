@@ -188,7 +188,7 @@ static int pkt_send(const uint8_t *p, size_t len)
 }
 
 static const umcub_transport_t t_pkt = {
-    .id = UMCUB_TRANSPORT_ETH, .name = "fake-pkt", .init = nop_init, .deinit = nop_deinit,
+    .id = UMCUB_TRANSPORT_ETH, .init = nop_init, .deinit = nop_deinit,
     .send_packet = pkt_send,
 };
 
@@ -238,11 +238,11 @@ static void streams_poll(void)
 }
 
 static const umcub_transport_t t_s0 = {
-    .id = UMCUB_TRANSPORT_UART, .name = "s0", .init = nop_init, .deinit = nop_deinit,
+    .id = UMCUB_TRANSPORT_UART, .init = nop_init, .deinit = nop_deinit,
     .poll = streams_poll, .read = s0_read, .write = s0_write,
 };
 static const umcub_transport_t t_s1 = {
-    .id = UMCUB_TRANSPORT_USB_CDC, .name = "s1", .init = nop_init, .deinit = nop_deinit,
+    .id = UMCUB_TRANSPORT_USB_CDC, .init = nop_init, .deinit = nop_deinit,
     .read = s1_read, .write = s1_write,
 };
 

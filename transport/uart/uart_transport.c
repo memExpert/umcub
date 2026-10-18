@@ -72,7 +72,6 @@ static void uart_deinit(void)
 
 const umcub_transport_t umcub_transport_uart = {
     .id = UMCUB_TRANSPORT_UART,
-    .name = "uart",
     .init = uart_init,
     .deinit = uart_deinit,
     .read = uart_read,

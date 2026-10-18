@@ -65,7 +65,7 @@ static int nop_init(void) { return 0; }
 static void nop_deinit(void) {}
 
 static const umcub_transport_t t_bus = {
-    .id = UMCUB_TRANSPORT_UART, .name = "bus", .init = nop_init, .deinit = nop_deinit,
+    .id = UMCUB_TRANSPORT_UART, .init = nop_init, .deinit = nop_deinit,
     .read = sim_read, .write = sim_write, .link = UMCUB_CFG_UART_LINK,
 };
 const umcub_transport_t *const umcub_transports[] = { &t_bus, 0 };

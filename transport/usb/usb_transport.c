@@ -94,7 +94,6 @@ static void cdc_write(const uint8_t *buf, size_t len)
 
 const umcub_transport_t umcub_transport_usb = {
     .id = CFG_TUD_CDC ? UMCUB_TRANSPORT_USB_CDC : UMCUB_TRANSPORT_USB_DFU,
-    .name = "usb",
     .init = usb_init,
     .deinit = usb_deinit,
     .poll = usb_poll,

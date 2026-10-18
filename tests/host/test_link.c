@@ -72,15 +72,15 @@ static int nop_init(void) { return 0; }
 static void nop_deinit(void) {}
 
 static const umcub_transport_t t_link = {
-    .id = UMCUB_TRANSPORT_UART, .name = "rs485", .init = nop_init, .deinit = nop_deinit,
+    .id = UMCUB_TRANSPORT_UART, .init = nop_init, .deinit = nop_deinit,
     .read = link_read, .write = link_write, .link = UMCUB_LINK_ADDRESSED,
 };
 static const umcub_transport_t t_pkt = {
-    .id = UMCUB_TRANSPORT_CAN, .name = "can", .init = nop_init, .deinit = nop_deinit,
+    .id = UMCUB_TRANSPORT_CAN, .init = nop_init, .deinit = nop_deinit,
     .send_packet = pkt_send, .link = UMCUB_LINK_ADDRESSED,
 };
 static const umcub_transport_t t_plain = {
-    .id = UMCUB_TRANSPORT_USB_CDC, .name = "cdc", .init = nop_init, .deinit = nop_deinit,
+    .id = UMCUB_TRANSPORT_USB_CDC, .init = nop_init, .deinit = nop_deinit,
     .read = plain_read, .write = plain_write,
 };
 const umcub_transport_t *const umcub_transports[] = { &t_link, &t_pkt, &t_plain, 0 };

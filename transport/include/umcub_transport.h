@@ -26,7 +26,6 @@
 
 typedef struct umcub_transport {
     uint8_t id;                                         /* UMCUB_TRANSPORT_* */
-    const char *name;
     int (*init)(void);
     void (*deinit)(void);
     void (*poll)(void);                                 /* may be NULL */

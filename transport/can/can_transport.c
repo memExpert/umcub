@@ -87,7 +87,6 @@ static int can_send_packet(const uint8_t *pkt, size_t len)
 
 const umcub_transport_t umcub_transport_can = {
     .id = UMCUB_TRANSPORT_CAN,
-    .name = "can",
     .init = can_init,
     .deinit = can_deinit,
     .poll = can_poll,

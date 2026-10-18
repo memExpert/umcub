@@ -125,7 +125,7 @@ static int user_send(const uint8_t *pkt, size_t len)
     return 0;
 }
 const umcub_transport_t umcub_transport_user = {
-    .id = UMCUB_TRANSPORT_USER, .name = "user", .init = user_init, .deinit = user_deinit,
+    .id = UMCUB_TRANSPORT_USER, .init = user_init, .deinit = user_deinit,
     .poll = user_poll, .send_packet = user_send,
 };
 

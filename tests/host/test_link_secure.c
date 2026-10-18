@@ -81,11 +81,11 @@ static int nop_init(void) { return 0; }
 static void nop_deinit(void) {}
 
 static const umcub_transport_t t_sec = {
-    .id = UMCUB_TRANSPORT_UART, .name = "rs485", .init = nop_init, .deinit = nop_deinit,
+    .id = UMCUB_TRANSPORT_UART, .init = nop_init, .deinit = nop_deinit,
     .read = sec_read, .write = sec_write, .link = UMCUB_LINK_SECURE,
 };
 static const umcub_transport_t t_pkt = {
-    .id = UMCUB_TRANSPORT_CAN, .name = "can", .init = nop_init, .deinit = nop_deinit,
+    .id = UMCUB_TRANSPORT_CAN, .init = nop_init, .deinit = nop_deinit,
     .send_packet = pkt_send, .link = UMCUB_LINK_SECURE,
 };
 const umcub_transport_t *const umcub_transports[] = { &t_sec, &t_pkt, 0 };

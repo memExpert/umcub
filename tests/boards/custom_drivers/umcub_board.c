@@ -42,7 +42,7 @@ static int user_init(void) { return SPI1 ? 0 : UMCUB_EIO; }   /* LL/CMSIS visibl
 static void user_deinit(void) {}
 static int user_send(const uint8_t *pkt, size_t len) { (void)pkt; (void)len; return 0; }
 const umcub_transport_t umcub_transport_user = {
-    .id = UMCUB_TRANSPORT_USER, .name = "user", .init = user_init, .deinit = user_deinit,
+    .id = UMCUB_TRANSPORT_USER, .init = user_init, .deinit = user_deinit,
     .send_packet = user_send,
 };
 

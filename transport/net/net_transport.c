@@ -114,7 +114,6 @@ static int eth_send_packet(const uint8_t *pkt, size_t len)
 
 const umcub_transport_t umcub_transport_eth = {
     .id = UMCUB_TRANSPORT_ETH,
-    .name = "eth",
     .init = eth_init,
     .deinit = eth_deinit,
     .poll = eth_poll,

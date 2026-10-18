@@ -73,7 +73,6 @@ Behaviour / security trade-offs (as options):
 Config / API cleanup:
 - [ ] `net_if.gateway` is never read (replies go to the sender's MAC): drop it, or document
   `UMCUB_CFG_ETH_GATEWAY` as unused.
-- [ ] `umcub_transport_t.name` is not read by the firmware (~10 B per transport); board files set it.
 - [ ] `UMCUB_CFG_USB_DFU_IMAGE` is only range-checked (DFU alt N = image N), and its template comment about
   direct-xip is stale.
 - [ ] `umcub_flash_write_align()` / `umcub_flash_erased_val()` return constants: use `UMCUB_FAMILY_WRITE_ALIGN` and
