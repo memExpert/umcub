@@ -39,36 +39,18 @@ int umcub_inspect_area(int image, int slot, struct flash_area *out)
     return 0;
 }
 
-/* Header + payload + TLV areas, checked like MCUboot's boot_read_image_size():
- * a protected area must match ih_protect_tlv_size, the unprotected one must
- * follow. 0 = no (consistent) image. */
+/* Header + payload + TLV areas (MCUboot's TLV iterator checks the protected
+ * area against ih_protect_tlv_size). 0 = no (consistent) image. */
 uint32_t umcub_inspect_image_len(const struct flash_area *fa)
 {
     struct image_header h;
-    struct image_tlv_info info;
-    if (flash_area_read(fa, 0, &h, sizeof(h)) || h.ih_magic != IMAGE_MAGIC) {
+    struct image_tlv_iter it;
+    memset(&it, 0, sizeof(it));
+    if (flash_area_read(fa, 0, &h, sizeof(h)) || h.ih_magic != IMAGE_MAGIC ||
+        bootutil_tlv_iter_begin(&it, &h, fa, IMAGE_TLV_ANY, false) != 0) {
         return 0;
     }
-    uint32_t len = (uint32_t)h.ih_hdr_size + h.ih_img_size;
-    if (len + sizeof(info) > fa->fa_size || flash_area_read(fa, len, &info, sizeof(info))) {
-        return 0;
-    }
-    if (info.it_magic == IMAGE_TLV_PROT_INFO_MAGIC) {
-        if (info.it_tlv_tot != h.ih_protect_tlv_size) {
-            return 0;
-        }
-        len += info.it_tlv_tot;
-        if (len + sizeof(info) > fa->fa_size || flash_area_read(fa, len, &info, sizeof(info))) {
-            return 0;
-        }
-    } else if (h.ih_protect_tlv_size != 0) {
-        return 0;
-    }
-    if (info.it_magic != IMAGE_TLV_INFO_MAGIC) {
-        return 0;
-    }
-    len += info.it_tlv_tot;
-    return len <= fa->fa_size ? len : 0;
+    return it.tlv_end <= fa->fa_size ? it.tlv_end : 0;
 }
 
 int umcub_inspect_verify(int image, int slot)
