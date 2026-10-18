@@ -180,7 +180,8 @@ int boot_serial_uploaded_hook(int img_index, const struct flash_area *area, size
 #if UMCUB_CFG_ENCRYPT_IMAGES
     /* Validate an encrypted upload into the primary slot before it is
      * decrypted in place; the error reaches the client in the last response. */
-    if (flash_area_get_id(area) == FLASH_AREA_IMAGE_PRIMARY(img_index) && umcub_enc_upload_check(area) != 0) {
+    if (flash_area_get_id(area) == FLASH_AREA_IMAGE_PRIMARY(img_index) &&
+        umcub_enc_upload_check(img_index, area) != 0) {
         return 3;   /* MGMT_ERR_EINVAL */
     }
 #else

@@ -78,9 +78,7 @@ Config / API cleanup:
   direct-xip is stale.
 - [ ] `umcub_flash_write_align()` / `umcub_flash_erased_val()` return constants: use `UMCUB_FAMILY_WRITE_ALIGN` and
   0xFF.
-- [ ] hooks.c re-implements MCUboot's `MUST_DECRYPT` test; enc_image.c (`umcub_enc_upload_check`) validates an
-  encrypted primary-slot upload always as image 0 (`FLASH_AREA_IMAGE_SECONDARY(0)`, `umcub_inspect_validate(0, ...)`):
-  take the image index from the area. Not tested with an encrypted upload into image 1.
+- [ ] hooks.c re-implements MCUboot's `MUST_DECRYPT` test (`vector_ok`).
 
 Tooling speed:
 - [ ] tools/build/build_matrix.sh: build the configs in parallel; link_e2e.py scenarios in threads.

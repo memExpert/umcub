@@ -88,7 +88,7 @@ static int end(const uint8_t *p, size_t n)
     if (rc == 0 && slot == 0) {             /* like an SMP upload: validate, decrypt in place */
         const struct flash_area *fa;
         if (flash_area_open((uint8_t)flash_area_id_from_multi_image_slot(writer.image, 0), &fa) == 0) {
-            if (umcub_enc_upload_check(fa) != 0 || boot_handle_enc_fw(fa) != 0) {
+            if (umcub_enc_upload_check(writer.image, fa) != 0 || boot_handle_enc_fw(fa) != 0) {
                 rc = UMCUB_EIO;
             }
             flash_area_close(fa);
