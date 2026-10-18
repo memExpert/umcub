@@ -27,6 +27,11 @@
   Its in-place decryption still needs a sector-sized VLA on the stack, assumes uniform sectors and does not
   validate first, so `image/mcuboot/enc_image.c` replaces it (issue draft prepared). Drop our copy once upstream
   takes a port-provided buffer; update the submodule after the next release.
+- [ ] Encrypted SMP upload into the primary slot of image 1 (H755 CM4) is accepted but stays ciphertext: MCUboot's
+  `bs_upload()` (boot_serial.c, v2.4.0 L1201-1213) calls `boot_handle_enc_fw()` only for
+  `FLASH_AREA_IMAGE_PRIMARY(0)`, after the response. The old image is overwritten and the client sees success.
+  Through the secondary slot and lite it works. Before any workaround: read MCUboot's docs / history for why
+  serial-recovery decryption is image 0 only (intended or a gap), then raise it upstream (issue / PR).
 - [ ] Recovery over the network / CAN is not authenticated without `UMCUB_LINK_SECURE` (see README, "Mode notes
   and limitations").
 - [ ] When the application writes a slot in the same flash bank it executes from, the CPU stalls for the duration of a
