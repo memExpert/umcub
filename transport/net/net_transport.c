@@ -109,7 +109,7 @@ void net_udp_input(const net_peer_t *from, uint16_t dst_port, const uint8_t *dat
 
 static int eth_send_packet(const uint8_t *pkt, size_t len)
 {
-    return up ? net_udp_send(&smp_peer, UMCUB_CFG_ETH_SMP_PORT, pkt, len) : UMCUB_EIO;
+    return up ? net_udp_send(&smp_peer, net_if.configured ? net_if.ip : 0, UMCUB_CFG_ETH_SMP_PORT, pkt, len) : UMCUB_EIO;
 }
 
 const umcub_transport_t umcub_transport_eth = {

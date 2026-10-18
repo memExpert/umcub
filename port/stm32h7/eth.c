@@ -223,11 +223,8 @@ int umcub_port_eth_tx(const uint8_t *frame, size_t len)
         return UMCUB_EINVAL;
     }
     desc_t *d = &tx_desc[tx_idx];
-    uint32_t t0 = umcub_port_millis();
-    while (d->des[3] & DES3_OWN) {
-        if ((uint32_t)(umcub_port_millis() - t0) > 20u) {
-            return UMCUB_EBUSY;
-        }
+    if (umcub_cm_wait(&d->des[3], DES3_OWN, 0, 20) != 0) {
+        return UMCUB_EBUSY;
     }
     memcpy(tx_buf[tx_idx], frame, len);
     if (len < 60) {

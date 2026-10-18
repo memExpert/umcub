@@ -91,15 +91,9 @@ class Udp:
 
 class Can:
     def __init__(self, a):
-        import can
-        import isotp
-        self.bus = can.Bus(interface=a.interface, channel=a.channel, bitrate=a.bitrate)
-        mode = isotp.AddressingMode.Normal_29bits if a.ext else isotp.AddressingMode.Normal_11bits
-        addr = isotp.Address(mode, txid=a.tx_id + a.addr, rxid=a.rx_id + a.addr)
-        params = {"tx_padding": 0xCC, "blocking_send": True, "max_frame_size": 4095}
-        self.notifier = can.Notifier(self.bus, [])
-        self.stack = isotp.NotifierBasedCanStack(self.bus, self.notifier, address=addr, params=params)
-        self.stack.start()
+        from umcub_smp import isotp_stack
+        self.bus, self.notifier, self.stack = isotp_stack(a.interface, a.channel, a.bitrate, a.tx_id + a.addr,
+                                                          a.rx_id + a.addr, extended=a.ext)
 
     def send(self, f):
         self.stack.send(f, send_timeout=5.0)

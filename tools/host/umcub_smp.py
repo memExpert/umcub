@@ -5,7 +5,8 @@
 - the umcub inspection group (SMP group 100, proto/smp_inspect.c) as smpclient
   requests: `InspectVerify`, `InspectHash`, `InspectRead`;
 - `SMPIsoTpTransport`: an smpclient transport over CAN ISO-TP (python-can-isotp),
-  with the umcub CAN IDs (base + node address).
+  with the umcub CAN IDs (base + node address), on `isotp_stack()` (also used
+  by umcub_lite.py).
 """
 import asyncio
 import binascii
@@ -43,11 +44,9 @@ class NlipDecoder:
 
     def feed(self, chunk):
         pkts = []
-        for c in chunk:
-            self.line += bytes([c])
-            if c != 0x0A:
-                continue
-            line, self.line = self.line.replace(b"\r", b""), b""
+        *lines, self.line = (self.line + bytes(chunk)).split(b"\n")
+        for line in lines:
+            line = line.replace(b"\r", b"") + b"\n"
             if line[:2] == smppacket.START_DELIMITER:
                 self.dec = smppacket.decode()
                 next(self.dec)
@@ -140,7 +139,39 @@ class InspectRead(_InspectRequest):
     len: int
 
 
-# --- smpclient transport over CAN ISO-TP ------------------------------------
+# --- CAN ISO-TP ------------------------------------------------------------
+
+def isotp_stack(interface, channel, bitrate, tx_id, rx_id, fd=False, data_bitrate=2000000, extended=False):
+    """A started python-can-isotp stack with the umcub frame settings; returns
+    (bus, notifier, stack)."""
+    import can
+    import isotp
+    bus = can.Bus(interface=interface, channel=channel, bitrate=bitrate, fd=fd,
+                  data_bitrate=data_bitrate if fd else None)
+    # A device that allows back-to-back consecutive frames (STmin 0) fills
+    # the interface's TX queue (Linux default qlen 10): wait instead of
+    # failing on ENOBUFS.
+    send = bus.send
+
+    def send_retry(msg, timeout=None):
+        for _ in range(1000):
+            try:
+                return send(msg, timeout)
+            except can.CanOperationError as e:
+                if getattr(e, "error_code", None) != errno.ENOBUFS:
+                    raise
+                time.sleep(0.001)
+        return send(msg, timeout)
+    bus.send = send_retry
+    mode = isotp.AddressingMode.Normal_29bits if extended else isotp.AddressingMode.Normal_11bits
+    addr = isotp.Address(mode, txid=tx_id, rxid=rx_id)
+    params = {"tx_padding": 0xCC, "can_fd": fd, "tx_data_length": 64 if fd else 8,
+              "blocking_send": True, "max_frame_size": 4095, "bitrate_switch": fd}
+    notifier = can.Notifier(bus, [])
+    stack = isotp.NotifierBasedCanStack(bus, notifier, address=addr, params=params)
+    stack.start()
+    return bus, notifier, stack
+
 
 class SMPIsoTpTransport:
     """SMP packets as ISO-TP messages (umcub CAN transport, tools/host/smp_can.py).
@@ -152,37 +183,13 @@ class SMPIsoTpTransport:
 
     def __init__(self, interface, channel, bitrate, tx_id, rx_id, fd=False, data_bitrate=2000000,
                  extended=False, mtu=1024):
-        self._args = dict(interface=interface, channel=channel, bitrate=bitrate, fd=fd,
-                          data_bitrate=data_bitrate if fd else None)
-        self._tx_id, self._rx_id, self._fd, self._ext, self._mtu = tx_id, rx_id, fd, extended, mtu
+        self._args = dict(interface=interface, channel=channel, bitrate=bitrate, tx_id=tx_id, rx_id=rx_id,
+                          fd=fd, data_bitrate=data_bitrate, extended=extended)
+        self._mtu = mtu
         self._bus = self._stack = None
 
     async def connect(self, address, timeout_s):
-        import can
-        import isotp
-        self._bus = can.Bus(**self._args)
-        # A device that allows back-to-back consecutive frames (STmin 0) fills
-        # the interface's TX queue (Linux default qlen 10): wait instead of
-        # failing on ENOBUFS.
-        send = self._bus.send
-
-        def send_retry(msg, timeout=None):
-            for _ in range(1000):
-                try:
-                    return send(msg, timeout)
-                except can.CanOperationError as e:
-                    if getattr(e, "error_code", None) != errno.ENOBUFS:
-                        raise
-                    time.sleep(0.001)
-            return send(msg, timeout)
-        self._bus.send = send_retry
-        mode = isotp.AddressingMode.Normal_29bits if self._ext else isotp.AddressingMode.Normal_11bits
-        addr = isotp.Address(mode, txid=self._tx_id, rxid=self._rx_id)
-        params = {"tx_padding": 0xCC, "can_fd": self._fd, "tx_data_length": 64 if self._fd else 8,
-                  "blocking_send": True, "max_frame_size": 4095, "bitrate_switch": self._fd}
-        self._notifier = can.Notifier(self._bus, [])
-        self._stack = isotp.NotifierBasedCanStack(self._bus, self._notifier, address=addr, params=params)
-        self._stack.start()
+        self._bus, self._notifier, self._stack = isotp_stack(**self._args)
 
     async def disconnect(self):
         if self._stack:

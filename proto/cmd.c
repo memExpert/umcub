@@ -173,7 +173,15 @@ static void info(umcub_cmd_reply_t reply)
     }
 }
 
-static const char hexd[] = "0123456789abcdef";
+static void to_hex(char *out, const uint8_t *b, uint32_t n)
+{
+    static const char hexd[] = "0123456789abcdef";
+    for (uint32_t i = 0; i < n; i++) {
+        *out++ = hexd[b[i] >> 4];
+        *out++ = hexd[b[i] & 15];
+    }
+    *out = '\0';
+}
 
 static void inspect(unsigned action, const char *args, umcub_cmd_reply_t reply)
 {
@@ -204,11 +212,7 @@ static void inspect(unsigned action, const char *args, umcub_cmd_reply_t reply)
             return;
         }
         char hex[65];
-        for (int i = 0; i < 32; i++) {
-            hex[2 * i] = hexd[h[i] >> 4];
-            hex[2 * i + 1] = hexd[h[i] & 15];
-        }
-        hex[64] = '\0';
+        to_hex(hex, h, sizeof(h));
         say(reply, "sha256 %s len %lu", hex, (unsigned long)hashed);
         return;
     }
@@ -228,11 +232,7 @@ static void inspect(unsigned action, const char *args, umcub_cmd_reply_t reply)
             return;
         }
         char line[2 * 32 + 1];
-        for (uint32_t i = 0; i < k; i++) {
-            line[2 * i] = hexd[b[i] >> 4];
-            line[2 * i + 1] = hexd[b[i] & 15];
-        }
-        line[2 * k] = '\0';
+        to_hex(line, b, k);
         say(reply, "%08lx %s", (unsigned long)off, line);
         off += k;
         len -= k;
@@ -266,12 +266,11 @@ void umcub_cmd_execute(const char *text, size_t len, umcub_cmd_reply_t reply, bo
             continue;
         }
         unsigned a = table[i].action;
+        UMCUB_LOG_INF("command \"%s\"", cmd);
         if (takes_args(a)) {
-            UMCUB_LOG_INF("command \"%s\"", cmd);
             inspect(a, cmd + n, reply);
             return;
         }
-        UMCUB_LOG_INF("command \"%s\"", cmd);
         switch (a) {
         case UMCUB_CMD_BOOT_APP:
             say(reply, "ok boot");

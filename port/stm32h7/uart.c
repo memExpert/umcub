@@ -161,12 +161,8 @@ void umcub_port_uart_write(const uint8_t *buf, size_t len)
         }
     }
     while (len--) {
-        uint32_t start = umcub_port_millis();
-        while (!LL_USART_IsActiveFlag_TXE_TXFNF(uart)) {
-            if ((uint32_t)(umcub_port_millis() - start) > 10u) {
-                len = 0;                                /* transmitter stuck: drop the rest */
-                break;
-            }
+        if (umcub_cm_wait(&uart->ISR, USART_ISR_TXE_TXFNF, USART_ISR_TXE_TXFNF, 10) != 0) {
+            break;                                  /* transmitter stuck: drop the rest */
         }
         uart->TDR = *buf++;
     }

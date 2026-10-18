@@ -67,10 +67,16 @@ static void send_msg(uint8_t type)
     /* Source 0.0.0.0 until a lease is bound (RFC 2131 4.1), also while the
      * static fallback address is in use. */
     net_peer_t to = { .ip = NET_IP_BROADCAST, .port = 67 };
-    bool configured = net_if.configured;
-    net_if.configured = state == ST_RENEWING;
-    (void)net_udp_send(&to, 68, pkt, sizeof(pkt));
-    net_if.configured = configured;
+    (void)net_udp_send(&to, state == ST_RENEWING ? net_if.ip : 0, 68, pkt, sizeof(pkt));
+}
+
+static void apply_static(const char *what)
+{
+    net_if.ip = UMCUB_CFG_ETH_IP;
+    net_if.netmask = UMCUB_CFG_ETH_NETMASK;
+    net_if.gateway = UMCUB_CFG_ETH_GATEWAY;
+    net_if.configured = true;
+    log_ip(what, net_if.ip);
 }
 
 static void schedule_retry(void)
@@ -92,11 +98,7 @@ void dhcp_start(void)
     started = umcub_port_millis();
     next_tx = started;
 #else
-    net_if.ip = UMCUB_CFG_ETH_IP;
-    net_if.netmask = UMCUB_CFG_ETH_NETMASK;
-    net_if.gateway = UMCUB_CFG_ETH_GATEWAY;
-    net_if.configured = true;
-    log_ip("static ip", net_if.ip);
+    apply_static("static ip");
 #endif
 }
 
@@ -107,11 +109,7 @@ void dhcp_tick(void)
     if (!fallback_applied && state != ST_BOUND && state != ST_RENEWING &&
         (uint32_t)(now - started) > UMCUB_CFG_ETH_DHCP_TIMEOUT_MS) {
         fallback_applied = true;
-        net_if.ip = UMCUB_CFG_ETH_IP;
-        net_if.netmask = UMCUB_CFG_ETH_NETMASK;
-        net_if.gateway = UMCUB_CFG_ETH_GATEWAY;
-        net_if.configured = true;
-        log_ip("no DHCP answer, fallback ip", net_if.ip);
+        apply_static("no DHCP answer, fallback ip");
     }
     if (state == ST_BOUND && (uint32_t)(now - bound_at) / 1000u >= lease_s / 2u) {
         state = ST_RENEWING;

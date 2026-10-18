@@ -54,7 +54,7 @@ static void eth_header(uint8_t *f, const uint8_t dst[6], uint16_t type)
     net_put16(f + 12, type);
 }
 
-static size_t ip_header(uint8_t *ip, uint32_t dst, uint8_t proto, size_t payload)
+static size_t ip_header(uint8_t *ip, uint32_t src, uint32_t dst, uint8_t proto, size_t payload)
 {
     ip[0] = 0x45;
     ip[1] = 0;
@@ -64,13 +64,13 @@ static size_t ip_header(uint8_t *ip, uint32_t dst, uint8_t proto, size_t payload
     ip[8] = 64;
     ip[9] = proto;
     net_put16(ip + 10, 0);
-    net_put32(ip + 12, net_if.configured ? net_if.ip : 0);
+    net_put32(ip + 12, src);
     net_put32(ip + 16, dst);
     net_put16(ip + 10, csum_fold(csum_add(0, ip, IP_HDR)));
     return IP_HDR + payload;
 }
 
-int net_udp_send(const net_peer_t *to, uint16_t src_port, const uint8_t *data, size_t len)
+int net_udp_send(const net_peer_t *to, uint32_t src_ip, uint16_t src_port, const uint8_t *data, size_t len)
 {
     if (len > NET_UDP_MAX) {
         return UMCUB_EINVAL;
@@ -83,7 +83,7 @@ int net_udp_send(const net_peer_t *to, uint16_t src_port, const uint8_t *data, s
     net_put16(udp + 4, (uint16_t)(UDP_HDR + len));
     net_put16(udp + 6, 0);
     memmove(udp + UDP_HDR, data, len);
-    ip_header(ip, to->ip, PROTO_UDP, UDP_HDR + len);
+    ip_header(ip, src_ip, to->ip, PROTO_UDP, UDP_HDR + len);
 
     /* UDP checksum over the pseudo header */
     uint32_t sum = csum_add(0, ip + 12, 8);
@@ -127,7 +127,7 @@ static void icmp_input(const uint8_t *f, const uint8_t *ip, const uint8_t *icmp,
     ricmp[0] = 0;                       /* echo reply */
     net_put16(ricmp + 2, 0);
     net_put16(ricmp + 2, csum_fold(csum_add(0, ricmp, len)));
-    ip_header(rip, net_get32(ip + 12), PROTO_ICMP, len);
+    ip_header(rip, net_if.ip, net_get32(ip + 12), PROTO_ICMP, len);
     (void)umcub_port_eth_tx(tx, ETH_HDR + IP_HDR + len);
 }
 

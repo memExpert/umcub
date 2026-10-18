@@ -32,7 +32,8 @@ extern net_if_t net_if;
 
 void net_init(const uint8_t mac[6]);
 void net_input(const uint8_t *frame, size_t len);
-int net_udp_send(const net_peer_t *to, uint16_t src_port, const uint8_t *data, size_t len);
+/* src_ip 0 = 0.0.0.0 (no address yet, RFC 2131 4.1). */
+int net_udp_send(const net_peer_t *to, uint32_t src_ip, uint16_t src_port, const uint8_t *data, size_t len);
 
 /* Upper layers (dhcp.c, net_transport.c). */
 void net_udp_input(const net_peer_t *from, uint16_t dst_port, const uint8_t *data, size_t len);

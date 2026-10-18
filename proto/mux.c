@@ -69,28 +69,32 @@ struct line {
 static struct line lines[MAX_STREAMS];
 static int locked = -1;          /* stream index receiving a multi-line packet */
 static uint32_t locked_at;
-static bool responded;
 static const umcub_transport_t *active;
-static bool is_stream_fn(const umcub_transport_t *t)
+static bool is_stream(const umcub_transport_t *t)
 {
     return t->read && t->write;
 }
-#define is_stream is_stream_fn
 
 /* Line of stream transport i (registry index); NULL for packet transports. */
 static struct line *line_of(unsigned i)
 {
     unsigned n = 0;
     for (unsigned j = 0; j < i; j++) {
-        n += is_stream_fn(umcub_transports[j]);
+        n += is_stream(umcub_transports[j]);
     }
-    return is_stream_fn(umcub_transports[i]) && n < MAX_STREAMS ? &lines[n] : NULL;
+    return is_stream(umcub_transports[i]) && n < MAX_STREAMS ? &lines[n] : NULL;
 }
+
+/* Raw packets exist only with packet transports or the umcub link (its DATA
+ * payloads take this path on streams too); otherwise the packet path and its
+ * buffers are left out. */
+#define PACKETS (UMCUB_CFG_TRANSPORT_CAN || UMCUB_CFG_TRANSPORT_ETH || UMCUB_CFG_TRANSPORT_USER || \
+                 UMCUB_CFG_LINK_ANY)
 
 /* Plain stream transport: NLIP lines and typed text go straight through. */
 static bool nlip_stream(const umcub_transport_t *t)
 {
-    return is_stream_fn(t) && t->link == 0;
+    return is_stream(t) && t->link == 0;
 }
 
 /* One packet to `t`: a link frame in link mode, else the transport's packet. */
@@ -132,7 +136,6 @@ void umcub_mux_flush(uint32_t ms)
     }
 }
 
-static uint8_t last_transport;
 static uint32_t last_activity;
 static bool in_recovery;
 
@@ -142,12 +145,12 @@ static bool in_recovery;
 static const umcub_transport_t *cmd_from;
 
 /* Packet transports get the whole reply in one packet. */
-static char cmd_out[512];
+static char cmd_out[PACKETS ? 512 : 1];
 static size_t cmd_out_len;
 
 static void cmd_reply(const char *text)
 {
-    if (nlip_stream(cmd_from)) {
+    if (!PACKETS || nlip_stream(cmd_from)) {
         if (text) {
             cmd_from->write((const uint8_t *)text, strlen(text));
         }
@@ -180,17 +183,12 @@ static void cmd_run(const umcub_transport_t *t, const char *text, size_t len)
 }
 #endif
 
-/* A raw packet is SMP if its 8-byte header announces exactly the rest. */
-static bool is_smp_packet(const uint8_t *p, size_t len)
-{
-    return len >= 8 && (p[0] & 0x07u) <= 3u && (size_t)((p[2] << 8) | p[3]) == len - 8u;
-}
-
-/* SMP only if this build speaks it: without SMP every packet is a lite /
- * board frame or a text command. */
+/* A raw packet is SMP if its 8-byte header announces exactly the rest and
+ * this build speaks SMP: without it every packet is a lite / board frame or
+ * a text command. */
 static bool smp_packet(const uint8_t *p, size_t len)
 {
-    return UMCUB_CFG_SMP && is_smp_packet(p, len);
+    return UMCUB_CFG_SMP && len >= 8 && (p[0] & 0x07u) <= 3u && (size_t)((p[2] << 8) | p[3]) == len - 8u;
 }
 
 static void touch(const umcub_transport_t *t);
@@ -246,11 +244,6 @@ static bool frame_rx(const umcub_transport_t *t, uint8_t kind, const uint8_t *f,
 }
 #endif
 
-/* Raw packets exist only with packet transports or the umcub link (its DATA
- * payloads take this path on streams too); otherwise the packet path and its
- * buffers are left out. */
-#define PACKETS (UMCUB_CFG_TRANSPORT_CAN || UMCUB_CFG_TRANSPORT_ETH || UMCUB_CFG_TRANSPORT_USER || \
-                 UMCUB_CFG_LINK_ANY)
 
 /* pending raw packet from a packet transport */
 static uint8_t pkt_buf[PACKETS ? UMCUB_CFG_SMP_MTU + 1 : 1];
@@ -494,11 +487,10 @@ static void pump_all(void)
 
 static void touch(const umcub_transport_t *t)
 {
-    active = t;
-    if (last_transport != t->id) {
+    if (!active || active->id != t->id) {
         umcub_handoff_note_transport(t->id);
     }
-    last_transport = t->id;
+    active = t;
     last_activity = umcub_port_millis();
 }
 
@@ -516,31 +508,26 @@ static int mux_read(char *str, int cnt, int *newline)
     }
 #endif
 
-    if (responded) {
-        responded = false;
-        locked = -1;
-    }
-
     /* A raw packet waits while a stream is in the middle of a multi-line
      * packet: its response must not release that stream's lock. */
-    if (PACKETS && pkt_len && locked < 0 && !smp_packet(pkt_buf, pkt_len)) {
-        other_packet(pkt_from, pkt_buf, pkt_len);
-        pkt_len = 0;
-        return 0;
-    }
-#if UMCUB_CFG_SMP
     if (PACKETS && pkt_len && locked < 0) {
-        touch(pkt_from);
-        resp_text_len = 0;
-        resp_raw_len = 0;
-        req_from = pkt_from;
-        (void)rename_params(pkt_buf, pkt_len);
-        boot_serial_input((char *)pkt_buf, (int)pkt_len);
-        req_from = NULL;
+        if (!smp_packet(pkt_buf, pkt_len)) {
+            other_packet(pkt_from, pkt_buf, pkt_len);
+        }
+#if UMCUB_CFG_SMP
+        else {
+            touch(pkt_from);
+            resp_text_len = 0;
+            resp_raw_len = 0;
+            req_from = pkt_from;
+            (void)rename_params(pkt_buf, pkt_len);
+            boot_serial_input((char *)pkt_buf, (int)pkt_len);
+            req_from = NULL;
+        }
+#endif
         pkt_len = 0;
         return 0;
     }
-#endif
 
     if (locked >= 0 && (uint32_t)(umcub_port_millis() - locked_at) > LOCK_TIMEOUT_MS) {
         locked = -1;
@@ -615,7 +602,7 @@ static void mux_write(const char *ptr, int cnt)
     if (nlip_stream(active)) {
         active->write((const uint8_t *)ptr, (size_t)cnt);
         if (cnt == 1 && ptr[0] == '\n') {
-            responded = true;   /* request on the locked stream was answered */
+            locked = -1;        /* request on the locked stream was answered */
         }
     } else if (PACKETS && (active->send_packet || active->link)) {
         shim_feed(ptr, cnt);
@@ -698,5 +685,5 @@ const struct boot_uart_funcs *umcub_mux_funcs_for_test(void)
 
 uint8_t umcub_recovery_last_transport(void)
 {
-    return last_transport;
+    return active ? active->id : 0;
 }

@@ -10,6 +10,9 @@
 #ifndef UMCUB_CFG_DUALCORE_MODE
 #define UMCUB_CFG_DUALCORE_MODE         UMCUB_DUALCORE_NONE
 #endif
+#ifndef UMCUB_CFG_CORE2_DONE_TIMEOUT_MS
+#define UMCUB_CFG_CORE2_DONE_TIMEOUT_MS 3000
+#endif
 
 /* --- clocks -------------------------------------------------------------- */
 #ifndef UMCUB_CFG_CLOCK_SOURCE

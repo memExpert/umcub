@@ -34,6 +34,9 @@
  *   UMCUB_DUALCORE_PER_CORE    - every core runs its own bootloader instance
  *                                with its own image(s) and transports        */
 /* #define UMCUB_CFG_DUALCORE_MODE        UMCUB_DUALCORE_NONE */
+/* PER_CORE, main core: how long to wait for the second core's bootloader
+ * before the clocks are handed to the application (then they stay running). */
+/* #define UMCUB_CFG_CORE2_DONE_TIMEOUT_MS 3000 */
 
 /* ======================================================================== */
 /* Clocks / power (family port computes the PLL settings)                  */

@@ -166,12 +166,8 @@ void umcub_port_uart_write(const uint8_t *buf, size_t len)
         umcub_port_gpio_write(de_pin, de_level);
     }
     while (len--) {
-        uint32_t start = umcub_port_millis();
-        while (!(uart->SR & USART_SR_TXE)) {
-            if ((uint32_t)(umcub_port_millis() - start) > 10u) {
-                len = 0;                            /* transmitter stuck: drop the rest */
-                break;
-            }
+        if (umcub_cm_wait(&uart->SR, USART_SR_TXE, USART_SR_TXE, 10) != 0) {
+            break;                                  /* transmitter stuck: drop the rest */
         }
         uart->DR = *buf++;
     }

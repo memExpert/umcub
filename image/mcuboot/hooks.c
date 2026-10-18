@@ -22,12 +22,13 @@
 #include "bootutil/fault_injection_hardening.h"
 #include "sysflash/sysflash.h"
 
-int umcub_image_board_type(const struct flash_area *fa, uint32_t hdr_off, uint32_t *type)
+static bool read_header(const struct flash_area *fa, uint32_t hdr_off, struct image_header *hdr)
 {
-    struct image_header hdr;
-    if (flash_area_read(fa, hdr_off, &hdr, sizeof(hdr)) != 0 || hdr.ih_magic != IMAGE_MAGIC) {
-        return -1;
-    }
+    return flash_area_read(fa, hdr_off, hdr, sizeof(*hdr)) == 0 && hdr->ih_magic == IMAGE_MAGIC;
+}
+
+static int board_type(const struct flash_area *fa, uint32_t hdr_off, struct image_header *hdr, uint32_t *type)
+{
     struct image_tlv_iter it;
     memset(&it, 0, sizeof(it));
 #if defined(MCUBOOT_SWAP_USING_OFFSET)
@@ -39,19 +40,21 @@ int umcub_image_board_type(const struct flash_area *fa, uint32_t hdr_off, uint32
 #endif
     uint32_t off;
     uint16_t len, tag;
-    if (bootutil_tlv_iter_begin(&it, &hdr, fa, UMCUB_TLV_BOARD_TYPE, true) != 0) {
+    if (bootutil_tlv_iter_begin(&it, hdr, fa, UMCUB_TLV_BOARD_TYPE, true) != 0) {
         return -1;
     }
     int rc = bootutil_tlv_iter_next(&it, &off, &len, &tag);
     if (rc != 0) {
         return rc > 0 ? 1 : -1;
     }
-    uint8_t v[4];
-    if (len != sizeof(v) || flash_area_read(fa, off, v, sizeof(v)) != 0) {
-        return -1;
-    }
-    *type = (uint32_t)v[0] | (uint32_t)v[1] << 8 | (uint32_t)v[2] << 16 | (uint32_t)v[3] << 24;
-    return 0;
+    /* little endian TLV value, little endian target */
+    return len == sizeof(*type) && flash_area_read(fa, off, type, sizeof(*type)) == 0 ? 0 : -1;
+}
+
+int umcub_image_board_type(const struct flash_area *fa, uint32_t hdr_off, uint32_t *type)
+{
+    struct image_header hdr;
+    return read_header(fa, hdr_off, &hdr) ? board_type(fa, hdr_off, &hdr, type) : -1;
 }
 
 #if UMCUB_CFG_IMAGE_VECTOR_CHECK
@@ -59,16 +62,14 @@ int umcub_image_board_type(const struct flash_area *fa, uint32_t hdr_off, uint32
  * into the slot the image executes from: the primary slot, or the slot itself
  * with direct-xip. Encrypted content (an encrypted image read as secondary:
  * the secondary slot, or an upload in the primary slot before its in-place
- * decryption) is checked once it is plain in the primary slot. Unreadable
- * headers are left to MCUboot. */
-static bool umcub_image_vector_ok(int img_index, int slot, const struct flash_area *fa, uint32_t hdr_off)
+ * decryption) is checked once it is plain in the primary slot. */
+static bool vector_ok(int img_index, int slot, const struct flash_area *fa, uint32_t hdr_off,
+                      const struct image_header *hdr)
 {
-    struct image_header hdr;
     uint32_t reset;
-    if (flash_area_read(fa, hdr_off, &hdr, sizeof(hdr)) != 0 || hdr.ih_magic != IMAGE_MAGIC ||
-        ((hdr.ih_flags & (IMAGE_F_ENCRYPTED_AES128 | IMAGE_F_ENCRYPTED_AES256)) != 0 &&
+    if (((hdr->ih_flags & (IMAGE_F_ENCRYPTED_AES128 | IMAGE_F_ENCRYPTED_AES256)) != 0 &&
          flash_area_get_id(fa) == FLASH_AREA_IMAGE_SECONDARY(img_index)) ||
-        flash_area_read(fa, hdr_off + hdr.ih_hdr_size + 4u, &reset, sizeof(reset)) != 0) {
+        flash_area_read(fa, hdr_off + hdr->ih_hdr_size + 4u, &reset, sizeof(reset)) != 0) {
         return true;
     }
     const struct flash_area *run = fa;
@@ -77,8 +78,8 @@ static bool umcub_image_vector_ok(int img_index, int slot, const struct flash_ar
         return false;
     }
 #endif
-    uint32_t start = flash_area_get_off(run) + hdr.ih_hdr_size;
-    bool ok = (reset & ~1u) - start < flash_area_get_size(run) - hdr.ih_hdr_size;
+    uint32_t start = flash_area_get_off(run) + hdr->ih_hdr_size;
+    bool ok = (reset & ~1u) - start < flash_area_get_size(run) - hdr->ih_hdr_size;
     if (run != fa) {
         flash_area_close(run);
     }
@@ -106,12 +107,16 @@ bool umcub_image_check(int img_index, int slot, const struct flash_area *fa)
 #endif
     bool bad = false;
     for (unsigned i = 0; i < n && !bad; i++) {
+        struct image_header hdr;
+        if (!read_header(fa, offs[i], &hdr)) {
+            continue;               /* unreadable header: left to MCUboot */
+        }
 #if UMCUB_CFG_IMAGE_VECTOR_CHECK
-        bad = !umcub_image_vector_ok(img_index, slot, fa, offs[i]);
+        bad = !vector_ok(img_index, slot, fa, offs[i], &hdr);
 #endif
 #if UMCUB_CFG_BOARD_TYPE != 0
         uint32_t type = 0;
-        int rc = bad ? 0 : umcub_image_board_type(fa, offs[i], &type);
+        int rc = bad ? 0 : board_type(fa, offs[i], &hdr, &type);
         if (rc == 0 && !bad && type != UMCUB_CFG_BOARD_TYPE) {
             UMCUB_LOG_ERR("image %d slot %d is for board type 0x%08lx, this is 0x%08lx", img_index, slot,
                           (unsigned long)type, (unsigned long)UMCUB_CFG_BOARD_TYPE);

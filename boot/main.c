@@ -39,10 +39,6 @@
 #define IS_MAIN_PER_CORE_INSTANCE 0
 #endif
 
-#ifndef UMCUB_CFG_CORE2_DONE_TIMEOUT_MS
-#define UMCUB_CFG_CORE2_DONE_TIMEOUT_MS 3000
-#endif
-
 static const char *const mode_names[] __attribute__((unused)) = {
     "?", "overwrite", "swap-scratch", "swap-move", "swap-offset", "direct-xip", "direct-xip-revert",
 };

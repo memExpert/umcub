@@ -103,7 +103,7 @@ size_t isotp_on_frame(isotp_t *t, const uint8_t *d, uint8_t len)
     return 0;
 }
 
-/* Wait for a flow control frame; returns FC status or negative. */
+/* Wait for a flow control frame: 0 = clear to send, else an error. */
 static int wait_fc(isotp_t *t, uint8_t *bs, uint8_t *stmin)
 {
     uint32_t start = umcub_port_millis();
@@ -118,7 +118,7 @@ static int wait_fc(isotp_t *t, uint8_t *bs, uint8_t *stmin)
             }
             *bs = d[1];
             *stmin = d[2];
-            return st;
+            return st == FC_CTS ? 0 : UMCUB_EIO;
         }
         if ((uint32_t)(umcub_port_millis() - start) > TIMEOUT_MS) {
             return UMCUB_ETIMEOUT;
@@ -134,15 +134,11 @@ int isotp_send(isotp_t *t, const uint8_t *msg, size_t len)
     bool fd = fl > 8;
 
     if (len <= (size_t)(fl - (fd ? 2u : 1u)) && (len <= 7 || fd)) {
-        if (len <= 7) {
-            f[0] = (uint8_t)(PCI_SF << 4 | len);
-            memcpy(f + 1, msg, len);
-            return send_frame(t, f, (uint8_t)(len + 1));
-        }
-        f[0] = PCI_SF << 4;
+        size_t hdr = len <= 7 ? 1u : 2u;    /* CAN-FD SF > 7 bytes: length in byte 1 */
+        f[0] = (uint8_t)(PCI_SF << 4 | (hdr == 1 ? len : 0));
         f[1] = (uint8_t)len;
-        memcpy(f + 2, msg, len);
-        return send_frame(t, f, (uint8_t)(len + 2));
+        memcpy(f + hdr, msg, len);
+        return send_frame(t, f, (uint8_t)(len + hdr));
     }
     if (len > 4095) {
         return UMCUB_EINVAL;
@@ -157,8 +153,8 @@ int isotp_send(isotp_t *t, const uint8_t *msg, size_t len)
     }
     uint8_t sn = 1, bs = 0, stmin = 0, sent_in_block = 0;
     rc = wait_fc(t, &bs, &stmin);
-    if (rc != FC_CTS) {
-        return rc < 0 ? rc : UMCUB_EIO;
+    if (rc) {
+        return rc;
     }
     while (off < len) {
         size_t n = len - off > (size_t)(fl - 1u) ? (size_t)(fl - 1u) : len - off;
@@ -179,8 +175,8 @@ int isotp_send(isotp_t *t, const uint8_t *msg, size_t len)
             if (bs && ++sent_in_block == bs) {
                 sent_in_block = 0;
                 rc = wait_fc(t, &bs, &stmin);
-                if (rc != FC_CTS) {
-                    return rc < 0 ? rc : UMCUB_EIO;
+                if (rc) {
+                    return rc;
                 }
             }
         }
