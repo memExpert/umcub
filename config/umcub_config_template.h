@@ -98,7 +98,14 @@
 /* Refuse images with a lower version than the running one. */
 /* #define UMCUB_CFG_DOWNGRADE_PREVENTION 0 */
 
-/* Validate the primary slot signature on every boot (recommended). */
+/* Validate the primary slot (hash + signature, board type, reset vector) on
+ * every boot (recommended). 0 boots faster (about 0.6 s on a 72 MHz
+ * Cortex-M3, ~80 ms per image on the H7): updates through the secondary slot
+ * are still validated before they are installed, but an image written
+ * straight into the primary slot (SMP or lite recovery upload, a debugger)
+ * then boots unchecked. Refused at build time together with SMP and a board
+ * type, UMCUB_LINK_SECURE or encrypted images. (MCUboot's "validate once"
+ * exists only for its single-slot loader, not for these modes.) */
 /* #define UMCUB_CFG_VALIDATE_PRIMARY     1 */
 
 /* ======================================================================== */
