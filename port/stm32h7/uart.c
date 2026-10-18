@@ -5,35 +5,23 @@
 #include "h7.h"
 #include "../arch/stm32/stm32_usart.h"
 
-static const struct {
-    USART_TypeDef *regs;
-    uint32_t bit;               /* RCC enable / reset bit */
-    int8_t irq;
-    bool apb2;                  /* APB2ENR, else APB1LENR */
-} usarts[] = {
-    { USART1, RCC_APB2ENR_USART1EN, USART1_IRQn, true },
-    { USART2, RCC_APB1LENR_USART2EN, USART2_IRQn, false },
-    { USART3, RCC_APB1LENR_USART3EN, USART3_IRQn, false },
-    { UART4, RCC_APB1LENR_UART4EN, UART4_IRQn, false },
-    { UART5, RCC_APB1LENR_UART5EN, UART5_IRQn, false },
-    { USART6, RCC_APB2ENR_USART6EN, USART6_IRQn, true },
-    { UART7, RCC_APB1LENR_UART7EN, UART7_IRQn, false },
-    { UART8, RCC_APB1LENR_UART8EN, UART8_IRQn, false },
+#define APB1(n, irq) { n, &RCC->APB1LENR, &RCC->APB1LRSTR, RCC_APB1LENR_##n##EN, &h7_pclk_hz, irq }
+#define APB2(n, irq) { n, &RCC->APB2ENR, &RCC->APB2RSTR, RCC_APB2ENR_##n##EN, &h7_pclk_hz, irq }
+
+/* every kernel clock left on its PCLK (reset default) */
+static const stm32_usart_t usarts[] = {
+    APB2(USART1, USART1_IRQn), APB1(USART2, USART2_IRQn), APB1(USART3, USART3_IRQn), APB1(UART4, UART4_IRQn),
+    APB1(UART5, UART5_IRQn), APB2(USART6, USART6_IRQn), APB1(UART7, UART7_IRQn), APB1(UART8, UART8_IRQn),
 };
 
-bool stm32_usart_find(unsigned instance, stm32_usart_t *u)
+const stm32_usart_t *stm32_usart_get(const umcub_uart_cfg_t *cfg)
 {
-    if (instance - 1u >= sizeof(usarts) / sizeof(usarts[0])) {
-        return false;
+    if (cfg->instance - 1u >= sizeof(usarts) / sizeof(usarts[0])) {
+        return NULL;
     }
-    const __typeof__(usarts[0]) *e = &usarts[instance - 1u];
-    u->regs = e->regs;
-    u->irq = (IRQn_Type)e->irq;
-    u->enr = e->apb2 ? &RCC->APB2ENR : &RCC->APB1LENR;
-    u->rstr = e->apb2 ? &RCC->APB2RSTR : &RCC->APB1LRSTR;
-    u->bit = e->bit;
-    u->clock_hz = h7_pclk_hz;       /* every kernel clock left on its PCLK (reset default) */
-    return true;
+    umcub_port_gpio_af(cfg->tx_pin);
+    umcub_port_gpio_af(cfg->rx_pin);
+    return &usarts[cfg->instance - 1u];
 }
 
 void USART1_IRQHandler(void) { stm32_usart_isr(); }

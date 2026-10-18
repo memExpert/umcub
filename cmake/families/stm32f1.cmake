@@ -29,7 +29,7 @@ set(UMCUB_FAMILY_BOOT_SOURCES
   ${UMCUB_FAMILY_DIR}/flash.c
   ${UMCUB_ROOT}/third_party/st/cmsis_device_f1/Source/Templates/gcc/startup_${_mcu_lc}.s
 )
-set(UMCUB_FAMILY_UART_SOURCES ${UMCUB_FAMILY_DIR}/uart.c)
+set(UMCUB_FAMILY_UART_SOURCES ${UMCUB_FAMILY_DIR}/uart.c ${UMCUB_ROOT}/port/arch/stm32/usart_v1.c)
 # Nonces / random back-off (umcub link): ADC noise, no TRNG on F1.
 set(UMCUB_FAMILY_ENTROPY_SOURCES ${UMCUB_FAMILY_DIR}/entropy.c)
 set(UMCUB_FAMILY_USB_SOURCES  ${UMCUB_FAMILY_DIR}/usb.c)

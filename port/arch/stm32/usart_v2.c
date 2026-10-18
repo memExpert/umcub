@@ -1,7 +1,7 @@
 /*
  * USART v2 driver (umcub_port_uart_*), register level, for every family
- * with the ISR / ICR / RDR / TDR register set; the instance comes from the
- * family (stm32_usart_find()). RS485: hardware DE when the DE pin has the
+ * with the ISR / ICR / RDR / TDR register set; the instance and its pins come
+ * from the family (stm32_usart_get()). RS485: hardware DE when the DE pin has the
  * USART's RTS/DE alternate function, otherwise a GPIO switched by software.
  */
 #include "umcub_cfg.h"
@@ -47,12 +47,12 @@ void stm32_usart_isr(void)
 
 int umcub_port_uart_init(const umcub_uart_cfg_t *cfg)
 {
-    stm32_usart_t u;
-    if (!stm32_usart_find(cfg->instance, &u) || cfg->baud == 0) {
+    const stm32_usart_t *u = cfg->baud ? stm32_usart_get(cfg) : NULL;
+    if (!u) {
         return UMCUB_EINVAL;
     }
-    uart = u.regs;
-    uart_irq = u.irq;
+    uart = u->regs;
+    uart_irq = u->irq;
     uart_pins[0] = cfg->tx_pin;
     uart_pins[1] = cfg->rx_pin;
     rx.head = rx.tail = 0;
@@ -65,10 +65,8 @@ int umcub_port_uart_init(const umcub_uart_cfg_t *cfg)
      * "RS485 driver enable"); AF 0: software switches a GPIO. */
     de_hw = de_pin != UMCUB_PIN_NONE && UMCUB_PIN_AF(de_pin) != 0;
 
-    umcub_cm_periph_on(u.enr, u.rstr, u.bit);
+    umcub_cm_periph_on(u->enr, u->rstr, u->bit);
 
-    umcub_port_gpio_af(cfg->tx_pin);
-    umcub_port_gpio_af(cfg->rx_pin);
     if (de_hw) {
         /* The RTS/DE pin level between AF selection and UE = 1 is not
          * specified; on a shared bus a transceiver pull-down on DE keeps it
@@ -83,7 +81,7 @@ int umcub_port_uart_init(const umcub_uart_cfg_t *cfg)
 #ifdef USART_PRESC_PRESCALER
     uart->PRESC = 0;
 #endif
-    uart->BRR = (u.clock_hz + cfg->baud / 2u) / cfg->baud;
+    uart->BRR = (*u->clock_hz + cfg->baud / 2u) / cfg->baud;
     uart->CR2 = 0;
     uart->CR3 = 0;
     uint32_t cr1 = USART_CR1_TE | USART_CR1_RE | USART_CR1_RXNEIE_RXFNEIE;
