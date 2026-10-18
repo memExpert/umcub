@@ -2,9 +2,8 @@
 
 ## Hardware verification (NUCLEO-H755ZI-Q)
 
-- [ ] **CAN / CAN-FD on a bus** — ISO-TP + SMP with `tools/host/smp_can.py`. Needs a transceiver on PD0/PD1 and a USB-CAN
-  adapter. Only the FDCAN initialisation (internal loopback, timing registers) is verified. Also text commands and
-  verify / hash / read over CAN (verified over UDP).
+- [ ] **CAN-FD on a bus** — 64-byte frames, data bit rate switch. Needs a CAN-FD transceiver on PD0/PD1 (classic CAN
+  with ISO-TP + SMP is verified on a real bus).
 - [ ] **IDE workflow** (README "Using umcub from an IDE") in real STM32CubeIDE and Keil MDK projects: post-build
   signing, debug download of the signed image, Keil key codes (`#L`, `$L@L`), armclang as preprocessor. So far
   verified: `umcub_app_all.c` compiles with the documented include list (GCC, clang); `tools/host/umcub_image.py` gives
