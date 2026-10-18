@@ -256,12 +256,14 @@ UART bootloader is about 4.5 K smaller (F103: 16.7 K instead of 21.2 K, H7: 22.5
   tools/host/umcub_lite.py --port /dev/ttyUSB0 upload app.signed.bin            # primary slot, like SMP recovery
   tools/host/umcub_lite.py --port /dev/ttyUSB0 upload app.signed.bin --slot secondary --test --reset
   tools/host/umcub_lite.py --udp 192.168.1.50 upload app.signed.bin
-  tools/host/umcub_lite.py --can --channel can0 upload app.signed.bin --chunk 512
+  tools/host/umcub_lite.py --can --channel can0 upload app.signed.bin
   tools/host/umcub_lite.py --port /dev/ttyUSB0 cmd "verify 0 0"                  # text commands work as before
   ```
 
-  On stream transports a frame is a line `0x05 0x0C <base64> \n`; keep `--chunk` (data bytes per frame, default
-  256) below about 3/4 of `UMCUB_CFG_SMP_MTU` (the line buffer). Packet transports carry one frame per packet.
+  On stream transports a frame is a line `0x05 0x0C <base64> \n` in the line buffer (`UMCUB_CFG_SMP_MTU` bytes),
+  packet transports carry one frame per packet. The default `--chunk` (data bytes per frame: 373 on serial, 504
+  otherwise) fits the smallest allowed `UMCUB_CFG_SMP_MTU` (512); with a larger MTU, `--chunk` can go up to
+  3/4 of the MTU - 8 on serial and the MTU - 8 otherwise.
 - **the board's own protocol** (`UMCUB_CFG_PROTO_USER`, also next to SMP): every frame that is neither SMP, lite
   nor a text command goes to `umcub_proto_user(t, data, len)` in `boards/<b>/umcub_board.c` - a packet of a
   packet transport, a umcub link DATA payload, or a line `0x05 0x0D <base64> \n` on a stream. Both are declared

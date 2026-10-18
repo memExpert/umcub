@@ -131,7 +131,7 @@
 /* Largest SMP packet (decoded); every SMP buffer is this size (RAM only).
  * Default 1472 with Ethernet (a full UDP datagram, what smpmgr sends), else
  * 1024. Hosts must not send more: smpmgr --mtu / --line-buffers. */
-/* #define UMCUB_CFG_SMP_MTU              1024 */
+/* #define UMCUB_CFG_SMP_MTU              1024 */  /* at least 512 */
 /* Answer MCUMGR_PARAMETERS (os group, id 6) with {buf_size: UMCUB_CFG_SMP_MTU,
  * buf_count: 1}: smpmgr then sizes serial packets itself (no --line-buffers).
  * Needs the inspect group (UMCUB_CFG_INSPECT_*). About 250 bytes. */

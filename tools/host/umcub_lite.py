@@ -23,6 +23,12 @@ import sys
 import time
 
 MAGIC = 0xA6
+# Data bytes per 'D' frame that fit every build (UMCUB_CFG_SMP_MTU >= 512,
+# checked at build time): a line of base64 text in the 512-byte line buffer on
+# serial (2 prefix bytes + newline), one 512-byte packet otherwise; 8 bytes of
+# each frame are header and CRC.
+CHUNK_SERIAL = (512 - 3) // 4 * 3 - 8      # 373
+CHUNK_PACKET = 512 - 8                      # 504
 ERRORS = {-1: "invalid (EINVAL)", -2: "flash / image error (EIO)", -3: "timeout", -4: "not supported",
           -5: "busy (slot in use or the running image is not confirmed)"}
 
@@ -167,7 +173,8 @@ def main():
     u.add_argument("--test", action="store_true", help="secondary: mark for a test boot")
     u.add_argument("--permanent", action="store_true", help="secondary: mark as permanent")
     u.add_argument("--reset", action="store_true", help="reset the device afterwards")
-    u.add_argument("--chunk", type=int, default=256, help="data bytes per frame (line length of the bootloader)")
+    u.add_argument("--chunk", type=int, help=f"data bytes per frame (default {CHUNK_SERIAL} on serial, {CHUNK_PACKET} "
+                   "otherwise: fits UMCUB_CFG_SMP_MTU 512; up to 3/4 of the MTU - 8 on serial, MTU - 8 otherwise)")
     c = sub.add_parser("cmd")
     c.add_argument("text")
     c.add_argument("--wait", type=float, default=1.0)
@@ -175,6 +182,8 @@ def main():
     a = ap.parse_args()
 
     link = Serial(a.port, a.baud) if a.port else Udp(a.udp, a.udp_port) if a.udp else Can(a)
+    if a.cmd == "upload" and not a.chunk:
+        a.chunk = CHUNK_SERIAL if a.port else CHUNK_PACKET
     if a.cmd == "upload":
         upload(link, a)
     elif a.cmd == "cmd":
