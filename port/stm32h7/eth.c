@@ -6,6 +6,7 @@
 #include <string.h>
 #include "h7.h"
 #include "umcub_port_eth.h"
+#include "umcub_handoff.h"   /* umcub_crc32(): the Ethernet FCS */
 
 #define RX_DESC   4u
 #define TX_DESC   2u
@@ -192,7 +193,7 @@ bool umcub_port_eth_link(void)
     bool now = (bmsr & BMSR_LINK) && (bmsr & BMSR_ANDONE);
     if (now && !link) {
         uint16_t common = phy_read(PHY_ANAR) & phy_read(PHY_ANLPAR);
-        uint32_t cr = ETH->MACCR & ~(ETH_MACCR_DM | ETH_MACCR_FES);
+        uint32_t cr = ETH->MACCR & ~(ETH_MACCR_DM | ETH_MACCR_FES | ETH_MACCR_CST);
         if (common & 0x0100u) {            /* 100BASE-TX FD */
             cr |= ETH_MACCR_DM | ETH_MACCR_FES;
         } else if (common & 0x0080u) {     /* 100BASE-TX HD */
@@ -200,12 +201,16 @@ bool umcub_port_eth_link(void)
         } else if (common & 0x0040u) {     /* 10BASE-T FD */
             cr |= ETH_MACCR_DM;
         }
-        ETH->MACCR = cr;
         /* ES0445 2.25.10: in RMII 10 Mbit/s the MAC may flag a fake dribble
-         * nibble (DE, seen on hardware also without CE) and drop good packets.
-         * Forward error packets and accept "DE (+ CE) only" ones (IP/UDP
-         * checksums still reject real corruption). */
+         * nibble (DE, seen on hardware also without CE) with a CRC error and
+         * drop good packets. Forward error packets, accept "DE (+ CE) only"
+         * ones and check their FCS here instead (kept: no CST), which tells
+         * the fake nibble from real corruption. */
         speed10 = !(cr & ETH_MACCR_FES);
+        if (!speed10) {
+            cr |= ETH_MACCR_CST;
+        }
+        ETH->MACCR = cr;
         if (speed10) {
             ETH->MTLRQOMR |= ETH_MTLRQOMR_FEP;
         } else {
@@ -256,6 +261,10 @@ size_t umcub_port_eth_rx(uint8_t *buf, size_t max)
     bool ok = !(s & RDES3_ES) || (speed10 && (errs & RDES3_DE) && !(errs & ~(RDES3_DE | RDES3_CE)));
     if ((s & DES3_FD) && (s & DES3_LD) && ok) {
         len = s & RDES3_PL;                        /* FCS stripped by the MAC (CST) */
+        if (speed10) {                             /* FCS kept: check and drop it */
+            /* CRC-32 over the data and its own FCS: a constant residue */
+            len = len >= 4 && umcub_crc32(rx_buf[rx_idx], (uint32_t)len) == 0x2144DF1Cu ? len - 4 : 0;
+        }
         if (len > max) {
             len = 0;
         } else {
