@@ -13,7 +13,7 @@ smpmgr / mcumgr --conntype serial at the printed path) or a local UDP port
 (mcumgr --conntype udp) and forwards their requests to the selected device,
 doing addressing and - on SECURE transports - the authentication, the frame
 MACs and the payload encryption. The protocol is described in
-proto/include/umcub_link.h.
+src/proto/include/umcub_link.h.
 
 `sniff` never transmits: point it at a receiver that only listens to the bus
 (e.g. an RS-485 transceiver with its driver disabled) to see both directions.
@@ -125,7 +125,7 @@ class UdpBus:
 
 
 # --------------------------------------------------------------------------
-# Secure session (mirrors proto/link.c)
+# Secure session (mirrors src/proto/link.c)
 # --------------------------------------------------------------------------
 
 class Session:

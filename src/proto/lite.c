@@ -1,6 +1,6 @@
 /*
  * Lite upload protocol (UMCUB_CFG_LITE_UPLOAD): images without SMP, written
- * with the slot writer (umcub_slot_*). Frames: proto/include/umcub_lite.h.
+ * with the slot writer (umcub_slot_*). Frames: src/proto/include/umcub_lite.h.
  */
 #include <string.h>
 #include "umcub_cfg.h"

@@ -5,8 +5,8 @@
 
 Rules:
   - a file includes headers of its own layer or of lower layers only
-    (L0 include/ config/ tests/configs/, L1 port/, L2 util/, L3 image/,
-    L4 transport/, L5 proto/, L6 boot/, L7 boards/ lib/umcub_app/);
+    (L0 include/ config/ tests/configs/, L1 port/, L2 src/util/, L3 src/image/,
+    L4 src/transport/, L5 src/proto/, L6 src/boot/, L7 boards/ lib/umcub_app/);
   - third-party headers from their lowest layer on (tinycrypt L2, MCUboot
     bootutil L3, tinyUSB L4, boot_serial / zcbor L5);
   - ST device / LL / CMSIS-core headers only in port/ and boards/<b>/umcub_board.c;
@@ -23,11 +23,11 @@ ROOT = Path(__file__).resolve().parents[2]
 LAYERS = [
     ("include", 0), ("config", 0), ("tests/configs", 0),
     ("port", 1),
-    ("util", 2),
-    ("image", 3),
-    ("transport", 4),
-    ("proto", 5),
-    ("boot", 6),
+    ("src/util", 2),
+    ("src/image", 3),
+    ("src/transport", 4),
+    ("src/proto", 5),
+    ("src/boot", 6),
     ("boards", 7), ("lib/umcub_app", 7),
 ]
 NAMES = {0: "L0 include/config", 1: "L1 port", 2: "L2 util", 3: "L3 image", 4: "L4 transport",

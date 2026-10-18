@@ -16,7 +16,7 @@ static void adc_start(void)
     /* Channel 16 at 239.5 cycles (~20 us at 12 MHz): RM0008 §11.10 asks for
      * >= 17.1 us on the temperature sensor. The conversion value itself is
      * not used, only its noisy low bits; their quality is not specified by
-     * ST, hence the hash conditioning in util/random.c. */
+     * ST, hence the hash conditioning in src/util/random.c. */
     ADC1->SMPR1 = ADC_SMPR1_SMP16;
     ADC1->SQR1 = 0;                                     /* one conversion */
     ADC1->SQR3 = 16;                                    /* temperature sensor */

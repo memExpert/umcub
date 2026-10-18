@@ -88,7 +88,7 @@
 #define MCUBOOT_SERIAL_IMG_GRP_SLOT_INFO
 #define MCUBOOT_BOOT_MGMT_ECHO
 #if UMCUB_CFG_INSPECT && UMCUB_CFG_SMP
-#define MCUBOOT_PERUSER_MGMT_GROUP_ENABLED 1   /* verify/hash/read group, proto/smp_inspect.c */
+#define MCUBOOT_PERUSER_MGMT_GROUP_ENABLED 1   /* verify/hash/read group, src/proto/smp_inspect.c */
 #else
 #define MCUBOOT_PERUSER_MGMT_GROUP_ENABLED 0
 #endif
@@ -114,7 +114,7 @@
 
 void umcub_port_wdg_feed(void);
 void umcub_port_idle(void);
-/* image/mcuboot/hooks.c: board type check before an image is installed,
+/* src/image/mcuboot/hooks.c: board type check before an image is installed,
  * validation of encrypted SMP uploads, "was an update performed" for the boot
  * reason. Not in the application library: bootutil_public.c needs no hooks. */
 #if !defined(UMCUB_BUILDING_APP)

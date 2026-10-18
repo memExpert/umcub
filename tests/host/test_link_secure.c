@@ -1,6 +1,6 @@
 /*
  * umcub host test: umcub link in SECURE mode with payload encryption
- * (proto/link.c + mux) on a stream and a packet transport. The test plays
+ * (src/proto/link.c + mux) on a stream and a packet transport. The test plays
  * the host with tinycrypt: challenge signature with the admin key, ECDH with
  * the device key, HKDF, per-frame MAC, AES-CTR.
  */

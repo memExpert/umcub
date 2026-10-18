@@ -3,7 +3,7 @@
 
 #include "umcub_cfg.h"
 
-/* The bootloader resets on a failed assertion (util/libc.c). */
+/* The bootloader resets on a failed assertion (src/util/libc.c). */
 #if defined(UMCUB_BUILDING_APP)
 void umcub_assert_fail(const char *file, int line);
 #else

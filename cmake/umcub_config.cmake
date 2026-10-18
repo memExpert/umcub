@@ -20,11 +20,11 @@ get_filename_component(UMCUB_ROOT "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
 set(UMCUB_LAYER_INCLUDES
   ${UMCUB_ROOT}/include
   ${UMCUB_ROOT}/port/include
-  ${UMCUB_ROOT}/util/include
-  ${UMCUB_ROOT}/image/include
-  ${UMCUB_ROOT}/image/mcuboot/include
-  ${UMCUB_ROOT}/transport/include
-  ${UMCUB_ROOT}/proto/include
+  ${UMCUB_ROOT}/src/util/include
+  ${UMCUB_ROOT}/src/image/include
+  ${UMCUB_ROOT}/src/image/mcuboot/include
+  ${UMCUB_ROOT}/src/transport/include
+  ${UMCUB_ROOT}/src/proto/include
 )
 
 function(_umcub_cpp out_var probe_file)

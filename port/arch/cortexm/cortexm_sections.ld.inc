@@ -1,7 +1,7 @@
 /*
  * Generic Cortex-M output sections (GNU ld), shared by every family template.
  * Expects memory regions FLASH and RAM; optional BOOTINFO for the bootloader.
- * Defines the symbols used by boot/startup.c and newlib.
+ * Defines the symbols used by src/boot/startup.c and newlib.
  */
 ENTRY(Reset_Handler)
 

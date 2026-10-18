@@ -3,12 +3,7 @@
 examples/*/build/
 __pycache__/
 *.pyc
-# Vendor documentation (ST copyright) - download from st.com
-manuals/
 # STM32Cube for VS Code local tool cache
 .settings/
 # Local tooling (IDE settings)
 .vscode/
-# Research notes and reports (local)
-research_notes/
-reports/

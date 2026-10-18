@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Host side of the umcub lite upload protocol (bootloaders built without SMP,
-UMCUB_CFG_LITE_UPLOAD; frames: proto/include/umcub_lite.h).
+UMCUB_CFG_LITE_UPLOAD; frames: src/proto/include/umcub_lite.h).
 
   umcub_lite.py --port /dev/ttyUSB0 upload app.signed.bin        into the primary slot (like SMP recovery)
   umcub_lite.py --port /dev/ttyUSB0 upload app.signed.bin --slot secondary --test --reset

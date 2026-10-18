@@ -32,7 +32,7 @@ int umcub_inspect_validate(int image, int slot, const struct flash_area *fa);
 /* SHA-256 of [off, off + len) of the slot; len 0 = whole stored image. */
 int umcub_inspect_hash(int image, int slot, uint32_t off, uint32_t len, uint8_t out[32], uint32_t *hashed_len);
 
-/* Implemented by the protocol layer (proto/mux.c): true while the request
+/* Implemented by the protocol layer (src/proto/mux.c): true while the request
  * being handled came over an encrypted umcub link session (SECURE +
  * UMCUB_CFG_LINK_ENCRYPT). With UMCUB_CFG_ENCRYPT_IMAGES, readback and
  * partial hashes of the (plain text) installed images need it. */

@@ -1,5 +1,5 @@
 /*
- * Boot state shared by the layers (util/state.c): handoff requests from the
+ * Boot state shared by the layers (src/util/state.c): handoff requests from the
  * application, last transport, node address on shared buses.
  */
 #ifndef UMCUB_STATE_H

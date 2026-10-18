@@ -12,7 +12,7 @@
  *  - responses go to the transport that sent the request;
  *  - a transport in umcub link mode (.link != UMCUB_LINK_PLAIN) carries only
  *    link frames: their DATA payloads (raw SMP or text) join the packet path,
- *    answers are wrapped by proto/link.c - stream transports included.
+ *    answers are wrapped by src/proto/link.c - stream transports included.
  * Without any SMP transport (USB DFU only, or none) boot_serial is not built
  * and umcub_recovery_run() drives the same loop itself.
  */
@@ -270,7 +270,7 @@ static bool nlip_start(const char *b, uint8_t c1, uint8_t c2)
 /* MCUMGR_PARAMETERS (os group 0, id 6, read): boot_serial answers ENOTSUP to
  * os commands it does not know and gives only other groups to the per-user
  * hook, so the request is renamed to the per-user group on its way in;
- * proto/smp_inspect.c answers it under its real name. Hosts (smpmgr) then
+ * src/proto/smp_inspect.c answers it under its real name. Hosts (smpmgr) then
  * size serial packets to the buffer. h: SMP header (op, flags, len[2],
  * group[2], seq, id). */
 static bool rename_params(uint8_t *h, size_t len)

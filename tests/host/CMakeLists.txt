@@ -52,21 +52,21 @@ function(umcub_host_variant name)
   add_executable(${t}
     test_main.c
     fake_port.c
-    ${UMCUB_ROOT}/proto/mux.c
-    ${UMCUB_ROOT}/transport/can/isotp.c
-    ${UMCUB_ROOT}/transport/net/net.c
-    ${UMCUB_ROOT}/transport/net/dhcp.c
-    ${UMCUB_ROOT}/util/log.c
-    ${UMCUB_ROOT}/proto/cmd.c
-    ${UMCUB_ROOT}/image/inspect.c
-    ${UMCUB_ROOT}/proto/smp_inspect.c
-    ${UMCUB_ROOT}/util/libc.c
-    ${UMCUB_ROOT}/util/codec.c
-    ${UMCUB_ROOT}/proto/smp_os.c
-    ${UMCUB_ROOT}/image/mcuboot/flash_map_backend.c
-    ${UMCUB_ROOT}/image/mcuboot/hooks.c
-    ${UMCUB_ROOT}/image/umcub.c
-    ${UMCUB_ROOT}/image/slot_writer.c
+    ${UMCUB_ROOT}/src/proto/mux.c
+    ${UMCUB_ROOT}/src/transport/can/isotp.c
+    ${UMCUB_ROOT}/src/transport/net/net.c
+    ${UMCUB_ROOT}/src/transport/net/dhcp.c
+    ${UMCUB_ROOT}/src/util/log.c
+    ${UMCUB_ROOT}/src/proto/cmd.c
+    ${UMCUB_ROOT}/src/image/inspect.c
+    ${UMCUB_ROOT}/src/proto/smp_inspect.c
+    ${UMCUB_ROOT}/src/util/libc.c
+    ${UMCUB_ROOT}/src/util/codec.c
+    ${UMCUB_ROOT}/src/proto/smp_os.c
+    ${UMCUB_ROOT}/src/image/mcuboot/flash_map_backend.c
+    ${UMCUB_ROOT}/src/image/mcuboot/hooks.c
+    ${UMCUB_ROOT}/src/image/umcub.c
+    ${UMCUB_ROOT}/src/image/slot_writer.c
     ${BOOTUTIL_SRCS}
     ${MCUBOOT}/boot/boot_serial/src/boot_serial.c
     ${MCUBOOT}/boot/boot_serial/src/zcbor_bulk.c
@@ -83,7 +83,7 @@ function(umcub_host_variant name)
   if(UMCUB_CFG_ENCRYPT_IMAGES)
     target_sources(${t} PRIVATE
       ${MCUBOOT}/boot/bootutil/src/encrypted.c
-      ${UMCUB_ROOT}/image/mcuboot/enc_image.c
+      ${UMCUB_ROOT}/src/image/mcuboot/enc_image.c
       ${TINYCRYPT}/source/ecc_dh.c
       ${TINYCRYPT}/source/hmac.c
       ${TINYCRYPT}/source/aes_encrypt.c
@@ -185,24 +185,24 @@ function(umcub_host_board)
   add_executable(${t}
     test_board.c
     fake_port.c
-    ${UMCUB_ROOT}/transport/registry.c
-    ${UMCUB_ROOT}/proto/mux.c
-    ${UMCUB_ROOT}/transport/can/can_transport.c
-    ${UMCUB_ROOT}/transport/can/isotp.c
-    ${UMCUB_ROOT}/transport/net/net_transport.c
-    ${UMCUB_ROOT}/transport/net/net.c
-    ${UMCUB_ROOT}/transport/net/dhcp.c
-    ${UMCUB_ROOT}/util/log.c
-    ${UMCUB_ROOT}/proto/cmd.c
-    ${UMCUB_ROOT}/image/inspect.c
-    ${UMCUB_ROOT}/proto/smp_inspect.c
-    ${UMCUB_ROOT}/util/libc.c
-    ${UMCUB_ROOT}/util/codec.c
-    ${UMCUB_ROOT}/proto/smp_os.c
-    ${UMCUB_ROOT}/image/mcuboot/flash_map_backend.c
-    ${UMCUB_ROOT}/image/mcuboot/hooks.c
-    ${UMCUB_ROOT}/image/umcub.c
-    ${UMCUB_ROOT}/image/slot_writer.c
+    ${UMCUB_ROOT}/src/transport/registry.c
+    ${UMCUB_ROOT}/src/proto/mux.c
+    ${UMCUB_ROOT}/src/transport/can/can_transport.c
+    ${UMCUB_ROOT}/src/transport/can/isotp.c
+    ${UMCUB_ROOT}/src/transport/net/net_transport.c
+    ${UMCUB_ROOT}/src/transport/net/net.c
+    ${UMCUB_ROOT}/src/transport/net/dhcp.c
+    ${UMCUB_ROOT}/src/util/log.c
+    ${UMCUB_ROOT}/src/proto/cmd.c
+    ${UMCUB_ROOT}/src/image/inspect.c
+    ${UMCUB_ROOT}/src/proto/smp_inspect.c
+    ${UMCUB_ROOT}/src/util/libc.c
+    ${UMCUB_ROOT}/src/util/codec.c
+    ${UMCUB_ROOT}/src/proto/smp_os.c
+    ${UMCUB_ROOT}/src/image/mcuboot/flash_map_backend.c
+    ${UMCUB_ROOT}/src/image/mcuboot/hooks.c
+    ${UMCUB_ROOT}/src/image/umcub.c
+    ${UMCUB_ROOT}/src/image/slot_writer.c
     ${BOOTUTIL_SRCS}
     ${MCUBOOT}/boot/boot_serial/src/boot_serial.c
     ${MCUBOOT}/boot/boot_serial/src/zcbor_bulk.c
@@ -251,22 +251,22 @@ function(umcub_host_link t src post)
   add_executable(${t}
     ${src}
     ${ARGN}
-    ${UMCUB_ROOT}/proto/link.c
-    ${UMCUB_ROOT}/proto/lite.c
-    ${UMCUB_ROOT}/util/random.c
+    ${UMCUB_ROOT}/src/proto/link.c
+    ${UMCUB_ROOT}/src/proto/lite.c
+    ${UMCUB_ROOT}/src/util/random.c
     fake_port.c
-    ${UMCUB_ROOT}/proto/mux.c
-    ${UMCUB_ROOT}/util/log.c
-    ${UMCUB_ROOT}/proto/cmd.c
-    ${UMCUB_ROOT}/image/inspect.c
-    ${UMCUB_ROOT}/proto/smp_inspect.c
-    ${UMCUB_ROOT}/util/libc.c
-    ${UMCUB_ROOT}/util/codec.c
-    ${UMCUB_ROOT}/proto/smp_os.c
-    ${UMCUB_ROOT}/image/mcuboot/flash_map_backend.c
-    ${UMCUB_ROOT}/image/mcuboot/hooks.c
-    ${UMCUB_ROOT}/image/umcub.c
-    ${UMCUB_ROOT}/image/slot_writer.c
+    ${UMCUB_ROOT}/src/proto/mux.c
+    ${UMCUB_ROOT}/src/util/log.c
+    ${UMCUB_ROOT}/src/proto/cmd.c
+    ${UMCUB_ROOT}/src/image/inspect.c
+    ${UMCUB_ROOT}/src/proto/smp_inspect.c
+    ${UMCUB_ROOT}/src/util/libc.c
+    ${UMCUB_ROOT}/src/util/codec.c
+    ${UMCUB_ROOT}/src/proto/smp_os.c
+    ${UMCUB_ROOT}/src/image/mcuboot/flash_map_backend.c
+    ${UMCUB_ROOT}/src/image/mcuboot/hooks.c
+    ${UMCUB_ROOT}/src/image/umcub.c
+    ${UMCUB_ROOT}/src/image/slot_writer.c
     ${BOOTUTIL_SRCS}
     ${MCUBOOT}/boot/boot_serial/src/boot_serial.c
     ${MCUBOOT}/boot/boot_serial/src/zcbor_bulk.c
@@ -309,7 +309,7 @@ endfunction()
 umcub_host_link(umcub_host_link test_link.c test_link_post.h)
 umcub_host_link(umcub_host_link_secure test_link_secure.c test_link_secure_post.h
   ${MCUBOOT}/boot/bootutil/src/encrypted.c
-  ${UMCUB_ROOT}/image/mcuboot/enc_image.c
+  ${UMCUB_ROOT}/src/image/mcuboot/enc_image.c
   ${CMAKE_BINARY_DIR}/umcub_enc_key.c
   ${TINYCRYPT}/source/ecc_dh.c
   ${TINYCRYPT}/source/hmac.c
@@ -323,16 +323,16 @@ umcub_host_link(umcub_host_link_secure test_link_secure.c test_link_secure_post.
 # SMP for tools/host/umcub_inspect.py; CAN (ISO-TP) for tools/host/smp_can.py.
 set(UMCUB_SIM 1)
 umcub_host_link(umcub_sim_plain sim_device.c sim_plain_post.h)
-umcub_host_link(umcub_sim_can sim_can.c sim_can_post.h ${UMCUB_ROOT}/transport/registry.c
-  ${UMCUB_ROOT}/transport/can/can_transport.c ${UMCUB_ROOT}/transport/can/isotp.c)
+umcub_host_link(umcub_sim_can sim_can.c sim_can_post.h ${UMCUB_ROOT}/src/transport/registry.c
+  ${UMCUB_ROOT}/src/transport/can/can_transport.c ${UMCUB_ROOT}/src/transport/can/isotp.c)
 # Without SMP: lite upload protocol (tools/host/umcub_lite.py) on a stream and on CAN.
 umcub_host_link(umcub_sim_lite sim_device.c sim_lite_post.h)
-umcub_host_link(umcub_sim_can_lite sim_can.c sim_can_lite_post.h ${UMCUB_ROOT}/transport/registry.c
-  ${UMCUB_ROOT}/transport/can/can_transport.c ${UMCUB_ROOT}/transport/can/isotp.c)
+umcub_host_link(umcub_sim_can_lite sim_can.c sim_can_lite_post.h ${UMCUB_ROOT}/src/transport/registry.c
+  ${UMCUB_ROOT}/src/transport/can/can_transport.c ${UMCUB_ROOT}/src/transport/can/isotp.c)
 umcub_host_link(umcub_sim_addressed sim_device.c test_link_post.h)
 umcub_host_link(umcub_sim_secure sim_device.c test_link_secure_post.h
   ${MCUBOOT}/boot/bootutil/src/encrypted.c
-  ${UMCUB_ROOT}/image/mcuboot/enc_image.c
+  ${UMCUB_ROOT}/src/image/mcuboot/enc_image.c
   ${CMAKE_BINARY_DIR}/umcub_enc_key.c
   ${TINYCRYPT}/source/ecc_dh.c
   ${TINYCRYPT}/source/hmac.c

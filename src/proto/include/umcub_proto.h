@@ -1,5 +1,5 @@
 /*
- * Protocol layer API (proto/mux.c): the recovery loop the boot core runs,
+ * Protocol layer API (src/proto/mux.c): the recovery loop the boot core runs,
  * and the board protocol hook.
  */
 #ifndef UMCUB_PROTO_H
@@ -11,7 +11,7 @@
 #include "umcub_transport.h"
 
 /* Command id in UMCUB_CFG_SMP_INSPECT_GROUP that stands in for
- * MCUMGR_PARAMETERS on its way through boot_serial (proto/mux.c). */
+ * MCUMGR_PARAMETERS on its way through boot_serial (src/proto/mux.c). */
 #define UMCUB_SMP_PARAMS_ID 0xFFu
 
 /* UMCUB_CFG_PROTO_USER: implemented by the board (boards/<b>/umcub_board.c).

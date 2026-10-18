@@ -4,7 +4,7 @@
  *   id 1 hash   {image, slot, off?, len?} -> {rc, sha: bstr[32], len}
  *   id 2 read   {image, slot, off, len}   -> {rc, off, data: bstr}   (UMCUB_CFG_READBACK)
  * rc: 0 ok, 3 EINVAL, 5 ENOENT (no image), 8 ENOTSUP. Host: tools/host/umcub_inspect.py.
- * UMCUB_CFG_SMP_PARAMS: also MCUMGR_PARAMETERS (os group, id 6, renamed by proto/mux.c)
+ * UMCUB_CFG_SMP_PARAMS: also MCUMGR_PARAMETERS (os group, id 6, renamed by src/proto/mux.c)
  *   -> {buf_size: UMCUB_CFG_SMP_MTU, buf_count: 1}.
  */
 #include <string.h>
@@ -53,7 +53,7 @@ int bs_peruser_system_specific(const struct nmgr_hdr *hdr, const char *buffer, i
     zcbor_map_start_encode(cs, 10);
 #if UMCUB_CFG_SMP_PARAMS
     if (hdr->nh_group == UMCUB_CFG_SMP_INSPECT_GROUP && hdr->nh_id == UMCUB_SMP_PARAMS_ID) {
-        /* MCUMGR_PARAMETERS, renamed by proto/mux.c on its way in: boot_serial
+        /* MCUMGR_PARAMETERS, renamed by src/proto/mux.c on its way in: boot_serial
          * answers with this header, so give it its name back. */
         struct nmgr_hdr *h = (struct nmgr_hdr *)hdr;
         h->nh_group = 0;

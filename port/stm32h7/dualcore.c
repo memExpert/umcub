@@ -2,7 +2,7 @@
  * STM32H745/H755/H747/H757 dual-core support (RM0399 §11 HSEM).
  *
  * UMCUB_DUALCORE_SINGLE_BOOT: both cores boot from the bootloader vector
- * table (BOOT_CM4_ADD0 = BOOT_CM7_ADD0). Reset_Handler (boot/startup.c)
+ * table (BOOT_CM4_ADD0 = BOOT_CM7_ADD0). Reset_Handler (src/boot/startup.c)
  * checks SCB->CPUID before any stack access and sends the CM4 to
  * umcub_port_core2_park() on its own stack: the CM4 parks in WFE until the CM7 publishes the CM4 image's
  * vector table in the handoff area and releases HSEM_SEM_CM4_GO.

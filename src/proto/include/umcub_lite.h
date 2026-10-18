@@ -1,6 +1,6 @@
 /*
- * Recovery frames next to SMP (proto/mux.c):
- *  - lite upload protocol (UMCUB_CFG_LITE_UPLOAD, proto/lite.c);
+ * Recovery frames next to SMP (src/proto/mux.c):
+ *  - lite upload protocol (UMCUB_CFG_LITE_UPLOAD, src/proto/lite.c);
  *  - the board's own protocol (UMCUB_CFG_PROTO_USER, umcub_proto_user()).
  *
  * Packet transports (CAN ISO-TP, UDP, board packet transports) and umcub link

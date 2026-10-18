@@ -2,7 +2,7 @@
 
 - serial (NLIP) framing for SMP over a stream: `nlip_encode()`, `NlipDecoder`
   (smp.packet, tolerant of log and text lines between frames);
-- the umcub inspection group (SMP group 100, proto/smp_inspect.c) as smpclient
+- the umcub inspection group (SMP group 100, src/proto/smp_inspect.c) as smpclient
   requests: `InspectVerify`, `InspectHash`, `InspectRead`;
 - `SMPIsoTpTransport`: an smpclient transport over CAN ISO-TP (python-can-isotp),
   with the umcub CAN IDs (base + node address), on `isotp_stack()` (also used
@@ -62,7 +62,7 @@ class NlipDecoder:
         return pkts
 
 
-# --- SMP group 100: slot inspection (proto/smp_inspect.c) --------------------
+# --- SMP group 100: slot inspection (src/proto/smp_inspect.c) --------------------
 
 @unique
 class InspectErr(IntEnum):

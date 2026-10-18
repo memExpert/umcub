@@ -43,19 +43,19 @@ typedef struct umcub_transport {
 
 /* Largest packet a packet transport on a umcub link receives: a link frame
  * (14-byte header + 16-byte tag) around a full SMP packet. Checked against
- * UMCUB_LINK_FRAME_MAX in proto/include/umcub_link.h. */
+ * UMCUB_LINK_FRAME_MAX in src/proto/include/umcub_link.h. */
 #define UMCUB_TRANSPORT_LINK_PACKET_MAX (14u + UMCUB_CFG_SMP_MTU + 16u)
 
 /* UMCUB_CFG_TRANSPORT_USER: defined by the board (boards/<b>/umcub_board.c),
  * no default - the build fails to link without it. */
 extern const umcub_transport_t umcub_transport_user;
 
-/* Registry (transport/registry.c): every transport enabled in umcub_config.h. */
+/* Registry (src/transport/registry.c): every transport enabled in umcub_config.h. */
 extern const umcub_transport_t *const umcub_transports[];
 extern const unsigned umcub_transport_count;
 
 /* Called by packet transports when a complete packet arrived; implemented by
- * the protocol layer (proto/mux.c). The buffer must stay valid until the call
+ * the protocol layer (src/proto/mux.c). The buffer must stay valid until the call
  * returns; returns false if the mux is busy (packet dropped, host will retry). */
 bool umcub_smp_packet_rx(const umcub_transport_t *t, const uint8_t *pkt, size_t len);
 

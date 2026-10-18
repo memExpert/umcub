@@ -53,7 +53,7 @@ target_include_directories(${UMCUB_APP_LIB}
     ${UMCUB_CONFIG_INCLUDES}
     ${UMCUB_FAMILY_INCLUDES}
     ${UMCUB_ROOT}/port/include
-    ${UMCUB_ROOT}/image/mcuboot/include
+    ${UMCUB_ROOT}/src/image/mcuboot/include
     ${MCUBOOT}/boot/bootutil/include
 )
 target_compile_definitions(${UMCUB_APP_LIB} PRIVATE ${UMCUB_CONFIG_DEFS})

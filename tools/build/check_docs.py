@@ -50,8 +50,8 @@ def main():
     need("CMake preset", [p["name"] for p in presets if not p.get("hidden")])
     need("tool", [p.name for p in (ROOT / "tools").rglob("*")
                   if p.suffix in (".py", ".sh") and "__pycache__" not in p.parts])
-    need("source directory", [f"{d}/" for d in ("include", "config", "port", "util", "image", "transport", "proto",
-                                                 "boot", "lib/umcub_app", "tests/configs")])
+    need("source directory", [f"{d}/" for d in ("include", "config", "port", "src", "lib/umcub_app", "tests/configs")]
+         + [f"  {d}/" for d in ("util", "image", "transport", "proto", "boot")])   # under src/ in the layout
 
     matrix = (ROOT / "tools/build/build_matrix.sh").read_text()
     block = matrix[matrix.index("configs=("):]

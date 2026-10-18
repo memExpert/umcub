@@ -251,7 +251,7 @@ UART bootloader is about 4.5 K smaller (F103: 16.7 K instead of 21.2 K, H7: 22.5
   Begin / data / end frames with a CRC, every frame answered, lost frames repeated; the image goes through the same
   slot writer as from the application (header check, test or permanent mark for the secondary slot, in-place
   decryption and validation of encrypted images in the primary slot). Frames are described in
-  [`proto/include/umcub_lite.h`](proto/include/umcub_lite.h); the host side is `tools/host/umcub_lite.py`:
+  [`src/proto/include/umcub_lite.h`](src/proto/include/umcub_lite.h); the host side is `tools/host/umcub_lite.py`:
 
   ```sh
   tools/host/umcub_lite.py --port /dev/ttyUSB0 upload app.signed.bin            # primary slot, like SMP recovery
@@ -365,7 +365,7 @@ on the bus could drive them. The umcub link puts an envelope around SMP and text
 Frames: magic, version, type, flags, destination, source, sequence number, length, payload, optional 16-byte tag.
 Packet transports (CAN ISO-TP, UDP, board packet transports) carry them as they are, stream transports (UART, USB
 CDC) as a line `0x05 0x0B <base64> \n`. The format and the handshake are described in
-[`proto/include/umcub_link.h`](proto/include/umcub_link.h). RS485 needs the driver-enable pin
+[`src/proto/include/umcub_link.h`](src/proto/include/umcub_link.h). RS485 needs the driver-enable pin
 (`UMCUB_CFG_UART_DE_PIN`; hardware DE on the H7, software on the F1) and no log on that UART. A 5 V transceiver
 (MAX485 and alike) does not drive the bus properly from 3.3 V: power it from 5 V and put its RO output on a
 5 V-tolerant RX pin, or use a 3.3 V part (MAX3485, SP3485).
@@ -673,7 +673,7 @@ config
 boards/<board>                         # the bootloader's umcub_config.h
 port/<family>/include                  # e.g. port/stm32h7/include
 port/include
-image/mcuboot/include
+src/image/mcuboot/include
 third_party/mcuboot/boot/bootutil/include
 ```
 
@@ -905,14 +905,15 @@ config/          L0  template, defaults, types, compile-time checks
 port/            L1  hardware: include/ (port API umcub_port*.h), arch/cortexm/ (SysTick, deinit, jump, waits,
                      common linker sections), arch/stm32/ (IWDG, UART receive ring: the same on every STM32),
                      port/stm32h7/, port/stm32f1/ (family ports + linker templates)
-util/            L2  log, random (CSPRNG), state (handoff RAM, node address), libc (snprintf, assert), crc16/base64,
-                     version, link keys (generated)
-image/           L3  image slots: inspect (verify/hash/read), slot writer + app API (shared with umcub::app),
+src/             the bootloader itself:
+  util/          L2  log, random (CSPRNG), state (handoff RAM, node address), libc (snprintf, assert), crc16/base64,
+                     byte order, version, link keys (generated)
+  image/         L3  image slots: inspect (verify/hash/read), slot writer + app API (shared with umcub::app),
                      mcuboot/ = MCUboot glue (mcuboot_config.h, flash map backend, hooks, image encryption, shims)
-transport/       L4  channels: uart, usb (tinyUSB CDC/DFU), can (ISO-TP), net (IPv4/UDP/DHCP), registry
-proto/           L5  mux (SMP, lite upload, board frames, recovery loop), umcub link, lite upload, text commands,
+  transport/     L4  channels: uart, usb (tinyUSB CDC/DFU), can (ISO-TP), net (IPv4/UDP/DHCP), registry
+  proto/         L5  mux (SMP, lite upload, board frames, recovery loop), umcub link, lite upload, text commands,
                      SMP inspection group
-boot/            L6  main (entry decision, boot_go, jump), startup, info block
+  boot/          L6  main (entry decision, boot_go, jump), startup, info block
 boards/          board configurations (umcub_config.h, optional umcub_board.c)
 lib/umcub_app/   application library (umcub::app); umcub_app_all.c = the whole library as one file for IDEs
 examples/        CM7 / CM4 applications for NUCLEO-H755ZI-Q, Blue Pill application
@@ -931,8 +932,9 @@ tests/tools/     helpers for the build matrix
 tests/boards/    build-matrix boards (custom_drivers: board drivers + board transport)
 ```
 
-Moved by the layer restructure (code written against the old tree): `lib/umcub_app/include` -> `include`,
-`mcuboot_port/include` -> `image/mcuboot/include` (IDE include list above); in board files `umcub_boot.h` ->
+Moved since (code written against an older tree): `boot/`, `image/`, `proto/`, `transport/`, `util/` -> `src/...`;
+by the layer restructure: `lib/umcub_app/include` -> `include`,
+`mcuboot_port/include` -> `src/image/mcuboot/include` (IDE include list above); in board files `umcub_boot.h` ->
 `umcub_state.h`, and `umcub_proto_user()` / `umcub_proto_reply()` are declared in `umcub_proto.h` instead of
 `umcub_transport.h`; config overlays `tools/config/<x>.h` -> `tests/configs/<group>/<x>.h`; host tools
 `tools/<x>.py` -> `tools/host/<x>.py`.

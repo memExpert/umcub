@@ -147,7 +147,7 @@ done
 # IDE integration (README "Using umcub from an IDE"): umcub_app_all.c with only
 # the documented include paths and the CMSIS CORE_CMx define, also with clang
 # (armclang in Keil MDK is clang based).
-ide_incs=(include config "boards/$BOARD" port/stm32h7/include port/include image/mcuboot/include
+ide_incs=(include config "boards/$BOARD" port/stm32h7/include port/include src/image/mcuboot/include
           third_party/mcuboot/boot/bootutil/include third_party/st/cmsis_device_h7/Include
           third_party/st/stm32h7xx_hal_driver/Inc third_party/cmsis_core/Include)
 ide_flags=(-Os -Wall -Wextra -Werror -Wno-unused-parameter -DSTM32H755xx -DCORE_CM7 "${ide_incs[@]/#/-I}" -c lib/umcub_app/umcub_app_all.c)

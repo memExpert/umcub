@@ -154,7 +154,7 @@ int umcub_port_entropy(uint8_t *buf, size_t len)
 
 /* tinycrypt's default RNG hook (ecc.c references it; gcc drops it with
  * --gc-sections, clang keeps the reference). Never called by tests without
- * the umcub link; util/random.c has the real one. */
+ * the umcub link; src/util/random.c has the real one. */
 __attribute__((weak)) int default_CSPRNG(uint8_t *dest, unsigned int size)
 {
     (void)dest;
@@ -162,7 +162,7 @@ __attribute__((weak)) int default_CSPRNG(uint8_t *dest, unsigned int size)
     return 0;
 }
 
-/* util/state.c is not part of the host tests: boot counter of random.c. */
+/* src/util/state.c is not part of the host tests: boot counter of random.c. */
 uint32_t umcub_handoff_boot_count(void)
 {
     return 1;

@@ -307,7 +307,7 @@
 /* Anything else (RS-485 with own framing, BLE module, W5500 UDP socket, ...):
  * boards/<b>/umcub_board.c defines
  *     const umcub_transport_t umcub_transport_user = { ... };
- * (transport/include/umcub_transport.h) - a stream (SMP serial framing) or a
+ * (src/transport/include/umcub_transport.h) - a stream (SMP serial framing) or a
  * packet transport (raw SMP packets). Polled with the built-in ones. */
 /* #define UMCUB_CFG_TRANSPORT_USER       0 */
 

@@ -22,8 +22,8 @@
 #include "boot_serial/boot_serial.h"
 #include "base64/base64.h"
 #include "crc/crc16.h"
-#include "../../transport/can/isotp.h"
-#include "../../transport/net/net.h"
+#include "../../src/transport/can/isotp.h"
+#include "../../src/transport/net/net.h"
 #include "umcub_cmd.h"
 #include "umcub_image_info.h"
 #include "sysflash/sysflash.h"
@@ -524,7 +524,7 @@ static void test_swap_revert_confirm(const uint8_t *v2, size_t v2_len)
 }
 
 /* An image signed with the right key but for another board type is never
- * installed (MCUboot image check hook, image/mcuboot/hooks.c). */
+ * installed (MCUboot image check hook, src/image/mcuboot/hooks.c). */
 static void test_board_type(const uint8_t *foreign, size_t len)
 {
 #if UMCUB_CFG_BOARD_TYPE == 0
