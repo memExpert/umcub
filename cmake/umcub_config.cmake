@@ -155,3 +155,36 @@ function(umcub_hex out_var value)
   math(EXPR _h "${value}" OUTPUT_FORMAT HEXADECIMAL)
   set(${out_var} "${_h}" PARENT_SCOPE)
 endfunction()
+
+# The configured pins against ST's pin data (tools/build/check_pins.py): a pin
+# without the signal / alternate function the option needs stops the
+# configuration. Bootloader builds only; the probe prints every pin as
+# "PIN '<port>' <num> <af>".
+function(umcub_check_pins)
+  set(_names UMCUB_CFG_TRANSPORT_UART UMCUB_CFG_UART_INSTANCE UMCUB_CFG_UART_TX_PIN UMCUB_CFG_UART_RX_PIN
+             UMCUB_CFG_UART_DE_PIN UMCUB_CFG_TRANSPORT_CAN UMCUB_CFG_CAN_DRIVER UMCUB_CFG_CAN_INSTANCE
+             UMCUB_CFG_CAN_TX_PIN UMCUB_CFG_CAN_RX_PIN UMCUB_CFG_TRANSPORT_ETH UMCUB_CFG_ETH_DRIVER
+             UMCUB_CFG_ETH_RMII_PINS)
+  set(_probe "#include \"umcub_cfg.h\"\n#undef UMCUB_PIN\n#define UMCUB_PIN(port, pin, af) PIN port pin af\n")
+  string(APPEND _probe "@@MCU \"${UMCUB_MCU}\"\n")
+  foreach(n IN LISTS _names)
+    string(APPEND _probe "@@ \"${n}\" ${n}\n")
+  endforeach()
+  set(_dir "${CMAKE_BINARY_DIR}/umcub_probe")
+  file(WRITE "${_dir}/pins.c" "${_probe}")
+  _umcub_cpp(_out "${_dir}/pins.c")
+  file(WRITE "${_dir}/pins.txt" "${_out}")
+  find_program(_py NAMES python3 python HINTS "${UMCUB_ROOT}/.venv/bin" NO_CACHE)
+  if(NOT _py)
+    message(STATUS "umcub: pin check skipped (no Python)")
+    return()
+  endif()
+  execute_process(COMMAND "${_py}" "${UMCUB_ROOT}/tools/build/check_pins.py" "${_dir}/pins.txt"
+                  OUTPUT_VARIABLE _msg ERROR_VARIABLE _err RESULT_VARIABLE _rc)
+  string(STRIP "${_msg}${_err}" _msg)
+  if(NOT _rc EQUAL 0)
+    message(FATAL_ERROR "${_msg}")
+  elseif(_msg)
+    message(STATUS "${_msg}")
+  endif()
+endfunction()

@@ -9,13 +9,21 @@
 
 #define PIN(port, num) UMCUB_PIN(port, num, 0)
 
+/* TX, RX, AFIO CAN_REMAP: the table below and the build-time check */
+#define MAPS(X)                                                                                         \
+    X(PIN('A', 12), PIN('A', 11), 0)                                                                    \
+    X(PIN('B', 9), PIN('B', 8), AFIO_MAPR_CAN_REMAP_REMAP2)                                             \
+    X(PIN('D', 1), PIN('D', 0), AFIO_MAPR_CAN_REMAP_REMAP3)     /* 100/144-pin packages only */
+
+#define CONFIGURED(tx, rx, remap) (UMCUB_CFG_CAN_TX_PIN == (tx) && UMCUB_CFG_CAN_RX_PIN == (rx)) ||
+_Static_assert(UMCUB_CFG_CAN_INSTANCE == 1 && (MAPS(CONFIGURED) 0),
+               "umcub: UMCUB_CFG_CAN_TX_PIN / _RX_PIN are not CAN1 pins (STM32F1: PA12/PA11, PB9/PB8 or PD1/PD0, "
+               "AF 0; UMCUB_CFG_CAN_INSTANCE 1)");
+
+#define ENTRY(tx, rx, remap) { tx, rx, remap },
 static const struct {
     uint32_t tx, rx, remap;
-} map[] = {
-    { PIN('A', 12), PIN('A', 11), 0 },
-    { PIN('B', 9), PIN('B', 8), AFIO_MAPR_CAN_REMAP_REMAP2 },
-    { PIN('D', 1), PIN('D', 0), AFIO_MAPR_CAN_REMAP_REMAP3 },    /* 100/144-pin packages only */
-};
+} map[] = { MAPS(ENTRY) };
 
 static const stm32_bxcan_t can1 = { CAN1, &RCC->APB1ENR, &RCC->APB1RSTR, RCC_APB1ENR_CAN1EN, &f1_pclk1_hz };
 

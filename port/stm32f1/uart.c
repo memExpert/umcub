@@ -17,19 +17,29 @@ static const stm32_usart_t usarts[] = {
     { USART3, &RCC->APB1ENR, &RCC->APB1RSTR, RCC_APB1ENR_USART3EN, &f1_pclk1_hz, USART3_IRQn },
 };
 
+/* instance, TX, RX, AFIO_MAPR field and value: the table below and the
+ * build-time check of the configured pins */
+#define MAPS(X)                                                                                         \
+    X(1, PIN('A', 9), PIN('A', 10), AFIO_MAPR_USART1_REMAP, 0)                                          \
+    X(1, PIN('B', 6), PIN('B', 7), AFIO_MAPR_USART1_REMAP, AFIO_MAPR_USART1_REMAP)                      \
+    X(2, PIN('A', 2), PIN('A', 3), AFIO_MAPR_USART2_REMAP, 0)                                           \
+    X(2, PIN('D', 5), PIN('D', 6), AFIO_MAPR_USART2_REMAP, AFIO_MAPR_USART2_REMAP)                      \
+    X(3, PIN('B', 10), PIN('B', 11), AFIO_MAPR_USART3_REMAP, 0)                                         \
+    X(3, PIN('C', 10), PIN('C', 11), AFIO_MAPR_USART3_REMAP, AFIO_MAPR_USART3_REMAP_PARTIALREMAP)       \
+    X(3, PIN('D', 8), PIN('D', 9), AFIO_MAPR_USART3_REMAP, AFIO_MAPR_USART3_REMAP_FULLREMAP)
+
+#define CONFIGURED(i, tx, rx, mask, val)                                                                \
+    (UMCUB_CFG_UART_INSTANCE == (i) && SAME_PIN(UMCUB_CFG_UART_TX_PIN, tx) && SAME_PIN(UMCUB_CFG_UART_RX_PIN, rx)) ||
+_Static_assert(MAPS(CONFIGURED) 0,
+               "umcub: UMCUB_CFG_UART_TX_PIN / _RX_PIN are not a pin pair of UMCUB_CFG_UART_INSTANCE (STM32F1: "
+               "USART1 PA9/PA10 or PB6/PB7, USART2 PA2/PA3 or PD5/PD6, USART3 PB10/PB11, PC10/PC11 or PD8/PD9)");
+
+#define ENTRY(i, tx, rx, mask, val) { i, tx, rx, mask, val },
 static const struct {
     uint8_t instance;
     uint32_t tx, rx;
     uint32_t remap_mask, remap_val;   /* AFIO_MAPR */
-} maps[] = {
-    { 1, PIN('A', 9), PIN('A', 10), AFIO_MAPR_USART1_REMAP, 0 },
-    { 1, PIN('B', 6), PIN('B', 7), AFIO_MAPR_USART1_REMAP, AFIO_MAPR_USART1_REMAP },
-    { 2, PIN('A', 2), PIN('A', 3), AFIO_MAPR_USART2_REMAP, 0 },
-    { 2, PIN('D', 5), PIN('D', 6), AFIO_MAPR_USART2_REMAP, AFIO_MAPR_USART2_REMAP },
-    { 3, PIN('B', 10), PIN('B', 11), AFIO_MAPR_USART3_REMAP, 0 },
-    { 3, PIN('C', 10), PIN('C', 11), AFIO_MAPR_USART3_REMAP, AFIO_MAPR_USART3_REMAP_PARTIALREMAP },
-    { 3, PIN('D', 8), PIN('D', 9), AFIO_MAPR_USART3_REMAP, AFIO_MAPR_USART3_REMAP_FULLREMAP },
-};
+} maps[] = { MAPS(ENTRY) };
 
 const stm32_usart_t *stm32_usart_get(const umcub_uart_cfg_t *cfg)
 {

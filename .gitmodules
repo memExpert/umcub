@@ -19,3 +19,7 @@
 [submodule "third_party/st/stm32f1xx_hal_driver"]
 	path = third_party/st/stm32f1xx_hal_driver
 	url = https://github.com/STMicroelectronics/stm32f1xx_hal_driver.git
+[submodule "third_party/st/stm32_open_pin_data"]
+	path = third_party/st/stm32_open_pin_data
+	url = https://github.com/STMicroelectronics/STM32_open_pin_data.git
+	shallow = true

@@ -32,6 +32,7 @@ set(UMCUB_IMGTOOL "" CACHE FILEPATH "imgtool executable (default: .venv/bin/imgt
 
 include(cmake/umcub_config.cmake)
 umcub_load_config("${UMCUB_BOARD}" "${UMCUB_CORE}")
+umcub_check_pins()
 get_filename_component(UMCUB_BOARD_NAME "${UMCUB_BOARD_DIR}" NAME)
 
 message(STATUS "umcub: board ${UMCUB_BOARD_NAME}, ${UMCUB_MCU} (${UMCUB_FAMILY}/${UMCUB_CORE}), "

@@ -825,7 +825,11 @@ Things that are easy to get wrong:
     power supply (`UMCUB_CFG_PWR_SUPPLY`): it can be set only once per power-up.
   - STM32F1: HSE of 8, 12 or 16 MHz, otherwise HSI.
 - **Pins.** Alternate-function numbers come from the datasheet of your part. F1 has no AF numbers: the remap is
-  chosen from the TX pin.
+  chosen from the TX pin. Both are checked when CMake configures the bootloader: UART (TX, RX, hardware DE), CAN
+  and Ethernet RMII pins against ST's pin data (`third_party/st/stm32_open_pin_data`, `tools/build/check_pins.py`:
+  a wrong pin or AF number stops the configuration and lists the pins that carry the signal), F1 pin pairs against
+  the port's remap tables. The pin data does not know your package: a pin the package does not bring out still
+  passes.
 - **RAM.** The handoff area (`UMCUB_CFG_SHARED_RAM_ADDR`, 256 bytes) must stay out of the application's RAM. The
   generated application linker scripts already exclude it.
 - **Image header.** `UMCUB_CFG_IMAGE_HEADER_SIZE` is also the offset of the application vector table: it must meet
@@ -933,7 +937,7 @@ tools/host/      host tools: umcub_image.py (slot addresses, signing for IDE pro
                  umcub_link.py, umcub_lite.py (lite upload), smp_can.py, app_upload.py, umcub_keys.py
                  (umcub link keys as C arrays), umcub_smp.py (SMP helpers of the host tools, on smp / smpclient)
 tools/build/     build_matrix.sh, size_table.py (size tables), check_docs.py (README consistency),
-                 check_layers.py (layering)
+                 check_layers.py (layering), check_pins.py (configured pins vs ST pin data, run by CMake)
 tools/hw/        bench (SWD through probe.py: STM32_Programmer_CLI or pyOCD): probe.py (flash / read / write /
                  erase / reset), h755_option_bytes.py, dhcp_server.py (DHCP server for one direct link),
                  powerfail_test.py, stack_usage.py, udev/
