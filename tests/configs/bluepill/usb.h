@@ -13,3 +13,9 @@
 
 #define UMCUB_CFG_TRANSPORT_USB_CDC     1
 #define UMCUB_CFG_TRANSPORT_USB_DFU     1
+
+/* No wait window: USB would attach for the window and vanish again on every
+ * boot, which some host controllers do not survive (the D+ pull-up is fixed).
+ * Recovery: request from the application or no valid image. */
+#undef UMCUB_CFG_ENTRY_WAIT_MS
+#define UMCUB_CFG_ENTRY_WAIT_MS         0

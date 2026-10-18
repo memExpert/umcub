@@ -101,6 +101,5 @@ const umcub_transport_t umcub_transport_usb = {
     .read = cdc_read,
     .write = cdc_write,
 #endif
-    .skip_entry_window = true,
     .link = UMCUB_CFG_USB_CDC_LINK,
 };

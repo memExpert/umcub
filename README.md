@@ -98,9 +98,10 @@ dfu-util -a 0 -D build/bluepill-usb/examples/bluepill_app/bluepill_app.signed.bi
 The F1 has no switchable D+ pull-up and the Blue Pill ties D+ to 3.3 V, so the board looks attached whenever it is
 powered, and a host would try to enumerate a device that does not answer. The STM32F1 port therefore drives D+ low
 (detached) from reset on, and whenever its USB is not running. That includes the application: an application that
-uses USB itself must make PA12 an input before enabling its USB peripheral. USB is not started for the 300 ms entry
-window, only in recovery mode. While a debugger holds the MCU in reset (`mode=UR`) D+ floats high again: flash with
-`mode=HOTPLUG`, or with the USB cable unplugged.
+uses USB itself must make PA12 an input before enabling its USB peripheral. The USB preset has no wait window
+(`UMCUB_CFG_ENTRY_WAIT_MS 0`): USB would attach and vanish again on every boot (see the option in the template).
+While a debugger holds the MCU in reset (`mode=UR`) D+ floats high again: flash with `mode=HOTPLUG`, or with the
+USB cable unplugged.
 
 CAN (bxCAN, classic CAN, ISO-TP like on the H7) on PB9 TX / PB8 RX with an external transceiver: overlay
 `tests/configs/bluepill/can.h` (+2.4 K, still in the 32 KiB region), host side `tools/host/smp_can.py`. Not together with
@@ -191,21 +192,21 @@ same core; check the real size after porting.
 | STM32H755 CM7 (2 images, SINGLE_BOOT) | 18.6 K | 54.9 K | +8.7 K | +11.2 K | +10.5 K | +13.1 K | +2.6 K | +2.6 K | +4.1 K | +10.8 K | +3.9 K |
 | STM32H755 CM4 (PER_CORE) | 16.2 K | 52.1 K | +8.5 K | +11.2 K | +10.5 K | +13.1 K | +2.6 K | +2.6 K | +4.1 K | +10.8 K | +3.9 K |
 | STM32H743 / H753 (single core) | 16.9 K | 52.8 K | +8.5 K | +11.2 K | +10.5 K | +13.1 K | +2.6 K | +2.6 K | +4.1 K | +10.8 K | +3.9 K |
-| STM32F103 (Blue Pill, overwrite) | 12.7 K | 38.8 K | +8.6 K | +9.8 K | +9.0 K | +11.6 K | +2.4 K | — | — | +9.5 K | +4.0 K |
+| STM32F103 (Blue Pill, overwrite) | 12.6 K | 38.6 K | +8.6 K | +9.8 K | +9.0 K | +11.6 K | +2.3 K | — | — | +9.5 K | +3.9 K |
 
 | MCU | log (level 3) | text commands | verify + hash | readback | umcub link (addressed) | umcub link SECURE | + link encryption | encrypted images |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
 | STM32H755 CM7 (2 images, SINGLE_BOOT) | +3.7 K | +2.2 K | +1.2 K | +0.2 K | +1.9 K | +4.8 K | +1.5 K | +7.2 K |
 | STM32H755 CM4 (PER_CORE) | +3.5 K | +2.2 K | +1.1 K | +0.2 K | +1.9 K | +4.8 K | +1.5 K | +6.5 K |
 | STM32H743 / H753 (single core) | +3.5 K | +2.2 K | +1.1 K | +0.2 K | +1.9 K | +4.8 K | +1.5 K | +6.7 K |
-| STM32F103 (Blue Pill, overwrite) | +3.2 K | +2.0 K | +1.1 K | +0.2 K | +1.9 K | +4.8 K | +1.5 K | +6.3 K |
+| STM32F103 (Blue Pill, overwrite) | +3.1 K | +2.0 K | +1.1 K | +0.2 K | +1.8 K | +4.8 K | +1.5 K | +6.3 K |
 
 | Flash layout | UART, lite (no SMP) | UART | UART + USB CDC | UART + USB CDC + DFU | UART + CAN | UART + Ethernet | UART, link SECURE | all on |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
 | STM32H7 (128 KiB sectors) | 1 (22.5 K) | 1 (27.2 K) | 1 (38.4 K) | 1 (40.4 K) | 1 (29.8 K) | 1 (31.3 K) | 1 (32.0 K) | 1 (54.9 K) |
 | STM32F2 / F4, F72x / F73x (16, 16, 16, 16, 64, 128 KiB ...) — estimate: Cortex-M4 build | 2 (20.1 K) | 2 (24.6 K) | 3 (35.8 K) | 3 (37.8 K) | 2 (27.2 K) | 2 (28.7 K) | 2 (29.4 K) | 4 (52.1 K) > 3 |
 | STM32F74x ... F77x (32, 32, 32, 32, 128, 256 KiB ...) — estimate: Cortex-M7 build | 1 (22.5 K) | 1 (27.2 K) | 2 (38.4 K) | 2 (40.4 K) | 1 (29.8 K) | 1 (31.3 K) | 2 (32.0 K) | 2 (54.9 K) |
-| STM32F1 (1 / 2 KiB pages) | 16.7 K | 21.3 K | 31.1 K | 33.0 K | 23.7 K | — | 26.1 K | 38.8 K |
+| STM32F1 (1 / 2 KiB pages) | 16.5 K | 21.2 K | 30.9 K | 32.8 K | 23.5 K | — | 26.0 K | 38.6 K |
 | STM32G4 / L4 (2 KiB pages) — estimate: Cortex-M4 build | 20.1 K | 24.6 K | 35.8 K | 37.8 K | 27.2 K | 28.7 K | 29.4 K | 52.1 K |
 
 | MCU, with LTO | base | UART (+SMP) | UART, lite upload (no SMP) | all on |
@@ -213,7 +214,7 @@ same core; check the real size after porting.
 | STM32H755 CM7 (2 images, SINGLE_BOOT) | 15.5 K (-3.0 K) | 23.4 K (-3.8 K) | 19.2 K (-3.3 K) | 48.9 K (-6.0 K) |
 | STM32H755 CM4 (PER_CORE) | 13.2 K (-3.0 K) | 20.7 K (-3.9 K) | 16.8 K (-3.3 K) | 45.9 K (-6.1 K) |
 | STM32H743 / H753 (single core) | 13.9 K (-3.0 K) | 21.4 K (-3.9 K) | 17.5 K (-3.3 K) | 46.6 K (-6.2 K) |
-| STM32F103 (Blue Pill, overwrite) | 10.1 K (-2.6 K) | 17.5 K (-3.8 K) | 13.6 K (-3.0 K) | 33.7 K (-5.2 K) |
+| STM32F103 (Blue Pill, overwrite) | 10.1 K (-2.5 K) | 17.5 K (-3.7 K) | 13.6 K (-3.0 K) | 33.5 K (-5.1 K) |
 <!-- size-table:end -->
 
 Notes:
@@ -298,8 +299,9 @@ a few lines of host code:
 | `UMCUB_CMD_VERIFY` / `HASH` / `READ` | slot inspection, see below |
 | `UMCUB_CMD_USER(n)` | calls `bool umcub_cmd_user(unsigned n, const char *text, umcub_cmd_reply_t reply)`; define it in `boards/<board>/umcub_board.c`, which is added to the build automatically |
 
-- Commands are accepted in recovery mode and, over every transport except USB, during the `UMCUB_CFG_ENTRY_WAIT_MS` window (e.g. 300 ms: "press `b`
-  right after reset to stay in the bootloader").
+- Commands are accepted in recovery mode and, over every enabled transport, during the `UMCUB_CFG_ENTRY_WAIT_MS`
+  window (e.g. 300 ms: "press `b` right after reset to stay in the bootloader"). Choose the window for the slowest
+  transport you want to use: Ethernet and USB need seconds (link, DHCP, enumeration); see the option in the template.
 - UART and USB CDC: typed text. A command is recognised only at the start of a line; a command that is the beginning
   of another one (`r` / `read`) waits for Enter; an unknown line is answered with `? text` after Enter.
 - UDP and CAN: a packet that is not an SMP frame is a command; the reply comes back as one packet

@@ -114,7 +114,15 @@
 /* #define UMCUB_CFG_ENTRY_GPIO_PIN       UMCUB_PIN('C', 13, 0) */
 /* #define UMCUB_CFG_ENTRY_GPIO_ACTIVE    1 */
 /* #define UMCUB_CFG_ENTRY_GPIO_PULL      UMCUB_PULL_NONE */
-/* Listen for an SMP request this long on every boot (0 = don't wait). */
+/* Listen this long on every boot for an SMP request or a text command such as
+ * "b" before starting the application (0 = don't wait). Every enabled
+ * transport listens and is switched off again after the window, so pick the
+ * length for the slowest one you want to use: UART / CAN answer at once;
+ * Ethernet needs the link (~2 s) and a DHCP lease (or a static address);
+ * USB needs the host to enumerate and open the device (seconds). USB attaches
+ * and detaches on every boot then, and a device that vanishes in the middle
+ * of enumeration upsets some host controllers: with USB, prefer 0 or a window
+ * of several seconds. Each boot is delayed by the window. */
 /* #define UMCUB_CFG_ENTRY_WAIT_MS        0 */
 /* Leave recovery mode (reset) after this much inactivity (0 = never). */
 /* #define UMCUB_CFG_RECOVERY_TIMEOUT_MS  0 */
