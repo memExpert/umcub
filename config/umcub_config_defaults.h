@@ -6,6 +6,11 @@
 #ifndef UMCUB_CONFIG_DEFAULTS_H
 #define UMCUB_CONFIG_DEFAULTS_H
 
+/* Family value a port may override in umcub_family_defaults.h. */
+#ifndef UMCUB_FAMILY_ERASED_VAL
+#define UMCUB_FAMILY_ERASED_VAL         0xFF
+#endif
+
 /* --- target -------------------------------------------------------------- */
 #ifndef UMCUB_CFG_DUALCORE_MODE
 #define UMCUB_CFG_DUALCORE_MODE         UMCUB_DUALCORE_NONE

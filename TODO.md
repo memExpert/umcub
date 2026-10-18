@@ -71,8 +71,6 @@ Behaviour / security trade-offs (as options):
 - [ ] mux: release the stream lock on any `\n` in boot_serial's output, not only a separate 1-byte write.
 
 Config / API cleanup:
-- [ ] `umcub_flash_write_align()` / `umcub_flash_erased_val()` return constants: use `UMCUB_FAMILY_WRITE_ALIGN` and
-  0xFF.
 - [ ] hooks.c re-implements MCUboot's `MUST_DECRYPT` test (`vector_ok`).
 
 Tooling speed:

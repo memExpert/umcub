@@ -100,16 +100,6 @@ static int wait_done(const struct bank *b, uint32_t timeout_ms)
     return (sr & (SR_ERRORS & ~FLASH_SR_SNECCERR)) ? UMCUB_EIO : UMCUB_OK;
 }
 
-uint32_t umcub_flash_write_align(void)
-{
-    return FLASH_WORD;
-}
-
-uint8_t umcub_flash_erased_val(void)
-{
-    return 0xFF;
-}
-
 int umcub_flash_sector_info(uint32_t addr, uint32_t *start, uint32_t *size)
 {
     if (!in_flash(addr, 1) || addr == FLASH_END_ADDR) {

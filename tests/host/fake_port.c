@@ -73,8 +73,6 @@ static int range(uint32_t addr, size_t len)
     return addr >= BASE && addr - BASE <= SIZE && len <= SIZE - (addr - BASE);
 }
 
-uint32_t umcub_flash_write_align(void) { return WORD; }
-uint8_t umcub_flash_erased_val(void) { return 0xFF; }
 
 int umcub_flash_sector_info(uint32_t addr, uint32_t *start, uint32_t *size)
 {

@@ -100,9 +100,8 @@ int umcub_port_rdp_level(void);
 /* Internal flash. Addresses are absolute.                                   */
 /* ------------------------------------------------------------------------ */
 
-/* Program unit in bytes (writes must be aligned and a multiple of it). */
-uint32_t umcub_flash_write_align(void);
-uint8_t umcub_flash_erased_val(void);
+/* Program unit: UMCUB_FAMILY_WRITE_ALIGN bytes (writes aligned and a multiple
+ * of it); erased flash reads UMCUB_FAMILY_ERASED_VAL (umcub_family_defaults.h). */
 
 /* Sector containing `addr`. Returns UMCUB_EINVAL if outside flash. */
 int umcub_flash_sector_info(uint32_t addr, uint32_t *start, uint32_t *size);

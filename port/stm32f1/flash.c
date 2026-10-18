@@ -59,16 +59,6 @@ static int wait_done(uint32_t timeout_ms)
     return (sr & SR_ERRORS) ? UMCUB_EIO : UMCUB_OK;
 }
 
-uint32_t umcub_flash_write_align(void)
-{
-    return WRITE_ALIGN;
-}
-
-uint8_t umcub_flash_erased_val(void)
-{
-    return 0xFF;
-}
-
 int umcub_flash_sector_info(uint32_t addr, uint32_t *start, uint32_t *size)
 {
     if (!in_flash(addr, 1) || addr == flash_end()) {

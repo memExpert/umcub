@@ -85,13 +85,13 @@ int flash_area_erase(const struct flash_area *fa, uint32_t off, uint32_t len)
 uint32_t flash_area_align(const struct flash_area *fa)
 {
     (void)fa;
-    return umcub_flash_write_align();
+    return UMCUB_FAMILY_WRITE_ALIGN;
 }
 
 uint8_t flash_area_erased_val(const struct flash_area *fa)
 {
     (void)fa;
-    return umcub_flash_erased_val();
+    return UMCUB_FAMILY_ERASED_VAL;
 }
 
 int flash_area_get_sector(const struct flash_area *fa, off_t off, struct flash_sector *fs)

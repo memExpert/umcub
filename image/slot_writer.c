@@ -13,6 +13,9 @@
 #include "bootutil/image.h"
 #include "flash_map_backend/flash_map_backend.h"
 
+_Static_assert(UMCUB_FAMILY_WRITE_ALIGN <= sizeof(((umcub_slot_writer_t *)0)->buf),
+               "flash program unit larger than the slot writer buffer");
+
 int umcub_mark_slot(int image, int slot, bool permanent);
 #ifdef UMCUB_BUILDING_APP
 void umcub_note_app_update(void);
@@ -109,7 +112,7 @@ int umcub_slot_begin(umcub_slot_writer_t *w, int image, int slot, uint32_t total
         return UMCUB_EBUSY;
     }
 #endif
-    if (total_size > fa->fa_size || umcub_flash_write_align() > sizeof(w->buf)) {
+    if (total_size > fa->fa_size) {
         return UMCUB_EINVAL;
     }
     w->base = fa->fa_off;
@@ -175,7 +178,7 @@ static int program(umcub_slot_writer_t *w, uint32_t off, const uint8_t *data, ui
 int umcub_slot_write(umcub_slot_writer_t *w, const void *data, size_t len)
 {
     const uint8_t *p = data;
-    uint32_t align = umcub_flash_write_align();
+    const uint32_t align = UMCUB_FAMILY_WRITE_ALIGN;
     if (!w->size || w->off + w->buf_len + len > w->size) {
         return UMCUB_EINVAL;
     }
@@ -213,12 +216,12 @@ int umcub_slot_write(umcub_slot_writer_t *w, const void *data, size_t len)
 
 int umcub_slot_finish(umcub_slot_writer_t *w, bool request_upgrade, bool permanent)
 {
-    uint32_t align = umcub_flash_write_align();
+    const uint32_t align = UMCUB_FAMILY_WRITE_ALIGN;
     if (!w->size) {
         return UMCUB_EINVAL;
     }
     if (w->buf_len) {
-        memset(&w->buf[w->buf_len], umcub_flash_erased_val(), align - w->buf_len);
+        memset(&w->buf[w->buf_len], UMCUB_FAMILY_ERASED_VAL, align - w->buf_len);
         int rc = program(w, w->off, w->buf, align);
         if (rc) {
             return rc;
