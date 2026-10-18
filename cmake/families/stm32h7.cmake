@@ -55,7 +55,7 @@ set(UMCUB_FAMILY_BOOT_SOURCES
 set(UMCUB_FAMILY_UART_SOURCES ${UMCUB_FAMILY_DIR}/uart.c ${UMCUB_ROOT}/port/arch/stm32/usart_v2.c)
 # Nonces / random back-off (umcub link).
 set(UMCUB_FAMILY_ENTROPY_SOURCES ${UMCUB_FAMILY_DIR}/entropy.c)
-set(UMCUB_FAMILY_CAN_SOURCES  ${UMCUB_FAMILY_DIR}/fdcan.c)
+set(UMCUB_FAMILY_CAN_SOURCES  ${UMCUB_FAMILY_DIR}/can.c ${UMCUB_ROOT}/port/arch/stm32/fdcan.c)
 set(UMCUB_FAMILY_ETH_SOURCES  ${UMCUB_FAMILY_DIR}/eth.c)
 set(UMCUB_FAMILY_USB_SOURCES  ${UMCUB_FAMILY_DIR}/usb.c)
 # tinyUSB device controller driver + MCU option for tusb_config.h

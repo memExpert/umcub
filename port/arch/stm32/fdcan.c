@@ -1,25 +1,51 @@
 /*
- * STM32H7 port: FDCAN (Bosch M_CAN) polled driver (RM0399 §56).
- *
- * Message RAM layout (word offsets from SRAMCAN_BASE, FDCAN1 only):
+ * FDCAN (Bosch M_CAN) driver (umcub_port_can_*), polled, classic CAN and CAN
+ * FD with bit rate switch, register level; the controller comes from the
+ * family (stm32_fdcan_get()), the message RAM layout from the part.
+ * One id filter passes cfg->rx_id into RX FIFO 0.
+ */
+#include <string.h>
+#include "umcub_cfg.h"
+#include "umcub_port.h"
+#include "umcub_port_can.h"
+#include "stm32_fdcan.h"
+#include "stm32_common.h"
+
+#define RAM_WORDS(off)  ((volatile uint32_t *)(SRAMCAN_BASE + (off) * 4u))
+#define ELEM_WORDS      18u    /* RX / TX element with a 64-byte data field */
+
+#if defined(FDCAN_SIDFC_FLSSA)
+/* Configurable message RAM (H7), word offsets from SRAMCAN_BASE (FDCAN1 only):
  *   0      1 standard filter
  *   1      1 extended filter (2 words)
  *   4      RX FIFO 0, 8 elements x 18 words (64-byte data field)
- *   148    TX FIFO,   4 elements x 18 words
- */
-#include <string.h>
-#include "h7.h"
-#include "umcub_port_can.h"
-
-#define RAM_WORDS(off)  ((volatile uint32_t *)(SRAMCAN_BASE + (off) * 4u))
+ *   148    TX FIFO,   4 elements x 18 words */
 #define OFF_SFLT        0u
 #define OFF_XFLT        1u
 #define OFF_RXF0        4u
 #define OFF_TXF         148u
-#define ELEM_WORDS      18u
 #define RXF0_N          8u
 #define TXF_N           4u
 #define DS_64           7u     /* data field size code: 64 bytes */
+
+static void ram_layout(FDCAN_GlobalTypeDef *can)
+{
+    memset((void *)RAM_WORDS(0), 0, (OFF_TXF + TXF_N * ELEM_WORDS) * 4u);
+    can->SIDFC = ((OFF_SFLT * 4u) & FDCAN_SIDFC_FLSSA) | (1u << FDCAN_SIDFC_LSS_Pos);
+    can->XIDFC = ((OFF_XFLT * 4u) & FDCAN_XIDFC_FLESA) | (1u << FDCAN_XIDFC_LSE_Pos);
+    can->RXF0C = ((OFF_RXF0 * 4u) & FDCAN_RXF0C_F0SA) | (RXF0_N << FDCAN_RXF0C_F0S_Pos);
+    can->RXF1C = 0;
+    can->RXBC = 0;
+    can->RXESC = DS_64 << FDCAN_RXESC_F0DS_Pos;
+    can->TXEFC = 0;
+    can->TXBC = ((OFF_TXF * 4u) & FDCAN_TXBC_TBSA) | (TXF_N << FDCAN_TXBC_TFQS_Pos);
+    can->TXESC = DS_64 << FDCAN_TXESC_TBDS_Pos;
+    /* frames no filter accepts: rejected */
+    can->GFC = (2u << FDCAN_GFC_ANFS_Pos) | (2u << FDCAN_GFC_ANFE_Pos) | FDCAN_GFC_RRFS | FDCAN_GFC_RRFE;
+}
+#else
+#error "FDCAN: message RAM layout of this part not described yet (fixed layout, e.g. G4: RXGFC)"
+#endif
 
 static FDCAN_GlobalTypeDef *can;
 static umcub_can_cfg_t cfg;
@@ -63,20 +89,17 @@ static bool timing(uint32_t clk, uint32_t bitrate, uint32_t max_brp, uint32_t ma
 
 int umcub_port_can_init(const umcub_can_cfg_t *c)
 {
-    if (c->instance != 1) {
-        return UMCUB_EINVAL;    /* FDCAN2 shares the message RAM: not wired up yet */
+    const stm32_fdcan_t *f = stm32_fdcan_get(c);
+    if (!f) {
+        return UMCUB_EINVAL;
     }
-    if (!h7_pll1q_hz) {
+    uint32_t clk = *f->clock_hz;
+    if (!clk) {
         return UMCUB_EIO;
     }
     cfg = *c;
-    can = FDCAN1;
-
-    MODIFY_REG(RCC->D2CCIP1R, RCC_D2CCIP1R_FDCANSEL, 1u << RCC_D2CCIP1R_FDCANSEL_Pos);   /* PLL1Q */
-    umcub_cm_periph_on(&RCC->APB1HENR, &RCC->APB1HRSTR, RCC_APB1HENR_FDCANEN);
-
-    umcub_port_gpio_af(c->tx_pin);
-    umcub_port_gpio_af(c->rx_pin);
+    can = f->regs;
+    umcub_cm_periph_on(f->enr, f->rstr, f->bit);
 
     CLEAR_BIT(can->CCCR, FDCAN_CCCR_CSR);
     (void)umcub_cm_wait(&can->CCCR, FDCAN_CCCR_CSA, 0, 10);
@@ -100,13 +123,13 @@ int umcub_port_can_init(const umcub_can_cfg_t *c)
     }
 
     uint32_t brp, s1, s2;
-    if (!timing(h7_pll1q_hz, c->bitrate, 512, 385, 256, 128, 875, &brp, &s1, &s2)) {
+    if (!timing(clk, c->bitrate, 512, 385, 256, 128, 875, &brp, &s1, &s2)) {
         return UMCUB_EINVAL;
     }
     can->NBTP = ((s2 - 1u) << FDCAN_NBTP_NSJW_Pos) | ((brp - 1u) << FDCAN_NBTP_NBRP_Pos) |
                 ((s1 - 1u) << FDCAN_NBTP_NTSEG1_Pos) | ((s2 - 1u) << FDCAN_NBTP_NTSEG2_Pos);
     if (c->fd) {
-        if (!timing(h7_pll1q_hz, c->data_bitrate, 32, 49, 32, 16, 750, &brp, &s1, &s2)) {
+        if (!timing(clk, c->data_bitrate, 32, 49, 32, 16, 750, &brp, &s1, &s2)) {
             return UMCUB_EINVAL;
         }
         can->DBTP = ((s2 - 1u) << FDCAN_DBTP_DSJW_Pos) | ((brp - 1u) << FDCAN_DBTP_DBRP_Pos) |
@@ -117,18 +140,7 @@ int umcub_port_can_init(const umcub_can_cfg_t *c)
         }
     }
 
-    /* Message RAM */
-    memset((void *)RAM_WORDS(0), 0, (OFF_TXF + TXF_N * ELEM_WORDS) * 4u);
-    can->SIDFC = ((OFF_SFLT * 4u) & FDCAN_SIDFC_FLSSA) | (1u << FDCAN_SIDFC_LSS_Pos);
-    can->XIDFC = ((OFF_XFLT * 4u) & FDCAN_XIDFC_FLESA) | (1u << FDCAN_XIDFC_LSE_Pos);
-    can->RXF0C = ((OFF_RXF0 * 4u) & FDCAN_RXF0C_F0SA) | (RXF0_N << FDCAN_RXF0C_F0S_Pos);
-    can->RXF1C = 0;
-    can->RXBC = 0;
-    can->RXESC = DS_64 << FDCAN_RXESC_F0DS_Pos;
-    can->TXEFC = 0;
-    can->TXBC = ((OFF_TXF * 4u) & FDCAN_TXBC_TBSA) | (TXF_N << FDCAN_TXBC_TFQS_Pos);
-    can->TXESC = DS_64 << FDCAN_TXESC_TBDS_Pos;
-
+    ram_layout(can);
     /* One classic id/mask filter to RX FIFO 0, everything else rejected. */
     if (c->ext) {
         RAM_WORDS(OFF_XFLT)[0] = (1u << 29) | (c->rx_id & 0x1FFFFFFFu);
@@ -136,7 +148,6 @@ int umcub_port_can_init(const umcub_can_cfg_t *c)
     } else {
         RAM_WORDS(OFF_SFLT)[0] = (2u << 30) | (1u << 27) | ((c->rx_id & 0x7FFu) << 16) | 0x7FFu;
     }
-    can->GFC = (2u << FDCAN_GFC_ANFS_Pos) | (2u << FDCAN_GFC_ANFE_Pos) | FDCAN_GFC_RRFS | FDCAN_GFC_RRFE;
     can->IE = 0;
     can->ILE = 0;
 

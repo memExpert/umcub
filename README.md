@@ -211,7 +211,7 @@ same core; check the real size after porting.
 
 | MCU, with LTO | base | UART (+SMP) | UART, lite upload (no SMP) | all on |
 |---|---:|---:|---:|---:|
-| STM32H755 CM7 (2 images, SINGLE_BOOT) | 15.5 K (-3.0 K) | 23.2 K (-4.0 K) | 19.0 K (-3.4 K) | 48.9 K (-6.2 K) |
+| STM32H755 CM7 (2 images, SINGLE_BOOT) | 15.5 K (-3.0 K) | 23.2 K (-4.0 K) | 19.0 K (-3.4 K) | 48.9 K (-6.3 K) |
 | STM32H755 CM4 (PER_CORE) | 13.2 K (-3.0 K) | 20.5 K (-4.1 K) | 16.6 K (-3.4 K) | 45.9 K (-6.4 K) |
 | STM32H743 / H753 (single core) | 13.9 K (-3.0 K) | 21.2 K (-4.1 K) | 17.3 K (-3.4 K) | 46.7 K (-6.4 K) |
 | STM32F103 (Blue Pill, overwrite) | 10.1 K (-2.5 K) | 17.2 K (-4.0 K) | 13.3 K (-3.2 K) | 33.3 K (-5.3 K) |
@@ -851,7 +851,10 @@ Things that are easy to get wrong:
    `usart_v1.c` (SR/DR: F1, F2, F4, L1) to the family's sources and give `stm32_usart_get()` (the instance's
    registers, IRQ, clock bit and kernel clock, its TX / RX pins set up) plus the vectors calling `stm32_usart_isr()`
    (see `port/stm32h7/uart.c`, `port/stm32f1/uart.c`). bxCAN (classic CAN: F1, F2, F4, F7, L4, F0, F3): add
-   `bxcan.c` and give `stm32_bxcan_get()` (CAN1 with its pins set up, see `port/stm32f1/can.c`).
+   `bxcan.c` and give `stm32_bxcan_get()` (CAN1 with its pins set up, see `port/stm32f1/can.c`). FDCAN (H7, G4,
+   H5, U5, L5): add `fdcan.c` and give `stm32_fdcan_get()` (controller, kernel clock selected, pins set up, see
+   `port/stm32h7/can.c`); the message RAM layout comes from the device header (H7: configurable; a part with the
+   fixed layout, e.g. G4, needs its branch in `fdcan.c`).
 3. `boards/<board>/umcub_config.h` (and optionally `umcub_board.c`).
 4. Add the new configuration to `tools/build/build_matrix.sh`.
 
@@ -909,7 +912,7 @@ include/         L0  ABI shared with the application: umcub.h (app API), umcub_h
 config/          L0  template, defaults, types, compile-time checks
 port/            L1  hardware: include/ (port API umcub_port*.h), arch/cortexm/ (SysTick, deinit, jump, waits,
                      common linker sections), arch/stm32/ (drivers of ST peripherals that several series share: USART v1
-                     and v2, bxCAN; IWDG, UART rings),
+                     and v2, bxCAN, FDCAN; IWDG, UART rings),
                      port/stm32h7/, port/stm32f1/ (family ports + linker templates)
 src/             the bootloader itself:
   util/          L2  log, random (CSPRNG), state (handoff RAM, node address), libc (snprintf, assert), crc16/base64,
