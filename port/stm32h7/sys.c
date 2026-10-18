@@ -113,26 +113,12 @@ void umcub_port_deinit(void)
 
 void umcub_port_wdg_start(uint32_t timeout_ms)
 {
-    /* prescaler /256 -> 125 Hz -> 8 ms per count, max 4095 counts (32.7 s) */
-    uint32_t reload = timeout_ms / 8u;
-    if (reload == 0) {
-        reload = 1;
-    } else if (reload > 0xFFFu) {
-        reload = 0xFFFu;
-    }
-    IWDG_INST->KR = 0xCCCC;
-    IWDG_INST->KR = 0x5555;
-    IWDG_INST->PR = 6;
-    IWDG_INST->RLR = reload;
-    (void)umcub_cm_wait(&IWDG_INST->SR, 0x7u, 0, 100);
-    IWDG_INST->KR = 0xAAAA;
+    stm32_iwdg_start(IWDG_INST, 32000u, timeout_ms);   /* 8 ms per count, max 32.7 s */
 }
 
 void umcub_port_wdg_feed(void)
 {
-    /* Always: the IWDG may run without UMCUB_CFG_WATCHDOG_MS (hardware
-     * watchdog option byte IWDGx_SW = 0). Reloading a stopped IWDG is a no-op. */
-    IWDG_INST->KR = 0xAAAA;
+    stm32_iwdg_feed(IWDG_INST);
 }
 
 /* --- GPIO ----------------------------------------------------------------- */

@@ -15,9 +15,8 @@ static IRQn_Type uart_irq;
 static uint32_t uart_pins[2];
 static uint32_t de_pin = UMCUB_PIN_NONE;   /* RS485 DE, always software on F1 (no hardware DE) */
 static bool de_level;
-static uint8_t rx_ring[RX_RING];
-static volatile uint32_t rx_head;
-static uint32_t rx_tail;
+static uint8_t rx_buf[RX_RING];
+static stm32_ring_t rx;
 
 #define PIN(port, n) UMCUB_PIN(port, n, 0)
 #define SAME_PIN(a, b) (((a) & ~0xFu) == ((b) & ~0xFu))   /* ignore the AF field */
@@ -44,12 +43,7 @@ static void uart_isr(void)
     if (sr & (USART_SR_RXNE | USART_SR_ORE | USART_SR_FE | USART_SR_NE | USART_SR_PE)) {
         uint8_t c = (uint8_t)uart->DR;  /* SR then DR read clears the error flags too */
         if (sr & USART_SR_RXNE) {
-            uint32_t h = rx_head;
-            if ((uint32_t)(h - rx_tail) < RX_RING) {
-                rx_ring[h & (RX_RING - 1u)] = c;
-                __DMB();                /* data before index */
-                rx_head = h + 1u;
-            }
+            stm32_ring_put(&rx, rx_buf, RX_RING, c);
         }
     }
 }
@@ -101,7 +95,7 @@ int umcub_port_uart_init(const umcub_uart_cfg_t *cfg)
     }
     uart_pins[0] = tx_pin;
     uart_pins[1] = rx_pin;
-    rx_head = rx_tail = 0;
+    rx.head = rx.tail = 0;
 
     f1_gpio_config(tx_pin, F1_GPIO_AF_PP_50M);
     umcub_port_gpio_input(rx_pin, UMCUB_PULL_UP);   /* idle high if unconnected */
@@ -141,14 +135,7 @@ void umcub_port_uart_deinit(void)
 
 size_t umcub_port_uart_read(uint8_t *buf, size_t max)
 {
-    size_t n = 0;
-    uint32_t head = rx_head;
-    __DMB();
-    while (n < max && rx_tail != head) {
-        buf[n++] = rx_ring[rx_tail & (RX_RING - 1u)];
-        rx_tail++;
-    }
-    return n;
+    return stm32_ring_get(&rx, rx_buf, RX_RING, buf, max);
 }
 
 void umcub_port_uart_write(const uint8_t *buf, size_t len)

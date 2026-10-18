@@ -51,8 +51,6 @@ Larger changes:
   `pump_link_stream`; NLIP lines decoded in the mux and fed to boot_serial like packets, so `line_rename_params()`
   goes away. Better: upstream MCUboot lets unknown group-0 commands reach the per-user hook
   (`MCUBOOT_PERUSER_MGMT_GROUP_ENABLED`), which removes both rename functions (see the MCUboot upstream item).
-- [ ] port/: a table instead of the `switch (instance)` in the F1 UART init; shared IWDG start and UART RX ring in
-  port/arch/cortexm.
 - [ ] Host tools: shared CAN / serial / UDP argument helpers (`add_can_arguments()` like `probe.add_arguments()`,
   gives umcub_inspect.py CAN support); one serial / UDP line bus class for umcub_lite.py and umcub_link.py;
   shared helpers for tests/host test_link.c and test_link_secure.c; one source list for the three host test

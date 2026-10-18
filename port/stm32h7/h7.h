@@ -13,6 +13,7 @@
 #include "stm32h7xx_ll_rcc.h"
 #include "stm32h7xx_ll_system.h"
 #include "../arch/cortexm/cortexm_port.h"
+#include "../arch/stm32/stm32_common.h"
 
 #if defined(CORE_CM4)
 #define H7_IS_CM4 1

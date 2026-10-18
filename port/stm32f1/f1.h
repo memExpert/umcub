@@ -8,6 +8,7 @@
 #include "umcub_port.h"
 #include "stm32f1xx.h"
 #include "../arch/cortexm/cortexm_port.h"
+#include "../arch/stm32/stm32_common.h"
 
 /* Clock frequencies after umcub_port_init() (filled in by clock.c). */
 extern uint32_t f1_sysclk_hz;

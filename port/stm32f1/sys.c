@@ -67,26 +67,13 @@ void umcub_port_deinit(void)
 
 void umcub_port_wdg_start(uint32_t timeout_ms)
 {
-    /* prescaler /256 -> ~156 Hz at 40 kHz -> 6.4 ms per count, 4095 max (26 s).
-     * LSI spread makes the real timeout 0.67x..1.33x of this. */
-    uint32_t reload = timeout_ms * 10u / 64u;
-    if (reload == 0) {
-        reload = 1;
-    } else if (reload > 0xFFFu) {
-        reload = 0xFFFu;
-    }
-    IWDG->KR = 0xCCCC;
-    IWDG->KR = 0x5555;
-    IWDG->PR = 6;
-    IWDG->RLR = reload;
-    (void)umcub_cm_wait(&IWDG->SR, IWDG_SR_PVU | IWDG_SR_RVU, 0, 100);
-    IWDG->KR = 0xAAAA;
+    /* 6.4 ms per count, max 26 s; the LSI spread makes it 0.67x..1.33x of this */
+    stm32_iwdg_start(IWDG, 40000u, timeout_ms);
 }
 
 void umcub_port_wdg_feed(void)
 {
-    /* Always: a hardware watchdog (option byte WDG_SW = 0) runs regardless. */
-    IWDG->KR = 0xAAAA;
+    stm32_iwdg_feed(IWDG);
 }
 
 /* --- GPIO (CRL/CRH, RM0008 §9.2) ------------------------------------------- */

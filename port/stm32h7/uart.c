@@ -12,9 +12,8 @@ static IRQn_Type uart_irq;
 static uint32_t uart_pins[2];
 static uint32_t de_pin = UMCUB_PIN_NONE;
 static bool de_hw, de_level;
-static uint8_t rx_ring[RX_RING];
-static volatile uint32_t rx_head;
-static uint32_t rx_tail;
+static uint8_t rx_buf[RX_RING];
+static stm32_ring_t rx;
 
 struct uart_desc {
     USART_TypeDef *regs;
@@ -46,13 +45,7 @@ static void uart_isr(void)
         uart->ICR = USART_ICR_ORECF | USART_ICR_FECF | USART_ICR_NECF | USART_ICR_PECF;
     }
     if (isr & USART_ISR_RXNE_RXFNE) {
-        uint8_t c = (uint8_t)uart->RDR;
-        uint32_t h = rx_head;
-        if ((uint32_t)(h - rx_tail) < RX_RING) {
-            rx_ring[h & (RX_RING - 1u)] = c;
-            __DMB();            /* data before index */
-            rx_head = h + 1u;
-        }
+        stm32_ring_put(&rx, rx_buf, RX_RING, (uint8_t)uart->RDR);
     }
 }
 
@@ -76,7 +69,7 @@ int umcub_port_uart_init(const umcub_uart_cfg_t *cfg)
     uart_irq = d.irq;
     uart_pins[0] = cfg->tx_pin;
     uart_pins[1] = cfg->rx_pin;
-    rx_head = rx_tail = 0;
+    rx.head = rx.tail = 0;
     de_pin = cfg->de_pin;
     de_level = cfg->de_active_high;
     /* RTS/DE alternate function given: the USART drives DE itself (RM0399
@@ -136,14 +129,7 @@ void umcub_port_uart_deinit(void)
 
 size_t umcub_port_uart_read(uint8_t *buf, size_t max)
 {
-    size_t n = 0;
-    uint32_t head = rx_head;
-    __DMB();
-    while (n < max && rx_tail != head) {
-        buf[n++] = rx_ring[rx_tail & (RX_RING - 1u)];
-        rx_tail++;
-    }
-    return n;
+    return stm32_ring_get(&rx, rx_buf, RX_RING, buf, max);
 }
 
 void umcub_port_uart_write(const uint8_t *buf, size_t len)

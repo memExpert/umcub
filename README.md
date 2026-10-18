@@ -202,18 +202,18 @@ same core; check the real size after porting.
 
 | Flash layout | UART, lite (no SMP) | UART | UART + USB CDC | UART + USB CDC + DFU | UART + CAN | UART + Ethernet | UART, link SECURE | all on |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| STM32H7 (128 KiB sectors) | 1 (22.5 K) | 1 (27.2 K) | 1 (38.4 K) | 1 (40.4 K) | 1 (29.8 K) | 1 (31.4 K) | 1 (32.0 K) | 1 (54.9 K) |
-| STM32F2 / F4, F72x / F73x (16, 16, 16, 16, 64, 128 KiB ...) — estimate: Cortex-M4 build | 2 (20.1 K) | 2 (24.7 K) | 3 (35.8 K) | 3 (37.8 K) | 2 (27.2 K) | 2 (28.8 K) | 2 (29.5 K) | 4 (52.1 K) > 3 |
-| STM32F74x ... F77x (32, 32, 32, 32, 128, 256 KiB ...) — estimate: Cortex-M7 build | 1 (22.5 K) | 1 (27.2 K) | 2 (38.4 K) | 2 (40.4 K) | 1 (29.8 K) | 1 (31.4 K) | 2 (32.0 K) | 2 (54.9 K) |
-| STM32F1 (1 / 2 KiB pages) | 16.7 K | 21.3 K | 31.1 K | 33.0 K | 23.7 K | — | 26.2 K | 38.8 K |
-| STM32G4 / L4 (2 KiB pages) — estimate: Cortex-M4 build | 20.1 K | 24.7 K | 35.8 K | 37.8 K | 27.2 K | 28.8 K | 29.5 K | 52.1 K |
+| STM32H7 (128 KiB sectors) | 1 (22.5 K) | 1 (27.2 K) | 1 (38.4 K) | 1 (40.4 K) | 1 (29.8 K) | 1 (31.3 K) | 1 (32.0 K) | 1 (54.9 K) |
+| STM32F2 / F4, F72x / F73x (16, 16, 16, 16, 64, 128 KiB ...) — estimate: Cortex-M4 build | 2 (20.1 K) | 2 (24.6 K) | 3 (35.8 K) | 3 (37.8 K) | 2 (27.2 K) | 2 (28.7 K) | 2 (29.4 K) | 4 (52.1 K) > 3 |
+| STM32F74x ... F77x (32, 32, 32, 32, 128, 256 KiB ...) — estimate: Cortex-M7 build | 1 (22.5 K) | 1 (27.2 K) | 2 (38.4 K) | 2 (40.4 K) | 1 (29.8 K) | 1 (31.3 K) | 2 (32.0 K) | 2 (54.9 K) |
+| STM32F1 (1 / 2 KiB pages) | 16.7 K | 21.3 K | 31.1 K | 33.0 K | 23.7 K | — | 26.1 K | 38.8 K |
+| STM32G4 / L4 (2 KiB pages) — estimate: Cortex-M4 build | 20.1 K | 24.6 K | 35.8 K | 37.8 K | 27.2 K | 28.7 K | 29.4 K | 52.1 K |
 
 | MCU, with LTO | base | UART (+SMP) | UART, lite upload (no SMP) | all on |
 |---|---:|---:|---:|---:|
 | STM32H755 CM7 (2 images, SINGLE_BOOT) | 15.5 K (-3.0 K) | 23.4 K (-3.8 K) | 19.2 K (-3.3 K) | 48.9 K (-6.0 K) |
-| STM32H755 CM4 (PER_CORE) | 13.2 K (-3.0 K) | 20.7 K (-3.9 K) | 16.8 K (-3.3 K) | 46.0 K (-6.1 K) |
+| STM32H755 CM4 (PER_CORE) | 13.2 K (-3.0 K) | 20.7 K (-3.9 K) | 16.8 K (-3.3 K) | 45.9 K (-6.1 K) |
 | STM32H743 / H753 (single core) | 13.9 K (-3.0 K) | 21.4 K (-3.9 K) | 17.5 K (-3.3 K) | 46.6 K (-6.2 K) |
-| STM32F103 (Blue Pill, overwrite) | 10.1 K (-2.6 K) | 17.5 K (-3.8 K) | 13.7 K (-3.0 K) | 33.7 K (-5.2 K) |
+| STM32F103 (Blue Pill, overwrite) | 10.1 K (-2.6 K) | 17.5 K (-3.8 K) | 13.6 K (-3.0 K) | 33.7 K (-5.2 K) |
 <!-- size-table:end -->
 
 Notes:
@@ -839,7 +839,8 @@ Things that are easy to get wrong:
    before the jump), reset cause, GPIO / IWDG, linker templates, then the optional peripherals (UART, CAN, ETH, USB).
    The Cortex-M part is shared (`port/arch/cortexm/`: SysTick time base, deinit of NVIC and the peripherals the drivers
    registered, reset, jump, UID): `umcub_port_init()` calls `umcub_cm_save_clocks()` first and `umcub_cm_start()`
-   after the clock setup, `umcub_port_deinit()` calls `umcub_cm_deinit()`.
+   after the clock setup, `umcub_port_deinit()` calls `umcub_cm_deinit()`. Peripherals that are the same on every
+   STM32 come from `port/arch/stm32/stm32_common.h` (IWDG with the family's LSI frequency, UART receive ring).
 3. `boards/<board>/umcub_config.h` (and optionally `umcub_board.c`).
 4. Add the new configuration to `tools/build/build_matrix.sh`.
 
@@ -893,7 +894,8 @@ in the build matrix):
 include/         L0  ABI shared with the application: umcub.h (app API), umcub_handoff.h
 config/          L0  template, defaults, types, compile-time checks
 port/            L1  hardware: include/ (port API umcub_port*.h), arch/cortexm/ (SysTick, deinit, jump, waits,
-                     common linker sections), port/stm32h7/, port/stm32f1/ (family ports + linker templates)
+                     common linker sections), arch/stm32/ (IWDG, UART receive ring: the same on every STM32),
+                     port/stm32h7/, port/stm32f1/ (family ports + linker templates)
 util/            L2  log, random (CSPRNG), state (handoff RAM, node address), libc (snprintf, assert), crc16/base64,
                      version, link keys (generated)
 image/           L3  image slots: inspect (verify/hash/read), slot writer + app API (shared with umcub::app),
