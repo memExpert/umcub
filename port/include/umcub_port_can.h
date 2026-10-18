@@ -24,6 +24,9 @@ void umcub_port_can_deinit(void);
 /* len <= 8 (classic) or <= 64 (FD; padded to the next valid length).
  * Returns UMCUB_EBUSY if the TX FIFO is full. */
 int umcub_port_can_send(uint32_t id, const uint8_t *data, uint8_t len);
+/* Every frame handed to umcub_port_can_send() is on the bus (nothing queued):
+ * ISO-TP counts STmin from the end of a frame. */
+bool umcub_port_can_tx_idle(void);
 bool umcub_port_can_recv(uint32_t *id, uint8_t *data, uint8_t *len);
 
 #endif

@@ -845,6 +845,8 @@ static uint8_t can_rxq_len[8];
 static unsigned can_rxq_n;
 static unsigned cf_since_fc;
 static const uint8_t fc_bs = 4;
+static uint8_t fc_stmin;                        /* STmin the fake peer asks for */
+extern uint64_t fake_delay_us_total;
 
 int umcub_port_can_send(uint32_t id, const uint8_t *data, uint8_t len)
 {
@@ -856,10 +858,15 @@ int umcub_port_can_send(uint32_t id, const uint8_t *data, uint8_t len)
         cf_since_fc = 0;                        /* peer answers with FC CTS, BS = 4 */
         can_rxq[can_rxq_n][0] = 0x30;
         can_rxq[can_rxq_n][1] = fc_bs;
-        can_rxq[can_rxq_n][2] = 0;
+        can_rxq[can_rxq_n][2] = fc_stmin;
         can_rxq_len[can_rxq_n++] = 3;
     }
     return 0;
+}
+
+bool umcub_port_can_tx_idle(void)
+{
+    return true;
 }
 
 bool umcub_port_can_recv(uint32_t *id, uint8_t *data, uint8_t *len)
@@ -900,6 +907,22 @@ static void test_isotp(void)
             }
         }
     }
+    /* STmin from the peer's FC between consecutive frames: 300 bytes in
+     * classic frames = FF + 42 CF, a gap after each CF but the last. */
+    static const struct { uint8_t stmin; uint32_t us; } gaps[] = {
+        { 0x00, 0 }, { 0xF5, 500 }, { 0x05, 5000 }, { 0x80, 127000 } /* reserved: 127 ms */,
+    };
+    for (unsigned g = 0; g < sizeof(gaps) / sizeof(gaps[0]); g++) {
+        uint8_t msg[300] = { 0 };
+        isotp_t tx = { .frame_len = 8, .tx_id = 0x7C8 };
+        can_sent_n = can_rxq_n = cf_since_fc = 0;
+        fc_stmin = gaps[g].stmin;
+        fake_delay_us_total = 0;
+        CHECK(isotp_send(&tx, msg, sizeof(msg)) == 0);
+        CHECK(fake_delay_us_total == 41ull * gaps[g].us);
+    }
+    fc_stmin = 0;
+    printf("  STmin 0 / 500 us / 5 ms / reserved (127 ms) between consecutive frames\n");
 }
 
 /* --- network stack over a fake MAC --------------------------------------- */

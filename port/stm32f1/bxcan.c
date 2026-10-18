@@ -131,6 +131,12 @@ int umcub_port_can_send(uint32_t id, const uint8_t *data, uint8_t len)
     return UMCUB_OK;
 }
 
+bool umcub_port_can_tx_idle(void)
+{
+    const uint32_t all = CAN_TSR_TME0 | CAN_TSR_TME1 | CAN_TSR_TME2;
+    return (CAN1->TSR & all) == all;
+}
+
 bool umcub_port_can_recv(uint32_t *id, uint8_t *data, uint8_t *len)
 {
     CAN_TypeDef *can = CAN1;

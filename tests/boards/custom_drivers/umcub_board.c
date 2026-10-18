@@ -24,6 +24,7 @@ bool umcub_cmd_user(unsigned id, const char *text, umcub_cmd_reply_t reply)
 int umcub_port_can_init(const umcub_can_cfg_t *cfg) { (void)cfg; return UMCUB_EIO; }
 void umcub_port_can_deinit(void) {}
 int umcub_port_can_send(uint32_t id, const uint8_t *data, uint8_t len) { (void)id; (void)data; (void)len; return UMCUB_EIO; }
+bool umcub_port_can_tx_idle(void) { return true; }
 bool umcub_port_can_recv(uint32_t *id, uint8_t *data, uint8_t *len) { (void)id; (void)data; (void)len; return false; }
 
 /* Ethernet MAC on SPI (ENC28J60 / LAN9250) */

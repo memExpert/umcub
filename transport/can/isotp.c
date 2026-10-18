@@ -168,10 +168,18 @@ int isotp_send(isotp_t *t, const uint8_t *msg, size_t len)
         off += n;
         sn++;
         if (off < len) {
-            if (stmin > 0 && stmin <= 127) {
-                umcub_port_delay_ms(stmin);
-            } else if (stmin >= 0xF1 && stmin <= 0xF9) {
-                umcub_port_delay_ms(1);
+            /* STmin: 0-127 ms, 0xF1-0xF9 100-900 us; reserved values mean the
+             * longest, 127 ms (ISO 15765-2). A minimum from the end of the
+             * previous frame, so wait until it has left first. */
+            if (stmin) {
+                uint32_t start = umcub_port_millis();
+                while (!umcub_port_can_tx_idle()) {
+                    if ((uint32_t)(umcub_port_millis() - start) > TIMEOUT_MS) {
+                        return UMCUB_ETIMEOUT;
+                    }
+                }
+                umcub_port_delay_us(stmin <= 127 ? stmin * 1000u :
+                                    stmin >= 0xF1 && stmin <= 0xF9 ? (stmin - 0xF0u) * 100u : 127000u);
             }
             if (bs && ++sent_in_block == bs) {
                 sent_in_block = 0;

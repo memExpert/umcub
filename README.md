@@ -189,10 +189,10 @@ same core; check the real size after porting.
 <!-- size-table:begin -->
 | MCU | base | all on | UART (+SMP) | USB CDC | USB DFU | USB CDC+DFU | CAN | CAN FD | Ethernet (+DHCP) | DFU only | UART, lite upload (no SMP) |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| STM32H755 CM7 (2 images, SINGLE_BOOT) | 18.6 K | 54.9 K | +8.7 K | +11.2 K | +10.5 K | +13.1 K | +2.6 K | +2.6 K | +4.1 K | +10.8 K | +3.9 K |
-| STM32H755 CM4 (PER_CORE) | 16.2 K | 52.1 K | +8.5 K | +11.2 K | +10.5 K | +13.1 K | +2.6 K | +2.6 K | +4.1 K | +10.8 K | +3.9 K |
-| STM32H743 / H753 (single core) | 16.9 K | 52.8 K | +8.5 K | +11.2 K | +10.5 K | +13.1 K | +2.6 K | +2.6 K | +4.1 K | +10.8 K | +3.9 K |
-| STM32F103 (Blue Pill, overwrite) | 12.6 K | 38.6 K | +8.6 K | +9.8 K | +9.0 K | +11.6 K | +2.3 K | — | — | +9.5 K | +3.9 K |
+| STM32H755 CM7 (2 images, SINGLE_BOOT) | 18.6 K | 55.1 K | +8.7 K | +11.2 K | +10.5 K | +13.1 K | +2.7 K | +2.7 K | +4.2 K | +10.8 K | +3.9 K |
+| STM32H755 CM4 (PER_CORE) | 16.2 K | 52.3 K | +8.5 K | +11.2 K | +10.5 K | +13.1 K | +2.7 K | +2.7 K | +4.2 K | +10.8 K | +3.9 K |
+| STM32H743 / H753 (single core) | 16.9 K | 53.1 K | +8.5 K | +11.2 K | +10.5 K | +13.1 K | +2.7 K | +2.7 K | +4.2 K | +10.8 K | +3.9 K |
+| STM32F103 (Blue Pill, overwrite) | 12.6 K | 38.6 K | +8.6 K | +9.8 K | +9.0 K | +11.6 K | +2.4 K | — | — | +9.5 K | +3.9 K |
 
 | MCU | log (level 3) | text commands | verify + hash | readback | umcub link (addressed) | umcub link SECURE | + link encryption | encrypted images |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -203,17 +203,17 @@ same core; check the real size after porting.
 
 | Flash layout | UART, lite (no SMP) | UART | UART + USB CDC | UART + USB CDC + DFU | UART + CAN | UART + Ethernet | UART, link SECURE | all on |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| STM32H7 (128 KiB sectors) | 1 (22.5 K) | 1 (27.2 K) | 1 (38.4 K) | 1 (40.4 K) | 1 (29.8 K) | 1 (31.3 K) | 1 (32.0 K) | 1 (54.9 K) |
-| STM32F2 / F4, F72x / F73x (16, 16, 16, 16, 64, 128 KiB ...) — estimate: Cortex-M4 build | 2 (20.1 K) | 2 (24.6 K) | 3 (35.8 K) | 3 (37.8 K) | 2 (27.2 K) | 2 (28.7 K) | 2 (29.4 K) | 4 (52.1 K) > 3 |
-| STM32F74x ... F77x (32, 32, 32, 32, 128, 256 KiB ...) — estimate: Cortex-M7 build | 1 (22.5 K) | 1 (27.2 K) | 2 (38.4 K) | 2 (40.4 K) | 1 (29.8 K) | 1 (31.3 K) | 2 (32.0 K) | 2 (54.9 K) |
-| STM32F1 (1 / 2 KiB pages) | 16.5 K | 21.2 K | 30.9 K | 32.8 K | 23.5 K | — | 26.0 K | 38.6 K |
-| STM32G4 / L4 (2 KiB pages) — estimate: Cortex-M4 build | 20.1 K | 24.6 K | 35.8 K | 37.8 K | 27.2 K | 28.7 K | 29.4 K | 52.1 K |
+| STM32H7 (128 KiB sectors) | 1 (22.5 K) | 1 (27.2 K) | 1 (38.4 K) | 1 (40.4 K) | 1 (29.9 K) | 1 (31.4 K) | 1 (32.0 K) | 1 (55.1 K) |
+| STM32F2 / F4, F72x / F73x (16, 16, 16, 16, 64, 128 KiB ...) — estimate: Cortex-M4 build | 2 (20.1 K) | 2 (24.6 K) | 3 (35.8 K) | 3 (37.8 K) | 2 (27.3 K) | 2 (28.9 K) | 2 (29.4 K) | 4 (52.3 K) > 3 |
+| STM32F74x ... F77x (32, 32, 32, 32, 128, 256 KiB ...) — estimate: Cortex-M7 build | 1 (22.5 K) | 1 (27.2 K) | 2 (38.4 K) | 2 (40.4 K) | 1 (29.9 K) | 1 (31.4 K) | 2 (32.0 K) | 2 (55.1 K) |
+| STM32F1 (1 / 2 KiB pages) | 16.5 K | 21.2 K | 30.9 K | 32.8 K | 23.6 K | — | 26.0 K | 38.6 K |
+| STM32G4 / L4 (2 KiB pages) — estimate: Cortex-M4 build | 20.1 K | 24.6 K | 35.8 K | 37.8 K | 27.3 K | 28.9 K | 29.4 K | 52.3 K |
 
 | MCU, with LTO | base | UART (+SMP) | UART, lite upload (no SMP) | all on |
 |---|---:|---:|---:|---:|
-| STM32H755 CM7 (2 images, SINGLE_BOOT) | 15.5 K (-3.0 K) | 23.4 K (-3.8 K) | 19.2 K (-3.3 K) | 48.9 K (-6.0 K) |
-| STM32H755 CM4 (PER_CORE) | 13.2 K (-3.0 K) | 20.7 K (-3.9 K) | 16.8 K (-3.3 K) | 45.9 K (-6.1 K) |
-| STM32H743 / H753 (single core) | 13.9 K (-3.0 K) | 21.4 K (-3.9 K) | 17.5 K (-3.3 K) | 46.6 K (-6.2 K) |
+| STM32H755 CM7 (2 images, SINGLE_BOOT) | 15.5 K (-3.0 K) | 23.4 K (-3.8 K) | 19.2 K (-3.3 K) | 49.0 K (-6.1 K) |
+| STM32H755 CM4 (PER_CORE) | 13.2 K (-3.0 K) | 20.7 K (-3.9 K) | 16.8 K (-3.3 K) | 46.1 K (-6.2 K) |
+| STM32H743 / H753 (single core) | 13.9 K (-3.0 K) | 21.4 K (-3.9 K) | 17.5 K (-3.3 K) | 46.8 K (-6.3 K) |
 | STM32F103 (Blue Pill, overwrite) | 10.1 K (-2.5 K) | 17.5 K (-3.7 K) | 13.6 K (-3.0 K) | 33.5 K (-5.1 K) |
 <!-- size-table:end -->
 
@@ -556,7 +556,7 @@ board driver and implement that interface:
 
 | Transport | Functions to implement (`port/include/...`) | Contract |
 |---|---|---|
-| CAN | `umcub_port_can_init(cfg)`, `_deinit()`, `_send(id, data, len)`, `_recv(&id, data, &len)` (`umcub_port_can.h`) | receive only `cfg->rx_id`; `send` returns `UMCUB_EBUSY` when the TX buffer is full; `len` up to 8 (classic) or 64 (`cfg->fd`) |
+| CAN | `umcub_port_can_init(cfg)`, `_deinit()`, `_send(id, data, len)`, `_tx_idle()`, `_recv(&id, data, &len)` (`umcub_port_can.h`) | receive only `cfg->rx_id`; `send` returns `UMCUB_EBUSY` when the TX buffer is full; `tx_idle` is true once every sent frame is on the bus (ISO-TP STmin); `len` up to 8 (classic) or 64 (`cfg->fd`) |
 | Ethernet | `umcub_port_eth_init(mac, phy, pins, npins)`, `_deinit()`, `_link()`, `_tx(frame, len)`, `_rx(buf, max)` (`umcub_port_eth.h`) | whole Ethernet frames without FCS; `pins` is `NULL` when `UMCUB_CFG_ETH_RMII_PINS` is not set; `rx` returns 0 when nothing arrived |
 
 All CAN settings from the config (`UMCUB_CFG_CAN_BITRATE`, `_FD`, `_RX_ID`, `_TX_ID`, `_EXT_ID`, ...) reach the

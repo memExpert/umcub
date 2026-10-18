@@ -52,6 +52,11 @@ int umcub_port_can_send(uint32_t id, const uint8_t *data, uint8_t len)
     can_tx_len = len;
     return 0;
 }
+bool umcub_port_can_tx_idle(void)
+{
+    return true;
+}
+
 bool umcub_port_can_recv(uint32_t *id, uint8_t *data, uint8_t *len)
 {
     if (!can_rx_len) {

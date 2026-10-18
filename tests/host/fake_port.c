@@ -42,6 +42,8 @@ uint32_t umcub_port_millis(void)
     return now_ms++;
 }
 void umcub_port_delay_ms(uint32_t ms) { now_ms += ms; }
+uint64_t fake_delay_us_total;
+void umcub_port_delay_us(uint32_t us) { fake_delay_us_total += us; }
 void umcub_port_wdg_feed(void) {}
 void umcub_port_idle(void) {}
 uint32_t umcub_port_irq_save(void) { return 0; }

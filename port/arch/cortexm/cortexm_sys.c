@@ -54,6 +54,19 @@ static void periph_used(volatile uint32_t *rstr, uint32_t mask)
     }
 }
 
+void umcub_port_delay_us(uint32_t us)
+{
+    /* SysTick counts the core clock down from LOAD once per millisecond:
+     * add up the elapsed cycles across reloads. */
+    uint32_t load = SysTick->LOAD + 1u;
+    uint32_t need = us * (load / 1000u), done = 0, last = SysTick->VAL;
+    while (done < need) {
+        uint32_t now = SysTick->VAL;
+        done += now <= last ? last - now : last + load - now;
+        last = now;
+    }
+}
+
 void umcub_cm_periph_on(volatile uint32_t *enr, volatile uint32_t *rstr, uint32_t mask)
 {
     *enr |= mask;

@@ -38,6 +38,9 @@ void umcub_port_deinit(void);
 
 uint32_t umcub_port_millis(void);
 void umcub_port_delay_ms(uint32_t ms);
+/* Busy wait of at least `us` microseconds (up to ~1 s), also between SysTick
+ * ticks: for protocol gaps shorter than or not aligned to a millisecond. */
+void umcub_port_delay_us(uint32_t us);
 
 void umcub_port_wdg_start(uint32_t timeout_ms);
 void umcub_port_wdg_feed(void);
