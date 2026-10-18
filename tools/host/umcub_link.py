@@ -104,7 +104,7 @@ class SerialBus:
                     self.buf = b""
                 return None
             self.s.timeout = min(left, 0.05)
-            chunk = self.s.read(4096)
+            chunk = self.s.read(max(1, self.s.in_waiting))     # return as soon as anything arrived
             if chunk:
                 self.buf += chunk
 
@@ -362,7 +362,7 @@ def sniff(port, baud, raw=False):
     print(f"# listening on {port} at {baud} baud (no transmit), Ctrl-C to stop", flush=True)
     buf, t0 = b"", time.monotonic()
     while True:
-        buf += s.read(512)
+        buf += s.read(max(1, s.in_waiting))     # timestamps as the bytes arrive
         while b"\n" in buf:
             line, buf = buf.split(b"\n", 1)
             ts = f"{time.monotonic() - t0:8.3f}"

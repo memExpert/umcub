@@ -858,7 +858,8 @@ peripheral a driver touches.
 ## Testing
 
 ```sh
-tools/build/build_matrix.sh                 # 32 bootloader configurations, examples, IDE checks, host tests; warning-free
+tools/build/build_matrix.sh                 # 32 bootloader configurations (side by side, JOBS=n), examples, IDE checks,
+                                            # host tests; warning-free
 ctest --test-dir build/matrix/host    # host tests only
 tests/host/link_e2e.py build/matrix/host   # simulated devices: umcub link bus, smpmgr, host tools, lite upload
 tools/build/check_docs.py                   # README still matches the repository (size tables, boards, tools, ...)
@@ -886,7 +887,9 @@ Stack use on the board: `tools/hw/stack_usage.py paint`, run a scenario, `tools/
 Hardware tests: `tools/hw/powerfail_test.py` resets the MCU in the middle of the K-th flash operation (build with
 `tests/configs/feature/fault_inject.h`, test only) and checks that an interrupted upgrade or revert (swap modes) or an
 interrupted overwrite copy always completes. The images are signed with `tools/host/umcub_image.py` for the
-bootloader's board and overlays; `--fault-addr` is `UMCUB_CFG_TEST_FAULT_ADDR` (a RAM word that survives a reset).
+bootloader's board and overlays; the fault record (`UMCUB_CFG_TEST_FAULT_ADDR`, a RAM word that survives a reset) and
+the handoff area come from that configuration too. A run ends when the bootloader publishes the handoff (right before
+the jump); with `--sector-size` only the sectors that programming does not rewrite are erased explicitly.
 `--encrypted` (bootloader with encrypted images) installs an encrypted update, so every resumed swap has to recover
 the image key from the trailer.
 `TODO.md` lists what is still open on hardware.

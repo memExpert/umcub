@@ -226,19 +226,13 @@ def plain_tools(build, py, smpmgr):
         sim.wait(5)
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("build")
-    ap.add_argument("--python", default=sys.executable)
-    a = ap.parse_args()
-    py = a.python
-    smpmgr = os.path.join(os.path.dirname(py), "smpmgr")
+def secure_tools(build, py, smpmgr):
     adm = os.path.join(KEYS, "dev-admin-p256.pem")
     dev = os.path.join(KEYS, "dev-device-p256.pem")
 
     # node 1, node 2, unassigned (0) - all SECURE with payload encryption
     nodes = [(1, 0x1001), (2, 0x2002), (0, 0x3003)]
-    sims = [subprocess.Popen([os.path.join(a.build, "umcub_sim_secure")], stdin=subprocess.PIPE,
+    sims = [subprocess.Popen([os.path.join(build, "umcub_sim_secure")], stdin=subprocess.PIPE,
                              stdout=subprocess.PIPE, env=dict(os.environ, UMCUB_SIM_ADDR=str(n),
                                                              UMCUB_SIM_UID=str(u))) for n, u in nodes]
     hub = Hub(sims)
@@ -292,7 +286,7 @@ def main():
             subprocess.run([py, os.path.join(ROOT, "tools/host/umcub_image.py"), "sign", "--board", "nucleo_h755zi_q",
                             "--core", "cm7", "--pre", os.path.join(ROOT, "tests/host/cfg_swap_scratch.h"),
                             "--post", os.path.join(ROOT, "tests/host/test_link_secure_post.h"), "--version",
-                            "1.2.3", os.path.join(a.build, "payload.bin"), "-o", os.path.join(d, "app")],
+                            "1.2.3", os.path.join(build, "payload.bin"), "-o", os.path.join(d, "app")],
                            check=True, capture_output=True)
             img = os.path.join(d, "app.encrypted.bin")
             p = subprocess.run([smpmgr, "--port", link, "--timeout", "5", "--line-buffers", "8", "image", "upload",
@@ -309,12 +303,34 @@ def main():
             s.stdin.close()
             s.wait(5)
 
-    plain_tools(a.build, py, smpmgr)
-    can_tools(a.build, py)
-    lite_tools(a.build, py)
 
-    print(f"\n{failures} failure(s)" if failures else "\nALL E2E TESTS PASSED")
-    sys.exit(1 if failures else 0)
+SCENARIOS = {"secure": secure_tools, "plain": plain_tools,
+             "can": lambda build, py, smpmgr: can_tools(build, py),
+             "lite": lambda build, py, smpmgr: lite_tools(build, py)}
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("build")
+    ap.add_argument("--python", default=sys.executable)
+    ap.add_argument("--scenario", choices=sorted(SCENARIOS), help="run only this one (default: all, in parallel)")
+    a = ap.parse_args()
+    py = a.python
+    smpmgr = os.path.join(os.path.dirname(py), "smpmgr")
+    if a.scenario:
+        SCENARIOS[a.scenario](a.build, py, smpmgr)
+        sys.exit(1 if failures else 0)
+    # Every scenario has its own simulators and bus: run them side by side,
+    # print their output in order.
+    procs = [subprocess.Popen([py, __file__, a.build, "--python", py, "--scenario", n], stdout=subprocess.PIPE,
+                              stderr=subprocess.STDOUT, text=True) for n in SCENARIOS]
+    failed = 0
+    for p in procs:
+        out, _ = p.communicate(timeout=900)
+        sys.stdout.write(out)
+        failed += p.returncode != 0
+    print(f"\n{failed} scenario(s) failed" if failed else "\nALL E2E TESTS PASSED")
+    sys.exit(1 if failed else 0)
 
 
 if __name__ == "__main__":

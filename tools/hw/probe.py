@@ -82,20 +82,39 @@ class Stm32Cube:
             self._run("-d", path, hex(addr))
 
     def program(self, path, addr=None):
-        self._run("-d", path, *([hex(addr)] if addr is not None else []), "-v")
+        self._run(*self._args(("program", path, addr)))
 
     def erase(self, addr=None, size=None):
-        if addr is None:
-            self._run("-e", "all")
-            return
-        if not self.sector_size:
-            raise ProbeError("stm32cube: erasing a range needs --sector-size")
-        first = (addr - self.flash_base) // self.sector_size
-        last = (addr + size - 1 - self.flash_base) // self.sector_size
-        self._run("-e", *[str(s) for s in range(first, last + 1)])
+        self._run(*self._args(("erase", addr, size)))
 
     def reset(self, hw=False):
-        self._run("-hardRst" if hw else "-rst")
+        self._run(*self._args(("reset", hw)))
+
+    def run_steps(self, steps):
+        """Several operations in one CLI call (one connect): ("erase", addr, size),
+        ("program", path, addr), ("write32", addr, words), ("reset", hw)."""
+        args = [x for step in steps for x in self._args(step)]
+        if args:
+            self._run(*args)
+
+    def _args(self, step):
+        op = step[0]
+        if op == "program":
+            return ["-d", step[1], *([hex(step[2])] if step[2] is not None else []), "-v"]
+        if op == "erase":
+            addr, size = step[1], step[2]
+            if addr is None:
+                return ["-e", "all"]
+            if not self.sector_size:
+                raise ProbeError("stm32cube: erasing a range needs --sector-size")
+            first = (addr - self.flash_base) // self.sector_size
+            last = (addr + size - 1 - self.flash_base) // self.sector_size
+            return ["-e", *[str(s) for s in range(first, last + 1)]]
+        if op == "write32":
+            return ["-w32", hex(step[1]), *[hex(w) for w in step[2]]]
+        if op == "reset":
+            return ["-hardRst" if step[1] else "-rst"]
+        raise ProbeError(f"unknown step {op}")
 
     def close(self):
         pass
@@ -159,6 +178,11 @@ class PyOcd:
     def reset(self, hw=False):
         from pyocd.core.target import Target
         self.target.reset(Target.ResetType.HARDWARE if hw else Target.ResetType.SYSRESETREQ)
+
+    def run_steps(self, steps):
+        """Same steps as Stm32Cube.run_steps(), one after the other in this session."""
+        for op, *args in steps:
+            {"erase": self.erase, "program": self.program, "write32": self.write32, "reset": self.reset}[op](*args)
 
     def close(self):
         if self.under_reset:

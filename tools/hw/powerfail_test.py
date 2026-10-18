@@ -21,14 +21,14 @@ and the board-type TLV match.
   NUCLEO-H755ZI-Q (swap-scratch):
   tools/hw/powerfail_test.py --boot build/hw/boot_fault/umcub_nucleo_h755zi_q_cm7.hex \\
       --app build/hw/sb_app_cm7/h755_cm7_app.bin --board nucleo_h755zi_q --core cm7 \\
-      --erase 0x08020000+0xE0000 --points 40
+      --erase 0x08020000+0xE0000 --sector-size 0x20000 --points 40
   swap-offset (the update sits one sector into the secondary slot, the revert copy at its start):
   ... --pre tests/configs/mode/swap_offset.h --secondary 0x080A0000 --revert-copy 0x08080000
   Blue Pill (overwrite, 16 KiB slots, 1 KiB pages, no NRST on the SWD header):
   tools/hw/powerfail_test.py --boot build/bp_fault/umcub_bluepill_f103c8_cm3.hex \\
       --app build/bluepill/examples/bluepill_app/bluepill_app.bin --board bluepill_f103c8 \\
       --mode overwrite --primary 0x08008000 --secondary 0x0800C000 --erase 0x08008000+0x8000 \\
-      --size 12288 --fault-addr 0x20004FF0 --sector-size 0x400 --connect under-reset --reset rst --points 40
+      --size 12288 --sector-size 0x400 --connect under-reset --reset rst --points 40
   Encrypted update (--encrypted; bootloader built with tests/configs/feature/encrypt_only.h as PRE and the
   same --pre here): v2 goes into the secondary slot encrypted, so resuming an interrupted swap needs the key
   MCUboot kept in the trailer (the AES key, or the key TLV with UMCUB_CFG_SWAP_SAVE_ENCTLV). Upgrade: primary
@@ -46,8 +46,12 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import probe  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(ROOT, "tools/host"))
+from umcub_image import Config  # noqa: E402
+
 PY = os.path.join(ROOT, ".venv/bin/python")
 FAULT_MAGIC = 0xFA017E57
+HANDOFF_MAGIC = 0x42434D55      # umcub_handoff_t.magic, written right before the jump
 
 
 def main():
@@ -69,15 +73,15 @@ def main():
     ap.add_argument("--erase", default="0x08020000+0xE0000",
                     help="flash to erase before each run as ADDR+SIZE (whole sectors)")
     ap.add_argument("--size", type=int, default=200 * 1024, help="payload size")
-    ap.add_argument("--fault-addr", type=lambda s: int(s, 0), default=0x3800F000,
-                    help="UMCUB_CFG_TEST_FAULT_ADDR of the bootloader")
+    ap.add_argument("--fault-addr", type=lambda s: int(s, 0),
+                    help="UMCUB_CFG_TEST_FAULT_ADDR of the bootloader (default: from its configuration)")
     ap.add_argument("--reset", choices=("hardRst", "rst"), default="hardRst",
                     help="hardRst (NRST wired) or rst (system reset over SWD)")
     probe.add_arguments(ap)
     ap.add_argument("--points", type=int, default=40)
     ap.add_argument("--first", type=int, default=8, help="fault points at the very first operations")
-    ap.add_argument("--settle", type=float, default=4.0,
-                    help="minimum wait after a reset; then until the flash operation count stops changing")
+    ap.add_argument("--settle", type=float, default=0.3,
+                    help="wait after a reset before polling for the jump to the application")
     ap.add_argument("--seed", type=int, default=1)
     a = ap.parse_args()
 
@@ -86,6 +90,9 @@ def main():
     read_mem = p.read_mem
     e_addr, _, e_size = a.erase.partition("+")
     e_addr, e_size = int(e_addr, 0), int(e_size, 0)
+    cfg = Config(a.board, a.core, a.pre, a.post, None)
+    fault_addr = a.fault_addr if a.fault_addr is not None else cfg["TEST_FAULT_ADDR"]
+    handoff_magic = cfg["SHARED_RAM_ADDR"] + 16  # umcub_handoff_t.magic (UMCUB_HANDOFF_INFO_OFFSET)
 
     def sign(payload, version, out, pad):
         args = [PY, os.path.join(ROOT, "tools/host/umcub_image.py"), "sign", "--board", a.board, "--version", version]
@@ -123,35 +130,37 @@ def main():
     print("flashing fault-injection bootloader")
     p.program(a.boot)
 
+    # Programming erases the sectors it writes: erase only the rest of
+    # --erase (the primary slot's trailer, scratch, ...), not twice.
+    written = [(a.primary, os.path.getsize(v1)), (a.secondary, os.path.getsize(v2_file))]
+    sector = a.sector_size
+
     def prepare():
-        p.erase(e_addr, e_size)
-        p.program(v1, a.primary)
-        p.program(v2_file, a.secondary)
+        if not sector:
+            return [("erase", e_addr, e_size), ("program", v1, a.primary), ("program", v2_file, a.secondary)]
+        steps = []
+        for s in range(e_addr, e_addr + e_size, sector):
+            if not any(s < w + n and w < s + sector for w, n in written):
+                steps.append(("erase", s, sector))
+        return steps + [("program", v1, a.primary), ("program", v2_file, a.secondary)]
 
     def arm(k):
-        p.write32(a.fault_addr, [FAULT_MAGIC, k, 0, 0])
-        w = read_words(a.fault_addr, 4)
-        if w[:2] != [FAULT_MAGIC, k]:
-            raise RuntimeError(f"arming failed: {w}")
+        # the fault record, and the handoff magic cleared: set again only when
+        # the bootloader has finished and jumps to the application
+        return [("write32", fault_addr, [FAULT_MAGIC, k, 0, 0]), ("write32", handoff_magic, [0])]
 
     revert_copy = a.revert_copy if a.revert_copy is not None else a.secondary
 
-    def boot_and_check(expect_primary, expect_secondary):
-        p.reset(hw=a.reset == "hardRst")
+    def boot_and_check(expect_primary, expect_secondary, steps):
+        p.run_steps(steps + [("reset", a.reset == "hardRst")])     # one probe connect for all of it
         time.sleep(a.settle)
-        # An encrypted swap takes longer: wait until the bootloader stops
-        # counting flash operations (done, application running). One
-        # operation can be a 128 KiB sector erase of ~2 s on the H7, so the
-        # count has to stay the same for 5 s.
-        f = read_words(a.fault_addr, 4)
-        quiet = 0
-        for _ in range(180):
-            time.sleep(1.0)
-            g = read_words(a.fault_addr, 4)
-            quiet = quiet + 1 if g[2] == f[2] else 0
-            f = g
-            if quiet >= 5:
+        # Done when the bootloader publishes the handoff (right before the
+        # jump), however long the (interrupted, resumed, encrypted) swap took.
+        for _ in range(900):
+            if read_words(handoff_magic, 1)[0] == HANDOFF_MAGIC:
                 break
+            time.sleep(0.2)
+        f = read_words(fault_addr, 4)
         pri = read_mem(a.primary, len(expect_primary))
         # after an upgrade the secondary holds v1 (revert copy), after a revert v2 (the update again)
         sec_addr = revert_copy if expect_secondary == v1b else a.secondary
@@ -160,9 +169,7 @@ def main():
 
     swap = a.mode == "swap"
     # Sizing: count flash operations of a full upgrade (and of a full revert).
-    prepare()
-    arm(0)
-    f, ok_p, ok_s = boot_and_check(v2_installed, v1b if swap else None)
+    f, ok_p, ok_s = boot_and_check(v2_installed, v1b if swap else None, prepare() + arm(0))
     n_up = f[2]
     print(f"upgrade without faults: {n_up} flash operations, primary==v2 {ok_p}" +
           (f", secondary==v1 {ok_s}" if swap else ""))
@@ -170,8 +177,7 @@ def main():
         sys.exit("baseline upgrade failed")
     phases = [("upgrade", n_up, v2_installed, v1b if swap else None)]
     if swap:
-        arm(0)
-        f, ok_p, ok_s = boot_and_check(v1b, v2b)
+        f, ok_p, ok_s = boot_and_check(v1b, v2b, arm(0))
         n_rev = f[2]
         print(f"revert without faults: {n_rev} flash operations, primary==v1 {ok_p}, secondary==v2 {ok_s}")
         if not (ok_p and ok_s):
@@ -187,16 +193,15 @@ def main():
     failures = 0
     for phase, n, exp_p, exp_s in phases:
         for k in pick(n):
-            prepare()
+            steps = prepare()
             if phase == "revert":
-                arm(0)
-                f, ok_p, ok_s = boot_and_check(v2_installed, v1b)   # clean test upgrade first
+                f, ok_p, ok_s = boot_and_check(v2_installed, v1b, steps + arm(0))   # clean test upgrade first
                 if not (ok_p and ok_s):
                     print(f"  {phase} k={k}: setup upgrade failed")
                     failures += 1
                     continue
-            arm(k)
-            f, ok_p, ok_s = boot_and_check(exp_p, exp_s)
+                steps = []
+            f, ok_p, ok_s = boot_and_check(exp_p, exp_s, steps + arm(k))
             fired = f[3] == 1
             status = "OK " if (ok_p and ok_s) else "BAD"
             if not (ok_p and ok_s):

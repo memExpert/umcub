@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Builds every supported configuration of the bootloader for the reference
 # boards plus the examples; fails on warnings or if a bootloader does not fit.
-#   tools/build/build_matrix.sh [build-dir]
+#   tools/build/build_matrix.sh [build-dir]      (JOBS=n: configurations built at once)
 set -uo pipefail
 cd "$(dirname "$0")/../.."
 OUT=${1:-build/matrix}
@@ -52,23 +52,45 @@ configs=(
   "per-core-cm4-encrypt|cm4|Release|feature/per_core.h|feature/encrypt_only.h"
 )
 
-for c in "${configs[@]}"; do
-  IFS='|' read -r name core type pre post board <<<"$c"
-  dir="$OUT/$name"
-  args=(-G Ninja -DCMAKE_BUILD_TYPE="$type" -DUMCUB_BOARD="${board:-$BOARD}" -DUMCUB_CORE="$core")
+# One configuration: configure, build, warnings. Writes $dir.result: OK or
+# FAIL, the messages to print, the summary line (prefix SUMMARY).
+build_config() {
+  local name core type pre post board
+  IFS='|' read -r name core type pre post board <<<"$1"
+  local dir="$OUT/$name"
+  local args=(-G Ninja -DCMAKE_BUILD_TYPE="$type" -DUMCUB_BOARD="${board:-$BOARD}" -DUMCUB_CORE="$core")
   [[ -n "$pre" ]] && args+=(-DUMCUB_CONFIG_PRE="tests/configs/$pre")
   [[ -n "$post" ]] && args+=(-DUMCUB_CONFIG_POST="tests/configs/$post")
-  if ! cmake -B "$dir" "${args[@]}" >"$dir.configure.log" 2>&1; then
-    echo "FAIL configure $name (see $dir.configure.log)"; fail=1; continue
-  fi
-  if ! cmake --build "$dir" >"$dir.build.log" 2>&1; then
-    echo "FAIL build $name (see $dir.build.log)"; fail=1; continue
-  fi
-  if grep -q "warning:" "$dir.build.log"; then
-    echo "FAIL warnings in $name:"; grep "warning:" "$dir.build.log" | head -5; fail=1
-  fi
-  used=$(grep -E "^ +FLASH:" "$dir.build.log" | awk '{print $2, $3, $6}')
-  summary+=("$(printf '%-24s %s' "$name" "$used")")
+  {
+    if ! cmake -B "$dir" "${args[@]}" >"$dir.configure.log" 2>&1; then
+      echo FAIL; echo "FAIL configure $name (see $dir.configure.log)"; return
+    fi
+    if ! cmake --build "$dir" >"$dir.build.log" 2>&1; then
+      echo FAIL; echo "FAIL build $name (see $dir.build.log)"; return
+    fi
+    if grep -q "warning:" "$dir.build.log"; then
+      echo FAIL; echo "FAIL warnings in $name:"; grep "warning:" "$dir.build.log" | head -5
+    else
+      echo OK
+    fi
+    printf 'SUMMARY %-24s %s\n' "$name" "$(grep -E "^ +FLASH:" "$dir.build.log" | awk '{print $2, $3, $6}')"
+  } >"$dir.result"
+}
+
+# Configurations side by side (each build is parallel inside as well);
+# results in the order of the list.
+JOBS=${JOBS:-$(( $(nproc) / 4 > 1 ? $(nproc) / 4 : 1 ))}
+for c in "${configs[@]}"; do
+  while (( $(jobs -rp | wc -l) >= JOBS )); do wait -n; done
+  build_config "$c" &
+done
+wait
+for c in "${configs[@]}"; do
+  r="$OUT/${c%%|*}.result"
+  [[ "$(head -1 "$r" 2>/dev/null)" == OK ]] || fail=1
+  grep -v '^OK$\|^FAIL$\|^SUMMARY ' "$r" 2>/dev/null || true
+  line=$(sed -n 's/^SUMMARY //p' "$r" 2>/dev/null)
+  [[ -n "$line" ]] && summary+=("$line")
 done
 
 # Board-supplied CAN/ETH drivers and board transport (tests/boards/custom_drivers):
