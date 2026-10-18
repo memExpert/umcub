@@ -854,7 +854,9 @@ Things that are easy to get wrong:
    `bxcan.c` and give `stm32_bxcan_get()` (CAN1 with its pins set up, see `port/stm32f1/can.c`). FDCAN (H7, G4,
    H5, U5, L5): add `fdcan.c` and give `stm32_fdcan_get()` (controller, kernel clock selected, pins set up, see
    `port/stm32h7/can.c`); the message RAM layout comes from the device header (H7: configurable; a part with the
-   fixed layout, e.g. G4, needs its branch in `fdcan.c`).
+   fixed layout, e.g. G4, needs its branch in `fdcan.c`). Entropy (SECURE link, encrypted images): with an RNG add
+   `rng.c` and give `stm32_rng_clock_on()` (see `port/stm32h7/rng.c`); without one, `umcub_port_entropy()` of
+   your own (the F1 samples ADC noise, `port/stm32f1/entropy.c`).
 3. `boards/<board>/umcub_config.h` (and optionally `umcub_board.c`).
 4. Add the new configuration to `tools/build/build_matrix.sh`.
 
@@ -912,7 +914,7 @@ include/         L0  ABI shared with the application: umcub.h (app API), umcub_h
 config/          L0  template, defaults, types, compile-time checks
 port/            L1  hardware: include/ (port API umcub_port*.h), arch/cortexm/ (SysTick, deinit, jump, waits,
                      common linker sections), arch/stm32/ (drivers of ST peripherals that several series share: USART v1
-                     and v2, bxCAN, FDCAN; IWDG, UART rings),
+                     and v2, bxCAN, FDCAN, RNG; IWDG, UART rings),
                      port/stm32h7/, port/stm32f1/ (family ports + linker templates)
 src/             the bootloader itself:
   util/          L2  log, random (CSPRNG), state (handoff RAM, node address), libc (snprintf, assert), crc16/base64,

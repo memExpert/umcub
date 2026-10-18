@@ -1,18 +1,20 @@
 /*
- * STM32H7 port: entropy from the true random number generator (RM0399 §34
- * "RNG"), kernel clock HSI48 (RNGSEL = 00 after reset).
+ * Entropy (umcub_port_entropy) from the true random number generator, for
+ * every family with the RNG peripheral (H7, G4, L4, F4, F7, H5, U5); the
+ * family switches its kernel clock on (stm32_rng_clock_on()).
  */
-#include "h7.h"
+#include "umcub_cfg.h"
+#include "umcub_port.h"
+#include "stm32_rng.h"
+#include "stm32_common.h"
 
 static bool rng_up;
 
 static int rng_start(void)
 {
-    if (h7_hsi48_on() != 0) {
+    if (stm32_rng_clock_on() != UMCUB_OK) {
         return UMCUB_EIO;
     }
-    CLEAR_BIT(RCC->D2CCIP2R, RCC_D2CCIP2R_RNGSEL);     /* HSI48 */
-    umcub_cm_periph_on(&RCC->AHB2ENR, &RCC->AHB2RSTR, RCC_AHB2ENR_RNGEN);
     RNG->CR = RNG_CR_RNGEN;                             /* clock error detection on (CED = 0) */
     rng_up = true;
     return UMCUB_OK;
@@ -26,7 +28,7 @@ int umcub_port_entropy(uint8_t *buf, size_t len)
     unsigned recoveries = 0;
     while (len) {
         if (RNG->SR & RNG_SR_SEIS) {
-            /* Seed error (RM0399 §36.3.7): clear SEIS, discard 12 words, check
+            /* Seed error (RM0399 §36.3.7, the same on every RNG): clear SEIS, discard 12 words, check
              * SEIS again. Bounded: a generator that keeps failing is an error. */
             if (++recoveries > 4) {
                 return UMCUB_EIO;
