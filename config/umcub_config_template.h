@@ -238,9 +238,8 @@
 /* #define UMCUB_CFG_USB_PID              0x0001 */
 /* #define UMCUB_CFG_USB_MANUFACTURER     "umcub" */
 /* #define UMCUB_CFG_USB_PRODUCT          "umcub bootloader" */
-/* DFU download goes to this image's secondary slot (or the inactive slot in
- * direct-xip); after manifestation the image is marked pending.           */
-/* #define UMCUB_CFG_USB_DFU_IMAGE        0 */
+/* DFU: alt setting N = image N, downloaded into its secondary slot (also in
+ * direct-xip) and marked pending after manifestation.                     */
 
 /* --- CAN / FDCAN: SMP over ISO-TP-lite ---------------------------------- */
 /* #define UMCUB_CFG_TRANSPORT_CAN        0 */

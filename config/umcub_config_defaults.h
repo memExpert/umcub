@@ -212,9 +212,6 @@
 #ifndef UMCUB_CFG_USB_PRODUCT
 #define UMCUB_CFG_USB_PRODUCT           "umcub bootloader"
 #endif
-#ifndef UMCUB_CFG_USB_DFU_IMAGE
-#define UMCUB_CFG_USB_DFU_IMAGE         0
-#endif
 
 /* --- CAN ----------------------------------------------------------------- */
 #ifndef UMCUB_CFG_TRANSPORT_CAN

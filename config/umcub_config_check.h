@@ -79,10 +79,6 @@
 #error "umcub: UMCUB_CFG_IMAGE_HEADER_SIZE must be a power of two >= 0x200 (VTOR alignment)"
 #endif
 
-#if UMCUB_CFG_TRANSPORT_USB_DFU && UMCUB_CFG_USB_DFU_IMAGE >= UMCUB_CFG_IMAGE_NUMBER
-#error "umcub: UMCUB_CFG_USB_DFU_IMAGE out of range"
-#endif
-
 #if defined(UMCUB_FAMILY_CAN_NO_FD) && UMCUB_CFG_TRANSPORT_CAN && UMCUB_CFG_CAN_FD && \
     UMCUB_CFG_CAN_DRIVER == UMCUB_DRIVER_PORT
 #error "umcub: the CAN controller of this family has no CAN FD (UMCUB_CFG_CAN_FD)"
