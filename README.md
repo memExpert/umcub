@@ -850,7 +850,8 @@ Things that are easy to get wrong:
    drivers of peripherals several series share. UART: add `usart_v2.c` (ISR/ICR/RDR/TDR: H7, G4, L4, F7, ...) or
    `usart_v1.c` (SR/DR: F1, F2, F4, L1) to the family's sources and give `stm32_usart_get()` (the instance's
    registers, IRQ, clock bit and kernel clock, its TX / RX pins set up) plus the vectors calling `stm32_usart_isr()`
-   (see `port/stm32h7/uart.c`, `port/stm32f1/uart.c`).
+   (see `port/stm32h7/uart.c`, `port/stm32f1/uart.c`). bxCAN (classic CAN: F1, F2, F4, F7, L4, F0, F3): add
+   `bxcan.c` and give `stm32_bxcan_get()` (CAN1 with its pins set up, see `port/stm32f1/can.c`).
 3. `boards/<board>/umcub_config.h` (and optionally `umcub_board.c`).
 4. Add the new configuration to `tools/build/build_matrix.sh`.
 
@@ -908,7 +909,7 @@ include/         L0  ABI shared with the application: umcub.h (app API), umcub_h
 config/          L0  template, defaults, types, compile-time checks
 port/            L1  hardware: include/ (port API umcub_port*.h), arch/cortexm/ (SysTick, deinit, jump, waits,
                      common linker sections), arch/stm32/ (drivers of ST peripherals that several series share: USART v1
-                     and v2; IWDG, UART rings),
+                     and v2, bxCAN; IWDG, UART rings),
                      port/stm32h7/, port/stm32f1/ (family ports + linker templates)
 src/             the bootloader itself:
   util/          L2  log, random (CSPRNG), state (handoff RAM, node address), libc (snprintf, assert), crc16/base64,

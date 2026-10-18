@@ -1,28 +1,20 @@
 /*
- * STM32F1 port: bxCAN (CAN1) polled driver, classic CAN (RM0008 §24).
- *
- * Pins by the TX pin, like the UART: PA12/PA11 (default), PB9/PB8 (AFIO
- * CAN_REMAP = 10), PD1/PD0 (CAN_REMAP = 11). One filter bank in identifier
- * list mode passes UMCUB_CFG_CAN_RX_ID into FIFO 0. On F103 parts CAN and
- * USB share 512 bytes of SRAM: they cannot be used together (config check).
+ * bxCAN driver (umcub_port_can_*), polled, classic CAN, register level, for
+ * every family with bxCAN; the controller and its pins come from the family
+ * (stm32_bxcan_get()). One filter bank in identifier list mode passes
+ * cfg->rx_id into FIFO 0.
  */
-#include "f1.h"
+#include "umcub_cfg.h"
+#include "umcub_port.h"
 #include "umcub_port_can.h"
+#include "stm32_can.h"
+#include "stm32_common.h"
 
-#define PIN(port, num) UMCUB_PIN(port, num, 0)
-
-static const struct {
-    uint32_t tx, rx, remap;
-} map[] = {
-    { PIN('A', 12), PIN('A', 11), 0 },
-    { PIN('B', 9), PIN('B', 8), AFIO_MAPR_CAN_REMAP_REMAP2 },
-    { PIN('D', 1), PIN('D', 0), AFIO_MAPR_CAN_REMAP_REMAP3 },    /* 100/144-pin packages only */
-};
-
+static CAN_TypeDef *can;
 static umcub_can_cfg_t cfg;
 
 /* Prescaler and segments for `bitrate` (sample point ~87.5 %): 8..25 time
- * quanta, TS1 1..16, TS2 1..8, BRP 1..1024 (RM0008 §24.7.7). */
+ * quanta, TS1 1..16, TS2 1..8, BRP 1..1024 (CAN_BTR). */
 static bool timing(uint32_t clk, uint32_t bitrate, uint32_t *btr)
 {
     for (uint32_t brp = 1; brp <= 1024; brp++) {
@@ -53,28 +45,15 @@ static uint32_t id_reg(uint32_t id, bool ext)
 
 int umcub_port_can_init(const umcub_can_cfg_t *c)
 {
-    unsigned m = 0;
-    while (m < sizeof(map) / sizeof(map[0]) && map[m].tx != c->tx_pin) {
-        m++;
-    }
+    const stm32_bxcan_t *b = c->fd ? NULL : stm32_bxcan_get(c);
     uint32_t btr;
-    if (c->instance != 1 || c->fd || m == sizeof(map) / sizeof(map[0]) || map[m].rx != c->rx_pin ||
-        !timing(f1_pclk1_hz, c->bitrate, &btr)) {
+    if (!b || !timing(*b->clock_hz, c->bitrate, &btr)) {
         return UMCUB_EINVAL;
     }
     cfg = *c;
+    can = b->regs;
+    umcub_cm_periph_on(b->enr, b->rstr, b->bit);
 
-    umcub_cm_periph_on(&RCC->APB1ENR, &RCC->APB1RSTR, RCC_APB1ENR_CAN1EN);
-    if (map[m].remap) {
-        umcub_cm_periph_on(&RCC->APB2ENR, &RCC->APB2RSTR, RCC_APB2ENR_AFIOEN);
-        /* SWJ_CFG reads back undefined: write 111 ("no effect") with the remap
-         * bits, or SWD may get switched off (see uart.c). */
-        MODIFY_REG(AFIO->MAPR, AFIO_MAPR_CAN_REMAP | AFIO_MAPR_SWJ_CFG, map[m].remap | AFIO_MAPR_SWJ_CFG);
-    }
-    umcub_port_gpio_af(c->tx_pin);
-    umcub_port_gpio_input(c->rx_pin, UMCUB_PULL_UP);   /* recessive while no transceiver drives it */
-
-    CAN_TypeDef *can = CAN1;
     CLEAR_BIT(can->MCR, CAN_MCR_SLEEP);
     SET_BIT(can->MCR, CAN_MCR_INRQ);
     if (umcub_cm_wait(&can->MSR, CAN_MSR_INAK | CAN_MSR_SLAK, CAN_MSR_INAK, 10)) {
@@ -111,7 +90,6 @@ void umcub_port_can_deinit(void)
 
 int umcub_port_can_send(uint32_t id, const uint8_t *data, uint8_t len)
 {
-    CAN_TypeDef *can = CAN1;
     uint32_t tsr = can->TSR;
     if (len > 8) {
         return UMCUB_EINVAL;
@@ -134,13 +112,12 @@ int umcub_port_can_send(uint32_t id, const uint8_t *data, uint8_t len)
 bool umcub_port_can_tx_idle(void)
 {
     const uint32_t all = CAN_TSR_TME0 | CAN_TSR_TME1 | CAN_TSR_TME2;
-    return (CAN1->TSR & all) == all;
+    return !can || (can->TSR & all) == all;
 }
 
 bool umcub_port_can_recv(uint32_t *id, uint8_t *data, uint8_t *len)
 {
-    CAN_TypeDef *can = CAN1;
-    if (!(can->RF0R & CAN_RF0R_FMP0)) {
+    if (!can || !(can->RF0R & CAN_RF0R_FMP0)) {
         return false;
     }
     CAN_FIFOMailBox_TypeDef *mb = &can->sFIFOMailBox[0];
