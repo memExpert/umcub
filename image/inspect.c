@@ -20,8 +20,7 @@
 int umcub_inspect_area(int image, int slot, struct flash_area *out)
 {
     const struct flash_area *fa;
-    if (image < 0 || image >= UMCUB_CFG_IMAGE_NUMBER || slot < 0 || slot > 1 ||
-        flash_area_open((uint8_t)flash_area_id_from_multi_image_slot(image, slot), &fa)) {
+    if (umcub_slot_area(image, slot, &fa)) {
         return UMCUB_EINVAL;
     }
     *out = *fa;
@@ -46,7 +45,7 @@ uint32_t umcub_inspect_image_len(const struct flash_area *fa)
     struct image_header h;
     struct image_tlv_iter it;
     memset(&it, 0, sizeof(it));
-    if (flash_area_read(fa, 0, &h, sizeof(h)) || h.ih_magic != IMAGE_MAGIC ||
+    if (!umcub_image_header(fa, 0, &h) ||
         bootutil_tlv_iter_begin(&it, &h, fa, IMAGE_TLV_ANY, false) != 0) {
         return 0;
     }
@@ -65,7 +64,7 @@ int umcub_inspect_validate(int image, int slot, const struct flash_area *area)
     struct flash_area fa = *area;
     struct image_header h;
     static uint8_t tmp[256];
-    if (flash_area_read(&fa, 0, &h, sizeof(h)) || h.ih_magic != IMAGE_MAGIC) {
+    if (!umcub_image_header(&fa, 0, &h)) {
         return UMCUB_ENOTSUP;
     }
     /* bootutil_img_validate() checks the image size against the slot

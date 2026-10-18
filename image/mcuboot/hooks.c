@@ -22,11 +22,6 @@
 #include "bootutil/fault_injection_hardening.h"
 #include "sysflash/sysflash.h"
 
-static bool read_header(const struct flash_area *fa, uint32_t hdr_off, struct image_header *hdr)
-{
-    return flash_area_read(fa, hdr_off, hdr, sizeof(*hdr)) == 0 && hdr->ih_magic == IMAGE_MAGIC;
-}
-
 static int board_type(const struct flash_area *fa, uint32_t hdr_off, struct image_header *hdr, uint32_t *type)
 {
     struct image_tlv_iter it;
@@ -54,7 +49,7 @@ static int board_type(const struct flash_area *fa, uint32_t hdr_off, struct imag
 int umcub_image_board_type(const struct flash_area *fa, uint32_t hdr_off, uint32_t *type)
 {
     struct image_header hdr;
-    return read_header(fa, hdr_off, &hdr) ? board_type(fa, hdr_off, &hdr, type) : -1;
+    return umcub_image_header(fa, hdr_off, &hdr) ? board_type(fa, hdr_off, &hdr, type) : -1;
 }
 
 #if UMCUB_CFG_IMAGE_VECTOR_CHECK
@@ -73,7 +68,7 @@ static bool vector_ok(int img_index, int slot, const struct flash_area *fa, uint
     }
     const struct flash_area *run = fa;
 #if !defined(MCUBOOT_DIRECT_XIP)
-    if (slot != 0 && flash_area_open((uint8_t)flash_area_id_from_multi_image_slot(img_index, 0), &run) != 0) {
+    if (slot != 0 && umcub_slot_area(img_index, 0, &run) != 0) {
         return false;
     }
 #endif
@@ -107,7 +102,7 @@ bool umcub_image_check(int img_index, int slot, const struct flash_area *fa)
     bool bad = false;
     for (unsigned i = 0; i < n && !bad; i++) {
         struct image_header hdr;
-        if (!read_header(fa, offs[i], &hdr)) {
+        if (!umcub_image_header(fa, offs[i], &hdr)) {
             continue;               /* unreadable header: left to MCUboot */
         }
 #if UMCUB_CFG_IMAGE_VECTOR_CHECK
@@ -134,7 +129,7 @@ bool umcub_image_check(int img_index, int slot, const struct flash_area *fa)
 fih_ret boot_image_check_hook(int img_index, int slot)
 {
     const struct flash_area *fa;
-    if (flash_area_open((uint8_t)flash_area_id_from_multi_image_slot(img_index, slot), &fa) != 0) {
+    if (umcub_slot_area(img_index, slot, &fa) != 0) {
         FIH_RET(FIH_FAILURE);
     }
     bool ok = umcub_image_check(img_index, slot, fa);

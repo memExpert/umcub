@@ -5,6 +5,7 @@
 #ifndef UMCUB_FLASH_MAP_BACKEND_H
 #define UMCUB_FLASH_MAP_BACKEND_H
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <sys/types.h>
 
@@ -49,6 +50,12 @@ int flash_area_id_from_direct_image(int image_id);
 
 /* umcub helpers */
 const struct flash_area *umcub_flash_area_by_addr(uint32_t addr);
+/* Area of `slot` (0 primary, 1 secondary) of `image`; UMCUB_EINVAL if out of range. */
+int umcub_slot_area(int image, int slot, const struct flash_area **fa);
+/* MCUboot image header at `off` in `fa`; false if unreadable or no image magic.
+ * Its ih_ver has the layout of umcub_version_t (copied as is). */
+struct image_header;
+bool umcub_image_header(const struct flash_area *fa, uint32_t off, struct image_header *hdr);
 
 #ifdef __cplusplus
 }

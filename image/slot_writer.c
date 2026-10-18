@@ -17,22 +17,10 @@ _Static_assert(UMCUB_FAMILY_WRITE_ALIGN <= sizeof(((umcub_slot_writer_t *)0)->bu
                "flash program unit larger than the slot writer buffer");
 
 int umcub_mark_slot(int image, int slot, bool permanent);
+bool umcub_executing_from(const struct flash_area *fa);
 #ifdef UMCUB_BUILDING_APP
 void umcub_note_app_update(void);
 #endif
-
-static bool executing_from(uint32_t base, uint32_t size)
-{
-#ifdef UMCUB_HOST_TEST
-    (void)base;
-    (void)size;
-    return false;
-#else
-    uint32_t pc = (uint32_t)(uintptr_t)&executing_from;
-    uint32_t vtor = *(volatile uint32_t *)0xE000ED08u;   /* SCB->VTOR */
-    return (pc - base) < size || (vtor - base) < size;
-#endif
-}
 
 /* Start of the slot image `i` runs from as the bootloader published it (handoff),
  * 0 if unknown or not running. Covers the other core's image too (dual-core
@@ -51,7 +39,7 @@ static uint32_t running_image_addr(int i)
 /* Slot `fa` holds code that is running now (this core or another one). */
 static bool slot_in_use(const struct flash_area *fa)
 {
-    if (executing_from(fa->fa_off, fa->fa_size)) {
+    if (umcub_executing_from(fa)) {
         return true;
     }
     for (int i = 0; i < UMCUB_CFG_IMAGE_NUMBER; i++) {
@@ -70,7 +58,7 @@ static int resolve_slot(int image, int slot)
     }
     if (slot == UMCUB_SLOT_INACTIVE) {
         const struct flash_area *pri;
-        if (flash_area_open((uint8_t)flash_area_id_from_multi_image_slot(image, 0), &pri)) {
+        if (umcub_slot_area(image, 0, &pri)) {
             return UMCUB_EINVAL;
         }
         slot = slot_in_use(pri) ? UMCUB_SLOT_SECONDARY : UMCUB_SLOT_PRIMARY;
@@ -95,11 +83,8 @@ int umcub_slot_begin(umcub_slot_writer_t *w, int image, int slot, uint32_t total
 {
     const struct flash_area *fa;
     memset(w, 0, sizeof(*w));
-    if (image < 0 || image >= UMCUB_CFG_IMAGE_NUMBER) {
-        return UMCUB_EINVAL;
-    }
     int s = resolve_slot(image, slot);
-    if (s < 0 || flash_area_open((uint8_t)flash_area_id_from_multi_image_slot(image, s), &fa)) {
+    if (s < 0 || umcub_slot_area(image, s, &fa)) {
         return UMCUB_EINVAL;
     }
     if (slot_in_use(fa)) {
@@ -230,8 +215,9 @@ int umcub_slot_finish(umcub_slot_writer_t *w, bool request_upgrade, bool permane
         w->buf_len = 0;
     }
 
+    const struct flash_area written = { .fa_off = w->base, .fa_size = w->off };
     struct image_header hdr;
-    if (umcub_flash_read(w->base, &hdr, sizeof(hdr)) || hdr.ih_magic != IMAGE_MAGIC ||
+    if (!umcub_image_header(&written, 0, &hdr) ||
         (uint64_t)hdr.ih_hdr_size + hdr.ih_img_size > w->off) {
         return UMCUB_EIO;   /* not a (complete) MCUboot image */
     }

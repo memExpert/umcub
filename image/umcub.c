@@ -48,29 +48,18 @@ int umcub_boot_version(umcub_version_t *v)
     return UMCUB_ENOTSUP;
 }
 
-static int slot_area(int image, int slot, const struct flash_area **fa)
-{
-    if (image < 0 || image >= UMCUB_CFG_IMAGE_NUMBER || slot < 0 || slot > 1) {
-        return UMCUB_EINVAL;
-    }
-    return flash_area_open((uint8_t)flash_area_id_from_multi_image_slot(image, slot), fa) ? UMCUB_EINVAL : 0;
-}
-
 int umcub_image_version(int image, int slot, umcub_version_t *v)
 {
     const struct flash_area *fa;
     struct image_header hdr;
-    int rc = slot_area(image, slot, &fa);
+    int rc = umcub_slot_area(image, slot, &fa);
     if (rc) {
         return rc;
     }
-    if (flash_area_read(fa, 0, &hdr, sizeof(hdr)) || hdr.ih_magic != IMAGE_MAGIC) {
+    if (!umcub_image_header(fa, 0, &hdr)) {
         return UMCUB_EIO;
     }
-    v->major = hdr.ih_ver.iv_major;
-    v->minor = hdr.ih_ver.iv_minor;
-    v->revision = hdr.ih_ver.iv_revision;
-    v->build = hdr.ih_ver.iv_build_num;
+    memcpy(v, &hdr.ih_ver, sizeof(*v));
     return 0;
 }
 
@@ -112,38 +101,36 @@ void umcub_note_app_update(void)
 }
 #endif
 
-/* Image the running code belongs to (by the address of this function). */
-static int running_image(void)
+/* The running code (this function, or the vector table) lies in `fa`. */
+bool umcub_executing_from(const struct flash_area *fa)
 {
-#if UMCUB_CFG_IMAGE_NUMBER > 1
-    uint32_t pc = (uint32_t)(uintptr_t)&running_image;
-    if ((pc - UMCUB_CFG_IMG1_PRIMARY_ADDR) < UMCUB_CFG_IMG1_PRIMARY_SIZE ||
-        (pc - UMCUB_CFG_IMG1_SECONDARY_ADDR) < UMCUB_CFG_IMG1_SECONDARY_SIZE) {
-        return 1;
-    }
+#ifdef UMCUB_HOST_TEST
+    (void)fa;
+    return false;
+#else
+    uint32_t pc = (uint32_t)(uintptr_t)&umcub_executing_from;
+    uint32_t vtor = *(volatile uint32_t *)0xE000ED08u;   /* SCB->VTOR */
+    return (pc - fa->fa_off) < fa->fa_size || (vtor - fa->fa_off) < fa->fa_size;
 #endif
-    return 0;
 }
 
-int umcub_confirm(void)
-{
-    return umcub_confirm_image(running_image());
-}
-
-#if UMCUB_CFG_UPGRADE_MODE >= UMCUB_MODE_DIRECT_XIP
 /* Slot (0/1) of `image` that holds the running code, or -1. */
-static int running_slot(int image)
+static __attribute__((unused)) int running_slot(int image)
 {
-    uint32_t pc = (uint32_t)(uintptr_t)&running_slot;
     for (int slot = 0; slot < 2; slot++) {
         const struct flash_area *fa;
-        if (slot_area(image, slot, &fa) == 0 && pc - fa->fa_off < fa->fa_size) {
+        if (umcub_slot_area(image, slot, &fa) == 0 && umcub_executing_from(fa)) {
             return slot;
         }
     }
     return -1;
 }
-#endif
+
+int umcub_confirm(void)
+{
+    /* the image the running code belongs to */
+    return umcub_confirm_image(UMCUB_CFG_IMAGE_NUMBER > 1 && running_slot(1) >= 0 ? 1 : 0);
+}
 
 int umcub_confirm_image(int image)
 {
@@ -155,7 +142,7 @@ int umcub_confirm_image(int image)
 #elif UMCUB_CFG_UPGRADE_MODE == UMCUB_MODE_DIRECT_XIP_REVERT
     const struct flash_area *fa;
     int slot = running_slot(image);
-    if (slot < 0 || slot_area(image, slot, &fa)) {
+    if (slot < 0 || umcub_slot_area(image, slot, &fa)) {
         return UMCUB_EINVAL;   /* only the image this code belongs to can be confirmed */
     }
     return boot_set_next(fa, true, true) ? UMCUB_EIO : 0;
@@ -169,7 +156,7 @@ int umcub_mark_slot(int image, int slot, bool permanent)
 {
 #if UMCUB_CFG_UPGRADE_MODE == UMCUB_MODE_DIRECT_XIP_REVERT
     const struct flash_area *fa;
-    if (slot_area(image, slot, &fa)) {
+    if (umcub_slot_area(image, slot, &fa)) {
         return UMCUB_EINVAL;
     }
     return boot_set_next(fa, false, permanent) ? UMCUB_EIO : 0;
@@ -201,7 +188,7 @@ int umcub_is_confirmed(int image)
         slot = 1;
     }
 #endif
-    if (slot_area(image, slot, &fa)) {
+    if (umcub_slot_area(image, slot, &fa)) {
         return UMCUB_EINVAL;
     }
     struct boot_swap_state st;

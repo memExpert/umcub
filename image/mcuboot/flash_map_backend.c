@@ -8,6 +8,13 @@
 #include "umcub_port.h"
 #include "flash_map_backend/flash_map_backend.h"
 #include "sysflash/sysflash.h"
+#include "bootutil/image.h"
+#include "umcub_handoff.h"
+
+_Static_assert(sizeof(umcub_version_t) == sizeof(struct image_version) &&
+               __builtin_offsetof(umcub_version_t, revision) == __builtin_offsetof(struct image_version, iv_revision) &&
+               __builtin_offsetof(umcub_version_t, build) == __builtin_offsetof(struct image_version, iv_build_num),
+               "umcub_version_t must match MCUboot's struct image_version");
 
 static const struct flash_area areas[] = {
     { FLASH_AREA_BOOTLOADER, 0, 0, UMCUB_CFG_BOOT_ADDR, UMCUB_CFG_BOOT_SIZE },
@@ -58,12 +65,28 @@ void flash_area_close(const struct flash_area *fa)
     (void)fa;
 }
 
+_Static_assert(FLASH_AREA_IMAGE_1 == FLASH_AREA_IMAGE_0 + 1 && FLASH_AREA_IMAGE_2 == FLASH_AREA_IMAGE_0 + 2 &&
+               FLASH_AREA_IMAGE_3 == FLASH_AREA_IMAGE_0 + 3, "sysflash: image N slot S = IMAGE_0 + 2N + S");
+
+int umcub_slot_area(int image, int slot, const struct flash_area **fa)
+{
+    if ((unsigned)image >= UMCUB_CFG_IMAGE_NUMBER || (unsigned)slot > 1u) {
+        return UMCUB_EINVAL;
+    }
+    return flash_area_open((uint8_t)(FLASH_AREA_IMAGE_0 + 2 * image + slot), fa) ? UMCUB_EINVAL : 0;
+}
+
 int flash_area_read(const struct flash_area *fa, uint32_t off, void *dst, uint32_t len)
 {
     if (!in_area(fa, off, len)) {
         return -EINVAL;
     }
     return umcub_flash_read(fa->fa_off + off, dst, len) ? -EIO : 0;
+}
+
+bool umcub_image_header(const struct flash_area *fa, uint32_t off, struct image_header *hdr)
+{
+    return flash_area_read(fa, off, hdr, sizeof(*hdr)) == 0 && hdr->ih_magic == IMAGE_MAGIC;
 }
 
 int flash_area_write(const struct flash_area *fa, uint32_t off, const void *src, uint32_t len)

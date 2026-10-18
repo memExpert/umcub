@@ -46,9 +46,6 @@ Larger changes:
   `pump_link_stream`; NLIP lines decoded in the mux and fed to boot_serial like packets, so `line_rename_params()`
   goes away. Better: upstream MCUboot lets unknown group-0 commands reach the per-user hook
   (`MCUBOOT_PERUSER_MGMT_GROUP_ENABLED`), which removes both rename functions (see the MCUboot upstream item).
-- [ ] image/: one slot -> flash area helper with the range checks (umcub.c `slot_area`, inspect.c, slot_writer.c,
-  hooks.c, lite.c) and one header -> version conversion (boot/main.c, image/umcub.c); the app library's
-  running-slot tests (`running_slot`, `running_image`) on `executing_from()`.
 - [ ] port/: `umcub_cm_periph_on(enr, rstr, bit)` for the ~15 clock enable + reset sequences; a table instead of the
   `switch (instance)` in the F1 UART init; shared IWDG start and UART RX ring in port/arch/cortexm.
 - [ ] Host tools: shared CAN / serial / UDP argument helpers (`add_can_arguments()` like `probe.add_arguments()`,

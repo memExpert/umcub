@@ -60,7 +60,7 @@ int umcub_enc_upload_check(int image, const struct flash_area *fap)
 {
     struct image_header hdr;
     validated = NULL;
-    if (flash_area_read(fap, 0, &hdr, sizeof(hdr)) != 0 || hdr.ih_magic != IMAGE_MAGIC) {
+    if (!umcub_image_header(fap, 0, &hdr)) {
         return -1;
     }
     if (!IS_ENCRYPTED(&hdr)) {
@@ -88,7 +88,7 @@ static uint8_t sector_buf[UMCUB_FAMILY_UNIFORM_SECTOR];
 int boot_handle_enc_fw(const struct flash_area *fap)
 {
     struct image_header hdr;
-    if (flash_area_read(fap, 0, &hdr, sizeof(hdr)) != 0 || hdr.ih_magic != IMAGE_MAGIC) {
+    if (!umcub_image_header(fap, 0, &hdr)) {
         return -1;
     }
     if (!IS_ENCRYPTED(&hdr)) {

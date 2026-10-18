@@ -154,8 +154,7 @@ static void info(umcub_cmd_reply_t reply)
             struct flash_area area;     /* swap-offset: where MCUboot looks for the image */
             const struct flash_area *fa = &area;
             struct image_header h;
-            if (umcub_inspect_area(img, slot, &area) ||
-                flash_area_read(fa, 0, &h, sizeof(h)) || h.ih_magic != IMAGE_MAGIC) {
+            if (umcub_inspect_area(img, slot, &area) || !umcub_image_header(fa, 0, &h)) {
                 say(reply, "image %d slot %d: empty", img, slot);
                 continue;
             }

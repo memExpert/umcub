@@ -43,19 +43,6 @@ static const char *const mode_names[] __attribute__((unused)) = {
     "?", "overwrite", "swap-scratch", "swap-move", "swap-offset", "direct-xip", "direct-xip-revert",
 };
 
-static __attribute__((unused)) bool read_header(uint32_t addr, struct image_header *hdr)
-{
-    return umcub_flash_read(addr, hdr, sizeof(*hdr)) == 0 && hdr->ih_magic == IMAGE_MAGIC;
-}
-
-static void version_from_header(const struct image_header *hdr, umcub_version_t *v)
-{
-    v->major = hdr->ih_ver.iv_major;
-    v->minor = hdr->ih_ver.iv_minor;
-    v->revision = hdr->ih_ver.iv_revision;
-    v->build = hdr->ih_ver.iv_build_num;
-}
-
 static bool entry_gpio_active(void)
 {
 #if UMCUB_CFG_ENTRY_GPIO
@@ -190,7 +177,7 @@ int main(void)
 #endif
 
     uint32_t vtor0 = image_vtor(&rsp);
-    version_from_header(rsp.br_hdr, &info.image_version[0]);
+    memcpy(&info.image_version[0], &rsp.br_hdr->ih_ver, sizeof(info.image_version[0]));
     info.image_addr[0] = rsp.br_image_off;
     info.active_slot[0] = rsp.br_image_off == UMCUB_CFG_IMG0_PRIMARY_ADDR ? 0 : 1;
 
@@ -201,16 +188,16 @@ int main(void)
 #if DIRECT_XIP
         /* boot_go() already chose and validated image 1's slot. */
         uint32_t slot = boot_get_loader_state()->slot_usage[1].active_slot;
-        uint32_t base = slot == 0 ? UMCUB_CFG_IMG1_PRIMARY_ADDR : UMCUB_CFG_IMG1_SECONDARY_ADDR;
         info.active_slot[1] = (uint8_t)slot;
 #else
-        uint32_t base = UMCUB_CFG_IMG1_PRIMARY_ADDR;
+        uint32_t slot = 0;
 #endif
+        const struct flash_area *fa;
         struct image_header hdr;
-        if (read_header(base, &hdr)) {
-            vtor1 = base + hdr.ih_hdr_size;
-            version_from_header(&hdr, &info.image_version[1]);
-            info.image_addr[1] = base;
+        if (umcub_slot_area(1, (int)slot, &fa) == 0 && umcub_image_header(fa, 0, &hdr)) {
+            vtor1 = flash_area_get_off(fa) + hdr.ih_hdr_size;
+            memcpy(&info.image_version[1], &hdr.ih_ver, sizeof(info.image_version[1]));
+            info.image_addr[1] = flash_area_get_off(fa);
         }
     }
 #endif
