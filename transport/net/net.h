@@ -24,7 +24,6 @@ typedef struct {
     uint8_t mac[6];
     uint32_t ip;
     uint32_t netmask;
-    uint32_t gateway;
     bool configured;        /* ip is valid (DHCP lease or static fallback) */
 } net_if_t;
 

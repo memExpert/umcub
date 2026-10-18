@@ -267,7 +267,6 @@
 /* Used when DHCP is off, or as fallback after UMCUB_CFG_ETH_DHCP_TIMEOUT_MS. */
 /* #define UMCUB_CFG_ETH_IP               UMCUB_IP4(192, 168, 1, 50) */
 /* #define UMCUB_CFG_ETH_NETMASK          UMCUB_IP4(255, 255, 255, 0) */
-/* #define UMCUB_CFG_ETH_GATEWAY          UMCUB_IP4(192, 168, 1, 1) */
 /* #define UMCUB_CFG_ETH_DHCP_TIMEOUT_MS  10000 */
 /* MAC: 0 = derived from the MCU unique ID (locally administered). */
 /* #define UMCUB_CFG_ETH_MAC              0 */

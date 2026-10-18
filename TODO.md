@@ -71,8 +71,6 @@ Behaviour / security trade-offs (as options):
 - [ ] mux: release the stream lock on any `\n` in boot_serial's output, not only a separate 1-byte write.
 
 Config / API cleanup:
-- [ ] `net_if.gateway` is never read (replies go to the sender's MAC): drop it, or document
-  `UMCUB_CFG_ETH_GATEWAY` as unused.
 - [ ] `UMCUB_CFG_USB_DFU_IMAGE` is only range-checked (DFU alt N = image N), and its template comment about
   direct-xip is stale.
 - [ ] `umcub_flash_write_align()` / `umcub_flash_erased_val()` return constants: use `UMCUB_FAMILY_WRITE_ALIGN` and

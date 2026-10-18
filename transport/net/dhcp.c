@@ -61,7 +61,7 @@ static void send_msg(uint8_t type)
         o[6 + i] = "0123456789abcdef"[(net_if.mac[4 + i / 2] >> (i % 2 ? 0 : 4)) & 15];
     }
     o += 10;
-    *o++ = 55; *o++ = 4; *o++ = 1; *o++ = 3; *o++ = 51; *o++ = 54;
+    *o++ = 55; *o++ = 3; *o++ = 1; *o++ = 51; *o++ = 54;
     *o++ = 255;
 
     /* Source 0.0.0.0 until a lease is bound (RFC 2131 4.1), also while the
@@ -74,7 +74,6 @@ static void apply_static(const char *what)
 {
     net_if.ip = UMCUB_CFG_ETH_IP;
     net_if.netmask = UMCUB_CFG_ETH_NETMASK;
-    net_if.gateway = UMCUB_CFG_ETH_GATEWAY;
     net_if.configured = true;
     log_ip(what, net_if.ip);
 }
@@ -135,7 +134,7 @@ void dhcp_input(const uint8_t *d, size_t len)
         return;
     }
     uint8_t type = 0;
-    uint32_t sid = 0, mask = 0, router = 0, lease = 3600;
+    uint32_t sid = 0, mask = 0, lease = 3600;
     for (size_t i = BOOTP_LEN + 4; i < len;) {
         uint8_t opt = d[i];
         if (opt == 255) {
@@ -153,7 +152,6 @@ void dhcp_input(const uint8_t *d, size_t len)
         if (opt == 53 && l == 1) type = v[0];
         else if (opt == 54 && l == 4) sid = net_get32(v);
         else if (opt == 1 && l == 4) mask = net_get32(v);
-        else if (opt == 3 && l >= 4) router = net_get32(v);
         else if (opt == 51 && l == 4) lease = net_get32(v);
         i += 2u + l;
     }
@@ -170,7 +168,6 @@ void dhcp_input(const uint8_t *d, size_t len)
         bool changed = !net_if.configured || net_if.ip != yiaddr;
         net_if.ip = yiaddr;
         net_if.netmask = mask ? mask : 0xFFFFFF00u;
-        net_if.gateway = router;
         net_if.configured = true;
         lease_s = lease < 60u ? 60u : lease;
         bound_at = umcub_port_millis();
