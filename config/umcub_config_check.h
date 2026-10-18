@@ -102,6 +102,12 @@
 #error "umcub: UMCUB_CFG_ETH_RMII_PINS is required for the on-chip Ethernet MAC"
 #endif
 
+#if UMCUB_CFG_UART_TX_RING & (UMCUB_CFG_UART_TX_RING - 1)
+#error "umcub: UMCUB_CFG_UART_TX_RING must be 0 or a power of two"
+#endif
+#if UMCUB_CFG_UART_TX_RING && UMCUB_CFG_UART_DE_PIN != UMCUB_PIN_NONE
+#error "umcub: UMCUB_CFG_UART_TX_RING does not work with RS485 (DE is switched per write)"
+#endif
 #if UMCUB_CFG_UART_DE_PIN != UMCUB_PIN_NONE && UMCUB_CFG_LOG_LEVEL > 0
 #error "umcub: RS485 (UMCUB_CFG_UART_DE_PIN): the log would share the bus - set UMCUB_CFG_LOG_LEVEL 0"
 #endif

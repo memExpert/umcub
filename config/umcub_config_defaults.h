@@ -196,6 +196,9 @@
 #ifndef UMCUB_CFG_UART_TURNAROUND_MS
 #define UMCUB_CFG_UART_TURNAROUND_MS    0
 #endif
+#ifndef UMCUB_CFG_UART_TX_RING
+#define UMCUB_CFG_UART_TX_RING          0
+#endif
 
 /* --- USB ----------------------------------------------------------------- */
 #ifndef UMCUB_CFG_TRANSPORT_USB_CDC

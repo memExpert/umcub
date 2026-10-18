@@ -245,6 +245,15 @@
 /* #define UMCUB_CFG_UART_DE_ACTIVE       1     (1 = DE high while sending) */
 /* Pause before answering, so the host has released the bus (ms). */
 /* #define UMCUB_CFG_UART_TURNAROUND_MS   0 */
+/* Transmit through a RAM ring of this many bytes (power of two, e.g. 512),
+ * drained by the UART interrupt: writes (log, SMP answers) return at once and
+ * the boot log overlaps the signature check instead of stalling it (~5 ms per
+ * 60-character line at 115200). 0 = blocking writes (default). Costs the RAM
+ * and ~0.1-0.2 K of code; the ring is drained before the jump, but on a hang,
+ * fault or reset the last lines can stay in RAM and never reach the UART -
+ * keep 0 when the log is used to find where the bootloader stops. Not with
+ * RS485 (UMCUB_CFG_UART_DE_PIN). */
+/* #define UMCUB_CFG_UART_TX_RING         0 */
 
 /* --- USB device (tinyUSB): CDC-ACM with SMP and/or DFU ------------------ */
 /* #define UMCUB_CFG_TRANSPORT_USB_CDC    0 */

@@ -17,6 +17,10 @@ static uint32_t de_pin = UMCUB_PIN_NONE;   /* RS485 DE, always software on F1 (n
 static bool de_level;
 static uint8_t rx_buf[RX_RING];
 static stm32_ring_t rx;
+#if UMCUB_CFG_UART_TX_RING
+static uint8_t tx_buf[UMCUB_CFG_UART_TX_RING];
+static stm32_ring_t tx;
+#endif
 
 #define PIN(port, n) UMCUB_PIN(port, n, 0)
 #define SAME_PIN(a, b) (((a) & ~0xFu) == ((b) & ~0xFu))   /* ignore the AF field */
@@ -43,9 +47,19 @@ static void uart_isr(void)
     if (sr & (USART_SR_RXNE | USART_SR_ORE | USART_SR_FE | USART_SR_NE | USART_SR_PE)) {
         uint8_t c = (uint8_t)uart->DR;  /* SR then DR read clears the error flags too */
         if (sr & USART_SR_RXNE) {
-            stm32_ring_put(&rx, rx_buf, RX_RING, c);
+            (void)stm32_ring_put(&rx, rx_buf, RX_RING, c);
         }
     }
+#if UMCUB_CFG_UART_TX_RING
+    if ((sr & USART_SR_TXE) && (uart->CR1 & USART_CR1_TXEIE)) {
+        uint8_t c;
+        if (stm32_ring_pop(&tx, tx_buf, UMCUB_CFG_UART_TX_RING, &c)) {
+            uart->DR = c;
+        } else {
+            CLEAR_BIT(uart->CR1, USART_CR1_TXEIE);
+        }
+    }
+#endif
 }
 
 void USART1_IRQHandler(void) { uart_isr(); }
@@ -96,6 +110,9 @@ int umcub_port_uart_init(const umcub_uart_cfg_t *cfg)
     uart_pins[0] = tx_pin;
     uart_pins[1] = rx_pin;
     rx.head = rx.tail = 0;
+#if UMCUB_CFG_UART_TX_RING
+    tx.head = tx.tail = 0;
+#endif
 
     f1_gpio_config(tx_pin, F1_GPIO_AF_PP_50M);
     umcub_port_gpio_input(rx_pin, UMCUB_PULL_UP);   /* idle high if unconnected */
@@ -121,6 +138,9 @@ void umcub_port_uart_deinit(void)
     if (!uart) {
         return;
     }
+#if UMCUB_CFG_UART_TX_RING
+    stm32_ring_drain(&tx, 500);
+#endif
     (void)umcub_cm_wait(&uart->SR, USART_SR_TC, USART_SR_TC, 50);
     NVIC_DisableIRQ(uart_irq);
     uart->CR1 = 0;
@@ -143,6 +163,10 @@ void umcub_port_uart_write(const uint8_t *buf, size_t len)
     if (!uart || !len) {
         return;
     }
+#if UMCUB_CFG_UART_TX_RING
+    stm32_ring_write(&tx, tx_buf, UMCUB_CFG_UART_TX_RING, buf, len, &uart->CR1, USART_CR1_TXEIE);
+    return;
+#endif
     bool rs485 = de_pin != UMCUB_PIN_NONE;
     if (rs485) {
         CLEAR_BIT(uart->CR1, USART_CR1_RE);         /* no echo of our own bytes */

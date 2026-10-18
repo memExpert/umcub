@@ -14,6 +14,10 @@ static uint32_t de_pin = UMCUB_PIN_NONE;
 static bool de_hw, de_level;
 static uint8_t rx_buf[RX_RING];
 static stm32_ring_t rx;
+#if UMCUB_CFG_UART_TX_RING
+static uint8_t tx_buf[UMCUB_CFG_UART_TX_RING];
+static stm32_ring_t tx;
+#endif
 
 struct uart_desc {
     USART_TypeDef *regs;
@@ -45,8 +49,18 @@ static void uart_isr(void)
         uart->ICR = USART_ICR_ORECF | USART_ICR_FECF | USART_ICR_NECF | USART_ICR_PECF;
     }
     if (isr & USART_ISR_RXNE_RXFNE) {
-        stm32_ring_put(&rx, rx_buf, RX_RING, (uint8_t)uart->RDR);
+        (void)stm32_ring_put(&rx, rx_buf, RX_RING, (uint8_t)uart->RDR);
     }
+#if UMCUB_CFG_UART_TX_RING
+    if ((isr & USART_ISR_TXE_TXFNF) && (uart->CR1 & USART_CR1_TXEIE_TXFNFIE)) {
+        uint8_t c;
+        if (stm32_ring_pop(&tx, tx_buf, UMCUB_CFG_UART_TX_RING, &c)) {
+            uart->TDR = c;
+        } else {
+            CLEAR_BIT(uart->CR1, USART_CR1_TXEIE_TXFNFIE);
+        }
+    }
+#endif
 }
 
 void USART1_IRQHandler(void) { uart_isr(); }
@@ -70,6 +84,9 @@ int umcub_port_uart_init(const umcub_uart_cfg_t *cfg)
     uart_pins[0] = cfg->tx_pin;
     uart_pins[1] = cfg->rx_pin;
     rx.head = rx.tail = 0;
+#if UMCUB_CFG_UART_TX_RING
+    tx.head = tx.tail = 0;
+#endif
     de_pin = cfg->de_pin;
     de_level = cfg->de_active_high;
     /* RTS/DE alternate function given: the USART drives DE itself (RM0399
@@ -115,6 +132,9 @@ void umcub_port_uart_deinit(void)
     if (!uart) {
         return;
     }
+#if UMCUB_CFG_UART_TX_RING
+    stm32_ring_drain(&tx, 500);
+#endif
     (void)umcub_cm_wait(&uart->ISR, USART_ISR_TC, USART_ISR_TC, 50);
     NVIC_DisableIRQ(uart_irq);
     LL_USART_Disable(uart);
@@ -137,6 +157,10 @@ void umcub_port_uart_write(const uint8_t *buf, size_t len)
     if (!uart || !len) {
         return;
     }
+#if UMCUB_CFG_UART_TX_RING
+    stm32_ring_write(&tx, tx_buf, UMCUB_CFG_UART_TX_RING, buf, len, &uart->CR1, USART_CR1_TXEIE_TXFNFIE);
+    return;
+#endif
     bool rs485 = de_pin != UMCUB_PIN_NONE;
     if (rs485) {
         CLEAR_BIT(uart->CR1, USART_CR1_RE);             /* no echo of our own bytes */
