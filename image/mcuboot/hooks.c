@@ -67,8 +67,7 @@ static bool vector_ok(int img_index, int slot, const struct flash_area *fa, uint
                       const struct image_header *hdr)
 {
     uint32_t reset;
-    if (((hdr->ih_flags & (IMAGE_F_ENCRYPTED_AES128 | IMAGE_F_ENCRYPTED_AES256)) != 0 &&
-         flash_area_get_id(fa) == FLASH_AREA_IMAGE_SECONDARY(img_index)) ||
+    if (MUST_DECRYPT(fa, img_index, hdr) ||
         flash_area_read(fa, hdr_off + hdr->ih_hdr_size + 4u, &reset, sizeof(reset)) != 0) {
         return true;
     }

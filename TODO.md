@@ -70,9 +70,6 @@ Behaviour / security trade-offs (as options):
   `UMCUB_CFG_ENTRY_WAIT_MS` is below ~3 s.
 - [ ] mux: release the stream lock on any `\n` in boot_serial's output, not only a separate 1-byte write.
 
-Config / API cleanup:
-- [ ] hooks.c re-implements MCUboot's `MUST_DECRYPT` test (`vector_ok`).
-
 Tooling speed:
 - [ ] tools/build/build_matrix.sh: build the configs in parallel; link_e2e.py scenarios in threads.
 - [ ] tools/hw/powerfail_test.py with stm32cube: one CLI call per step (several -e/-d/-w32/-r32) or pyOCD, and erase

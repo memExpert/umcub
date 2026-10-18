@@ -210,9 +210,9 @@ same core; check the real size after porting.
 
 | MCU, with LTO | base | UART (+SMP) | UART, lite upload (no SMP) | all on |
 |---|---:|---:|---:|---:|
-| STM32H755 CM7 (2 images, SINGLE_BOOT) | 15.6 K (-2.9 K) | 23.5 K (-3.8 K) | 19.4 K (-3.2 K) | 49.3 K (-6.1 K) |
-| STM32H755 CM4 (PER_CORE) | 13.2 K (-3.0 K) | 20.7 K (-3.9 K) | 16.9 K (-3.3 K) | 46.4 K (-6.1 K) |
-| STM32H743 / H753 (single core) | 13.9 K (-3.0 K) | 21.4 K (-4.0 K) | 17.6 K (-3.3 K) | 47.6 K (-5.6 K) |
+| STM32H755 CM7 (2 images, SINGLE_BOOT) | 15.6 K (-2.9 K) | 23.5 K (-3.8 K) | 19.4 K (-3.2 K) | 49.2 K (-6.1 K) |
+| STM32H755 CM4 (PER_CORE) | 13.2 K (-3.0 K) | 20.7 K (-3.9 K) | 16.9 K (-3.3 K) | 46.3 K (-6.1 K) |
+| STM32H743 / H753 (single core) | 13.9 K (-3.0 K) | 21.4 K (-4.0 K) | 17.6 K (-3.3 K) | 47.5 K (-5.7 K) |
 | STM32F103 (Blue Pill, overwrite) | 10.1 K (-2.6 K) | 17.5 K (-3.8 K) | 13.7 K (-3.1 K) | 33.8 K (-5.2 K) |
 <!-- size-table:end -->
 
