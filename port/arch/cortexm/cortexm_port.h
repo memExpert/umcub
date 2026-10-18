@@ -11,9 +11,11 @@
 /* Busy-wait until (*reg & mask) == value or timeout (UMCUB_ETIMEOUT). */
 int umcub_cm_wait(volatile uint32_t *reg, uint32_t mask, uint32_t value, uint32_t timeout_ms);
 
-/* Peripheral reset bookkeeping: drivers register the RCC reset bit of every
- * peripheral they enable so deinit can put it back into reset state. */
-void umcub_cm_periph_used(volatile uint32_t *rstr, uint32_t mask);
+/* Peripheral clock on (`mask` in `enr`, read back so it takes effect before
+ * the first access) and the same bits of `rstr` registered, so deinit puts
+ * the peripheral back into reset state. The enable and reset bits of a
+ * peripheral sit at the same position on STM32. */
+void umcub_cm_periph_on(volatile uint32_t *enr, volatile uint32_t *rstr, uint32_t mask);
 
 /* First thing at init: the RCC enable registers to restore at deinit (at
  * most UMCUB_CM_EN_REGS_MAX), saved as found at reset. */

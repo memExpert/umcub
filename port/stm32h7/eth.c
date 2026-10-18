@@ -108,9 +108,8 @@ int umcub_port_eth_init(const uint8_t mac[6], unsigned phy_addr, const uint32_t 
         umcub_port_gpio_af(pins[i]);
     }
 
-    SET_BIT(RCC->AHB1ENR, RCC_AHB1ENR_ETH1MACEN | RCC_AHB1ENR_ETH1TXEN | RCC_AHB1ENR_ETH1RXEN);
-    (void)RCC->AHB1ENR;
-    umcub_cm_periph_used(&RCC->AHB1RSTR, RCC_AHB1RSTR_ETH1MACRST);
+    SET_BIT(RCC->AHB1ENR, RCC_AHB1ENR_ETH1TXEN | RCC_AHB1ENR_ETH1RXEN);   /* no reset bits of their own */
+    umcub_cm_periph_on(&RCC->AHB1ENR, &RCC->AHB1RSTR, RCC_AHB1ENR_ETH1MACEN);
 
     SET_BIT(ETH->DMAMR, ETH_DMAMR_SWR);
     if (umcub_cm_wait(&ETH->DMAMR, ETH_DMAMR_SWR, 0, 100)) {

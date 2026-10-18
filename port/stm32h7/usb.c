@@ -16,9 +16,7 @@ int umcub_port_usb_init(void)
     }
     LL_RCC_SetUSBClockSource(LL_RCC_USB_CLKSOURCE_HSI48);
 
-    SET_BIT(RCC->APB1HENR, RCC_APB1HENR_CRSEN);
-    (void)RCC->APB1HENR;
-    umcub_cm_periph_used(&RCC->APB1HRSTR, RCC_APB1HRSTR_CRSRST);
+    umcub_cm_periph_on(&RCC->APB1HENR, &RCC->APB1HRSTR, RCC_APB1HENR_CRSEN);
     LL_CRS_SetSyncSignalSource(LL_CRS_SYNC_SOURCE_USB);
     LL_CRS_EnableAutoTrimming();
     LL_CRS_EnableFreqErrorCounter();
@@ -28,10 +26,8 @@ int umcub_port_usb_init(void)
     umcub_port_gpio_af(USB_DM);
     umcub_port_gpio_af(USB_DP);
 
-    SET_BIT(RCC->AHB1ENR, RCC_AHB1ENR_USB2OTGFSEN);
-    (void)RCC->AHB1ENR;
     /* (ULPI clock in sleep: switched off by tinyUSB, dwc2_phy_init()) */
-    umcub_cm_periph_used(&RCC->AHB1RSTR, RCC_AHB1RSTR_USB2OTGFSRST);
+    umcub_cm_periph_on(&RCC->AHB1ENR, &RCC->AHB1RSTR, RCC_AHB1ENR_USB2OTGFSEN);
 
     NVIC_SetPriority(OTG_FS_IRQn, 3);
     return 0;   /* tinyUSB rhport 0 = OTG_FS */

@@ -83,9 +83,7 @@ int umcub_port_uart_init(const umcub_uart_cfg_t *cfg)
      * USART "RS485 driver enable"); AF 0: software switches a GPIO. */
     de_hw = de_pin != UMCUB_PIN_NONE && UMCUB_PIN_AF(de_pin) != 0;
 
-    SET_BIT(*d.enr, d.bit);
-    (void)*d.enr;
-    umcub_cm_periph_used(d.rstr, d.bit);
+    umcub_cm_periph_on(d.enr, d.rstr, d.bit);
 
     umcub_port_gpio_af(cfg->tx_pin);
     umcub_port_gpio_af(cfg->rx_pin);

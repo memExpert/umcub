@@ -73,9 +73,7 @@ int umcub_port_can_init(const umcub_can_cfg_t *c)
     can = FDCAN1;
 
     MODIFY_REG(RCC->D2CCIP1R, RCC_D2CCIP1R_FDCANSEL, 1u << RCC_D2CCIP1R_FDCANSEL_Pos);   /* PLL1Q */
-    SET_BIT(RCC->APB1HENR, RCC_APB1HENR_FDCANEN);
-    (void)RCC->APB1HENR;
-    umcub_cm_periph_used(&RCC->APB1HRSTR, RCC_APB1HRSTR_FDCANRST);
+    umcub_cm_periph_on(&RCC->APB1HENR, &RCC->APB1HRSTR, RCC_APB1HENR_FDCANEN);
 
     umcub_port_gpio_af(c->tx_pin);
     umcub_port_gpio_af(c->rx_pin);

@@ -39,7 +39,7 @@ void umcub_port_delay_ms(uint32_t ms)
     }
 }
 
-void umcub_cm_periph_used(volatile uint32_t *rstr, uint32_t mask)
+static void periph_used(volatile uint32_t *rstr, uint32_t mask)
 {
     for (unsigned i = 0; i < used_n; i++) {
         if (used[i].rstr == rstr) {
@@ -52,6 +52,13 @@ void umcub_cm_periph_used(volatile uint32_t *rstr, uint32_t mask)
         used[used_n].mask = mask;
         used_n++;
     }
+}
+
+void umcub_cm_periph_on(volatile uint32_t *enr, volatile uint32_t *rstr, uint32_t mask)
+{
+    *enr |= mask;
+    (void)*enr;
+    periph_used(rstr, mask);
 }
 
 void umcub_cm_save_clocks(volatile uint32_t *const *regs, unsigned n)

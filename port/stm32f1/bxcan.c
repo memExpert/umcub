@@ -64,12 +64,9 @@ int umcub_port_can_init(const umcub_can_cfg_t *c)
     }
     cfg = *c;
 
-    SET_BIT(RCC->APB1ENR, RCC_APB1ENR_CAN1EN);
-    (void)RCC->APB1ENR;
-    umcub_cm_periph_used(&RCC->APB1RSTR, RCC_APB1RSTR_CAN1RST);
+    umcub_cm_periph_on(&RCC->APB1ENR, &RCC->APB1RSTR, RCC_APB1ENR_CAN1EN);
     if (map[m].remap) {
-        SET_BIT(RCC->APB2ENR, RCC_APB2ENR_AFIOEN);
-        umcub_cm_periph_used(&RCC->APB2RSTR, RCC_APB2RSTR_AFIORST);
+        umcub_cm_periph_on(&RCC->APB2ENR, &RCC->APB2RSTR, RCC_APB2ENR_AFIOEN);
         /* SWJ_CFG reads back undefined: write 111 ("no effect") with the remap
          * bits, or SWD may get switched off (see uart.c). */
         MODIFY_REG(AFIO->MAPR, AFIO_MAPR_CAN_REMAP | AFIO_MAPR_SWJ_CFG, map[m].remap | AFIO_MAPR_SWJ_CFG);

@@ -77,28 +77,24 @@ int umcub_port_uart_init(const umcub_uart_cfg_t *cfg)
     case 1:
         uart = USART1;
         uart_irq = USART1_IRQn;
-        SET_BIT(RCC->APB2ENR, RCC_APB2ENR_USART1EN);
-        umcub_cm_periph_used(&RCC->APB2RSTR, RCC_APB2RSTR_USART1RST);
+        umcub_cm_periph_on(&RCC->APB2ENR, &RCC->APB2RSTR, RCC_APB2ENR_USART1EN);
         pclk = f1_pclk2_hz;
         break;
     case 2:
         uart = USART2;
         uart_irq = USART2_IRQn;
-        SET_BIT(RCC->APB1ENR, RCC_APB1ENR_USART2EN);
-        umcub_cm_periph_used(&RCC->APB1RSTR, RCC_APB1RSTR_USART2RST);
+        umcub_cm_periph_on(&RCC->APB1ENR, &RCC->APB1RSTR, RCC_APB1ENR_USART2EN);
         pclk = f1_pclk1_hz;
         break;
     default:
         uart = USART3;
         uart_irq = USART3_IRQn;
-        SET_BIT(RCC->APB1ENR, RCC_APB1ENR_USART3EN);
-        umcub_cm_periph_used(&RCC->APB1RSTR, RCC_APB1RSTR_USART3RST);
+        umcub_cm_periph_on(&RCC->APB1ENR, &RCC->APB1RSTR, RCC_APB1ENR_USART3EN);
         pclk = f1_pclk1_hz;
         break;
     }
     if (m->remap_val) {
-        SET_BIT(RCC->APB2ENR, RCC_APB2ENR_AFIOEN);
-        umcub_cm_periph_used(&RCC->APB2RSTR, RCC_APB2RSTR_AFIORST);
+        umcub_cm_periph_on(&RCC->APB2ENR, &RCC->APB2RSTR, RCC_APB2ENR_AFIOEN);
         /* SWJ_CFG is write-only and reads back undefined (RM0008 §9.4.2): write
          * 111 ("no effect") with the remap bits, or SWD may get switched off. */
         MODIFY_REG(AFIO->MAPR, m->remap_mask | AFIO_MAPR_SWJ_CFG, m->remap_val | AFIO_MAPR_SWJ_CFG);

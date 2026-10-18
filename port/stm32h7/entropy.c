@@ -12,9 +12,7 @@ static int rng_start(void)
         return UMCUB_EIO;
     }
     CLEAR_BIT(RCC->D2CCIP2R, RCC_D2CCIP2R_RNGSEL);     /* HSI48 */
-    SET_BIT(RCC->AHB2ENR, RCC_AHB2ENR_RNGEN);
-    (void)RCC->AHB2ENR;
-    umcub_cm_periph_used(&RCC->AHB2RSTR, RCC_AHB2RSTR_RNGRST);
+    umcub_cm_periph_on(&RCC->AHB2ENR, &RCC->AHB2RSTR, RCC_AHB2ENR_RNGEN);
     RNG->CR = RNG_CR_RNGEN;                             /* clock error detection on (CED = 0) */
     rng_up = true;
     return UMCUB_OK;
