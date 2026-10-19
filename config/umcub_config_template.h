@@ -164,7 +164,7 @@
 /* #define UMCUB_CFG_SMP_MTU              1024 */  /* at least 512 */
 /* Answer MCUMGR_PARAMETERS (os group, id 6) with {buf_size: UMCUB_CFG_SMP_MTU,
  * buf_count: 1}: smpmgr then sizes serial packets itself (no --line-buffers).
- * Needs the inspect group (UMCUB_CFG_INSPECT_*). About 250 bytes. */
+ * MCUboot's own command (MCUBOOT_BOOT_MGMT_MCUMGR_PARAMS). About 130 bytes. */
 /* #define UMCUB_CFG_SMP_PARAMS           1 */
 /* Where an SMP upload goes. 0: "image" N is image N, written straight into
  * its primary slot (MCUboot serial recovery: replaced at once, no revert).

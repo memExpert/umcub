@@ -23,7 +23,7 @@ Ethernet. A board is one configuration file; what you do not enable is not compi
 | STM32H7 (H743/H753, dual-core H745/H755/H747/H757) | NUCLEO-H755ZI-Q (both cores) | UART, USB CDC / DFU, FDCAN (CAN FD), Ethernet |
 | STM32F1 (F103x8/xB) | Blue Pill (STM32F103C8T6) | UART, USB CDC / DFU, bxCAN (not together with USB) |
 
-Size: from 12.6 K (F103) / 16.9 K (H743) without a transport, about 21 K with one UART on the F103; every transport
+Size: from 12.7 K (F103) / 17.0 K (H743) without a transport, about 21 K with one UART on the F103; every transport
 and feature is listed in [Bootloader size](docs/configuration.md#bootloader-size).
 
 ## Quick start (NUCLEO-H755ZI-Q)

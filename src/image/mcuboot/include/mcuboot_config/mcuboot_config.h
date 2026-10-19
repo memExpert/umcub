@@ -87,6 +87,11 @@
 #define MCUBOOT_SERIAL_IMG_GRP_HASH
 #define MCUBOOT_SERIAL_IMG_GRP_SLOT_INFO
 #define MCUBOOT_BOOT_MGMT_ECHO
+#if UMCUB_CFG_SMP_PARAMS
+/* MCUMGR_PARAMETERS (os group 0, id 6): {buf_size: MCUBOOT_SERIAL_MAX_RECEIVE_SIZE,
+ * buf_count: 1}; needs the standard 128-byte serial lines (the mux keeps them). */
+#define MCUBOOT_BOOT_MGMT_MCUMGR_PARAMS
+#endif
 #if UMCUB_CFG_INSPECT && UMCUB_CFG_SMP
 #define MCUBOOT_PERUSER_MGMT_GROUP_ENABLED 1   /* verify/hash/read group, src/proto/smp_inspect.c */
 #else

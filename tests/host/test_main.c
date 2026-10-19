@@ -618,7 +618,7 @@ static void test_streams_interleaved(const uint8_t *img, size_t len)
 /* MCUMGR_PARAMETERS (os group 0, id 6) over the packet and the stream path. */
 static void test_params(void)
 {
-#if !(UMCUB_CFG_SMP_PARAMS && UMCUB_CFG_INSPECT)
+#if !UMCUB_CFG_SMP_PARAMS
     printf("[mcumgr params] off: skipped\n");
     return;
 #endif

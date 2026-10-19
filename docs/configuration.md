@@ -76,39 +76,39 @@ same core; check the real size after porting.
 <!-- size-table:begin -->
 | | STM32H755 CM7 (2 images, SINGLE_BOOT) | STM32H755 CM4 (PER_CORE) | STM32H743 / H753 (single core) | STM32F103 (Blue Pill, overwrite) |
 |---|---:|---:|---:|---:|
-| **base**: MCUboot, signature check, jump | 18.6 K | 16.2 K | 16.9 K | 12.6 K |
-| + SMP (recovery protocol: once, with the first SMP transport) | +7.3 K | +7.1 K | +7.1 K | +7.3 K |
+| **base**: MCUboot, signature check, jump | 18.6 K | 16.2 K | 17.0 K | 12.7 K |
+| + SMP (recovery protocol: once, with the first SMP transport) | +7.4 K | +7.2 K | +7.2 K | +7.4 K |
 | + UART | +1.3 K | +1.3 K | +1.3 K | +1.3 K |
 | + USB CDC | +11.2 K | +11.2 K | +11.2 K | +9.8 K |
 | + USB DFU (needs no SMP) | +10.5 K | +10.5 K | +10.5 K | +9.0 K |
 | + CAN | +2.7 K | +2.7 K | +2.7 K | +2.4 K |
 | + CAN FD (on top of CAN) | 0 | 0 | 0 | — |
 | + Ethernet (IPv4, UDP, DHCP) | +4.2 K | +4.2 K | +4.2 K | — |
-| + lite upload (instead of SMP) | +2.5 K | +2.5 K | +2.5 K | +2.7 K |
+| + lite upload (instead of SMP) | +2.5 K | +2.5 K | +2.5 K | +2.6 K |
 | + log (level 3) | +3.7 K | +3.5 K | +3.5 K | +3.1 K |
 | + text commands | +2.2 K | +2.2 K | +2.2 K | +2.0 K |
 | + status LED | +0.2 K | +0.2 K | +0.2 K | +0.2 K |
-| + verify + hash | +1.2 K | +1.1 K | +1.1 K | +1.1 K |
+| + verify + hash | +0.9 K | +0.9 K | +0.9 K | +0.9 K |
 | + readback (on top of verify + hash) | +0.2 K | +0.2 K | +0.2 K | +0.2 K |
 | + umcub link (addressed) | +1.9 K | +1.9 K | +1.9 K | +1.8 K |
-| + umcub link SECURE | +4.8 K | +4.8 K | +4.8 K | +4.8 K |
+| + umcub link SECURE | +4.8 K | +4.8 K | +4.8 K | +4.7 K |
 | + link encryption (on top of SECURE) | +1.5 K | +1.5 K | +1.5 K | +1.5 K |
-| + encrypted images | +7.2 K | +6.5 K | +6.7 K | +6.3 K |
-| **all on** | 55.4 K | 52.5 K | 53.3 K | 38.8 K |
+| + encrypted images | +7.3 K | +6.6 K | +6.8 K | +6.4 K |
+| **all on** | 55.3 K | 52.5 K | 53.2 K | 38.8 K |
 
 | Flash layout | UART, lite (no SMP) | UART | USB CDC | CAN | Ethernet | UART, link SECURE | all on |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| STM32H7 (128 KiB sectors) | 1 (22.4 K) | 1 (27.2 K) | 1 (37.0 K) | 1 (28.6 K) | 1 (30.1 K) | 1 (32.0 K) | 1 (55.4 K) |
-| STM32F2 / F4, F72x / F73x (16, 16, 16, 16, 64, 128 KiB ...) — estimate: Cortex-M4 build | 2 (20.0 K) | 2 (24.6 K) | 3 (34.4 K) | 2 (26.0 K) | 2 (27.5 K) | 2 (29.4 K) | 4 (52.5 K) > 3 |
-| STM32F74x ... F77x (32, 32, 32, 32, 128, 256 KiB ...) — estimate: Cortex-M7 build | 1 (22.4 K) | 1 (27.2 K) | 2 (37.0 K) | 1 (28.6 K) | 1 (30.1 K) | 2 (32.0 K) | 2 (55.4 K) |
-| STM32F1 (1 / 2 KiB pages) | 16.5 K | 21.2 K | 29.6 K | 22.4 K | — | 26.0 K | 38.8 K |
-| STM32G4 / L4 (2 KiB pages) — estimate: Cortex-M4 build | 20.0 K | 24.6 K | 34.4 K | 26.0 K | 27.5 K | 29.4 K | 52.5 K |
+| STM32H7 (128 KiB sectors) | 1 (22.5 K) | 1 (27.4 K) | 1 (37.2 K) | 1 (28.8 K) | 1 (30.3 K) | 1 (32.2 K) | 1 (55.3 K) |
+| STM32F2 / F4, F72x / F73x (16, 16, 16, 16, 64, 128 KiB ...) — estimate: Cortex-M4 build | 2 (20.1 K) | 2 (24.8 K) | 3 (34.6 K) | 2 (26.2 K) | 2 (27.7 K) | 2 (29.6 K) | 4 (52.5 K) > 3 |
+| STM32F74x ... F77x (32, 32, 32, 32, 128, 256 KiB ...) — estimate: Cortex-M7 build | 1 (22.5 K) | 1 (27.4 K) | 2 (37.2 K) | 1 (28.8 K) | 1 (30.3 K) | 2 (32.2 K) | 2 (55.3 K) |
+| STM32F1 (1 / 2 KiB pages) | 16.6 K | 21.4 K | 29.8 K | 22.5 K | — | 26.1 K | 38.8 K |
+| STM32G4 / L4 (2 KiB pages) — estimate: Cortex-M4 build | 20.1 K | 24.8 K | 34.6 K | 26.2 K | 27.7 K | 29.6 K | 52.5 K |
 
 | with LTO | STM32H755 CM7 (2 images, SINGLE_BOOT) | STM32H755 CM4 (PER_CORE) | STM32H743 / H753 (single core) | STM32F103 (Blue Pill, overwrite) |
 |---|---:|---:|---:|---:|
-| base | 15.5 K (-3.0 K) | 13.2 K (-3.0 K) | 13.9 K (-3.0 K) | 10.1 K (-2.5 K) |
-| base + SMP + UART | 23.2 K (-4.0 K) | 20.5 K (-4.1 K) | 21.2 K (-4.1 K) | 17.2 K (-4.0 K) |
-| all on | 49.1 K (-6.2 K) | 46.2 K (-6.3 K) | 46.9 K (-6.3 K) | 33.5 K (-5.3 K) |
+| base | 15.6 K (-3.0 K) | 13.2 K (-3.0 K) | 13.9 K (-3.0 K) | 10.1 K (-2.6 K) |
+| base + SMP + UART | 23.4 K (-4.0 K) | 20.7 K (-4.1 K) | 21.4 K (-4.1 K) | 17.4 K (-4.0 K) |
+| all on | 49.1 K (-6.2 K) | 46.1 K (-6.3 K) | 46.9 K (-6.4 K) | 33.4 K (-5.4 K) |
 <!-- size-table:end -->
 
 Notes:
@@ -118,12 +118,12 @@ Notes:
 - STM32F103: UART, USB (CDC, DFU) and bxCAN (classic CAN, not together with USB: they share their SRAM) are
   ported, no Ethernet on this part; "all on" is without CAN.
   The column is measured in the 44 KiB region of the USB layout. The Blue Pill default
-  (UART, log, text commands, status LED) is 26.8 K of its 32 K region; without log, commands and LED 21.2 K.
+  (UART, log, text commands, status LED) is 26.9 K of its 32 K region; without log, commands and LED 21.4 K.
 - USB is mostly tinyUSB. Ethernet is the own IPv4/ARP/ICMP/UDP/DHCP stack plus the MAC driver. CAN FD only changes
   configuration, not code size.
 - Debug builds (`-Og`) are about 18 % larger.
 - **Link-time optimisation** (`UMCUB_CFG_LTO 1` or `-DUMCUB_LTO=ON`, overlay `tests/configs/feature/lto.h`, third
-  table): 3-4 K less on the Cortex-M3 (Blue Pill default 26.8 K -> 23.1 K), 6-7 K on the H7. It is experimental
+  table): 3-4 K less on the Cortex-M3 (Blue Pill default 26.9 K -> 23.1 K), 6-7 K on the H7. It is experimental
   and up to you: inlining makes single stack frames larger (MCUboot's image validation 248 -> 848 bytes); measured on the
   Blue Pill the peak stays the same (about 1.5-2.9 KiB of the 4 KiB reserve, the deepest path is an SMP upload of
   an encrypted image), but check the stack of your part (`tools/hw/stack_usage.py`) and weak functions you
