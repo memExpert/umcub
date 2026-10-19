@@ -835,6 +835,81 @@ static void test_secondary_views(const uint8_t *v2, size_t v2_len)
     CHECK(boot_ok(ver) && strcmp(ver, "1.0.0") == 0);      /* not confirmed: revert */
 }
 
+#if UMCUB_CFG_SMP_DIRECT_UPLOAD
+static void cb_bool(cbor_t *c, bool v) { c->buf[c->n++] = v ? 0xF5 : 0xF4; }
+
+/* The SHA-256 TLV of a signed image file: what SMP image state-write names. */
+static const uint8_t *image_hash_tlv(const uint8_t *img, size_t len)
+{
+    size_t off = (size_t)(img[8] | img[9] << 8) + (img[12] | img[13] << 8 | img[14] << 16 | (uint32_t)img[15] << 24);
+    for (int pass = 0; pass < 2 && off + 4 <= len; pass++) {
+        size_t end = off + (size_t)(img[off + 2] | img[off + 3] << 8);
+        for (size_t p = off + 4; p + 4 <= end && end <= len;) {
+            uint16_t type = (uint16_t)(img[p] | img[p + 1] << 8), l = (uint16_t)(img[p + 2] | img[p + 3] << 8);
+            if (type == IMAGE_TLV_SHA256 && l == 32) {
+                return &img[p + 4];
+            }
+            p += 4u + l;
+        }
+        off = end;
+    }
+    return NULL;
+}
+
+/* SMP image state-write {hash, confirm}; returns rc (0 = ok, the image list). */
+static long smp_state_write(const uint8_t *hash, bool confirm)
+{
+    cbor_t c = { .n = 0 };
+    cb_map(&c, 2);
+    cb_text(&c, "hash");
+    cb_bytes(&c, hash, 32);
+    cb_text(&c, "confirm");
+    cb_bool(&c, confirm);
+    uint8_t pkt[128];
+    smp_packet_request(pkt, smp_frame(pkt, 2, 1, 0, &c));
+    CHECK(pkt_rsp_len > 8 && pkt_rsp[0] == 3);
+    long rc = cbor_find_uint(pkt_rsp + 8, pkt_rsp_len - 8, "rc");
+    return rc == -2000 ? 0 : rc;
+}
+
+/* UMCUB_CFG_SMP_DIRECT_UPLOAD: the SMP "image" field names a slot (2 = image 0
+ * secondary). An upload there changes nothing until state-write marks it; then
+ * the next boot swaps it in as a test (revert) or permanently (confirm). */
+static void test_smp_direct_upload(const uint8_t *v1, size_t v1_len, const uint8_t *v2, size_t v2_len,
+                                   const uint8_t *v2_flash)
+{
+    char ver[16];
+    const uint8_t *hash = image_hash_tlv(v2, v2_len);
+    printf("[SMP direct upload] image 2 = secondary slot, state-write test / confirm\n");
+    fake_flash_reset();
+    CHECK(hash != NULL);
+    CHECK(upload_packets(v1, v1_len, 0) == 0);          /* 0: image 0 primary, as without the option */
+    CHECK(boot_ok(ver) && strcmp(ver, "1.0.0") == 0);
+
+    CHECK(upload_packets(v2, v2_len, 2) == 0);
+    CHECK(boot_ok(ver) && strcmp(ver, "1.0.0") == 0);   /* not marked: stays where it is */
+    stream_cmd("i");
+    CHECK(stream_out_has(0, "image 0 slot 1: 1.1.0+0") && !stream_out_has(0, "pending"));
+    uint8_t other[32] = { 0 };
+    CHECK(smp_state_write(other, false) != 0);          /* no image with that hash */
+    CHECK(smp_state_write(hash, false) == 0);
+    CHECK(boot_ok(ver) && strcmp(ver, "1.1.0") == 0);   /* test boot */
+    CHECK(memcmp(fake_flash + (UMCUB_CFG_IMG0_PRIMARY_ADDR - 0x08000000), v2_flash, v2_len) == 0);
+    CHECK(umcub_is_confirmed(0) == 0);
+    CHECK(boot_ok(ver) && strcmp(ver, "1.0.0") == 0);   /* not confirmed: revert */
+    printf("  uploaded to slot 1, marked for test: 1.1.0, reverted to %s\n", ver);
+
+    CHECK(upload_packets(v2, v2_len, 2) == 0);
+    CHECK(smp_state_write(hash, true) == 0);
+    CHECK(boot_ok(ver) && strcmp(ver, "1.1.0") == 0);
+    CHECK(umcub_is_confirmed(0) == 1);
+    CHECK(boot_ok(ver) && strcmp(ver, "1.1.0") == 0);
+    printf("  marked permanent: %s after 2 boots\n", ver);
+
+    CHECK(upload_packets(v2, v2_len, 3) > 0);           /* image 1 primary: no image 1 here */
+}
+#endif
+
 /* --- ISO-TP over a fake CAN bus ----------------------------------------- */
 
 static uint8_t can_sent[600][64];
@@ -1099,6 +1174,9 @@ int main(int argc, char **argv)
     test_commands();
     test_isotp();
     test_net();
+#if UMCUB_CFG_SMP_DIRECT_UPLOAD
+    test_smp_direct_upload(v1, v1_len, v2, v2_len, v2_flash);
+#endif
 
     printf(failures ? "\n%d FAILURE(S)\n" : "\nALL TESTS PASSED\n", failures);
     return failures ? 1 : 0;

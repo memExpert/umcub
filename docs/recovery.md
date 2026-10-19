@@ -21,7 +21,8 @@ tools/host/smp_can.py --channel can0 upload build/h755-cm7/examples/h755_cm7_app
 SMP serial recovery writes straight into the **primary** slot (this is how MCUboot works); the image number is the
 `image` field (`smpmgr --slot`, `mcumgr -n`; 1 = CM4). With `UMCUB_CFG_SMP_DIRECT_UPLOAD 1` (always in direct-xip)
 the field names a slot instead: 0/1 image 0 primary, 2 image 0 secondary, 3 image 1 primary, 4 image 1 secondary;
-`smpmgr image state-write <hash>` then marks an image in the secondary slot for a test boot. The bootloader answers MCUMGR_PARAMETERS
+`smpmgr image state-write <hash>` then marks an image in the secondary slot for a test boot (`--confirm <hash>`:
+for good), and the next reset installs it. The bootloader answers MCUMGR_PARAMETERS
 (`UMCUB_CFG_SMP_PARAMS`), so smpmgr sizes serial packets to `UMCUB_CFG_SMP_MTU` by itself (default 1472 with
 Ethernet - one full UDP datagram, what smpmgr sends over UDP - otherwise 1024); other hosts: `--line-buffers`
 lines of 128 bytes within it. DFU and `umcub_slot_*` write into the **secondary** slot and mark the image for a test boot.

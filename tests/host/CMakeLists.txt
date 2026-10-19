@@ -174,6 +174,9 @@ umcub_host_variant(swap_offset)
 umcub_host_variant(swap_scratch_enc)
 umcub_host_variant(swap_scratch_enc_nobt)
 umcub_host_variant(swap_scratch_enc_rawkey)
+umcub_host_variant(swap_move_direct)
+umcub_host_variant(swap_offset_direct)
+umcub_host_variant(swap_scratch_enc_direct)
 
 # Board-supplied drivers (UMCUB_DRIVER_BOARD) and board transport
 # (UMCUB_CFG_TRANSPORT_USER) through the real registry, CAN/ETH transports, mux.
