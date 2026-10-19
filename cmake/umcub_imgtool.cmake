@@ -89,6 +89,17 @@ function(umcub_generate_link_keys device admin out)
   umcub_keys_command(c "${device}" "${admin}" "${out}")
 endfunction()
 
+# umcub_python(<out_var>): the Python next to imgtool (it has imgtool's
+# dependencies: cryptography, intelhex, click), else the first one in PATH.
+function(umcub_python out_var)
+  get_filename_component(_dir "${UMCUB_IMGTOOL}" DIRECTORY)
+  find_program(_py NAMES python3 python HINTS "${_dir}" NO_DEFAULT_PATH NO_CACHE)
+  if(NOT _py)
+    find_program(_py NAMES python3 python REQUIRED NO_CACHE)
+  endif()
+  set(${out_var} "${_py}" PARENT_SCOPE)
+endfunction()
+
 # umcub_keys_command(<c|host-c> <device.pem> <admin.pem or ""> <out.c>):
 # rule running tools/host/umcub_keys.py with the Python next to imgtool (it has
 # `cryptography`, an imgtool dependency).
@@ -101,11 +112,7 @@ function(umcub_keys_command mode device admin out)
   if(admin)
     set(_admin_args --admin "${admin}")
   endif()
-  get_filename_component(_dir "${UMCUB_IMGTOOL}" DIRECTORY)
-  find_program(_py NAMES python3 python HINTS "${_dir}" NO_DEFAULT_PATH NO_CACHE)
-  if(NOT _py)
-    find_program(_py NAMES python3 python REQUIRED NO_CACHE)
-  endif()
+  umcub_python(_py)
   add_custom_command(OUTPUT "${out}"
     COMMAND "${_py}" "${UMCUB_ROOT}/tools/host/umcub_keys.py" ${mode} --device "${device}" ${_admin_args} -o "${out}"
     DEPENDS "${device}" ${admin} "${UMCUB_ROOT}/tools/host/umcub_keys.py"
@@ -126,13 +133,15 @@ endfunction()
 # set) is produced for programmers and serial recovery: an image without a
 # confirmed trailer is erased by MCUboot on the next boot in that mode.
 # DEPENDS example (multi-image): "(1,1.0.0)" = needs image 1 >= 1.0.0.
+# Signing itself is tools/host/umcub_image.py sign (the tool IDE projects use),
+# on the same board configuration and overlays: one implementation.
 function(umcub_sign_image target)
   cmake_parse_arguments(A "CONFIRM;PAD" "IMAGE;SLOT;VERSION;KEY;ENCRYPT_KEY" "DEPENDS" ${ARGN})
   if(NOT DEFINED A_IMAGE)
     set(A_IMAGE 0)
   endif()
-  if(NOT DEFINED A_SLOT OR UMCUB_CFG_UPGRADE_MODE LESS 5)
-    set(A_SLOT 0)   # swap/overwrite: images are always built for the primary slot
+  if(NOT DEFINED A_SLOT)
+    set(A_SLOT 0)
   endif()
   if(NOT A_VERSION)
     set(A_VERSION 0.0.0)
@@ -140,69 +149,35 @@ function(umcub_sign_image target)
   if(NOT A_KEY)
     set(A_KEY "${UMCUB_SIGNING_KEY}")
   endif()
+  if(UMCUB_CFG_SIGNATURE EQUAL 1 AND A_KEY MATCHES "/tools/keys/dev-ecdsa-p256.pem$")
+    message(WARNING "umcub: ${target} is signed with the development key from the repository - anybody can "
+                    "sign images for its bootloader. Pass KEY or set UMCUB_SIGNING_KEY for production.")
+  endif()
   if(NOT A_ENCRYPT_KEY)
     if(UMCUB_DEVICE_KEY)
       set(A_ENCRYPT_KEY "${UMCUB_DEVICE_KEY}")
     else()
       set(A_ENCRYPT_KEY "${UMCUB_ROOT}/tools/keys/dev-device-p256.pem")
     endif()
-    if(UMCUB_CFG_ENCRYPT_IMAGES AND A_ENCRYPT_KEY MATCHES "/tools/keys/dev-device-p256.pem$")
-      message(WARNING "umcub: ${target} is encrypted for the development device key - anybody can decrypt it. "
-                      "Pass ENCRYPT_KEY or set UMCUB_DEVICE_KEY for production.")
+  endif()
+  if(UMCUB_CFG_ENCRYPT_IMAGES AND A_ENCRYPT_KEY MATCHES "/tools/keys/dev-device-p256.pem$")
+    message(WARNING "umcub: ${target} is encrypted for the development device key - anybody can decrypt it. "
+                    "Pass ENCRYPT_KEY or set UMCUB_DEVICE_KEY for production.")
+  endif()
+
+  set(_args sign --board "${UMCUB_BOARD_DIR}" --cc "${CMAKE_C_COMPILER}" --imgtool "${UMCUB_IMGTOOL}" --quiet
+            --image ${A_IMAGE} --slot ${A_SLOT} --version ${A_VERSION}
+            --key "${A_KEY}" --encrypt-key "${A_ENCRYPT_KEY}")
+  if(UMCUB_CORE MATCHES "^cm[47]$")     # dual-core parts (UMCUB_CORE_CM7 / _CM4)
+    list(APPEND _args --core ${UMCUB_CORE})
+  endif()
+  foreach(_o PRE POST)
+    if(UMCUB_CONFIG_${_o})
+      get_filename_component(_f "${UMCUB_CONFIG_${_o}}" ABSOLUTE)
+      string(TOLOWER ${_o} _l)
+      list(APPEND _args --${_l} "${_f}")
     endif()
-  endif()
-
-  if(A_IMAGE EQUAL 0 AND A_SLOT EQUAL 0)
-    set(_slot_size ${UMCUB_CFG_IMG0_PRIMARY_SIZE})
-    set(_slot_addr ${UMCUB_CFG_IMG0_PRIMARY_ADDR})
-  elseif(A_IMAGE EQUAL 0)
-    set(_slot_size ${UMCUB_CFG_IMG0_SECONDARY_SIZE})
-    set(_slot_addr ${UMCUB_CFG_IMG0_SECONDARY_ADDR})
-  elseif(A_SLOT EQUAL 0)
-    set(_slot_size ${UMCUB_CFG_IMG1_PRIMARY_SIZE})
-    set(_slot_addr ${UMCUB_CFG_IMG1_PRIMARY_ADDR})
-  else()
-    set(_slot_size ${UMCUB_CFG_IMG1_SECONDARY_SIZE})
-    set(_slot_addr ${UMCUB_CFG_IMG1_SECONDARY_ADDR})
-  endif()
-  # Secondary slot may be smaller (swap-move) - the image must fit both.
-  if(A_IMAGE EQUAL 0)
-    set(_min ${UMCUB_CFG_IMG0_SECONDARY_SIZE})
-  else()
-    set(_min ${UMCUB_CFG_IMG1_SECONDARY_SIZE})
-  endif()
-  if(_min LESS _slot_size AND NOT UMCUB_CFG_UPGRADE_MODE GREATER_EQUAL 5)
-    set(_slot_size ${_min})
-  endif()
-
-  set(_args sign --version ${A_VERSION}
-            --header-size ${UMCUB_CFG_IMAGE_HEADER_SIZE} --pad-header
-            --slot-size ${_slot_size}
-            --align ${UMCUB_CFG_FAMILY_WRITE_ALIGN}
-            --max-align ${UMCUB_CFG_FAMILY_WRITE_ALIGN})
-  if(UMCUB_CFG_SIGNATURE EQUAL 1)
-    list(APPEND _args -k "${A_KEY}")
-  endif()
-  if(UMCUB_CFG_UPGRADE_MODE EQUAL 1)   # overwrite
-    list(APPEND _args --overwrite-only)
-  elseif(UMCUB_CFG_UPGRADE_MODE LESS_EQUAL 4)   # swap modes
-    # The bootloader sizes the trailer with MCUBOOT_MAX_IMG_SECTORS, i.e. the
-    # largest slot of any image (see mcuboot_config.h).
-    set(_max 0)
-    foreach(_v IMG0_PRIMARY_SIZE IMG0_SECONDARY_SIZE IMG1_PRIMARY_SIZE IMG1_SECONDARY_SIZE)
-      if(UMCUB_CFG_${_v} GREATER _max)
-        set(_max ${UMCUB_CFG_${_v}})
-      endif()
-    endforeach()
-    math(EXPR _sectors "${_max} / ${UMCUB_CFG_FAMILY_MIN_SECTOR}")
-    list(APPEND _args --max-sectors ${_sectors})
-  endif()
-  if(UMCUB_CFG_UPGRADE_MODE GREATER_EQUAL 5)  # direct-xip: header carries the slot address
-    umcub_hex(_rom ${_slot_addr})
-    list(APPEND _args --rom-fixed ${_rom})
-  endif()
-  umcub_board_type_tlv_args(_tlv "${UMCUB_CFG_BOARD_TYPE}")
-  list(APPEND _args ${_tlv})
+  endforeach()
   if(A_CONFIRM)
     list(APPEND _args --confirm)
   endif()
@@ -210,37 +185,13 @@ function(umcub_sign_image target)
     list(APPEND _args --pad)
   endif()
   if(A_DEPENDS)
-    list(APPEND _args --dependencies "${A_DEPENDS}")
+    list(APPEND _args --depends "${A_DEPENDS}")
   endif()
 
-  set(_dir $<TARGET_FILE_DIR:${target}>)
-  set(_base $<TARGET_FILE_BASE_NAME:${target}>)
+  umcub_python(_py)
   add_custom_command(TARGET ${target} POST_BUILD
-    COMMAND ${CMAKE_OBJCOPY} -O binary $<TARGET_FILE:${target}> ${_dir}/${_base}.bin
-    COMMAND "${UMCUB_IMGTOOL}" ${_args} ${_dir}/${_base}.bin ${_dir}/${_base}.signed.bin
-    # .hex from the very same signed binary: ECDSA signatures are randomized,
-    # signing twice would give two different (both valid) images.
-    COMMAND ${CMAKE_OBJCOPY} -I binary -O ihex --change-addresses ${_slot_addr}
-            ${_dir}/${_base}.signed.bin ${_dir}/${_base}.signed.hex
-    COMMENT "Signing ${target}: image ${A_IMAGE} slot ${A_SLOT} version ${A_VERSION}"
+    COMMAND "${_py}" "${UMCUB_ROOT}/tools/host/umcub_image.py" ${_args}
+            -o $<TARGET_FILE_DIR:${target}>/$<TARGET_FILE_BASE_NAME:${target}> $<TARGET_FILE:${target}>
+    COMMENT "Signing ${target}: image ${A_IMAGE} version ${A_VERSION}"
     VERBATIM)
-  if(UMCUB_CFG_ENCRYPT_IMAGES)
-    # Encrypted copy for updates and distribution; the plain .signed.{bin,hex}
-    # is for programmers (MCUboot decrypts only what it installs or receives).
-    set(_enc_args --encrypt "${A_ENCRYPT_KEY}")
-    if(UMCUB_CFG_SWAP_SAVE_ENCTLV AND UMCUB_CFG_UPGRADE_MODE GREATER_EQUAL 2 AND UMCUB_CFG_UPGRADE_MODE LESS_EQUAL 4)
-      list(APPEND _enc_args --save-enctlv)   # trailer holds the key TLVs (MCUBOOT_SWAP_SAVE_ENCTLV)
-    endif()
-    add_custom_command(TARGET ${target} POST_BUILD
-      COMMAND "${UMCUB_IMGTOOL}" ${_args} ${_enc_args} ${_dir}/${_base}.bin ${_dir}/${_base}.encrypted.bin
-      COMMENT "Encrypting ${target}"
-      VERBATIM)
-  endif()
-  if(UMCUB_CFG_UPGRADE_MODE EQUAL 6 AND NOT A_CONFIRM)
-    add_custom_command(TARGET ${target} POST_BUILD
-      COMMAND "${UMCUB_IMGTOOL}" ${_args} --confirm --pad ${_dir}/${_base}.bin ${_dir}/${_base}.confirmed.bin
-      COMMAND ${CMAKE_OBJCOPY} -I binary -O ihex --change-addresses ${_slot_addr}
-              ${_dir}/${_base}.confirmed.bin ${_dir}/${_base}.confirmed.hex
-      VERBATIM)
-  endif()
 endfunction()

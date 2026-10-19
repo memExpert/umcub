@@ -135,11 +135,13 @@ for e in "${examples[@]}"; do
   if cmake -S "examples/$name" -B "$dir" -G Ninja >"$dir.configure.log" 2>&1 && cmake --build "$dir" >"$dir.build.log" 2>&1 &&
      ! grep -q "warning:" "$dir.build.log" &&
      .venv/bin/imgtool verify -k tools/keys/dev-ecdsa-p256.pem "$dir/$name.signed.bin" >"$dir.verify.log" 2>&1 &&
-     # IDE path (tools/host/umcub_image.py) must produce the same image as CMake.
+     # CMake signs the ELF with tools/host/umcub_image.py; its ELF loader must
+     # see what objcopy sees: signing the objcopy binary gives the same image.
+     arm-none-eabi-objcopy -O binary "$dir/$name.elf" "$dir/objcopy.bin" &&
      .venv/bin/python tools/host/umcub_image.py sign --board "$eboard" ${ecore:+--core "$ecore"} --image "$eimage" \
-       --version "$(grep -m1 -oP 'Image version: \K[0-9.]+(?=\+)' "$dir.verify.log")" "$dir/$name.elf" -o "$dir/ide" >>"$dir.verify.log" 2>&1 &&
-     .venv/bin/python tests/tools/compare_images.py "$dir/$name.signed.bin" "$dir/ide.signed.bin" >>"$dir.verify.log" 2>&1; then
-    summary+=("$(printf '%-24s signed, %s, IDE signing identical' "$name" "$(grep -m1 'Image version' "$dir.verify.log")")")
+       --version "$(grep -m1 -oP 'Image version: \K[0-9.]+(?=\+)' "$dir.verify.log")" "$dir/objcopy.bin" -o "$dir/objcopy" >>"$dir.verify.log" 2>&1 &&
+     .venv/bin/python tests/tools/compare_images.py "$dir/$name.signed.bin" "$dir/objcopy.signed.bin" >>"$dir.verify.log" 2>&1; then
+    summary+=("$(printf '%-24s signed, %s, ELF = objcopy' "$name" "$(grep -m1 'Image version' "$dir.verify.log")")")
   else
     echo "FAIL example $name (see $dir.*.log)"; fail=1
   fi

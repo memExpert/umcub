@@ -14,7 +14,8 @@ bootloader is built from, through a C preprocessor: --cc, $UMCUB_CC, or the
 first one found of arm-none-eabi-gcc, armclang (Keil MDK, also in the default
 install folders), gcc, clang. imgtool is imported from third_party/mcuboot
 (pip install -r tools/requirements.txt), or pass --imgtool <executable>.
-The signing arguments mirror umcub_sign_image() in cmake/umcub_imgtool.cmake.
+umcub_sign_image() in cmake/umcub_imgtool.cmake runs this tool too: the
+signing arguments live only here.
 """
 import argparse
 import os
@@ -249,7 +250,7 @@ def cmd_sign(cfg, a):
             "--slot-size", str(slot_size), "--align", str(align), "--max-align", str(align)]
     if cfg["SIGNATURE"] == 1:
         key = Path(a.key) if a.key else DEV_KEY
-        if key.resolve() == DEV_KEY.resolve():
+        if key.resolve() == DEV_KEY.resolve() and not a.quiet:
             print("warning: signing with the development key from the repository", file=sys.stderr)
         args += ["-k", str(key)]
     if mode == 1:
@@ -282,7 +283,7 @@ def cmd_sign(cfg, a):
                   f"({len(img)} bytes of code, {MODES.get(mode, mode)})")
         if cfg["ENCRYPT_IMAGES"]:                   # for updates; the plain .signed.* is for programmers
             dkey = Path(a.encrypt_key) if a.encrypt_key else DEV_DEVICE_KEY
-            if dkey.resolve() == DEV_DEVICE_KEY.resolve():
+            if dkey.resolve() == DEV_DEVICE_KEY.resolve() and not a.quiet:
                 print("warning: encrypting with the development device key from the repository", file=sys.stderr)
             out = base.with_name(base.name + ".encrypted.bin")
             eargs = ["--encrypt", str(dkey)]
@@ -339,6 +340,8 @@ def main():
             p.add_argument("--depends", help='multi-image dependency, e.g. "(1,1.0.0)"')
             p.add_argument("-o", "--output", help="output base name (default: input without extension)")
             p.add_argument("--imgtool", help="imgtool executable instead of the bundled module")
+            p.add_argument("--quiet", action="store_true",
+                           help="no notes about development keys (CMake warns at configure time)")
     a = ap.parse_args()
     cfg = Config(a.board, a.core, a.pre, a.post, a.cc)
     (cmd_sign if a.cmd == "sign" else cmd_info)(cfg, a)
