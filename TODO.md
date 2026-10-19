@@ -3,17 +3,15 @@
 ## Ease of use (next big step)
 
 Goal: a user adds a board without reading the internals. Today, a board on a ported family (H7, F1) is one
-~40-line `umcub_config.h` (pins checked at build time), but a new series (e.g. G4) means
-writing a whole port (900-1600 lines).
+~40-line `umcub_config.h` (pins checked at build time); a new series is a port of about 300-500 lines on the
+shared drivers (clock, flash, sys, tables), not yet proven on a series that was not ported before.
 
-- [ ] **1. Drivers per ST IP block, not per family.** Stage A done (port/arch/stm32: USART v1/v2, bxCAN, FDCAN,
-  RNG, IWDG, rings; verified on both boards). Open: the G4 (or the coming F411) port on it as the proof. Before: The same peripherals repeat across series: USART v2
-  (H7 = G4 = L4 = F7: ISR/ICR/RDR/PRESC), USB FS device (F1 = G4 = L4), bxCAN (F1 = F4 = L4), FDCAN (H7 and G4:
-  same core, G4 has a fixed message RAM layout), RNG. Move them from `port/stm32h7/`, `port/stm32f1/` to
-  `port/arch/stm32/` (`usart_v2.c`, `usb_fs.c`, `bxcan.c`, `fdcan.c`, `rng.c`; IWDG and the RX ring are already
-  there), each family keeps clock, flash, sys (reset cause, GPIO, UID), defaults, linker templates and a small
-  table (instance -> registers, IRQ, bus clock). Target: a new series ~300-400 lines. Proof: port the G4 on it
-  (stm32-port-engineer + manual-checker against the RM / errata), with a NUCLEO-G474 if one is available.
+- [ ] **1. Proof port on the shared drivers.** The drivers per ST IP block are in `port/arch/stm32/` (USART v1/v2,
+  bxCAN, FDCAN, RNG, IWDG, rings; USB is tinyUSB plus a small glue file); F1 and H7 keep only clock, flash, sys and
+  small tables (F1 port about 620 lines of C). Open: a series that was not ported before, on these drivers: STM32F411
+  when the board arrives (USART v1, USB OTG FS = the H7 dwc2 glue, no CAN, no RNG -> ADC entropy like the F1, flash
+  sectors 16/16/16/16/64/128 KiB -> bootloader in at most 3 sectors = 48 KiB). G4 later: needs a branch in `fdcan.c`
+  for its fixed message RAM layout.
 
 ## Hardware verification (NUCLEO-H755ZI-Q)
 
