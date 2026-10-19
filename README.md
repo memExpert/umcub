@@ -165,73 +165,78 @@ the flash).
 Flash used by the bootloader (`.text` + `.data`, arm-none-eabi-gcc 15.2, Release `-Os`, swap-scratch,
 ECDSA-P256), and what every transport and feature adds. Regenerate with `tools/build/size_table.py`.
 
-- **base**: MCUboot with signature check, upgrade/revert, the jump to the application, handoff and info block.
-  No transport, no log.
-- **all on**: every transport and feature the port supports (the `nucleo_h755zi_q` default with all interfaces).
-- **UART** is counted on top of base. It includes the SMP core that every SMP transport needs (`boot_serial`,
-  zcbor, the multiplexer), so the first SMP transport always costs about 10 K.
-- The other columns are counted on top of base + UART.
-- **DFU only** is USB DFU as the only transport, on top of base. Without an SMP transport, `boot_serial` is not
-  compiled at all.
-- The third table answers how much flash the bootloader region needs for a set of transports: whole erase
+- The first table: **base** (MCUboot with signature check, upgrade/revert, the jump to the application, handoff and
+  info block; no transport, no log), then what each item adds, then **all on** (every transport and feature the
+  port supports).
+- **SMP** is MCUboot's serial recovery (`boot_serial`, zcbor) and the multiplexer: it comes once, with the first
+  SMP transport (UART, USB CDC, CAN, Ethernet). USB DFU and the lite upload need no SMP: a DFU-only build is base +
+  USB DFU. No transport is required either: any one of them (or none) can be the only one.
+- Each transport and feature is measured on top of base + SMP + UART (UART itself: UART + CAN minus CAN alone).
+  The rows add up to "all on" within a few hundred bytes; code that two items share (USB CDC and DFU: the USB core)
+  is counted in both rows.
+- The second table answers how much flash the bootloader region needs for a set of transports: whole erase
   sectors from the start of flash (absolute size in brackets, including the 256-byte info block).
-- The fourth table repeats base, UART, UART without SMP and "all on" with link-time optimisation (experimental,
-  see the notes below): absolute size and the saving against the same build without it.
+- The third table repeats base, base + SMP + UART and "all on" with link-time optimisation (experimental, see the
+  notes below): absolute size and the saving against the same build without it.
 
 **Rule: the bootloader region is a whole number of erase sectors, and on parts with large sectors at most three.**
 Every sector given to the bootloader is lost for the slots, and on parts whose first sectors are small (F2/F4/F7) the
 fourth sector is already 64 or 128 KiB. Choose the transports so that the build fits: on the H7 everything fits into
-one 128 KiB sector; on 16 KiB sectors base + UART takes two, USB or the SECURE link a third, and "all on" does not
-fit into three. Page flash (F1, G4, L4: 1-4 KiB pages) has no such limit: size the region in pages with some
+one 128 KiB sector; on 16 KiB sectors one SMP transport takes two, USB a third, and "all on" does not fit into
+three. Page flash (F1, G4, L4: 1-4 KiB pages) has no such limit: size the region in pages with some
 reserve, the slots take the rest. Rows marked "estimate" are series without a port yet, sized from a build for the
 same core; check the real size after porting.
 
 <!-- size-table:begin -->
-| MCU | base | all on | UART (+SMP) | USB CDC | USB DFU | USB CDC+DFU | CAN | CAN FD | Ethernet (+DHCP) | DFU only | UART, lite upload (no SMP) |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| STM32H755 CM7 (2 images, SINGLE_BOOT) | 18.6 K | 55.1 K | +8.6 K | +11.2 K | +10.5 K | +13.1 K | +2.7 K | +2.7 K | +4.2 K | +10.8 K | +3.9 K |
-| STM32H755 CM4 (PER_CORE) | 16.2 K | 52.3 K | +8.4 K | +11.2 K | +10.5 K | +13.1 K | +2.7 K | +2.7 K | +4.2 K | +10.8 K | +3.9 K |
-| STM32H743 / H753 (single core) | 16.9 K | 53.0 K | +8.4 K | +11.2 K | +10.5 K | +13.1 K | +2.7 K | +2.7 K | +4.2 K | +10.8 K | +3.9 K |
-| STM32F103 (Blue Pill, overwrite) | 12.6 K | 38.6 K | +8.6 K | +9.8 K | +9.0 K | +11.6 K | +2.4 K | — | — | +9.5 K | +3.9 K |
-
-| MCU | log (level 3) | text commands | verify + hash | readback | umcub link (addressed) | umcub link SECURE | + link encryption | encrypted images |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| STM32H755 CM7 (2 images, SINGLE_BOOT) | +3.7 K | +2.2 K | +1.2 K | +0.2 K | +1.9 K | +4.8 K | +1.5 K | +7.2 K |
-| STM32H755 CM4 (PER_CORE) | +3.5 K | +2.2 K | +1.1 K | +0.2 K | +1.9 K | +4.8 K | +1.5 K | +6.5 K |
-| STM32H743 / H753 (single core) | +3.5 K | +2.2 K | +1.1 K | +0.2 K | +1.9 K | +4.8 K | +1.5 K | +6.7 K |
-| STM32F103 (Blue Pill, overwrite) | +3.1 K | +2.0 K | +1.1 K | +0.2 K | +1.8 K | +4.8 K | +1.5 K | +6.3 K |
-
-| Flash layout | UART, lite (no SMP) | UART | UART + USB CDC | UART + USB CDC + DFU | UART + CAN | UART + Ethernet | UART, link SECURE | all on |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| STM32H7 (128 KiB sectors) | 1 (22.4 K) | 1 (27.2 K) | 1 (38.4 K) | 1 (40.3 K) | 1 (29.9 K) | 1 (31.4 K) | 1 (32.0 K) | 1 (55.1 K) |
-| STM32F2 / F4, F72x / F73x (16, 16, 16, 16, 64, 128 KiB ...) — estimate: Cortex-M4 build | 2 (20.0 K) | 2 (24.6 K) | 3 (35.8 K) | 3 (37.7 K) | 2 (27.3 K) | 2 (28.8 K) | 2 (29.4 K) | 4 (52.3 K) > 3 |
-| STM32F74x ... F77x (32, 32, 32, 32, 128, 256 KiB ...) — estimate: Cortex-M7 build | 1 (22.4 K) | 1 (27.2 K) | 2 (38.4 K) | 2 (40.3 K) | 1 (29.9 K) | 1 (31.4 K) | 2 (32.0 K) | 2 (55.1 K) |
-| STM32F1 (1 / 2 KiB pages) | 16.5 K | 21.2 K | 31.0 K | 32.8 K | 23.6 K | — | 26.0 K | 38.6 K |
-| STM32G4 / L4 (2 KiB pages) — estimate: Cortex-M4 build | 20.0 K | 24.6 K | 35.8 K | 37.7 K | 27.3 K | 28.8 K | 29.4 K | 52.3 K |
-
-| MCU, with LTO | base | UART (+SMP) | UART, lite upload (no SMP) | all on |
+| | STM32H755 CM7 (2 images, SINGLE_BOOT) | STM32H755 CM4 (PER_CORE) | STM32H743 / H753 (single core) | STM32F103 (Blue Pill, overwrite) |
 |---|---:|---:|---:|---:|
-| STM32H755 CM7 (2 images, SINGLE_BOOT) | 15.5 K (-3.0 K) | 23.2 K (-4.0 K) | 19.0 K (-3.4 K) | 48.9 K (-6.3 K) |
-| STM32H755 CM4 (PER_CORE) | 13.2 K (-3.0 K) | 20.5 K (-4.1 K) | 16.6 K (-3.4 K) | 45.9 K (-6.4 K) |
-| STM32H743 / H753 (single core) | 13.9 K (-3.0 K) | 21.2 K (-4.1 K) | 17.3 K (-3.4 K) | 46.7 K (-6.4 K) |
-| STM32F103 (Blue Pill, overwrite) | 10.1 K (-2.5 K) | 17.2 K (-4.0 K) | 13.3 K (-3.2 K) | 33.3 K (-5.3 K) |
+| **base**: MCUboot, signature check, jump | 18.6 K | 16.2 K | 16.9 K | 12.6 K |
+| + SMP (recovery protocol: once, with the first SMP transport) | +7.3 K | +7.1 K | +7.1 K | +7.3 K |
+| + UART | +1.3 K | +1.3 K | +1.3 K | +1.3 K |
+| + USB CDC | +11.2 K | +11.2 K | +11.2 K | +9.8 K |
+| + USB DFU (needs no SMP) | +10.5 K | +10.5 K | +10.5 K | +9.0 K |
+| + CAN | +2.7 K | +2.7 K | +2.7 K | +2.4 K |
+| + CAN FD (on top of CAN) | 0 | 0 | 0 | — |
+| + Ethernet (IPv4, UDP, DHCP) | +4.2 K | +4.2 K | +4.2 K | — |
+| + lite upload (instead of SMP) | +2.5 K | +2.5 K | +2.5 K | +2.7 K |
+| + log (level 3) | +3.7 K | +3.5 K | +3.5 K | +3.1 K |
+| + text commands | +2.2 K | +2.2 K | +2.2 K | +2.0 K |
+| + verify + hash | +1.2 K | +1.1 K | +1.1 K | +1.1 K |
+| + readback (on top of verify + hash) | +0.2 K | +0.2 K | +0.2 K | +0.2 K |
+| + umcub link (addressed) | +1.9 K | +1.9 K | +1.9 K | +1.8 K |
+| + umcub link SECURE | +4.8 K | +4.8 K | +4.8 K | +4.8 K |
+| + link encryption (on top of SECURE) | +1.5 K | +1.5 K | +1.5 K | +1.5 K |
+| + encrypted images | +7.2 K | +6.5 K | +6.7 K | +6.3 K |
+| **all on** | 55.1 K | 52.3 K | 53.0 K | 38.6 K |
+
+| Flash layout | UART, lite (no SMP) | UART | USB CDC | CAN | Ethernet | UART, link SECURE | all on |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| STM32H7 (128 KiB sectors) | 1 (22.4 K) | 1 (27.2 K) | 1 (37.0 K) | 1 (28.6 K) | 1 (30.1 K) | 1 (32.0 K) | 1 (55.1 K) |
+| STM32F2 / F4, F72x / F73x (16, 16, 16, 16, 64, 128 KiB ...) — estimate: Cortex-M4 build | 2 (20.0 K) | 2 (24.6 K) | 3 (34.4 K) | 2 (26.0 K) | 2 (27.5 K) | 2 (29.4 K) | 4 (52.3 K) > 3 |
+| STM32F74x ... F77x (32, 32, 32, 32, 128, 256 KiB ...) — estimate: Cortex-M7 build | 1 (22.4 K) | 1 (27.2 K) | 2 (37.0 K) | 1 (28.6 K) | 1 (30.1 K) | 2 (32.0 K) | 2 (55.1 K) |
+| STM32F1 (1 / 2 KiB pages) | 16.5 K | 21.2 K | 29.6 K | 22.4 K | — | 26.0 K | 38.6 K |
+| STM32G4 / L4 (2 KiB pages) — estimate: Cortex-M4 build | 20.0 K | 24.6 K | 34.4 K | 26.0 K | 27.5 K | 29.4 K | 52.3 K |
+
+| with LTO | STM32H755 CM7 (2 images, SINGLE_BOOT) | STM32H755 CM4 (PER_CORE) | STM32H743 / H753 (single core) | STM32F103 (Blue Pill, overwrite) |
+|---|---:|---:|---:|---:|
+| base | 15.5 K (-3.0 K) | 13.2 K (-3.0 K) | 13.9 K (-3.0 K) | 10.1 K (-2.5 K) |
+| base + SMP + UART | 23.2 K (-4.0 K) | 20.5 K (-4.1 K) | 21.2 K (-4.1 K) | 17.2 K (-4.0 K) |
+| all on | 48.9 K (-6.3 K) | 45.9 K (-6.4 K) | 46.7 K (-6.4 K) | 33.3 K (-5.3 K) |
 <!-- size-table:end -->
 
 Notes:
-- The H755 CM4 row is the CM4 bootloader of `PER_CORE` mode (Cortex-M4 code). On the board it uses CAN only; the
-  other columns are measured with borrowed pins.
+- The H755 CM4 column is the CM4 bootloader of `PER_CORE` mode (Cortex-M4 code). On the board it uses CAN only;
+  the other rows are measured with borrowed pins.
 - The H7 bootloader gets one 128 KiB sector, so even "all on" uses less than half of it.
 - STM32F103: UART, USB (CDC, DFU) and bxCAN (classic CAN, not together with USB: they share their SRAM) are
   ported, no Ethernet on this part; "all on" is without CAN.
-  The row is measured in the 44 KiB region of the USB layout. The Blue Pill default
-  (UART, log, text commands) is 26.5 K of its 32 K region; without log and commands 21.2 K.
+  The column is measured in the 44 KiB region of the USB layout. The Blue Pill default
+  (UART, log, text commands) is 26.7 K of its 32 K region; without log and commands 21.2 K.
 - USB is mostly tinyUSB. Ethernet is the own IPv4/ARP/ICMP/UDP/DHCP stack plus the MAC driver. CAN FD only changes
   configuration, not code size.
-- Base + the columns adds up to "all on" within a few hundred bytes. CDC and DFU together cost less than separately:
-  they share the USB core.
 - Debug builds (`-Og`) are about 18 % larger.
-- **Link-time optimisation** (`UMCUB_CFG_LTO 1` or `-DUMCUB_LTO=ON`, overlay `tests/configs/feature/lto.h`, fourth
-  table): 3-4 K less on the Cortex-M3 (Blue Pill default 26.5 K -> 23.0 K), 6-7 K on the H7. It is experimental
+- **Link-time optimisation** (`UMCUB_CFG_LTO 1` or `-DUMCUB_LTO=ON`, overlay `tests/configs/feature/lto.h`, third
+  table): 3-4 K less on the Cortex-M3 (Blue Pill default 26.7 K -> 22.9 K), 6-7 K on the H7. It is experimental
   and up to you: inlining makes single stack frames larger (MCUboot's image validation 248 -> 848 bytes); measured on the
   Blue Pill the peak stays the same (about 1.5-2.9 KiB of the 4 KiB reserve, the deepest path is an SMP upload of
   an encrypted image), but check the stack of your part (`tools/hw/stack_usage.py`) and weak functions you

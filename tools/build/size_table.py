@@ -8,11 +8,12 @@ prints the Markdown tables of README.md "Bootloader size":
   tools/build/size_table.py --update                       rewrite them in README.md
   tools/build/size_table.py --check                        exit 1 if README.md is stale
 
-Base = MCUboot + ECDSA-P256 validation + jump, no transport, no log, no text
-commands, no inspection. Transport and feature costs are measured on top of
-"base + UART": the first SMP transport also brings boot_serial and zcbor, which
-is included in the UART column. "DFU only" is USB DFU without any SMP
-transport, on top of base. Size = .text + .data (flash).
+Base = MCUboot + ECDSA-P256 validation + jump: no transport, no log, no text
+commands, no inspection. Every other row is what one item adds (size =
+.text + .data, flash). SMP (MCUboot's boot_serial + zcbor) comes once with the
+first SMP transport; it and the UART driver are told apart by building CAN
+alone and UART + CAN. Transports and features are measured on top of base +
+SMP + UART.
 """
 import argparse
 import concurrent.futures
@@ -48,42 +49,62 @@ CHIPS = [
 OFF = {"TRANSPORT_UART": 0, "TRANSPORT_USB_CDC": 0, "TRANSPORT_USB_DFU": 0, "TRANSPORT_CAN": 0,
        "CAN_FD": 0, "CAN_LOOPBACK": 0, "TRANSPORT_ETH": 0, "LOG_LEVEL": 0, "CMD_ENABLE": 0,
        "INSPECT_VERIFY": 0, "INSPECT_HASH": 0, "READBACK": 0}
-UART = {"TRANSPORT_UART": 1}
+U = {"TRANSPORT_UART": 1}
+CAN = {"TRANSPORT_CAN": 1}
 
-# column, settings on top of OFF, reference column (delta) or None
+# name, settings on top of OFF
 VARIANTS = [
-    ("base", {}, None),
-    ("UART", UART, "base"),
-    ("USB CDC", {**UART, "TRANSPORT_USB_CDC": 1}, "UART"),
-    ("USB DFU", {**UART, "TRANSPORT_USB_DFU": 1}, "UART"),
-    ("USB CDC+DFU", {**UART, "TRANSPORT_USB_CDC": 1, "TRANSPORT_USB_DFU": 1}, "UART"),
-    ("DFU only", {"TRANSPORT_USB_DFU": 1}, "base"),
-    ("UART lite", {**UART, "SMP_ENABLE": 0}, "base"),
-    ("CAN", {**UART, "TRANSPORT_CAN": 1}, "UART"),
-    ("CAN FD", {**UART, "TRANSPORT_CAN": 1, "CAN_FD": 1}, "UART"),
-    ("Ethernet", {**UART, "TRANSPORT_ETH": 1}, "UART"),
-    ("log", {**UART, "LOG_LEVEL": 3}, "UART"),
-    ("commands", {**UART, "CMD_ENABLE": 1}, "UART"),
-    ("verify+hash", {**UART, "INSPECT_VERIFY": 1, "INSPECT_HASH": 1}, "UART"),
-    ("readback", {**UART, "INSPECT_VERIFY": 1, "INSPECT_HASH": 1, "READBACK": 1}, "verify+hash"),
-    ("link", {**UART, "UART_LINK": 1}, "UART"),
-    ("secure", {**UART, "UART_LINK": 2}, "UART"),
-    ("encryption", {**UART, "UART_LINK": 2, "LINK_ENCRYPT": 1}, "secure"),
-    ("encrypted images", {**UART, "ENCRYPT_IMAGES": 1}, "UART"),
+    ("base", {}),
+    ("UART", U),
+    ("CAN only", CAN),
+    ("UART+CAN", {**U, **CAN}),
+    ("USB CDC", {**U, "TRANSPORT_USB_CDC": 1}),
+    ("USB DFU", {**U, "TRANSPORT_USB_DFU": 1}),
+    ("CAN FD", {**U, **CAN, "CAN_FD": 1}),
+    ("Ethernet", {**U, "TRANSPORT_ETH": 1}),
+    ("USB CDC only", {"TRANSPORT_USB_CDC": 1}),
+    ("Ethernet only", {"TRANSPORT_ETH": 1}),
+    ("UART lite", {**U, "SMP_ENABLE": 0}),
+    ("log", {**U, "LOG_LEVEL": 3}),
+    ("commands", {**U, "CMD_ENABLE": 1}),
+    ("verify+hash", {**U, "INSPECT_VERIFY": 1, "INSPECT_HASH": 1}),
+    ("readback", {**U, "INSPECT_VERIFY": 1, "INSPECT_HASH": 1, "READBACK": 1}),
+    ("link", {**U, "UART_LINK": 1}),
+    ("secure", {**U, "UART_LINK": 2}),
+    ("encryption", {**U, "UART_LINK": 2, "LINK_ENCRYPT": 1}),
+    ("encrypted images", {**U, "ENCRYPT_IMAGES": 1}),
     ("everything", {"TRANSPORT_UART": 1, "TRANSPORT_USB_CDC": 1, "TRANSPORT_USB_DFU": 1, "TRANSPORT_CAN": 1,
                     "CAN_FD": 1, "TRANSPORT_ETH": 1, "LOG_LEVEL": 3, "CMD_ENABLE": 1, "INSPECT_VERIFY": 1,
-                    "INSPECT_HASH": 1, "READBACK": 1}, None),
+                    "INSPECT_HASH": 1, "READBACK": 1}),
 ]
 # The same builds with link-time optimisation (UMCUB_CFG_LTO, experimental):
 # name -> the variant it repeats.
-LTO_OF = {"base LTO": "base", "UART LTO": "UART", "UART lite LTO": "UART lite", "everything LTO": "everything"}
-_v = {v[0]: v for v in VARIANTS}
-VARIANTS += [(n, _v[o][1], None, True) for n, o in LTO_OF.items()]
+LTO_OF = {"base LTO": "base", "UART LTO": "UART", "everything LTO": "everything"}
+_v = dict(VARIANTS)
+VARIANTS += [(n, _v[o], True) for n, o in LTO_OF.items()]
 
-# README column names
-LABELS = {"UART": "UART (+SMP)", "Ethernet": "Ethernet (+DHCP)", "log": "log (level 3)",
-          "commands": "text commands", "UART lite": "UART, lite upload (no SMP)", "verify+hash": "verify + hash", "link": "umcub link (addressed)",
-          "secure": "umcub link SECURE", "encryption": "+ link encryption"}
+# Rows of the cost table: label, then the variants added and subtracted
+# ("uart" = the UART driver alone: UART+CAN - CAN only).
+ROWS = [
+    ("**base**: MCUboot, signature check, jump", ["base"], []),
+    ("+ SMP (recovery protocol: once, with the first SMP transport)", ["UART"], ["base", "uart"]),
+    ("+ UART", ["uart"], []),
+    ("+ USB CDC", ["USB CDC"], ["UART"]),
+    ("+ USB DFU (needs no SMP)", ["USB DFU"], ["UART"]),
+    ("+ CAN", ["UART+CAN"], ["UART"]),
+    ("+ CAN FD (on top of CAN)", ["CAN FD"], ["UART+CAN"]),
+    ("+ Ethernet (IPv4, UDP, DHCP)", ["Ethernet"], ["UART"]),
+    ("+ lite upload (instead of SMP)", ["UART lite"], ["base", "uart"]),
+    ("+ log (level 3)", ["log"], ["UART"]),
+    ("+ text commands", ["commands"], ["UART"]),
+    ("+ verify + hash", ["verify+hash"], ["UART"]),
+    ("+ readback (on top of verify + hash)", ["readback"], ["verify+hash"]),
+    ("+ umcub link (addressed)", ["link"], ["UART"]),
+    ("+ umcub link SECURE", ["secure"], ["UART"]),
+    ("+ link encryption (on top of SECURE)", ["encryption"], ["secure"]),
+    ("+ encrypted images", ["encrypted images"], ["UART"]),
+    ("**all on**", ["everything"], []),
+]
 # Sectors the bootloader region needs: sector layouts from the start of flash
 # (KiB), sizes taken from the measured row CHIPS[chip] - for series without a
 # port an estimate from a build for the same core. None = page flash (any size,
@@ -97,14 +118,12 @@ LAYOUTS = [
     ("STM32F1 (1 / 2 KiB pages)", 3, None, ""),
     ("STM32G4 / L4 (2 KiB pages)", 1, None, "estimate: Cortex-M4 build"),
 ]
-SECTOR_SETS = ["UART lite", "UART", "USB CDC", "USB CDC+DFU", "CAN", "Ethernet", "secure", "everything"]
-SECTOR_LABELS = {"UART lite": "UART, lite (no SMP)", "UART": "UART", "USB CDC": "UART + USB CDC", "USB CDC+DFU": "UART + USB CDC + DFU",
-                 "CAN": "UART + CAN", "Ethernet": "UART + Ethernet", "secure": "UART, link SECURE",
+SECTOR_SETS = ["UART lite", "UART", "USB CDC only", "CAN only", "Ethernet only", "secure", "everything"]
+SECTOR_LABELS = {"UART lite": "UART, lite (no SMP)", "UART": "UART", "USB CDC only": "USB CDC",
+                 "CAN only": "CAN", "Ethernet only": "Ethernet", "secure": "UART, link SECURE",
                  "everything": "all on"}
 README = ROOT / "README.md"
 BEGIN, END = "<!-- size-table:begin -->", "<!-- size-table:end -->"
-TRANSPORTS = ["UART", "USB CDC", "USB DFU", "USB CDC+DFU", "CAN", "CAN FD", "Ethernet", "DFU only", "UART lite"]
-FEATURES = ["log", "commands", "verify+hash", "readback", "link", "secure", "encryption", "encrypted images"]
 
 
 def build(out, ci, chip, vi, variant):
@@ -113,7 +132,7 @@ def build(out, ci, chip, vi, variant):
     unsupported = chip[5] if len(chip) > 5 else set()
     not_in_all = chip[6] if len(chip) > 6 else set()
     name, settings = variant[0], variant[1]
-    lto = len(variant) > 3 and variant[3]
+    lto = len(variant) > 2 and variant[2]
     if name.startswith("everything"):
         settings = {k: (0 if k in unsupported or k in not_in_all else v) for k, v in settings.items()}
     elif any(settings.get(k) for k in unsupported):
@@ -147,6 +166,8 @@ def kb(n):
 
 
 def delta(n):
+    if abs(n) < 50:
+        return "0"
     return f"+{n / 1024:.1f} K" if n >= 0 else f"{n / 1024:.1f} K"
 
 
@@ -170,22 +191,24 @@ def main():
             if n is None and log is not None:
                 print(f"note: {CHIPS[jobs[fut][0]][0]} / {jobs[fut][1]} does not build (see {log})", file=sys.stderr)
 
-    ref = {v[0]: v[2] for v in VARIANTS}
+    def value(ci, name):
+        if name == "uart":
+            a_, b_ = size.get((ci, "UART+CAN")), size.get((ci, "CAN only"))
+            return None if a_ is None or b_ is None else a_ - b_
+        return size.get((ci, name))
 
-    def cell(ci, col):
-        n, r = size.get((ci, col)), ref[col]
-        if n is None or size.get((ci, r)) is None:
-            return "—"
-        return delta(n - size[(ci, r)])
-
-    def table(cols, first):
-        rows = ["| MCU | " + " | ".join(first + [LABELS.get(c, c) for c in cols]) + " |",
-                "|---|" + "---:|" * (len(first) + len(cols))]
-        for ci, c in enumerate(CHIPS):
-            lead = [kb(size[(ci, "base")])] if "base" in first else []
-            if "all on" in first:
-                lead.append(kb(size[(ci, "everything")]) if size.get((ci, "everything")) else "—")
-            rows.append(f"| {c[0]} | " + " | ".join(lead + [cell(ci, col) for col in cols]) + " |")
+    def cost_table():
+        rows = ["| | " + " | ".join(c[0] for c in CHIPS) + " |", "|---|" + "---:|" * len(CHIPS)]
+        for label, plus, minus in ROWS:
+            cells = []
+            for ci in range(len(CHIPS)):
+                vals = [value(ci, n) for n in plus + minus]
+                if any(v is None for v in vals):
+                    cells.append("—")
+                    continue
+                n = sum(vals[:len(plus)]) - sum(vals[len(plus):])
+                cells.append(delta(n) if minus or label.startswith("+") else kb(n))
+            rows.append(f"| {label} | " + " | ".join(cells) + " |")
         return "\n".join(rows)
 
     def sectors(layout, n):
@@ -214,19 +237,17 @@ def main():
         return "\n".join(rows)
 
     def lto_table():
-        cols = {"base LTO": "base", "UART LTO": "UART (+SMP)", "UART lite LTO": "UART, lite upload (no SMP)",
-                "everything LTO": "all on"}
-        rows = ["| MCU, with LTO | " + " | ".join(cols.values()) + " |", "|---|" + "---:|" * len(cols)]
-        for ci, c in enumerate(CHIPS):
+        cols = {"base LTO": "base", "UART LTO": "base + SMP + UART", "everything LTO": "all on"}
+        rows = ["| with LTO | " + " | ".join(c[0] for c in CHIPS) + " |", "|---|" + "---:|" * len(CHIPS)]
+        for col, label in cols.items():
             cells = []
-            for col in cols:
+            for ci in range(len(CHIPS)):
                 n, plain = size.get((ci, col)), size.get((ci, LTO_OF[col]))
                 cells.append("—" if n is None or plain is None else f"{kb(n)} ({delta(n - plain)})")
-            rows.append(f"| {c[0]} | " + " | ".join(cells) + " |")
+            rows.append(f"| {label} | " + " | ".join(cells) + " |")
         return "\n".join(rows)
 
-    tables = (table(TRANSPORTS, ["base", "all on"]) + "\n\n" + table(FEATURES, []) + "\n\n" +
-              sector_table() + "\n\n" + lto_table())
+    tables = cost_table() + "\n\n" + sector_table() + "\n\n" + lto_table()
     if not (a.update or a.check):
         print(tables)
         return
