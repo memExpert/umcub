@@ -26,6 +26,17 @@ CASES = [   # name, probe, exit code, text in the output
      ENTRY.format(p="'E' 0 0") + PART.format(p="STM32F103C8T6"), 1, "PE0: not brought out"),
     ("entry pin off: not checked", '@@MCU "STM32F103xB"\n@@ "UMCUB_CFG_ENTRY_GPIO" 0\n'
      '@@ "UMCUB_CFG_ENTRY_GPIO_PIN" PIN \'E\' 0 0\n' + PART.format(p="STM32F103C8T6"), 0, "fit"),
+    ("SMPS part: its own package file", '@@MCU "STM32H7A3xxQ"\n' + ENTRY.format(p="'I' 0 0") +
+     PART.format(p="STM32H7A3IIK6Q"), 1, "PI0: not brought out on STM32H7A3IIK6Q"),
+    ("same pin, non-SMPS part", '@@MCU "STM32H7A3xx"\n' + ENTRY.format(p="'I' 0 0") +
+     PART.format(p="STM32H7A3IIK6"), 0, "fit"),
+    ("analog-switch pad PC2_C is not PC2", '@@MCU "STM32H755xx"\n' + ENTRY.format(p="'C' 2 0") +
+     PART.format(p="STM32H755ZIT6"), 1, "PC2: not brought out"),
+    ("status LED on the UART TX pin", '@@MCU "STM32H755xx"\n' + UART.format(i=3, tx="'D' 8 7", rx="'D' 9 7") +
+     '@@ "UMCUB_CFG_STATUS_LED" 1\n@@ "UMCUB_CFG_STATUS_LED_PIN" PIN \'D\' 8 0\n', 1,
+     "PD8 is both UMCUB_CFG_UART_TX_PIN and UMCUB_CFG_STATUS_LED_PIN"),
+    ("entry button on USB D+", '@@MCU "STM32F103xB"\n@@ "UMCUB_CFG_TRANSPORT_USB_CDC" 1\n' + ENTRY.format(p="'A' 12 0"),
+     1, "PA12 is both"),
     ("part of another line", '@@MCU "STM32H743xx"\n' + PART.format(p="STM32F103C8T6"), 1, "not a part of STM32H743xx"),
     ("unknown part", '@@MCU "STM32H743xx"\n' + PART.format(p="STM32H743QQT6"), 1, "no such part"),
 ]

@@ -56,20 +56,27 @@ def descendants(el, tag):
 
 def find_part(data, part):
     """The pin data file of a part number: ST names them with ranges and
-    wildcards (STM32F103C(8-B)Tx.xml matches STM32F103C8T6)."""
+    wildcards (STM32F103C(8-B)Tx.xml matches STM32F103C8T6). Of several that
+    match, the most specific: STM32H7A3I(G-I)KxQ.xml (SMPS) for STM32H7A3IIK6Q,
+    not STM32H7A3I(G-I)Kx.xml."""
+    best = None
     for f in sorted(os.listdir(os.path.join(data, "mcu"))):
         if not f.endswith(".xml"):
             continue
         pat = re.sub(r"\(([A-Z0-9-]+)\)", lambda m: "[" + m.group(1).replace("-", "") + "]", f[:-4]).replace("x", ".")
-        if re.match(pat, part):
-            return f
-    return None
+        m = re.match(pat, part)
+        if m and (best is None or m.end() > best[1]):         # most characters of the part number
+            best = (f, m.end())
+    return best[0] if best else None
 
 
 def package_pins(data, f):
-    """(package, {pin names}) of a part file; "PC14-OSC32_IN" counts as PC14."""
+    """(package, {pin names}) of a part file: "PC14-OSC32_IN" counts as PC14,
+    "PA11 [PA9]" (a remappable pad) as both, an analog-switch pad "PC2_C" not
+    as PC2."""
     root = ET.parse(os.path.join(data, "mcu", f)).getroot()
-    pins = {m.group(0) for p in children(root, "Pin") for m in [re.match(r"P[A-K]\d+", p.get("Name") or "")] if m}
+    pins = {n for p in children(root, "Pin") for n in re.findall(r"P[A-K]\d+(?:_C)?(?!\d)", p.get("Name") or "")
+            if not n.endswith("_C")}
     return root.get("Package"), pins
 
 
@@ -139,7 +146,19 @@ def used_pins(opts):
                   ("UMCUB_CFG_STATUS_LED_PIN", "UMCUB_CFG_STATUS_LED")):
         if on(en) and isinstance(opts.get(o), list):
             out += [(o, p) for p in opts[o] if (o, p) not in out]
+    if on("UMCUB_CFG_TRANSPORT_USB_CDC") or on("UMCUB_CFG_TRANSPORT_USB_DFU"):
+        out += [("USB (D- / D+)", ("A", 11, 10)), ("USB (D- / D+)", ("A", 12, 10))]   # USB FS on every ported family
     return out
+
+
+def shared_pins(opts):
+    """Pins two options both drive (the status LED on the UART TX, ...)."""
+    owner, errors = {}, []
+    for opt, (port, num, _af) in used_pins(opts):
+        other = owner.setdefault((port, num), opt)
+        if other != opt:
+            errors.append(f"P{port}{num} is both {other} and {opt}")
+    return errors
 
 
 def main():
@@ -148,6 +167,10 @@ def main():
     ap.add_argument("--data", default=os.path.join(ROOT, "third_party/st/stm32_open_pin_data"))
     a = ap.parse_args()
     mcu, opts = parse_probe(a.probe)
+    shared = shared_pins(opts)                      # needs no pin data
+    if shared:
+        print("umcub: pins used twice:\n  " + "\n  ".join(shared))
+        return 1
     if not os.path.isdir(os.path.join(a.data, "mcu")):
         print("umcub: pin check skipped - no pin data (git submodule update --init --depth 1 "
               "third_party/st/stm32_open_pin_data)")

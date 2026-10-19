@@ -64,13 +64,17 @@ macro(umcub_load_config board_dir core)
     list(APPEND UMCUB_CONFIG_DEFS UMCUB_CORE_CM4=1)
   endif()
 
+  # Overlays resolved here once; UMCUB_CONFIG_{PRE,POST}_ABS let later users
+  # (umcub_sign_image) take the same files from another directory.
+  set(UMCUB_CONFIG_PRE_ABS)
+  set(UMCUB_CONFIG_POST_ABS)
   if(UMCUB_CONFIG_PRE)
-    get_filename_component(_f "${UMCUB_CONFIG_PRE}" ABSOLUTE)
-    list(APPEND UMCUB_CONFIG_DEFS "UMCUB_CONFIG_PRE=\"${_f}\"")
+    get_filename_component(UMCUB_CONFIG_PRE_ABS "${UMCUB_CONFIG_PRE}" ABSOLUTE)
+    list(APPEND UMCUB_CONFIG_DEFS "UMCUB_CONFIG_PRE=\"${UMCUB_CONFIG_PRE_ABS}\"")
   endif()
   if(UMCUB_CONFIG_POST)
-    get_filename_component(_f "${UMCUB_CONFIG_POST}" ABSOLUTE)
-    list(APPEND UMCUB_CONFIG_DEFS "UMCUB_CONFIG_POST=\"${_f}\"")
+    get_filename_component(UMCUB_CONFIG_POST_ABS "${UMCUB_CONFIG_POST}" ABSOLUTE)
+    list(APPEND UMCUB_CONFIG_DEFS "UMCUB_CONFIG_POST=\"${UMCUB_CONFIG_POST_ABS}\"")
   endif()
 
   # Step 1: which MCU? (board config + constants only)
@@ -165,7 +169,7 @@ function(umcub_check_pins)
              UMCUB_CFG_UART_DE_PIN UMCUB_CFG_TRANSPORT_CAN UMCUB_CFG_CAN_DRIVER UMCUB_CFG_CAN_INSTANCE
              UMCUB_CFG_CAN_TX_PIN UMCUB_CFG_CAN_RX_PIN UMCUB_CFG_TRANSPORT_ETH UMCUB_CFG_ETH_DRIVER
              UMCUB_CFG_ETH_RMII_PINS UMCUB_CFG_ENTRY_GPIO UMCUB_CFG_ENTRY_GPIO_PIN UMCUB_CFG_MCU_PART
-             UMCUB_CFG_STATUS_LED UMCUB_CFG_STATUS_LED_PIN)
+             UMCUB_CFG_STATUS_LED UMCUB_CFG_STATUS_LED_PIN UMCUB_CFG_TRANSPORT_USB_CDC UMCUB_CFG_TRANSPORT_USB_DFU)
   set(_probe "#include \"umcub_cfg.h\"\n#undef UMCUB_PIN\n#define UMCUB_PIN(port, pin, af) PIN port pin af\n")
   string(APPEND _probe "@@MCU \"${UMCUB_MCU}\"\n")
   foreach(n IN LISTS _names)

@@ -58,7 +58,9 @@ Things that are easy to get wrong:
   a wrong pin or AF number stops the configuration and lists the pins that carry the signal), F1 pin pairs against
   the port's remap tables. With `UMCUB_CFG_MCU_PART` (the part number on the chip, e.g. `"STM32F103C8T6"`) every
   pin in use - including the entry button and a software DE pin - must also be brought out by that package
-  (LQFP48 has no port E, LQFP100 no port G); without it only the pins of the whole line are known.
+  (LQFP48 has no port E, LQFP100 no port G); without it only the pins of the whole line are known. A pin used by
+  two options (the status LED on the UART TX pin, the entry button on USB D+ PA11/PA12, ...) stops the
+  configuration too, with or without the pin data.
 - **RAM.** The handoff area (`UMCUB_CFG_SHARED_RAM_ADDR`, 256 bytes) must stay out of the application's RAM. The
   generated application linker scripts already exclude it.
 - **Image header.** `UMCUB_CFG_IMAGE_HEADER_SIZE` is also the offset of the application vector table: it must meet

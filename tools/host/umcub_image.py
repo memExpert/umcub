@@ -7,6 +7,7 @@
 
   umcub_image.py sign --board nucleo_h755zi_q --core cm7 --image 0 --version 1.2.3 app.elf
       sign an ELF/AXF, Intel HEX or raw .bin -> app.signed.bin + app.signed.hex
+      (app.bin next to them: the unsigned flat image)
       (and app.confirmed.{bin,hex} in direct-xip-revert mode)
 
 The configuration is read from the same boards/<board>/umcub_config.h the
@@ -171,12 +172,7 @@ def load_segments(path):
             die(f"{path}: no loadable sections")
         return segs
     if ext in (".hex", ".ihex"):
-        try:
-            from intelhex import IntelHex
-        except ImportError:
-            die("intelhex is needed for .hex input (pip install -r tools/requirements.txt)")
-        ih = IntelHex(str(path))
-        return [(a, ih.tobinstr(start=a, end=b - 1)) for a, b in ih.segments()]
+        return read_hex(path, data)
     if ext == ".bin":
         return [(None, data)]
     die(f"{path}: unknown input format (ELF/AXF, .hex or .bin)")
@@ -204,11 +200,52 @@ def flatten(segs, origin, length, path):
     return bytes(img)
 
 
+def read_hex(path, data):
+    """Intel HEX -> [(address, bytes)] of contiguous runs (records 00, 01, 02, 04)."""
+    mem, base = {}, 0
+    for n, line in enumerate(data.decode(errors="replace").splitlines(), 1):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            rec = bytes.fromhex(line[1:]) if line[0] == ":" else b""
+        except ValueError:
+            rec = b""
+        if len(rec) < 5 or len(rec) != rec[0] + 5 or sum(rec) & 0xFF:
+            die(f"{path}:{n}: not an Intel HEX record")
+        kind, payload, off = rec[3], rec[4:-1], rec[1] << 8 | rec[2]
+        if kind == 0:
+            for i, b in enumerate(payload):
+                mem[base + off + i] = b
+        elif kind == 1:
+            break
+        elif kind in (2, 4):
+            base = int.from_bytes(payload, "big") << (4 if kind == 2 else 16)
+    segs = []
+    for a in sorted(mem):
+        if segs and a == segs[-1][0] + len(segs[-1][1]):
+            segs[-1][1].append(mem[a])
+        else:
+            segs.append((a, bytearray([mem[a]])))
+    if not segs:
+        die(f"{path}: no data records")
+    return [(a, bytes(d)) for a, d in segs]
+
+
 def write_hex(path, data, addr):
-    from intelhex import IntelHex           # an imgtool dependency
-    ih = IntelHex()
-    ih.frombytes(data, offset=addr)
-    ih.write_hex_file(path, byte_count=16)
+    """Intel HEX with 16-byte data records and extended linear addresses."""
+    def record(kind, off, payload):
+        rec = bytes([len(payload), off >> 8 & 0xFF, off & 0xFF, kind]) + payload
+        return ":" + (rec + bytes([-sum(rec) & 0xFF])).hex().upper() + "\n"
+    out, high = [], None
+    for i in range(0, len(data), 16):
+        a = addr + i
+        if a >> 16 != high:
+            high = a >> 16
+            out.append(record(4, 0, high.to_bytes(2, "big")))
+        out.append(record(0, a & 0xFFFF, data[i:i + 16]))
+    out.append(record(1, 0, b""))
+    Path(path).write_text("".join(out))
 
 
 # --------------------------------------------------------------------------
@@ -270,6 +307,9 @@ def cmd_sign(cfg, a):
         args += ["--dependencies", a.depends]
 
     base = Path(a.output) if a.output else Path(a.input).with_suffix("")
+    unsigned = base.with_name(base.name + ".bin")       # the flat image, like objcopy -O binary
+    if unsigned.resolve() != Path(a.input).resolve():
+        unsigned.write_bytes(img)
     with tempfile.TemporaryDirectory() as d:
         raw = Path(d) / "app.bin"
         raw.write_bytes(img)

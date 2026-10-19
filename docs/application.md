@@ -110,12 +110,13 @@ matrix build compiles this file with exactly this include list, using GCC and cl
 
 **3. Signing after the build.** `tools/host/umcub_image.py sign` takes the ELF / AXF (or an Intel HEX / raw `.bin`). It
 checks that the image is linked at the slot origin and fits the slot, and writes `<name>.signed.bin` and
-`<name>.signed.hex` next to it. `umcub_sign_image()` in CMake runs the same tool on the ELF, so an IDE project and a
+`<name>.signed.hex` next to it (and `<name>.bin`, the unsigned flat image, e.g. for `tools/hw/powerfail_test.py`). `umcub_sign_image()` in CMake runs the same tool on the ELF, so an IDE project and a
 CMake build sign identically.
 
 It reads `umcub_config.h` through a C preprocessor. The search order is `--cc`, then `$UMCUB_CC`, then
 `arm-none-eabi-gcc`, then `armclang` (also in the default Keil folders), then `gcc` / `clang`. It needs Python 3
-with imgtool's dependencies: `pip install -r tools/requirements.txt` (on Windows `py -m pip install ...`).
+with imgtool's dependencies: `pip install -r tools/requirements.txt` (on Windows `py -m pip install ...`); Intel HEX
+input and output need nothing more.
 
 - **STM32CubeIDE**: *Project → Properties → C/C++ Build → Settings → Build Steps → Post-build steps*. The command
   runs in the build folder, with the CubeIDE toolchain in `PATH`:
