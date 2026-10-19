@@ -1,10 +1,25 @@
 # TODO
 
+## Ease of use (next big step)
+
+Goal: a user adds a board without reading the internals. Today, a board on a ported family (H7, F1) is one
+~40-line `umcub_config.h` (pins checked at build time), but a new series (e.g. G4) means
+writing a whole port (900-1600 lines).
+
+- [ ] **1. Drivers per ST IP block, not per family.** Stage A done (port/arch/stm32: USART v1/v2, bxCAN, FDCAN,
+  RNG, IWDG, rings; verified on both boards). Open: the G4 (or the coming F411) port on it as the proof. Before: The same peripherals repeat across series: USART v2
+  (H7 = G4 = L4 = F7: ISR/ICR/RDR/PRESC), USB FS device (F1 = G4 = L4), bxCAN (F1 = F4 = L4), FDCAN (H7 and G4:
+  same core, G4 has a fixed message RAM layout), RNG. Move them from `port/stm32h7/`, `port/stm32f1/` to
+  `port/arch/stm32/` (`usart_v2.c`, `usb_fs.c`, `bxcan.c`, `fdcan.c`, `rng.c`; IWDG and the RX ring are already
+  there), each family keeps clock, flash, sys (reset cause, GPIO, UID), defaults, linker templates and a small
+  table (instance -> registers, IRQ, bus clock). Target: a new series ~300-400 lines. Proof: port the G4 on it
+  (stm32-port-engineer + manual-checker against the RM / errata), with a NUCLEO-G474 if one is available.
+
 ## Hardware verification (NUCLEO-H755ZI-Q)
 
 - [ ] **CAN-FD on a bus** — 64-byte frames, data bit rate switch. Needs a CAN-FD transceiver on PD0/PD1 (classic CAN
   with ISO-TP + SMP is verified on a real bus).
-- [ ] **IDE workflow** (README "Using umcub from an IDE") in real STM32CubeIDE and Keil MDK projects: post-build
+- [ ] **IDE workflow** (docs/application.md "Using umcub from an IDE") in real STM32CubeIDE and Keil MDK projects: post-build
   signing, debug download of the signed image, Keil key codes (`#L`, `$L@L`), armclang as preprocessor. So far
   verified: `umcub_app_all.c` compiles with the documented include list (GCC, clang); `tools/host/umcub_image.py` gives
   the same image as CMake (header, payload, hash) from ELF and HEX; a tool-signed image boots on the board.
@@ -23,16 +38,18 @@
   the UID + a master on the host), H7 PCROP / secure-access area for the key; on the F1, RDP level 1 can be
   defeated by known attacks, so the key there is only as safe as the product's physical access;
   (b) F1 entropy quality not measured (ADC temperature noise + jitter).
-- [ ] MCUboot submodule is v2.4.0: `main` already wipes the AES key on every path of `boot_serial_encryption.c`.
-  Its in-place decryption still needs a sector-sized VLA on the stack, assumes uniform sectors and does not
-  validate first, so `image/mcuboot/enc_image.c` replaces it (issue draft prepared). Drop our copy once upstream
-  takes a port-provided buffer; update the submodule after the next release.
-- [ ] Encrypted SMP upload into the primary slot of image 1 (H755 CM4) is accepted but stays ciphertext: MCUboot's
-  `bs_upload()` (boot_serial.c, v2.4.0 L1201-1213) calls `boot_handle_enc_fw()` only for
-  `FLASH_AREA_IMAGE_PRIMARY(0)`, after the response. The old image is overwritten and the client sees success.
-  Through the secondary slot and lite it works. Before any workaround: read MCUboot's docs / history for why
-  serial-recovery decryption is image 0 only (intended or a gap), then raise it upstream (issue / PR).
-- [ ] Recovery over the network / CAN is not authenticated without `UMCUB_LINK_SECURE` (see README, "Mode notes
+- [ ] MCUboot submodule is v2.5.0-rc1 (move to the final v2.5.0 when it is out). Its in-place decryption
+  (`boot_serial_encryption.c`) needs a sector-sized VLA on the stack, assumes uniform sectors and does not validate
+  first, so `src/image/mcuboot/enc_image.c` replaces it (VLA rejected upstream in #2631, success before decryption
+  "expected" in #2770). Two bugs confirmed on main e19ad039 (ASan / host): `boot_enc_zeroize(&enc_data)` writes past
+  one `enc_key_data`; an image without its (unprotected) key TLV is decrypted without a key. Reported: #2911, fix
+  PR #2913.
+- [ ] Encrypted SMP upload into the primary slot of image 1 (H755 CM4) stays ciphertext: MCUboot's `bs_upload()`
+  decrypts only for `FLASH_AREA_IMAGE_PRIMARY(0)`; then no image boots in stock MCUboot (umcub retries image 0, the
+  CM4 stays parked). Reproduced on the host on main e19ad039 and fixed by comparing with every image's primary slot
+  (both upload numberings). Reported: mcu-tools/mcuboot#2910, fix PR #2912.
+  Until it is merged: encrypted CM4 updates through the secondary slot (DFU alt 1, SMP direct upload, app, lite).
+- [ ] Recovery over the network / CAN is not authenticated without `UMCUB_LINK_SECURE` (see docs/configuration.md, "Mode notes
   and limitations").
 - [ ] When the application writes a slot in the same flash bank it executes from, the CPU stalls for the duration of a
   sector erase (~2 s on the H7).
@@ -42,34 +59,6 @@
 ## Code review leftovers (refactoring, size, speed)
 
 Larger changes:
-- [ ] Image signing in one place: `umcub_sign_image()` (cmake/umcub_imgtool.cmake) calls `tools/host/umcub_image.py`
-  instead of mirroring its imgtool arguments; the matrix comparison of both outputs then goes away.
 - [ ] Zero-copy receive paths: ISO-TP reassembles straight into the mux packet buffer (saves an MTU of RAM:
   ~0.5 K on the F1, ~1.5 K on the H7); Ethernet RX parses in the DMA buffer and TX builds in it (~3.3 K RAM on
   the H7, two frame copies per packet); link DATA frames decrypt into the mux buffer (~0.5 K on SECURE builds).
-- [ ] proto/mux.c: one line assembler for NLIP, frame, link and text lines instead of `pump_stream` +
-  `pump_link_stream`; NLIP lines decoded in the mux and fed to boot_serial like packets, so `line_rename_params()`
-  goes away. Better: upstream MCUboot lets unknown group-0 commands reach the per-user hook
-  (`MCUBOOT_PERUSER_MGMT_GROUP_ENABLED`), which removes both rename functions (see the MCUboot upstream item).
-- [ ] Host tools: shared CAN / serial / UDP argument helpers (`add_can_arguments()` like `probe.add_arguments()`,
-  gives umcub_inspect.py CAN support); one serial / UDP line bus class for umcub_lite.py and umcub_link.py;
-  shared helpers for tests/host test_link.c and test_link_secure.c; one source list for the three host test
-  targets in tests/host/CMakeLists.txt; link_e2e.py on `umcub_link.parse_frame()`.
-
-Behaviour / security trade-offs (as options):
-- [ ] Validate the primary slot once: remember the hash of a fully validated image and check only the hash on
-  later boots (like MCUboot's `MCUBOOT_VALIDATE_PRIMARY_SLOT_ONCE`, in the hooks). Saves ~0.6 s per boot on the F1.
-- [ ] H7 ETH at 10 Mbit (ES0445 2.25.10): keep the FCS of errored frames and check it with `umcub_crc32()` instead of
-  relying on the IP / UDP checksums (ARP and UDP without checksum are not covered now). Check RM0399 first.
-- [ ] ISO-TP STmin 0xF1-0xF9 (100-900 us) waits 1-2 ms per frame: microsecond wait on SysTick / DWT.
-- [ ] Boot log: TX ring drained by interrupt (overlaps the signature check, ~35 ms at 115200 on the F1) or MCUboot
-  INF lines mapped to DBG (also saves their strings).
-- [ ] Ethernet in the entry window: autonegotiation does not finish in a short window, so skip the PHY bring-up when
-  `UMCUB_CFG_ENTRY_WAIT_MS` is below ~3 s.
-- [ ] mux: release the stream lock on any `\n` in boot_serial's output, not only a separate 1-byte write.
-
-Tooling speed:
-- [ ] tools/build/build_matrix.sh: build the configs in parallel; link_e2e.py scenarios in threads.
-- [ ] tools/hw/powerfail_test.py with stm32cube: one CLI call per step (several -e/-d/-w32/-r32) or pyOCD, and erase
-  only what is not rewritten (~15-25 s per fault point now).
-- [ ] umcub_lite.py: default chunk = device MTU or several frames in flight (stop-and-wait with 256 B chunks now).
