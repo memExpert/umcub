@@ -62,6 +62,7 @@ function(umcub_host_variant name)
     ${UMCUB_ROOT}/src/proto/smp_inspect.c
     ${UMCUB_ROOT}/src/util/libc.c
     ${UMCUB_ROOT}/src/util/codec.c
+    ${UMCUB_ROOT}/src/util/led.c
     ${UMCUB_ROOT}/src/proto/smp_os.c
     ${UMCUB_ROOT}/src/image/mcuboot/flash_map_backend.c
     ${UMCUB_ROOT}/src/image/mcuboot/hooks.c
@@ -201,6 +202,7 @@ function(umcub_host_board)
     ${UMCUB_ROOT}/src/proto/smp_inspect.c
     ${UMCUB_ROOT}/src/util/libc.c
     ${UMCUB_ROOT}/src/util/codec.c
+    ${UMCUB_ROOT}/src/util/led.c
     ${UMCUB_ROOT}/src/proto/smp_os.c
     ${UMCUB_ROOT}/src/image/mcuboot/flash_map_backend.c
     ${UMCUB_ROOT}/src/image/mcuboot/hooks.c
@@ -265,6 +267,7 @@ function(umcub_host_link t src post)
     ${UMCUB_ROOT}/src/proto/smp_inspect.c
     ${UMCUB_ROOT}/src/util/libc.c
     ${UMCUB_ROOT}/src/util/codec.c
+    ${UMCUB_ROOT}/src/util/led.c
     ${UMCUB_ROOT}/src/proto/smp_os.c
     ${UMCUB_ROOT}/src/image/mcuboot/flash_map_backend.c
     ${UMCUB_ROOT}/src/image/mcuboot/hooks.c

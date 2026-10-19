@@ -3,6 +3,7 @@
  */
 #include "umcub_cfg.h"
 #include "umcub_transport.h"
+#include "umcub_led.h"
 
 extern const umcub_transport_t umcub_transport_uart;
 extern const umcub_transport_t umcub_transport_usb;
@@ -48,8 +49,8 @@ static bool link_ok(const umcub_transport_t *t)
 void umcub_transports_init(void)
 {
     for (unsigned i = 0; i < umcub_transport_count; i++) {
-        if (link_ok(umcub_transports[i])) {
-            umcub_transports[i]->init();
+        if (link_ok(umcub_transports[i]) && umcub_transports[i]->init() != 0) {
+            umcub_led_error(umcub_transports[i]->id);
         }
     }
 }
@@ -59,6 +60,7 @@ void umcub_transports_deinit(void)
     for (unsigned i = umcub_transport_count; i-- > 0;) {
         umcub_transports[i]->deinit();
     }
+    umcub_led_off();            /* the LED shows the listening phase only */
 }
 
 void umcub_transports_poll(void)

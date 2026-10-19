@@ -44,6 +44,24 @@ uint32_t umcub_port_millis(void)
 void umcub_port_delay_ms(uint32_t ms) { now_ms += ms; }
 uint64_t fake_delay_us_total;
 void umcub_port_delay_us(uint32_t us) { fake_delay_us_total += us; }
+uint32_t fake_gpio_pin;
+int fake_gpio_level, fake_gpio_outputs, fake_gpio_resets;
+void umcub_port_gpio_output(uint32_t pin, bool level)
+{
+    fake_gpio_pin = pin;
+    fake_gpio_level = level;
+    fake_gpio_outputs++;
+}
+void umcub_port_gpio_write(uint32_t pin, bool level)
+{
+    fake_gpio_pin = pin;
+    fake_gpio_level = level;
+}
+void umcub_port_gpio_reset(uint32_t pin)
+{
+    fake_gpio_pin = pin;
+    fake_gpio_resets++;
+}
 void umcub_port_wdg_feed(void) {}
 void umcub_port_idle(void) {}
 uint32_t umcub_port_irq_save(void) { return 0; }

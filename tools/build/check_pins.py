@@ -135,7 +135,8 @@ def used_pins(opts):
     """(option, pin) of every pin the configuration drives."""
     out = [(o, p) for o, p, _ in expected(opts)]
     on = lambda n: opts.get(n, "0") not in ("0", "")   # noqa: E731
-    for o, en in (("UMCUB_CFG_UART_DE_PIN", "UMCUB_CFG_TRANSPORT_UART"), ("UMCUB_CFG_ENTRY_GPIO_PIN", "UMCUB_CFG_ENTRY_GPIO")):
+    for o, en in (("UMCUB_CFG_UART_DE_PIN", "UMCUB_CFG_TRANSPORT_UART"), ("UMCUB_CFG_ENTRY_GPIO_PIN", "UMCUB_CFG_ENTRY_GPIO"),
+                  ("UMCUB_CFG_STATUS_LED_PIN", "UMCUB_CFG_STATUS_LED")):
         if on(en) and isinstance(opts.get(o), list):
             out += [(o, p) for p in opts[o] if (o, p) not in out]
     return out

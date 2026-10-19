@@ -32,6 +32,10 @@
  * valid image, or by sending "b" during the first 300 ms. */
 #define UMCUB_CFG_ENTRY_WAIT_MS         300
 
+#define UMCUB_CFG_STATUS_LED            1       /* PC13, lit low: blinks while in the bootloader */
+#define UMCUB_CFG_STATUS_LED_PIN        UMCUB_PIN('C', 13, 0)
+#define UMCUB_CFG_STATUS_LED_ACTIVE     0
+
 #define UMCUB_CFG_CMD_ENABLE            1
 #define UMCUB_CFG_CMD_TABLE             UMCUB_CMD("a", UMCUB_CMD_BOOT_APP) \
                                         UMCUB_CMD("b", UMCUB_CMD_STAY)     \

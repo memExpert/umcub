@@ -107,6 +107,15 @@
 #ifndef UMCUB_CFG_ENTRY_GPIO_PULL
 #define UMCUB_CFG_ENTRY_GPIO_PULL       UMCUB_PULL_NONE
 #endif
+#ifndef UMCUB_CFG_STATUS_LED
+#define UMCUB_CFG_STATUS_LED            0
+#endif
+#ifndef UMCUB_CFG_STATUS_LED_PIN
+#define UMCUB_CFG_STATUS_LED_PIN        UMCUB_PIN('C', 13, 0)
+#endif
+#ifndef UMCUB_CFG_STATUS_LED_ACTIVE
+#define UMCUB_CFG_STATUS_LED_ACTIVE     1
+#endif
 #ifndef UMCUB_CFG_ENTRY_WAIT_MS
 #define UMCUB_CFG_ENTRY_WAIT_MS         0
 #endif

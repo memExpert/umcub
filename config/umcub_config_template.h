@@ -137,6 +137,17 @@
 /* #define UMCUB_CFG_ENTRY_WAIT_MS        0 */
 /* Leave recovery mode (reset) after this much inactivity (0 = never). */
 /* #define UMCUB_CFG_RECOVERY_TIMEOUT_MS  0 */
+/* Status LED, lit while the bootloader listens (wait window, recovery) -
+ * shows what the log would say when there is none (about 200 bytes):
+ *   slow blink (1 Hz)   in the bootloader, waiting
+ *   fast flicker        data arriving
+ *   N blinks + pause    a transport did not come up (init failed: no
+ *                       transceiver, no PHY clock, ...), N = UMCUB_TRANSPORT_*:
+ *                       1 UART, 2 USB, 4 CAN, 5 Ethernet, 7 board transport
+ * Untouched on a plain boot; back in reset state before the application. */
+/* #define UMCUB_CFG_STATUS_LED           0 */
+/* #define UMCUB_CFG_STATUS_LED_PIN       UMCUB_PIN('C', 13, 0) */
+/* #define UMCUB_CFG_STATUS_LED_ACTIVE    1 */
 
 /* ======================================================================== */
 /* Recovery protocols                                                       */

@@ -26,6 +26,7 @@
 #include "umcub_state.h"
 #include "umcub_cmd.h"
 #include "umcub_inspect.h"
+#include "umcub_led.h"
 #if UMCUB_CFG_LINK_ANY
 #include "umcub_link.h"
 #endif
@@ -177,6 +178,7 @@ static void cmd_run(const umcub_transport_t *t, const char *text, size_t len)
     cmd_from = t;
     cmd_out_len = 0;
     last_activity = umcub_port_millis();
+    umcub_led_activity();
     req_from = t;
     umcub_cmd_execute(text, len, cmd_reply, in_recovery);
     req_from = NULL;
@@ -468,6 +470,7 @@ static void other_packet(const umcub_transport_t *t, const uint8_t *p, size_t le
 
 static void pump_all(void)
 {
+    umcub_led_poll();
     umcub_transports_poll();
     for (unsigned i = 0; i < umcub_transport_count && i < MAX_TRANSPORTS; i++) {
         if (nlip_stream(umcub_transports[i])) {
@@ -491,6 +494,7 @@ static void touch(const umcub_transport_t *t)
     }
     active = t;
     last_activity = umcub_port_millis();
+    umcub_led_activity();
 }
 
 static int mux_read(char *str, int cnt, int *newline)

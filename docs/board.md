@@ -66,7 +66,8 @@ Things that are easy to get wrong:
 - **Watchdog.** If `UMCUB_CFG_WATCHDOG_MS` is set, the application must feed the IWDG: once started it cannot be
   stopped.
 - **Log.** The boot log is off by default. For bring-up set `UMCUB_CFG_LOG_LEVEL 3` (info, about 3.5 K) and watch
-  the UART; switch it off again for production (it also never shares a UART with a umcub link).
+  the UART; switch it off again for production (it also never shares a UART with a umcub link). Without a log, the
+  status LED (`UMCUB_CFG_STATUS_LED`) still shows a transport that did not come up (N blinks, see the template).
 
 ## Board identity: board type and node address
 

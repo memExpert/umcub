@@ -38,6 +38,7 @@ CHIPS = [
      "UMCUB_PIN('G', 11, 11), UMCUB_PIN('G', 13, 11), UMCUB_PIN('B', 13, 11)\n"),
     ("STM32H743 / H753 (single core)", "cm7", "tests/configs/feature/single_core.h",
      "#undef UMCUB_CFG_MCU\n#define UMCUB_CFG_MCU STM32H743xx\n"
+     "#undef UMCUB_CFG_MCU_PART\n#define UMCUB_CFG_MCU_PART \"STM32H743ZIT6\"\n"
      "#undef UMCUB_CFG_PWR_SUPPLY\n#define UMCUB_CFG_PWR_SUPPLY UMCUB_H7_SUPPLY_LDO\n"),
     # Cortex-M3, sized in the 44 KiB bootloader region of the USB layout; no
     # CAN FD and no Ethernet on this part; "all on" without CAN (shares its
@@ -48,7 +49,7 @@ CHIPS = [
 
 OFF = {"TRANSPORT_UART": 0, "TRANSPORT_USB_CDC": 0, "TRANSPORT_USB_DFU": 0, "TRANSPORT_CAN": 0,
        "CAN_FD": 0, "CAN_LOOPBACK": 0, "TRANSPORT_ETH": 0, "LOG_LEVEL": 0, "CMD_ENABLE": 0,
-       "INSPECT_VERIFY": 0, "INSPECT_HASH": 0, "READBACK": 0}
+       "INSPECT_VERIFY": 0, "INSPECT_HASH": 0, "READBACK": 0, "STATUS_LED": 0}
 U = {"TRANSPORT_UART": 1}
 CAN = {"TRANSPORT_CAN": 1}
 
@@ -67,6 +68,7 @@ VARIANTS = [
     ("UART lite", {**U, "SMP_ENABLE": 0}),
     ("log", {**U, "LOG_LEVEL": 3}),
     ("commands", {**U, "CMD_ENABLE": 1}),
+    ("status LED", {**U, "STATUS_LED": 1}),
     ("verify+hash", {**U, "INSPECT_VERIFY": 1, "INSPECT_HASH": 1}),
     ("readback", {**U, "INSPECT_VERIFY": 1, "INSPECT_HASH": 1, "READBACK": 1}),
     ("link", {**U, "UART_LINK": 1}),
@@ -75,7 +77,7 @@ VARIANTS = [
     ("encrypted images", {**U, "ENCRYPT_IMAGES": 1}),
     ("everything", {"TRANSPORT_UART": 1, "TRANSPORT_USB_CDC": 1, "TRANSPORT_USB_DFU": 1, "TRANSPORT_CAN": 1,
                     "CAN_FD": 1, "TRANSPORT_ETH": 1, "LOG_LEVEL": 3, "CMD_ENABLE": 1, "INSPECT_VERIFY": 1,
-                    "INSPECT_HASH": 1, "READBACK": 1}),
+                    "INSPECT_HASH": 1, "READBACK": 1, "STATUS_LED": 1}),
 ]
 # The same builds with link-time optimisation (UMCUB_CFG_LTO, experimental):
 # name -> the variant it repeats.
@@ -97,6 +99,7 @@ ROWS = [
     ("+ lite upload (instead of SMP)", ["UART lite"], ["base", "uart"]),
     ("+ log (level 3)", ["log"], ["UART"]),
     ("+ text commands", ["commands"], ["UART"]),
+    ("+ status LED", ["status LED"], ["UART"]),
     ("+ verify + hash", ["verify+hash"], ["UART"]),
     ("+ readback (on top of verify + hash)", ["readback"], ["verify+hash"]),
     ("+ umcub link (addressed)", ["link"], ["UART"]),

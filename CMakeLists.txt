@@ -88,6 +88,9 @@ set(MCUBOOT_SOURCES
 if(UMCUB_CFG_SLOT_WRITER_BOOT)    # USB DFU, lite upload, board protocol write slots themselves
   list(APPEND BOOT_SOURCES src/image/slot_writer.c src/image/umcub.c)
 endif()
+if(UMCUB_CFG_STATUS_LED)
+  list(APPEND BOOT_SOURCES src/util/led.c)
+endif()
 if(UMCUB_CFG_LITE_UPLOAD)         # lite upload protocol (without SMP)
   list(APPEND BOOT_SOURCES src/proto/lite.c)
 endif()

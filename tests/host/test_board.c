@@ -16,6 +16,7 @@
 #include "umcub_handoff.h"
 #include "umcub_log.h"
 #include "umcub_cmd.h"
+#include "umcub_led.h"
 #include "boot_serial/boot_serial.h"
 
 extern const struct boot_uart_funcs *boot_uf;
@@ -38,11 +39,12 @@ static uint32_t can_rx_id;
 static uint8_t can_tx[64], can_tx_len;
 static uint32_t can_tx_id;
 
+static int can_init_rc;                 /* what the board CAN driver's init returns */
 int umcub_port_can_init(const umcub_can_cfg_t *cfg)
 {
     can_cfg = *cfg;
     can_inits++;
-    return 0;
+    return can_init_rc;
 }
 void umcub_port_can_deinit(void) { can_deinits++; }
 int umcub_port_can_send(uint32_t id, const uint8_t *data, uint8_t len)
@@ -184,6 +186,21 @@ static void mux_step(void)
 
 /* ---- tests --------------------------------------------------------------- */
 
+/* Lit periods of the status LED over the next `ms` milliseconds (one
+ * umcub_port_millis() tick per poll in the fake port). */
+static int led_pulses(unsigned ms)
+{
+    umcub_led_poll();
+    int n = 0, was = fake_gpio_level == UMCUB_CFG_STATUS_LED_ACTIVE;
+    for (unsigned i = 0; i < ms; i++) {
+        umcub_led_poll();
+        int on = fake_gpio_level == UMCUB_CFG_STATUS_LED_ACTIVE;
+        n += on && !was;
+        was = on;
+    }
+    return n;
+}
+
 int main(void)
 {
     setvbuf(stdout, NULL, _IONBF, 0);
@@ -244,6 +261,21 @@ int main(void)
     printf("[deinit] every board driver and transport is shut down before the jump\n");
     umcub_transports_deinit();
     CHECK(can_deinits == 1 && eth_deinits == 1 && user_deinits == 1);
+
+    CHECK(fake_gpio_pin == UMCUB_CFG_STATUS_LED_PIN && fake_gpio_resets == 1);   /* status LED released */
+
+    printf("[status LED] 1 Hz while listening, flicker on data, N blinks for a transport that failed\n");
+    CHECK(led_pulses(2000) == 2);                   /* listening: 1 Hz */
+    user_in_len = smp_echo(user_in, 9);
+    mux_step();
+    CHECK(led_pulses(100) >= 1);                    /* data: 10 Hz */
+    umcub_transports_deinit();
+    can_init_rc = UMCUB_ETIMEOUT;                   /* e.g. no transceiver */
+    umcub_transports_init();
+    umcub_port_delay_ms(200);                       /* past the flicker */
+    CHECK(led_pulses(UMCUB_TRANSPORT_CAN * 400 + 1200) == UMCUB_TRANSPORT_CAN);
+    CHECK(led_pulses(UMCUB_TRANSPORT_CAN * 400 + 1200) == UMCUB_TRANSPORT_CAN);
+    umcub_transports_deinit();
 
     printf(failures ? "\n%d FAILURE(S)\n" : "\nALL TESTS PASSED\n", failures);
     return failures ? 1 : 0;

@@ -16,6 +16,7 @@ words, no double programming) through the umcub transport layer. Covered: SMP up
 and stream paths (including two interleaved streams), swap → revert → confirm in scratch / move / offset modes, SMP
 upload into the secondary slot (`UMCUB_CFG_SMP_DIRECT_UPLOAD`) marked by `image state-write` for a test or for good, text
 commands, verify / hash / read, ISO-TP classic/FD, DHCP / ARP / ICMP, board-supplied drivers and transports, the
+status LED patterns (listening, data, a failed transport init), the
 board-type check, the umcub link in ADDRESSED mode and in SECURE mode with encryption (handshake, wrong admin key,
 replayed / tampered / reordered frames, session end, RDP level 0), encrypted images (SMP upload into the primary
 slot decrypted in place, swap upgrade / revert / confirm with re-encryption, verify of an encrypted secondary,
