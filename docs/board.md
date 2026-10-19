@@ -2,7 +2,7 @@
 
 Adding a board to umcub: its configuration, its identity on a bus, external controllers and transports of your own.
 
-## Your own board
+## Adding a board
 
 Ported families: STM32H7 (H743/H753 and the dual-core H745/H755/H747/H757; not H7A3/B0/H72x/H73x yet) and
 STM32F1 (F103x8/xB). For another series the port comes first, see [Porting](porting.md).

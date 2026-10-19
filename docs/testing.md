@@ -2,8 +2,6 @@
 
 The build matrix, host tests, simulated devices and the hardware tests.
 
-## Testing
-
 ```sh
 tools/build/build_matrix.sh                 # 33 bootloader configurations (side by side, JOBS=n), examples, IDE checks,
                                             # host tests; warning-free

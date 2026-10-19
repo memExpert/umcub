@@ -3,7 +3,7 @@
 Where the options live, how big the bootloader gets for each transport and feature, and the notes on the upgrade
 modes.
 
-## Configuration
+## Options
 
 All options are documented in [`config/umcub_config_template.h`](../config/umcub_config_template.h); defaults are in
 `config/umcub_config_defaults.h`. Example: [`boards/nucleo_h755zi_q/umcub_config.h`](../boards/nucleo_h755zi_q/umcub_config.h).
@@ -141,7 +141,7 @@ Notes:
   (`umcub_app_linker_script(... SLOT n)`, `umcub_sign_image(... SLOT n)`; the CM7 example takes `-DAPP_SLOT=1`).
   Downgrade prevention is not available in these modes.
 - **Recovery over the network / CAN is not authenticated** unless the transport uses `UMCUB_LINK_SECURE` (see
-  [umcub link](link.md#shared-buses-umcub-link-addressing-secure-mode)): otherwise any node on the LAN (UDP 1337) or the
+  [umcub link](link.md)): otherwise any node on the LAN (UDP 1337) or the
   CAN bus can upload any image signed with your key in recovery mode, including an older one. Signatures are
   always checked.
   `UMCUB_CFG_DOWNGRADE_PREVENTION` (swap modes only) protects updates through the secondary slot (DFU, application);

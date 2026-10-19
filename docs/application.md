@@ -14,6 +14,9 @@ umcub_app_linker_script(app IMAGE 0)        # or your own script with UMCUB_APP_
 umcub_sign_image(app VERSION 1.2.3)         # -> app.signed.bin / app.signed.hex (same signed image)
 ```
 
+A build with applications for both cores adds `lib/umcub_app` for each and links each application with
+`${UMCUB_APP_LIB}` (one target per core); with a single application `umcub::app` is enough.
+
 ```c
 #include "umcub.h"
 umcub_version_t v;
@@ -51,8 +54,8 @@ Writing from the application:
 | STM32CubeIDE (GCC) | build with CMake; CubeIDE can drive the build and debug the ELF | yes |
 | Keil MDK (Arm Compiler 6) | build with CMake (GCC); Keil can flash the .hex and debug the ELF | yes |
 
-The bootloader is written once and rarely changes, so it does not have to live in the IDE. Build it with CMake (see
-Quick start) and program the `.hex` with STM32CubeProgrammer or the IDE. Building the bootloader with Arm Compiler 6
+The bootloader is written once and rarely changes, so it does not have to live in the IDE. Build it with CMake (see the
+[quick start](../README.md#quick-start-nucleo-h755zi-q)) and program the `.hex` with STM32CubeProgrammer or the IDE. Building the bootloader with Arm Compiler 6
 is not supported: it depends on GCC startup code, GCC linker script templates and its own newlib stdio overrides.
 
 The application is a normal CubeMX / IDE project. It needs four things: the right flash address, the library, a
@@ -172,8 +175,6 @@ Every preset in `CMakePresets.json` builds the bootloader target `umcub_<board>_
 `build/<preset>/examples/<app>/<app>.{elf,map,signed.bin,signed.hex}`. An IDE using CMake presets (VS Code with
 CMake Tools, CLion, ...) therefore lists the bootloader and the applications as targets, and every `.elf` has its
 `.map` next to it for memory analysis tools. The examples remain standalone projects (`cmake -S examples/<app>`).
-In your own build that adds `lib/umcub_app` for two cores, link each application with `${UMCUB_APP_LIB}` (one target
-per core); with a single application `umcub::app` is enough.
 
 Presets: `h755-cm7` (one bootloader for both cores; `h755-cm7-debug`: the same at -Og), `h755-per-core-cm7` +
 `h755-per-core-cm4` (a bootloader per core), `bluepill` (UART), `bluepill-usb` (USB CDC + DFU, larger bootloader).

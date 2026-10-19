@@ -9,13 +9,13 @@ SMP (mcumgr) works the same over every SMP transport; only the connection differ
 
 ```sh
 smpmgr --port /dev/ttyACM0 image state-read                 # or: mcumgr --conntype serial ...
-smpmgr --port /dev/ttyACM0 image upload build/ex-cm7/h755_cm7_app.signed.bin
-smpmgr --port /dev/ttyACM0 image upload --slot 1 build/ex-cm4/h755_cm4_app.signed.bin
+smpmgr --port /dev/ttyACM0 image upload build/h755-cm7/examples/h755_cm7_app/h755_cm7_app.signed.bin
+smpmgr --port /dev/ttyACM0 image upload --slot 1 build/h755-cm7/examples/h755_cm4_app/h755_cm4_app.signed.bin
 smpmgr --port /dev/ttyACM0 os reset
-mcumgr --conntype udp --connstring=<ip>:1337 image upload build/ex-cm7/h755_cm7_app.signed.bin
-smpmgr --ip <ip> image upload build/ex-cm7/h755_cm7_app.signed.bin              # UDP (default --mtu 1500)
-dfu-util -a 0 -D build/ex-cm7/h755_cm7_app.signed.bin -R    # DFU: alt N = image N
-tools/host/smp_can.py --channel can0 upload build/ex-cm7/h755_cm7_app.signed.bin
+mcumgr --conntype udp --connstring=<ip>:1337 image upload build/h755-cm7/examples/h755_cm7_app/h755_cm7_app.signed.bin
+smpmgr --ip <ip> image upload build/h755-cm7/examples/h755_cm7_app/h755_cm7_app.signed.bin              # UDP (default --mtu 1500)
+dfu-util -a 0 -D build/h755-cm7/examples/h755_cm7_app/h755_cm7_app.signed.bin -R    # DFU: alt N = image N
+tools/host/smp_can.py --channel can0 upload build/h755-cm7/examples/h755_cm7_app/h755_cm7_app.signed.bin
 ```
 
 SMP serial recovery writes straight into the **primary** slot (this is how MCUboot works); the image number is the
@@ -49,9 +49,9 @@ a few lines of host code:
 | `UMCUB_CMD_VERIFY` / `HASH` / `READ` | slot inspection, see below |
 | `UMCUB_CMD_USER(n)` | calls `bool umcub_cmd_user(unsigned n, const char *text, umcub_cmd_reply_t reply)`; define it in `boards/<board>/umcub_board.c`, which is added to the build automatically |
 
-- Commands are accepted in recovery mode and, over every enabled transport, during the `UMCUB_CFG_ENTRY_WAIT_MS`
-  window (e.g. 300 ms: "press `b` right after reset to stay in the bootloader"). Choose the window for the slowest
-  transport you want to use: Ethernet and USB need seconds (link, DHCP, enumeration); see the option in the template.
+- Commands are accepted in recovery mode and, over every enabled transport, during the wait after reset
+  (`UMCUB_CFG_ENTRY_WAIT_MS`, e.g. 300 ms: "press `b` right after reset to stay in the bootloader"; how long each
+  transport needs: [Getting into the bootloader](../README.md#getting-into-the-bootloader)).
 - UART and USB CDC: typed text. A command is recognised only at the start of a line; a command that is the beginning
   of another one (`r` / `read`) waits for Enter; an unknown line is answered with `? text` after Enter.
 - UDP and CAN: a packet that is not an SMP frame is a command; the reply comes back as one packet

@@ -37,12 +37,12 @@ inside an encrypted umcub link session (`UMCUB_LINK_SECURE` + `UMCUB_CFG_LINK_EN
 decrypting it on the fly; `hash` is computed over what is in flash (ciphertext in the secondary slot, plain text in
 the primary slot after installation). Outside an encrypted session only whole-image hashes are answered: hashes of
 small ranges would reveal the plain code piece by piece. Not available in the direct-xip modes, where images run from both slots.
-Protect the device key like the SECURE link: RDP on, see [umcub link](link.md#shared-buses-umcub-link-addressing-secure-mode).
+Protect the device key like the SECURE link: RDP on, see [umcub link](link.md#limits).
 
 ## Security
 
 `tools/keys/dev-ecdsa-p256.pem` is a **development key** stored in the repository — anybody can sign images with it.
 For a product generate your own (`imgtool keygen -t ecdsa-p256 -k prod.pem`) and pass `-DUMCUB_SIGNING_KEY=prod.pem`
 when building the bootloader and the applications. Also write-protect the bootloader sector (WRP) and enable RDP.
-For transports on a shared bus see the SECURE mode of the [umcub link](link.md#shared-buses-umcub-link-addressing-secure-mode)
+For transports on a shared bus see the SECURE mode of the [umcub link](link.md)
 and its own keys.

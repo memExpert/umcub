@@ -2,7 +2,7 @@
 
 Several devices on one bus: addressing, the SECURE mode (authentication, encryption) and the host tool.
 
-## Shared buses: umcub link (addressing, SECURE mode)
+## Addressing
 
 SMP over a serial line is point to point: on a shared RS485 bus every bootloader would answer at once, and anybody
 on the bus could drive them. The umcub link puts an envelope around SMP and text commands, per transport:
@@ -21,7 +21,9 @@ CDC) as a line `0x05 0x0B <base64> \n`. The format and the handshake are describ
 (MAX485 and alike) does not drive the bus properly from 3.3 V: power it from 5 V and put its RO output on a
 5 V-tolerant RX pin, or use a 3.3 V part (MAX3485, SP3485).
 
-**SECURE mode.** The host answers a fresh 32-byte challenge with an ephemeral EC P-256 key, its own nonce and an
+## SECURE mode
+
+The host answers a fresh 32-byte challenge with an ephemeral EC P-256 key, its own nonce and an
 ECDSA signature made with the **admin key**. The bootloader checks the signature with the embedded public half,
 derives the session keys from ECDH with its **device key** (HKDF-SHA256) and proves in `AUTH_OK` that it holds that
 key. After that every frame has an HMAC-SHA256 tag (16 bytes) and a strictly increasing sequence number, so a
@@ -42,7 +44,8 @@ CMake embeds them with `tools/host/umcub_keys.py` (`c`: device private key and a
 `imgtool getpriv`. `tools/keys/dev-device-p256.pem` and `dev-admin-p256.pem` are
 development keys from the repository, the build warns about them.
 
-Limits:
+### Limits
+
 - The device key is the same in every device of a product. With flash readout protection off it can be read out
   with a debugger, so a SECURE transport stays closed (`HELLO` gets an `ANNOUNCE` flagged closed) while RDP is at
   level 0, unless `UMCUB_CFG_LINK_REQUIRE_RDP` is 0 (development only).
@@ -61,7 +64,9 @@ Limits:
 - Firmware confidentiality needs two things: `UMCUB_CFG_LINK_ENCRYPT` for the session and
   [encrypted images](security.md#encrypted-images) for what is stored and sent outside it.
 
-**Host side: `tools/host/umcub_link.py`.** Standard SMP clients do not speak the link. The tool finds the devices, selects
+## Host side: `tools/host/umcub_link.py`
+
+Standard SMP clients do not speak the link. The tool finds the devices, selects
 one and, as a proxy, serves `mcumgr` / `smpmgr` unchanged.
 
 `discover` broadcasts DISCOVER with a number of slots; every device answers ANNOUNCE in a random slot. Two devices
