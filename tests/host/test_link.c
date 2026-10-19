@@ -9,6 +9,7 @@
 #include <string.h>
 
 #include "fake_port.h"
+#include "link_test.h"
 #include "umcub_cfg.h"
 #include "umcub_port.h"
 #include "umcub_transport.h"
@@ -16,60 +17,17 @@
 #include "umcub_handoff.h"
 #include "umcub_cmd.h"
 #include "boot_serial/boot_serial.h"
-#include "base64/base64.h"
 
 extern const struct boot_uart_funcs *boot_uf;
 const struct boot_uart_funcs *umcub_mux_funcs_for_test(void);
 extern uint16_t fake_node_addr;
 
-static int failures;
-#define CHECK(c)                                                                 \
-    do {                                                                         \
-        if (!(c)) {                                                              \
-            printf("  FAIL %s:%d: %s\n", __FILE__, __LINE__, #c);                \
-            failures++;                                                          \
-        }                                                                        \
-    } while (0)
-
 /* ---- transports ---------------------------------------------------------- */
-typedef struct {
-    uint8_t in[4096];
-    size_t in_len, in_pos;
-    char out[16384];
-    size_t out_len;
-} stream_t;
 static stream_t s_link, s_plain;
-
-static size_t s_read(stream_t *s, uint8_t *b, size_t m)
-{
-    size_t n = 0;
-    while (n < m && s->in_pos < s->in_len) {
-        b[n++] = s->in[s->in_pos++];
-    }
-    return n;
-}
-static void s_write(stream_t *s, const uint8_t *b, size_t l)
-{
-    if (s->out_len + l < sizeof(s->out)) {
-        memcpy(&s->out[s->out_len], b, l);
-        s->out_len += l;
-    }
-}
-static size_t link_read(uint8_t *b, size_t m) { return s_read(&s_link, b, m); }
-static void link_write(const uint8_t *b, size_t l) { s_write(&s_link, b, l); }
-static size_t plain_read(uint8_t *b, size_t m) { return s_read(&s_plain, b, m); }
-static void plain_write(const uint8_t *b, size_t l) { s_write(&s_plain, b, l); }
-
-static uint8_t pkt_out[2048];
-static size_t pkt_out_len;
-static int pkt_send(const uint8_t *p, size_t l)
-{
-    memcpy(pkt_out, p, l);
-    pkt_out_len = l;
-    return 0;
-}
-static int nop_init(void) { return 0; }
-static void nop_deinit(void) {}
+static size_t link_read(uint8_t *b, size_t m) { return stream_read(&s_link, b, m); }
+static void link_write(const uint8_t *b, size_t l) { stream_write(&s_link, b, l); }
+static size_t plain_read(uint8_t *b, size_t m) { return stream_read(&s_plain, b, m); }
+static void plain_write(const uint8_t *b, size_t l) { stream_write(&s_plain, b, l); }
 
 static const umcub_transport_t t_link = {
     .id = UMCUB_TRANSPORT_UART, .init = nop_init, .deinit = nop_deinit,
@@ -123,43 +81,13 @@ static size_t frame(uint8_t *f, uint8_t type, uint8_t flags, uint16_t dst, const
 static void stream_send(uint8_t type, uint8_t flags, uint16_t dst, const void *p, size_t len)
 {
     uint8_t f[1200];
-    size_t n = frame(f, type, flags, dst, p, len);
-    stream_t *s = &s_link;
-    s->in[s->in_len++] = UMCUB_LINK_LINE_START1;
-    s->in[s->in_len++] = UMCUB_LINK_LINE_START2;
-    s->in_len += (size_t)base64_encode(f, (int)n, (char *)&s->in[s->in_len], 1);
-    s->in[s->in_len++] = '\n';
-}
-
-static void run(int n)
-{
-    char tmp[1500];
-    int nl;
-    for (int i = 0; i < n; i++) {
-        boot_uf->read(tmp, sizeof(tmp), &nl);
-    }
+    stream_put_frame(&s_link, f, frame(f, type, flags, dst, p, len));
 }
 
 /* Decode the k-th link line written to the stream; returns frame length. */
 static size_t out_frame(int k, uint8_t *f)
 {
-    const char *p = s_link.out, *end = s_link.out + s_link.out_len;
-    while (p < end) {
-        const char *nl = memchr(p, '\n', (size_t)(end - p));
-        if (!nl) {
-            break;
-        }
-        if (p[0] == UMCUB_LINK_LINE_START1 && p[1] == UMCUB_LINK_LINE_START2 && k-- == 0) {
-            char line[2048];
-            size_t l = (size_t)(nl - p - 2);
-            memcpy(line, p + 2, l);
-            line[l] = 0;
-            int n = base64_decode(line, f);
-            return n > 0 ? (size_t)n : 0;
-        }
-        p = nl + 1;
-    }
-    return 0;
+    return stream_out_frame(&s_link, k, f);
 }
 
 static size_t smp_echo(uint8_t *p, uint8_t seq)
@@ -173,8 +101,8 @@ static size_t smp_echo(uint8_t *p, uint8_t seq)
 
 static void reset_io(void)
 {
-    s_link.in_len = s_link.in_pos = s_link.out_len = 0;
-    s_plain.in_len = s_plain.in_pos = s_plain.out_len = 0;
+    stream_reset(&s_link);
+    stream_reset(&s_plain);
     pkt_out_len = 0;
 }
 

@@ -11,6 +11,7 @@
 #include <string.h>
 
 #include "fake_port.h"
+#include "link_test.h"
 #include "umcub_cfg.h"
 #include "umcub_port.h"
 #include "umcub_transport.h"
@@ -19,7 +20,6 @@
 #include "umcub_cmd.h"
 #include "umcub_inspect.h"
 #include "boot_serial/boot_serial.h"
-#include "base64/base64.h"
 #include "tinycrypt/constants.h"
 #include "tinycrypt/ecc.h"
 #include "tinycrypt/ecc_dh.h"
@@ -35,50 +35,10 @@ extern uint16_t fake_node_addr;
 extern const uint8_t umcub_link_host_admin_priv[32];
 extern const uint8_t umcub_link_host_device_pub[64];
 
-static int failures;
-#define CHECK(c)                                                                 \
-    do {                                                                         \
-        if (!(c)) {                                                              \
-            printf("  FAIL %s:%d: %s\n", __FILE__, __LINE__, #c);                \
-            failures++;                                                          \
-        }                                                                        \
-    } while (0)
-
 /* ---- transports ---------------------------------------------------------- */
-typedef struct {
-    uint8_t in[8192];
-    size_t in_len, in_pos;
-    char out[16384];
-    size_t out_len;
-} stream_t;
 static stream_t s_sec;
-
-static size_t sec_read(uint8_t *b, size_t m)
-{
-    size_t n = 0;
-    while (n < m && s_sec.in_pos < s_sec.in_len) {
-        b[n++] = s_sec.in[s_sec.in_pos++];
-    }
-    return n;
-}
-static void sec_write(const uint8_t *b, size_t l)
-{
-    if (s_sec.out_len + l < sizeof(s_sec.out)) {
-        memcpy(&s_sec.out[s_sec.out_len], b, l);
-        s_sec.out_len += l;
-    }
-}
-
-static uint8_t pkt_out[2048];
-static size_t pkt_out_len;
-static int pkt_send(const uint8_t *p, size_t l)
-{
-    memcpy(pkt_out, p, l);
-    pkt_out_len = l;
-    return 0;
-}
-static int nop_init(void) { return 0; }
-static void nop_deinit(void) {}
+static size_t sec_read(uint8_t *b, size_t m) { return stream_read(&s_sec, b, m); }
+static void sec_write(const uint8_t *b, size_t l) { stream_write(&s_sec, b, l); }
 
 static const umcub_transport_t t_sec = {
     .id = UMCUB_TRANSPORT_UART, .init = nop_init, .deinit = nop_deinit,
@@ -193,14 +153,6 @@ static size_t frame(uint8_t *f, uint8_t type, uint8_t flags, uint16_t dst, const
     return HDR + len + TAG;
 }
 
-static void stream_put(const uint8_t *f, size_t n)
-{
-    s_sec.in[s_sec.in_len++] = UMCUB_LINK_LINE_START1;
-    s_sec.in[s_sec.in_len++] = UMCUB_LINK_LINE_START2;
-    s_sec.in_len += (size_t)base64_encode(f, (int)n, (char *)&s_sec.in[s_sec.in_len], 1);
-    s_sec.in[s_sec.in_len++] = '\n';
-}
-
 static bool on_pkt;                 /* host talks over t_pkt instead of t_sec */
 static uint8_t last_frame[1500];
 static size_t last_frame_len;
@@ -213,7 +165,7 @@ static void send(uint8_t type, uint8_t flags, uint16_t dst, const void *p, size_
          * frames only), not whether the frame was handled */
         (void)umcub_smp_packet_rx(&t_pkt, last_frame, last_frame_len);
     } else {
-        stream_put(last_frame, last_frame_len);
+        stream_put_frame(&s_sec, last_frame, last_frame_len);
     }
 }
 
@@ -222,22 +174,13 @@ static void resend_raw(const uint8_t *f, size_t n)
     if (on_pkt) {
         (void)umcub_smp_packet_rx(&t_pkt, f, n);
     } else {
-        stream_put(f, n);
-    }
-}
-
-static void run(int n)
-{
-    char tmp[1500];
-    int nl;
-    for (int i = 0; i < n; i++) {
-        boot_uf->read(tmp, sizeof(tmp), &nl);
+        stream_put_frame(&s_sec, f, n);
     }
 }
 
 static void reset_io(void)
 {
-    s_sec.in_len = s_sec.in_pos = s_sec.out_len = 0;
+    stream_reset(&s_sec);
     pkt_out_len = 0;
 }
 
@@ -251,23 +194,7 @@ static size_t out_frame(int k, uint8_t *f)
         memcpy(f, pkt_out, pkt_out_len);
         return pkt_out_len;
     }
-    const char *p = s_sec.out, *end = s_sec.out + s_sec.out_len;
-    while (p < end) {
-        const char *nl = memchr(p, '\n', (size_t)(end - p));
-        if (!nl) {
-            break;
-        }
-        if (p[0] == UMCUB_LINK_LINE_START1 && p[1] == UMCUB_LINK_LINE_START2 && k-- == 0) {
-            char line[4096];
-            size_t l = (size_t)(nl - p - 2);
-            memcpy(line, p + 2, l);
-            line[l] = 0;
-            int n = base64_decode(line, f);
-            return n > 0 ? (size_t)n : 0;
-        }
-        p = nl + 1;
-    }
-    return 0;
+    return stream_out_frame(&s_sec, k, f);
 }
 
 static bool nothing_sent(void)

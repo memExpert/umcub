@@ -116,6 +116,7 @@ The same operations are available in SMP group `UMCUB_CFG_SMP_INSPECT_GROUP` (de
 tools/host/umcub_inspect.py --port /dev/ttyACM1 verify 0 1
 tools/host/umcub_inspect.py --port /dev/ttyACM1 hash 0 1 --file app.signed.bin     # MATCH / MISMATCH
 tools/host/umcub_inspect.py --udp 192.168.1.50 read 0 0 --out dump.bin              # needs UMCUB_CFG_READBACK
+tools/host/umcub_inspect.py --can --channel can0 --addr 5 verify 0 0                # CAN ISO-TP
 ```
 
 Note: the `hash` shown by the standard `smpmgr image state-read` is read from the TLV inside the image and is **not**

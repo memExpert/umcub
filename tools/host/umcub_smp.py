@@ -5,21 +5,19 @@
 - the umcub inspection group (SMP group 100, src/proto/smp_inspect.c) as smpclient
   requests: `InspectVerify`, `InspectHash`, `InspectRead`;
 - `SMPIsoTpTransport`: an smpclient transport over CAN ISO-TP (python-can-isotp),
-  with the umcub CAN IDs (base + node address), on `isotp_stack()` (also used
-  by umcub_lite.py).
+  with the umcub CAN IDs (base + node address), on `umcub_bus.isotp_stack()`.
 """
 import asyncio
 import binascii
-import errno
 import logging
-import time
 from enum import IntEnum, unique
 
 from smp import error as smperr
-from smp import header as smphdr
 from smp import message as smpmsg
 from smp import packet as smppacket
 from smp.exceptions import SMPBadContinueDelimiter, SMPBadCRC, SMPBadStartDelimiter
+
+from umcub_bus import can_ids, isotp_stack
 
 # boot_serial has no MCUmgr parameters command (rc 8): smpclient then keeps its
 # default sizes, which is what the tools want - not worth a warning.
@@ -141,38 +139,6 @@ class InspectRead(_InspectRequest):
 
 # --- CAN ISO-TP ------------------------------------------------------------
 
-def isotp_stack(interface, channel, bitrate, tx_id, rx_id, fd=False, data_bitrate=2000000, extended=False):
-    """A started python-can-isotp stack with the umcub frame settings; returns
-    (bus, notifier, stack)."""
-    import can
-    import isotp
-    bus = can.Bus(interface=interface, channel=channel, bitrate=bitrate, fd=fd,
-                  data_bitrate=data_bitrate if fd else None)
-    # A device that allows back-to-back consecutive frames (STmin 0) fills
-    # the interface's TX queue (Linux default qlen 10): wait instead of
-    # failing on ENOBUFS.
-    send = bus.send
-
-    def send_retry(msg, timeout=None):
-        for _ in range(1000):
-            try:
-                return send(msg, timeout)
-            except can.CanOperationError as e:
-                if getattr(e, "error_code", None) != errno.ENOBUFS:
-                    raise
-                time.sleep(0.001)
-        return send(msg, timeout)
-    bus.send = send_retry
-    mode = isotp.AddressingMode.Normal_29bits if extended else isotp.AddressingMode.Normal_11bits
-    addr = isotp.Address(mode, txid=tx_id, rxid=rx_id)
-    params = {"tx_padding": 0xCC, "can_fd": fd, "tx_data_length": 64 if fd else 8,
-              "blocking_send": True, "max_frame_size": 4095, "bitrate_switch": fd}
-    notifier = can.Notifier(bus, [])
-    stack = isotp.NotifierBasedCanStack(bus, notifier, address=addr, params=params)
-    stack.start()
-    return bus, notifier, stack
-
-
 class SMPIsoTpTransport:
     """SMP packets as ISO-TP messages (umcub CAN transport, tools/host/smp_can.py).
 
@@ -187,6 +153,13 @@ class SMPIsoTpTransport:
                           fd=fd, data_bitrate=data_bitrate, extended=extended)
         self._mtu = mtu
         self._bus = self._stack = None
+
+    @classmethod
+    def from_args(cls, a):
+        """From umcub_bus.add_can_arguments(smp=True) options."""
+        tx, rx = can_ids(a)
+        return cls(a.interface, a.channel, a.bitrate, tx_id=tx, rx_id=rx, fd=a.fd, data_bitrate=a.data_bitrate,
+                   extended=a.ext, mtu=a.mtu)
 
     async def connect(self, address, timeout_s):
         self._bus, self._notifier, self._stack = isotp_stack(**self._args)

@@ -14,13 +14,14 @@ are skipped. UDP (port 1337) and CAN ISO-TP: one frame per packet. Every
 frame is answered; lost frames are repeated.
 """
 import argparse
-import base64
 import binascii
 import os
-import socket
 import struct
 import sys
 import time
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from umcub_bus import add_bus_arguments, open_bus  # noqa: E402
 
 MAGIC = 0xA6
 # Data bytes per 'D' frame that fit every build (UMCUB_CFG_SMP_MTU >= 512,
@@ -42,76 +43,6 @@ def parse_answer(f):
     if len(f) != 9 or f[0] != MAGIC or f[1] != ord("k") or binascii.crc_hqx(f[:7], 0) != struct.unpack(">H", f[7:])[0]:
         return None
     return struct.unpack("<bI", f[2:7])
-
-
-class Serial:
-    def __init__(self, port, baud):
-        import serial
-        self.s = serial.Serial(port, baud, timeout=0.2)
-        self.buf = b""
-
-    def send(self, f):
-        self.s.write(b"\x05\x0c" + base64.b64encode(f) + b"\n")
-
-    def recv(self, timeout):
-        end = time.monotonic() + timeout
-        while time.monotonic() < end:
-            self.buf += self.s.read(self.s.in_waiting or 1)
-            while b"\n" in self.buf:
-                line, self.buf = self.buf.split(b"\n", 1)
-                i = line.find(b"\x05\x0c")
-                if i >= 0:
-                    try:
-                        return base64.b64decode(line[i + 2:].strip(b"\r"))
-                    except binascii.Error:
-                        pass
-        return None
-
-    def text(self, cmd, wait):
-        self.s.reset_input_buffer()
-        self.s.write(cmd.encode() + b"\r")
-        time.sleep(wait)
-        return self.s.read(self.s.in_waiting).decode(errors="replace")
-
-
-class Udp:
-    def __init__(self, host, port):
-        self.addr = (host, port)
-        self.s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-
-    def send(self, f):
-        self.s.sendto(f, self.addr)
-
-    def recv(self, timeout):
-        self.s.settimeout(timeout)
-        try:
-            return self.s.recv(4096)
-        except socket.timeout:
-            return None
-
-    def text(self, cmd, wait):
-        self.send(cmd.encode())
-        r = self.recv(wait)
-        return r.decode(errors="replace") if r else ""
-
-
-class Can:
-    def __init__(self, a):
-        from umcub_smp import isotp_stack
-        self.bus, self.notifier, self.stack = isotp_stack(a.interface, a.channel, a.bitrate, a.tx_id + a.addr,
-                                                          a.rx_id + a.addr, extended=a.ext)
-
-    def send(self, f):
-        self.stack.send(f, send_timeout=5.0)
-
-    def recv(self, timeout):
-        r = self.stack.recv(block=True, timeout=timeout)
-        return bytes(r) if r is not None else None
-
-    def text(self, cmd, wait):
-        self.send(cmd.encode())
-        r = self.recv(wait)
-        return r.decode(errors="replace") if r else ""
 
 
 def request(link, f, timeout, retries=5):
@@ -151,19 +82,7 @@ def upload(link, a):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    g = ap.add_mutually_exclusive_group(required=True)
-    g.add_argument("--port", help="serial port (UART, USB CDC)")
-    g.add_argument("--udp", help="device IP address")
-    g.add_argument("--can", action="store_true", help="CAN ISO-TP (python-can)")
-    ap.add_argument("--baud", type=int, default=115200)
-    ap.add_argument("--udp-port", type=int, default=1337)
-    ap.add_argument("--interface", default="socketcan")
-    ap.add_argument("--channel", default="can0")
-    ap.add_argument("--bitrate", type=int, default=500000)
-    ap.add_argument("--tx-id", type=lambda s: int(s, 0), default=0x7C0)
-    ap.add_argument("--rx-id", type=lambda s: int(s, 0), default=0x7C8)
-    ap.add_argument("--addr", type=int, default=0, help="node address (CAN IDs = base + address)")
-    ap.add_argument("--ext", action="store_true", help="29-bit CAN identifiers")
+    add_bus_arguments(ap)
     ap.add_argument("--timeout", type=float, default=3.0)
     sub = ap.add_subparsers(dest="cmd", required=True)
     u = sub.add_parser("upload")
@@ -181,7 +100,7 @@ def main():
     sub.add_parser("reset")
     a = ap.parse_args()
 
-    link = Serial(a.port, a.baud) if a.port else Udp(a.udp, a.udp_port) if a.udp else Can(a)
+    link = open_bus(a, b"\x05\x0c")
     if a.cmd == "upload" and not a.chunk:
         a.chunk = CHUNK_SERIAL if a.port else CHUNK_PACKET
     if a.cmd == "upload":

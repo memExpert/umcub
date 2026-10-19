@@ -44,18 +44,11 @@ set_source_files_properties(${BOOTUTIL_SRCS} ${MCUBOOT}/boot/boot_serial/src/boo
 
 option(UMCUB_HOST_SANITIZE "Build host tests with ASan/UBSan (needs libasan/libubsan)" OFF)
 
-# One test executable per upgrade mode, each with its own probed config.
-function(umcub_host_variant name)
-  set(UMCUB_CONFIG_PRE ${CMAKE_CURRENT_LIST_DIR}/cfg_${name}.h)
-  umcub_load_config("${UMCUB_BOARD}" "${UMCUB_CORE}")
-  set(t umcub_host_${name})
-  add_executable(${t}
-    test_main.c
+# What every host test target links: the fake port, the mux and the image
+# side with MCUboot (boot_serial, ECDSA); each target adds its transports.
+set(HOST_SOURCES
     fake_port.c
     ${UMCUB_ROOT}/src/proto/mux.c
-    ${UMCUB_ROOT}/src/transport/can/isotp.c
-    ${UMCUB_ROOT}/src/transport/net/net.c
-    ${UMCUB_ROOT}/src/transport/net/dhcp.c
     ${UMCUB_ROOT}/src/util/log.c
     ${UMCUB_ROOT}/src/proto/cmd.c
     ${UMCUB_ROOT}/src/image/inspect.c
@@ -81,17 +74,9 @@ function(umcub_host_variant name)
     ${MCUBOOT}/ext/mbedtls-asn1/src/asn1parse.c
     ${MCUBOOT}/ext/mbedtls-asn1/src/platform_util.c
     ${CMAKE_BINARY_DIR}/umcub_keys.c)
-  if(UMCUB_CFG_ENCRYPT_IMAGES)
-    target_sources(${t} PRIVATE
-      ${MCUBOOT}/boot/bootutil/src/encrypted.c
-      ${UMCUB_ROOT}/src/image/mcuboot/enc_image.c
-      ${TINYCRYPT}/source/ecc_dh.c
-      ${TINYCRYPT}/source/hmac.c
-      ${TINYCRYPT}/source/aes_encrypt.c
-      ${TINYCRYPT}/source/ctr_mode.c
-      ${CMAKE_BINARY_DIR}/umcub_enc_key.c)
-    set_source_files_properties(${MCUBOOT}/boot/bootutil/src/encrypted.c PROPERTIES COMPILE_OPTIONS "-w")
-  endif()
+
+# Includes, the probed configuration and the compiler options of a host test target.
+function(umcub_host_setup t)
   add_dependencies(${t} pubkey)
   target_include_directories(${t} PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}
@@ -113,6 +98,31 @@ function(umcub_host_variant name)
     target_compile_options(${t} PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
     target_link_options(${t} PRIVATE -fsanitize=address,undefined)
   endif()
+endfunction()
+
+# One test executable per upgrade mode, each with its own probed config.
+function(umcub_host_variant name)
+  set(UMCUB_CONFIG_PRE ${CMAKE_CURRENT_LIST_DIR}/cfg_${name}.h)
+  umcub_load_config("${UMCUB_BOARD}" "${UMCUB_CORE}")
+  set(t umcub_host_${name})
+  add_executable(${t}
+    test_main.c
+    ${UMCUB_ROOT}/src/transport/can/isotp.c
+    ${UMCUB_ROOT}/src/transport/net/net.c
+    ${UMCUB_ROOT}/src/transport/net/dhcp.c
+    ${HOST_SOURCES})
+  if(UMCUB_CFG_ENCRYPT_IMAGES)
+    target_sources(${t} PRIVATE
+      ${MCUBOOT}/boot/bootutil/src/encrypted.c
+      ${UMCUB_ROOT}/src/image/mcuboot/enc_image.c
+      ${TINYCRYPT}/source/ecc_dh.c
+      ${TINYCRYPT}/source/hmac.c
+      ${TINYCRYPT}/source/aes_encrypt.c
+      ${TINYCRYPT}/source/ctr_mode.c
+      ${CMAKE_BINARY_DIR}/umcub_enc_key.c)
+    set_source_files_properties(${MCUBOOT}/boot/bootutil/src/encrypted.c PROPERTIES COMPILE_OPTIONS "-w")
+  endif()
+  umcub_host_setup(${t})
 
   # Signed images sized like umcub_sign_image() does for this mode.
   set(_slot ${UMCUB_CFG_IMG0_PRIMARY_SIZE})
@@ -188,60 +198,14 @@ function(umcub_host_board)
   set(t umcub_host_board)
   add_executable(${t}
     test_board.c
-    fake_port.c
     ${UMCUB_ROOT}/src/transport/registry.c
-    ${UMCUB_ROOT}/src/proto/mux.c
     ${UMCUB_ROOT}/src/transport/can/can_transport.c
     ${UMCUB_ROOT}/src/transport/can/isotp.c
     ${UMCUB_ROOT}/src/transport/net/net_transport.c
     ${UMCUB_ROOT}/src/transport/net/net.c
     ${UMCUB_ROOT}/src/transport/net/dhcp.c
-    ${UMCUB_ROOT}/src/util/log.c
-    ${UMCUB_ROOT}/src/proto/cmd.c
-    ${UMCUB_ROOT}/src/image/inspect.c
-    ${UMCUB_ROOT}/src/proto/smp_inspect.c
-    ${UMCUB_ROOT}/src/util/libc.c
-    ${UMCUB_ROOT}/src/util/codec.c
-    ${UMCUB_ROOT}/src/util/led.c
-    ${UMCUB_ROOT}/src/proto/smp_os.c
-    ${UMCUB_ROOT}/src/image/mcuboot/flash_map_backend.c
-    ${UMCUB_ROOT}/src/image/mcuboot/hooks.c
-    ${UMCUB_ROOT}/src/image/umcub.c
-    ${UMCUB_ROOT}/src/image/slot_writer.c
-    ${BOOTUTIL_SRCS}
-    ${MCUBOOT}/boot/boot_serial/src/boot_serial.c
-    ${MCUBOOT}/boot/boot_serial/src/zcbor_bulk.c
-    ${MCUBOOT}/boot/zcbor/src/zcbor_common.c
-    ${MCUBOOT}/boot/zcbor/src/zcbor_decode.c
-    ${MCUBOOT}/boot/zcbor/src/zcbor_encode.c
-    ${TINYCRYPT}/source/sha256.c
-    ${TINYCRYPT}/source/utils.c
-    ${TINYCRYPT}/source/ecc.c
-    ${TINYCRYPT}/source/ecc_dsa.c
-    ${MCUBOOT}/ext/mbedtls-asn1/src/asn1parse.c
-    ${MCUBOOT}/ext/mbedtls-asn1/src/platform_util.c
-    ${CMAKE_BINARY_DIR}/umcub_keys.c)
-  add_dependencies(${t} pubkey)
-  target_include_directories(${t} PRIVATE
-    ${CMAKE_CURRENT_LIST_DIR}
-    ${UMCUB_CONFIG_INCLUDES}
-    ${UMCUB_FAMILY_DIR}/include
-    ${UMCUB_LAYER_INCLUDES}
-    ${MCUBOOT}/boot/bootutil/include
-    ${MCUBOOT}/boot/bootutil/src
-    ${MCUBOOT}/boot/boot_serial/include
-    ${MCUBOOT}/boot/boot_serial/src
-    ${MCUBOOT}/boot/zcbor/include
-    ${TINYCRYPT}/include
-    ${MCUBOOT}/ext/mbedtls-asn1/include)
-  target_compile_definitions(${t} PRIVATE
-    ${UMCUB_CONFIG_DEFS} UMCUB_HOST_TEST=1 MBEDTLS_CONFIG_FILE="umcub_mbedtls_cfg.h")
-  target_compile_options(${t} PRIVATE -g -O1 -Wall -Wextra -Wno-unused-parameter -ffunction-sections -fdata-sections)
-  target_link_options(${t} PRIVATE -Wl,--gc-sections)
-  if(UMCUB_HOST_SANITIZE)
-    target_compile_options(${t} PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
-    target_link_options(${t} PRIVATE -fsanitize=address,undefined)
-  endif()
+    ${HOST_SOURCES})
+  umcub_host_setup(${t})
   add_test(NAME ${t} COMMAND ${t})
 endfunction()
 
@@ -259,61 +223,15 @@ function(umcub_host_link t src post)
     ${UMCUB_ROOT}/src/proto/link.c
     ${UMCUB_ROOT}/src/proto/lite.c
     ${UMCUB_ROOT}/src/util/random.c
-    fake_port.c
-    ${UMCUB_ROOT}/src/proto/mux.c
-    ${UMCUB_ROOT}/src/util/log.c
-    ${UMCUB_ROOT}/src/proto/cmd.c
-    ${UMCUB_ROOT}/src/image/inspect.c
-    ${UMCUB_ROOT}/src/proto/smp_inspect.c
-    ${UMCUB_ROOT}/src/util/libc.c
-    ${UMCUB_ROOT}/src/util/codec.c
-    ${UMCUB_ROOT}/src/util/led.c
-    ${UMCUB_ROOT}/src/proto/smp_os.c
-    ${UMCUB_ROOT}/src/image/mcuboot/flash_map_backend.c
-    ${UMCUB_ROOT}/src/image/mcuboot/hooks.c
-    ${UMCUB_ROOT}/src/image/umcub.c
-    ${UMCUB_ROOT}/src/image/slot_writer.c
-    ${BOOTUTIL_SRCS}
-    ${MCUBOOT}/boot/boot_serial/src/boot_serial.c
-    ${MCUBOOT}/boot/boot_serial/src/zcbor_bulk.c
-    ${MCUBOOT}/boot/zcbor/src/zcbor_common.c
-    ${MCUBOOT}/boot/zcbor/src/zcbor_decode.c
-    ${MCUBOOT}/boot/zcbor/src/zcbor_encode.c
-    ${TINYCRYPT}/source/sha256.c
-    ${TINYCRYPT}/source/utils.c
-    ${TINYCRYPT}/source/ecc.c
-    ${TINYCRYPT}/source/ecc_dsa.c
-    ${MCUBOOT}/ext/mbedtls-asn1/src/asn1parse.c
-    ${MCUBOOT}/ext/mbedtls-asn1/src/platform_util.c
-    ${CMAKE_BINARY_DIR}/umcub_keys.c)
-  add_dependencies(${t} pubkey)
-  target_include_directories(${t} PRIVATE
-    ${CMAKE_CURRENT_LIST_DIR}
-    ${UMCUB_CONFIG_INCLUDES}
-    ${UMCUB_FAMILY_DIR}/include
-    ${UMCUB_LAYER_INCLUDES}
-    ${MCUBOOT}/boot/bootutil/include
-    ${MCUBOOT}/boot/bootutil/src
-    ${MCUBOOT}/boot/boot_serial/include
-    ${MCUBOOT}/boot/boot_serial/src
-    ${MCUBOOT}/boot/zcbor/include
-    ${TINYCRYPT}/include
-    ${MCUBOOT}/ext/mbedtls-asn1/include)
-  target_compile_definitions(${t} PRIVATE
-    ${UMCUB_CONFIG_DEFS} UMCUB_HOST_TEST=1 MBEDTLS_CONFIG_FILE="umcub_mbedtls_cfg.h")
-  target_compile_options(${t} PRIVATE -g -O1 -Wall -Wextra -Wno-unused-parameter -ffunction-sections -fdata-sections)
-  target_link_options(${t} PRIVATE -Wl,--gc-sections)
-  if(UMCUB_HOST_SANITIZE)
-    target_compile_options(${t} PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
-    target_link_options(${t} PRIVATE -fsanitize=address,undefined)
-  endif()
+    ${HOST_SOURCES})
+  umcub_host_setup(${t})
   if(NOT UMCUB_SIM)
     add_test(NAME ${t} COMMAND ${t})
   endif()
 endfunction()
 
-umcub_host_link(umcub_host_link test_link.c test_link_post.h)
-umcub_host_link(umcub_host_link_secure test_link_secure.c test_link_secure_post.h
+# SECURE: session crypto, encrypted images, the link keys.
+set(LINK_SECURE_SOURCES
   ${MCUBOOT}/boot/bootutil/src/encrypted.c
   ${UMCUB_ROOT}/src/image/mcuboot/enc_image.c
   ${CMAKE_BINARY_DIR}/umcub_enc_key.c
@@ -321,7 +239,9 @@ umcub_host_link(umcub_host_link_secure test_link_secure.c test_link_secure_post.
   ${TINYCRYPT}/source/hmac.c
   ${TINYCRYPT}/source/aes_encrypt.c
   ${TINYCRYPT}/source/ctr_mode.c
-  ${CMAKE_BINARY_DIR}/umcub_link_keys.c
+  ${CMAKE_BINARY_DIR}/umcub_link_keys.c)
+umcub_host_link(umcub_host_link test_link.c test_link_post.h link_test.c)
+umcub_host_link(umcub_host_link_secure test_link_secure.c test_link_secure_post.h link_test.c ${LINK_SECURE_SOURCES}
   ${CMAKE_BINARY_DIR}/umcub_link_host_keys.c)
 
 # Device simulators for tests/host/link_e2e.py (several devices on one bus with
@@ -336,13 +256,5 @@ umcub_host_link(umcub_sim_lite sim_device.c sim_lite_post.h)
 umcub_host_link(umcub_sim_can_lite sim_can.c sim_can_lite_post.h ${UMCUB_ROOT}/src/transport/registry.c
   ${UMCUB_ROOT}/src/transport/can/can_transport.c ${UMCUB_ROOT}/src/transport/can/isotp.c)
 umcub_host_link(umcub_sim_addressed sim_device.c test_link_post.h)
-umcub_host_link(umcub_sim_secure sim_device.c test_link_secure_post.h
-  ${MCUBOOT}/boot/bootutil/src/encrypted.c
-  ${UMCUB_ROOT}/src/image/mcuboot/enc_image.c
-  ${CMAKE_BINARY_DIR}/umcub_enc_key.c
-  ${TINYCRYPT}/source/ecc_dh.c
-  ${TINYCRYPT}/source/hmac.c
-  ${TINYCRYPT}/source/aes_encrypt.c
-  ${TINYCRYPT}/source/ctr_mode.c
-  ${CMAKE_BINARY_DIR}/umcub_link_keys.c)
+umcub_host_link(umcub_sim_secure sim_device.c test_link_secure_post.h ${LINK_SECURE_SOURCES})
 unset(UMCUB_SIM)

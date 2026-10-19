@@ -33,6 +33,7 @@ import sys
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from umcub_bus import SerialLines, Udp, add_bus_arguments  # noqa: E402
 from umcub_smp import NlipDecoder, nlip_encode  # noqa: E402  (SMP serial framing, smp.packet)
 
 MAGIC, VERSION = 0xA5, 1
@@ -51,7 +52,7 @@ class LinkError(Exception):
 
 
 # --------------------------------------------------------------------------
-# Frames and transports
+# Frames
 # --------------------------------------------------------------------------
 
 def make_frame(type_, flags, dst, seq, payload, src=HOST_ADDR):
@@ -67,61 +68,6 @@ def parse_frame(f):
         return None
     return dict(type=type_, flags=flags, dst=dst, src=src, seq=seq, payload=f[HDR:HDR + plen],
                 tag=f[HDR + plen:] if flags & F_MAC else b"", raw=f)
-
-
-class SerialBus:
-    """Stream transport: frames as '05 0B base64 \\n' lines; anything else is ignored."""
-
-    def __init__(self, port, baud):
-        import serial
-        self.s = serial.Serial(port, baud, timeout=0)
-        self.buf = b""
-        self.noise = 0          # lines that were not frames: on a shared bus, answers that collided
-
-    def send(self, frame):
-        self.s.write(LINE_START + base64.b64encode(frame) + b"\n")
-        self.s.flush()
-
-    def recv(self, timeout):
-        end = time.monotonic() + timeout
-        while True:
-            nl = self.buf.find(b"\n")
-            while nl >= 0:
-                line, self.buf = self.buf[:nl], self.buf[nl + 1:]
-                i = line.find(LINE_START)
-                if i >= 0:
-                    try:
-                        return base64.b64decode(line[i + 2:].strip(), validate=True)
-                    except ValueError:
-                        pass
-                if line.strip():
-                    self.noise += 1
-                nl = self.buf.find(b"\n")
-            left = end - time.monotonic()
-            if left <= 0:
-                if self.buf.strip():
-                    self.noise += 1         # a line cut short (its newline lost in a collision)
-                    self.buf = b""
-                return None
-            self.s.timeout = min(left, 0.05)
-            chunk = self.s.read(max(1, self.s.in_waiting))     # return as soon as anything arrived
-            if chunk:
-                self.buf += chunk
-
-
-class UdpBus:
-    def __init__(self, host, port):
-        self.addr = (host, port)
-        self.s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        self.noise = 0          # datagrams do not collide; counts frames that do not parse
-
-    def send(self, frame):
-        self.s.sendto(frame, self.addr)
-
-    def recv(self, timeout):
-        r, _, _ = select.select([self.s], [], [], max(timeout, 0))
-        return self.s.recv(4096) if r else None
 
 
 # --------------------------------------------------------------------------
@@ -425,11 +371,7 @@ def serve(link, a):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    g = ap.add_mutually_exclusive_group(required=True)
-    g.add_argument("--port", help="serial port of the bus (RS485 adapter, UART, USB CDC)")
-    g.add_argument("--udp", help="device IP address (or broadcast address for discover)")
-    ap.add_argument("--baud", type=int, default=115200)
-    ap.add_argument("--udp-port", type=int, default=1337)
+    add_bus_arguments(ap, can=False)     # --udp: a device, or the broadcast address for discover
     sel = ap.add_mutually_exclusive_group()
     sel.add_argument("--addr", type=int, help="node address of the device")
     sel.add_argument("--uid", help="UID of the device (hex), for unassigned nodes")
@@ -460,7 +402,7 @@ def main():
         except KeyboardInterrupt:
             pass
         return
-    bus = SerialBus(a.port, a.baud) if a.port else UdpBus(a.udp, a.udp_port)
+    bus = SerialLines(a.port, a.baud, LINE_START) if a.port else Udp(a.udp, a.udp_port)
     link = Link(bus, a.addr, a.uid, a.admin_key, a.device_key, a.timeout)
     try:
         if a.cmd == "discover":

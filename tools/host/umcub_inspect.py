@@ -6,9 +6,10 @@
                                                               SHA-256 of the slot vs. the file that was sent
   umcub_inspect.py --udp 192.168.1.50 read 0 0 --out dump.bin [--len N]
                                                               raw readback (needs UMCUB_CFG_READBACK)
+  umcub_inspect.py --can --channel can0 --addr 5 verify 0 0   CAN ISO-TP (umcub IDs: base + node address)
 
 Slots: 0 primary, 1 secondary. Transports: serial (UART / USB CDC, SMP
-serial framing) or UDP (port 1337), through smpclient. The bootloader must be
+serial framing), UDP (port 1337) or CAN ISO-TP, through smpclient. The bootloader must be
 in recovery mode. For a umcub link transport go through `umcub_link.py serve`.
 """
 import argparse
@@ -24,7 +25,8 @@ from smpclient.transport.serial import BufferSize, SMPSerialTransport
 from smpclient.transport.udp import SMPUDPTransport
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from umcub_smp import INSPECT_ERRORS, InspectHash, InspectRead, InspectVerify  # noqa: E402
+from umcub_bus import add_bus_arguments  # noqa: E402
+from umcub_smp import INSPECT_ERRORS, InspectHash, InspectRead, InspectVerify, SMPIsoTpTransport  # noqa: E402
 
 
 async def request(client, req):
@@ -41,10 +43,13 @@ async def run(a):
     if a.port:
         transport = SMPSerialTransport(BufferSize(1024), baudrate=a.baud)
         address = a.port
-    else:
+    elif a.udp:
         transport = SMPUDPTransport()
         transport.connect = functools.partial(transport.connect, port=a.udp_port)
         address = a.udp
+    else:
+        transport = SMPIsoTpTransport.from_args(a)
+        address = "can"
     async with SMPClient(transport, address, timeout_s=a.timeout) as client:
         sel = {"image": a.image, "slot": a.slot}
 
@@ -85,11 +90,7 @@ async def run(a):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    g = ap.add_mutually_exclusive_group(required=True)
-    g.add_argument("--port", help="serial port (UART / USB CDC)")
-    g.add_argument("--udp", help="device IP address")
-    ap.add_argument("--udp-port", type=int, default=1337)
-    ap.add_argument("--baud", type=int, default=115200)
+    add_bus_arguments(ap, smp=True)
     ap.add_argument("--timeout", type=float, default=10.0)
     ap.add_argument("cmd", choices=("verify", "hash", "read"))
     ap.add_argument("image", type=int)

@@ -17,7 +17,6 @@ import base64
 import os
 import pty
 import select
-import struct
 import subprocess
 import sys
 import tempfile
@@ -26,6 +25,8 @@ import time
 import tty
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(ROOT, "tools/host"))
+import umcub_link  # noqa: E402  (frame format)
 LINK = os.path.join(ROOT, "tools/host/umcub_link.py")
 KEYS = os.path.join(ROOT, "tools/keys")
 
@@ -71,12 +72,13 @@ class Hub(threading.Thread):
                 self.bufs[i] += data
                 while b"\n" in self.bufs[i]:
                     line, self.bufs[i] = self.bufs[i].split(b"\n", 1)
-                    if line[:2] == b"\x05\x0b":
+                    if line[:2] == umcub_link.LINE_START:
                         try:
-                            f = base64.b64decode(line[2:])
-                            self.sent[i].append((f[2], struct.unpack_from("<H", f, 4)[0]))
+                            f = umcub_link.parse_frame(base64.b64decode(line[2:], validate=True))
                         except ValueError:
-                            pass
+                            f = None
+                        if f:
+                            self.sent[i].append((f["type"], f["dst"]))
                     os.write(self.master, line + b"\n")     # one whole line at a time
 
 
@@ -110,8 +112,8 @@ class ByteHub(threading.Thread):
 
 
 def can_tools(build, py):
-    """tools/host/smp_can.py (smpclient + ISO-TP) against the real umcub CAN transport."""
-    print("[e2e] CAN: smp_can.py echo / upload / list over ISO-TP", flush=True)
+    """tools/host/smp_can.py and umcub_inspect.py --can (smpclient + ISO-TP) against the real umcub CAN transport."""
+    print("[e2e] CAN: smp_can.py echo / upload / list, umcub_inspect.py verify / hash over ISO-TP", flush=True)
     sim = subprocess.Popen([os.path.join(build, "umcub_sim_can")], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
     hub = ByteHub(sim)
     hub.start()
@@ -128,6 +130,13 @@ def can_tools(build, py):
             p = subprocess.run(can + ["upload", os.path.join(d, "app.signed.bin")], capture_output=True, text=True,
                                timeout=300)
             check(p.returncode == 0 and "done" in p.stdout, "smp_can.py upload")
+            inspect = [py, os.path.join(ROOT, "tools/host/umcub_inspect.py"), "--can", "--interface", "serial",
+                       "--channel", hub.path, "--timeout", "10"]
+            p = subprocess.run(inspect + ["verify", "0", "0"], capture_output=True, text=True, timeout=60)
+            check(p.returncode == 0 and "valid" in p.stdout, "umcub_inspect.py --can verify 0 0")
+            p = subprocess.run(inspect + ["hash", "0", "0", "--file", os.path.join(d, "app.signed.bin")],
+                               capture_output=True, text=True, timeout=60)
+            check(p.returncode == 0 and "MATCH" in p.stdout, "umcub_inspect.py --can hash --file: MATCH")
         p = subprocess.run(can + ["list"], capture_output=True, text=True, timeout=60)
         check(p.returncode == 0 and "slot 0: 3.1.4" in p.stdout, "smp_can.py list: 3.1.4 in slot 0")
     finally:
