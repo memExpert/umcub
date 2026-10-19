@@ -151,6 +151,13 @@
  * buf_count: 1}: smpmgr then sizes serial packets itself (no --line-buffers).
  * Needs the inspect group (UMCUB_CFG_INSPECT_*). About 250 bytes. */
 /* #define UMCUB_CFG_SMP_PARAMS           1 */
+/* Where an SMP upload goes. 0: "image" N is image N, written straight into
+ * its primary slot (MCUboot serial recovery: replaced at once, no revert).
+ * 1: "image" addresses slots - 0/1 image 0 primary, 2 image 0 secondary,
+ * 3 image 1 primary, 4 image 1 secondary; an image in the secondary slot is
+ * installed by the next boot after "image state-write" marks it (test boot,
+ * revert in the swap modes). Always on in the direct-xip modes. */
+/* #define UMCUB_CFG_SMP_DIRECT_UPLOAD    0 */
 /* Built-in lite upload protocol (about 1 K plus the slot writer; host tool
  * tools/host/umcub_lite.py): begin / data / end frames with CRC on the same
  * transports, written with umcub_slot_* (header check, test or permanent

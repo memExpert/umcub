@@ -94,19 +94,24 @@ In the bootloader (recovery mode) every enabled interface accepts updates until 
 
 ## Updating the application
 
-| From | Tool | Goes to |
+| From | Tool | Slot |
 |---|---|---|
-| recovery, SMP (UART, USB CDC, UDP, CAN) | `smpmgr`, `mcumgr`, `tools/host/smp_can.py` | the primary slot |
-| recovery, USB DFU | `dfu-util -a <image> -D app.signed.bin -R` | the secondary slot, test boot |
-| recovery without SMP | `tools/host/umcub_lite.py` | either slot |
-| the running application | `umcub_slot_*` (your own protocol) | the secondary slot, test boot |
+| recovery, SMP (UART, USB CDC, UDP, CAN) | `smpmgr`, `mcumgr`, `tools/host/smp_can.py` | primary by default; secondary with `UMCUB_CFG_SMP_DIRECT_UPLOAD` |
+| recovery, USB DFU | `dfu-util -a <image> -D app.signed.bin -R` | secondary, test boot |
+| recovery without SMP | `tools/host/umcub_lite.py` | either (`--slot`) |
+| the running application | `umcub_slot_*` (your own protocol) | secondary (default) or any slot it does not run from |
 
-A test boot runs the new image once: the application confirms it (`umcub_confirm()`) or the next reset brings the
-old one back (swap modes). Details: [Recovery mode](docs/recovery.md), [application](docs/application.md).
+Two ways to install an image:
+- **into the primary slot**: it replaces the old image at once - quick, nothing to swap, but no way back if the
+  new image misbehaves (it still has to be signed and valid, or the bootloader stays in recovery);
+- **into the secondary slot**: the next boot installs it (swap, or a copy in overwrite mode). In the swap modes it
+  runs as a test once: the application confirms it (`umcub_confirm()`) or the next reset brings the old one back.
+
+Details: [Recovery mode](docs/recovery.md), [application](docs/application.md).
 
 ## Documentation
 
-| | |
+| Page | What is in it |
 |---|---|
 | [Your own board](docs/board.md) | board configuration, board type and node address, external controllers, own transports, reference boards |
 | [Configuration](docs/configuration.md) | where the options live, dual-core, **bootloader size** per transport / feature, upgrade mode notes |
