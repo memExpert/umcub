@@ -20,7 +20,8 @@ status LED patterns (listening, data, a failed transport init), the
 board-type check, the umcub link in ADDRESSED mode and in SECURE mode with encryption (handshake, wrong admin key,
 replayed / tampered / reordered frames, session end, RDP level 0), encrypted images (SMP upload into the primary
 slot decrypted in place, swap upgrade / revert / confirm with re-encryption, verify of an encrypted secondary,
-readback only inside an encrypted session). `link_e2e.py` runs device simulators (the real mux, link, boot_serial and
+readback only inside an encrypted session; with two images an encrypted upload into image 1's
+primary slot refused, through its secondary slot decrypted by the swap). `link_e2e.py` runs device simulators (the real mux, link, boot_serial and
 CAN transport on emulated flash) against the host tools: `umcub_link.py` with three nodes on one bus,
 `umcub_inspect.py` on plain SMP, `smp_can.py` on the CAN transport (python-can `serial` bus on a pty),
 `umcub_lite.py` on bootloaders without SMP (stream and CAN).

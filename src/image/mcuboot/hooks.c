@@ -170,16 +170,18 @@ int boot_copy_region_post_hook(int img_index, const struct flash_area *area, siz
 
 int boot_serial_uploaded_hook(int img_index, const struct flash_area *area, size_t size)
 {
+    (void)img_index;            /* the SMP "image" field: a slot number with direct upload */
     (void)size;
 #if UMCUB_CFG_ENCRYPT_IMAGES
-    /* Validate an encrypted upload into the primary slot before it is
+    /* Validate an encrypted upload into a primary slot before it is
      * decrypted in place; the error reaches the client in the last response. */
-    if (flash_area_get_id(area) == FLASH_AREA_IMAGE_PRIMARY(img_index) &&
-        umcub_enc_upload_check(img_index, area) != 0) {
-        return 3;   /* MGMT_ERR_EINVAL */
+    for (int image = 0; image < UMCUB_CFG_IMAGE_NUMBER; image++) {
+        if (flash_area_get_id(area) == FLASH_AREA_IMAGE_PRIMARY(image) &&
+            umcub_enc_upload_check(image, area) != 0) {
+            return 3;   /* MGMT_ERR_EINVAL */
+        }
     }
 #else
-    (void)img_index;
     (void)area;
 #endif
     return 0;

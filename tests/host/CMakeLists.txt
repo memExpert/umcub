@@ -244,6 +244,44 @@ umcub_host_link(umcub_host_link test_link.c test_link_post.h link_test.c)
 umcub_host_link(umcub_host_link_secure test_link_secure.c test_link_secure_post.h link_test.c ${LINK_SECURE_SOURCES}
   ${CMAKE_BINARY_DIR}/umcub_link_host_keys.c)
 
+# Two images with encrypted uploads (test_dual_enc.c); images signed like an IDE
+# project does it, with tools/host/umcub_image.py on the variant's configuration.
+umcub_python(_py)
+function(umcub_host_dual name)
+  set(UMCUB_CONFIG_PRE ${CMAKE_CURRENT_LIST_DIR}/cfg_${name}.h)
+  umcub_load_config("${UMCUB_BOARD}" "${UMCUB_CORE}")
+  set(t umcub_host_${name})
+  add_executable(${t} test_dual_enc.c ${HOST_SOURCES} ${LINK_SECURE_SOURCES})
+  umcub_host_setup(${t})
+  set(_imgs)
+  foreach(spec "0;0x0;2.0.0;img0" "1;0x1;2.0.0;img1v0" "1;0x1;2.1.0;img1v1")
+    list(GET spec 0 _img)
+    list(GET spec 2 _ver)
+    list(GET spec 3 _base)
+    if(_img EQUAL 0)
+      set(_slot ${UMCUB_CFG_IMG0_PRIMARY_ADDR})
+    else()
+      set(_slot ${UMCUB_CFG_IMG1_PRIMARY_ADDR})
+    endif()
+    math(EXPR _reset "${_slot} + 0x400 + 0x200" OUTPUT_FORMAT HEXADECIMAL)
+    set(_b ${CMAKE_BINARY_DIR}/${name}_${_base})
+    add_custom_command(OUTPUT ${_b}.signed.bin ${_b}.encrypted.bin
+      DEPENDS ${CMAKE_CURRENT_LIST_DIR}/gen_payload.py ${UMCUB_ROOT}/tools/host/umcub_image.py
+      COMMAND ${_py} ${CMAKE_CURRENT_LIST_DIR}/gen_payload.py ${_b}.payload.bin 150000 ${_reset}
+      COMMAND ${_py} ${UMCUB_ROOT}/tools/host/umcub_image.py sign --board ${UMCUB_BOARD} --core ${UMCUB_CORE} --quiet
+              --pre ${UMCUB_CONFIG_PRE_ABS} --post ${UMCUB_CONFIG_POST_ABS} --imgtool ${UMCUB_IMGTOOL}
+              --image ${_img} --version ${_ver} ${_b}.payload.bin -o ${_b})
+    list(APPEND _imgs ${_b}.signed.bin ${_b}.encrypted.bin)
+  endforeach()
+  add_custom_target(${t}_images ALL DEPENDS ${_imgs})
+  set(_d ${CMAKE_BINARY_DIR}/${name})
+  add_test(NAME ${t} COMMAND ${t} ${_d}_img0.signed.bin ${_d}_img0.encrypted.bin ${_d}_img1v0.signed.bin
+           ${_d}_img1v1.signed.bin ${_d}_img1v1.encrypted.bin)
+endfunction()
+
+umcub_host_dual(dual_enc)
+umcub_host_dual(dual_enc_direct)
+
 # Device simulators for tests/host/link_e2e.py (several devices on one bus with
 # tools/host/umcub_link.py and smpmgr): ADDRESSED and SECURE (+ encryption); plain
 # SMP for tools/host/umcub_inspect.py; CAN (ISO-TP) for tools/host/smp_can.py.

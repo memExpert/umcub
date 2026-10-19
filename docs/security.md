@@ -30,6 +30,11 @@ How an encrypted image is installed:
   upload into the primary slot this is not power-fail safe: an interrupted decryption leaves an invalid image and
   the bootloader in recovery, upload again. The H7 CM4 bootloader has no room for the buffer (`UMCUB_CFG_ENC_INPLACE`
   is 0 there): use the secondary slot.
+  With two images (H755 SINGLE_BOOT) this works for image 0 only: MCUboot decrypts an upload into the primary slot
+  of image 0 alone (mcu-tools/mcuboot#2910). An encrypted upload into the primary slot of image 1 (the CM4) is
+  answered with rc 3 at the last chunk - the slot was already overwritten, so the CM4 stays parked until a valid
+  image arrives. Send encrypted CM4 updates through its secondary slot: USB DFU alt 1, SMP with
+  `UMCUB_CFG_SMP_DIRECT_UPLOAD` (`image` 4, then `image state-write`), the application or the lite upload.
 
 Installed images are plain text in flash, so `read` / SMP read / DFU upload (`UMCUB_CFG_READBACK`) answer only
 inside an encrypted umcub link session (`UMCUB_LINK_SECURE` + `UMCUB_CFG_LINK_ENCRYPT`) and refuse everywhere else

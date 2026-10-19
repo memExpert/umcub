@@ -29,7 +29,8 @@ extern bool umcub_image0_updated;
  * primary slot, before it is decrypted in place. 0 = plain image, or an
  * encrypted one that is valid for this device (signature over the decrypted
  * payload, board type) and may be decrypted; < 0 = refuse (it stays as it is
- * and is not booted). Called from boot_serial_uploaded_hook(). */
+ * and is not booted; always for an encrypted image 1+, which MCUboot does not
+ * decrypt). Called from boot_serial_uploaded_hook(). */
 int umcub_enc_upload_check(int image, const struct flash_area *fap);
 
 #endif

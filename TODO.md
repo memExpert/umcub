@@ -41,11 +41,12 @@ shared drivers (clock, flash, sys, tables), not yet proven on a series that was 
   "expected" in #2770). Two bugs confirmed on main e19ad039 (ASan / host): `boot_enc_zeroize(&enc_data)` writes past
   one `enc_key_data`; an image without its (unprotected) key TLV is decrypted without a key. Reported: #2911, fix
   PR #2913.
-- [ ] Encrypted SMP upload into the primary slot of image 1 (H755 CM4) stays ciphertext: MCUboot's `bs_upload()`
-  decrypts only for `FLASH_AREA_IMAGE_PRIMARY(0)`; then no image boots in stock MCUboot (umcub retries image 0, the
-  CM4 stays parked). Reproduced on the host on main e19ad039 and fixed by comparing with every image's primary slot
-  (both upload numberings). Reported: mcu-tools/mcuboot#2910, fix PR #2912.
-  Until it is merged: encrypted CM4 updates through the secondary slot (DFU alt 1, SMP direct upload, app, lite).
+- [ ] **Waiting for the MCUboot decision on PR #2912** (mcu-tools/mcuboot#2910): an encrypted SMP upload into the
+  primary slot of image 1+ is not decrypted by MCUboot (`bs_upload()` checks `FLASH_AREA_IMAGE_PRIMARY(0)` only).
+  Until then umcub refuses it (rc 3 at the last chunk, `umcub_enc_upload_check()`); encrypted CM4 updates go through
+  the secondary slot. If the PR is merged: move the submodule to a release with it and drop the refusal. If it is
+  rejected: decrypt image 1+ ourselves after such an upload (umcub's `boot_handle_enc_fw()` already handles any
+  image) and keep it covered by tests/host test_dual_enc.c.
 - [ ] Recovery over the network / CAN is not authenticated without `UMCUB_LINK_SECURE` (see docs/configuration.md, "Mode notes
   and limitations").
 - [ ] When the application writes a slot in the same flash bank it executes from, the CPU stalls for the duration of a
