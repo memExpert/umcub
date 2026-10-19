@@ -562,11 +562,15 @@ static void test_packet_transport(void)
 static void test_entropy_failure(void)
 {
     printf("[secure] no healthy entropy: no challenge at all (fail closed)\n");
-    fake_entropy_fail = 1;
-    reset_io();
-    send(UMCUB_LT_HELLO, 0, NODE, NULL, 0, false);
-    run(10);
-    CHECK(nothing_sent());
+    for (int mode = 1; mode <= 2; mode++) {          /* source error, stuck source */
+        fake_entropy_fail = mode;
+        reset_io();
+        send(UMCUB_LT_HELLO, 0, NODE, NULL, 0, false);
+        run(10);
+        CHECK(nothing_sent());
+    }
+    fake_entropy_fail = 3;                          /* poor but alive (the F1 worst case): accepted */
+    CHECK(handshake(NODE));
     fake_entropy_fail = 0;
     CHECK(handshake(NODE));
 }

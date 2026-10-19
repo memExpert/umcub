@@ -157,8 +157,20 @@ int fake_entropy_fail;
 
 int umcub_port_entropy(uint8_t *buf, size_t len)
 {
-    if (fake_entropy_fail) {
+    if (fake_entropy_fail == 1) {
         return UMCUB_EIO;
+    }
+    if (fake_entropy_fail == 2) {               /* stuck: no error, always the same byte */
+        memset(buf, 0x5A, len);
+        return 0;
+    }
+    if (fake_entropy_fail == 3) {               /* poor but alive: 6 values, shifting per call */
+        static uint8_t shift;
+        shift++;
+        for (size_t i = 0; i < len; i++) {
+            buf[i] = (uint8_t)((i + shift) % 6u);
+        }
+        return 0;
     }
     static uint32_t x = 0x12345678u;            /* xorshift: deterministic test entropy */
     while (len--) {

@@ -51,8 +51,10 @@ development keys from the repository, the build warns about them.
   level 0, unless `UMCUB_CFG_LINK_REQUIRE_RDP` is 0 (development only).
 - USB DFU cannot authenticate the host: together with a SECURE transport it is refused at build time unless
   `UMCUB_CFG_USB_DFU_ALLOW_UNAUTH` is set.
-- The F1 has no true RNG: nonces come from ADC noise and clock jitter, hashed with the UID, a boot counter kept
-  in RAM over resets and (SECURE) keyed with the device key. Randomness is fail-closed: if the entropy source fails
+- The F1 has no true RNG: nonces come from the noise of the low ADC bits (internal temperature sensor; measured
+  60-80 bits of min-entropy per 32-byte block on a Blue Pill at room temperature, `tools/hw/entropy_test.py`),
+  hashed with the UID, a boot counter kept in RAM over resets and (SECURE) keyed with the device key. That is
+  plenty for challenges that must not repeat; a colder or quieter part has less noise, so measure a new board. Randomness is fail-closed: if the entropy source fails
   or its output looks stuck, `HELLO` gets no challenge.
 - A failed `AUTH` blocks further attempts for one second, a challenge is valid for ten seconds. An `AUTH` costs two
   ECC operations (about 1.3 s on a 72 MHz Cortex-M3), so with SECURE `UMCUB_CFG_WATCHDOG_MS` must be at least 2000

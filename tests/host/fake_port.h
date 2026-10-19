@@ -8,7 +8,7 @@ extern unsigned fake_flash_erase_count;
 extern int fake_realtime;            /* umcub_port_millis() from CLOCK_MONOTONIC */
 extern uint32_t fake_uid_seed;       /* varies umcub_port_uid() between simulated devices */
 extern int fake_rdp_level;
-extern int fake_entropy_fail;        /* umcub_port_entropy() fails */          /* umcub_port_rdp_level(), default 1 */
+extern int fake_entropy_fail;        /* umcub_port_entropy(): 1 fails, 2 stuck, 3 only 6 distinct values */          /* umcub_port_rdp_level(), default 1 */
 extern uint32_t fake_gpio_pin;       /* last pin driven / reset, its level, output/reset calls */
 extern int fake_gpio_level, fake_gpio_outputs, fake_gpio_resets;
 void fake_flash_reset(void);

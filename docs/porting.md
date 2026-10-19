@@ -65,7 +65,8 @@ tools/build/     build_matrix.sh, size_table.py (size tables), check_docs.py (RE
                  check_layers.py (layering), check_pins.py (configured pins vs ST pin data, run by CMake)
 tools/hw/        bench (SWD through probe.py: STM32_Programmer_CLI or pyOCD): probe.py (flash / read / write /
                  erase / reset), h755_option_bytes.py, dhcp_server.py (DHCP server for one direct link),
-                 powerfail_test.py, stack_usage.py, udev/
+                 powerfail_test.py, stack_usage.py, entropy_test.py (+ entropy_sampler_f1.c: F1 ADC entropy
+                 measured from SRAM), udev/
 tests/host/      host tests
 tests/configs/   configuration overlays: mode/, transport/, feature/, bluepill/
 tests/tools/     helpers for the build matrix (image comparison, check_pins_test.py: pin check cases)

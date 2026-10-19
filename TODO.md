@@ -32,10 +32,9 @@ shared drivers (clock, flash, sys, tables), not yet proven on a series that was 
 
 ## Known limitations / ideas
 
-- [ ] Security review leftovers: (a) one device key per product - per-device keys (provisioning, key derived from
+- [ ] Security review leftovers: one device key per product - per-device keys (provisioning, key derived from
   the UID + a master on the host), H7 PCROP / secure-access area for the key; on the F1, RDP level 1 can be
-  defeated by known attacks, so the key there is only as safe as the product's physical access;
-  (b) F1 entropy quality not measured (ADC temperature noise + jitter).
+  defeated by known attacks, so the key there is only as safe as the product's physical access.
 - [ ] MCUboot submodule is v2.5.0-rc1 (move to the final v2.5.0 when it is out). Its in-place decryption
   (`boot_serial_encryption.c`) needs a sector-sized VLA on the stack, assumes uniform sectors and does not validate
   first, so `src/image/mcuboot/enc_image.c` replaces it (VLA rejected upstream in #2631, success before decryption

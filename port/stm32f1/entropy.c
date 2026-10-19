@@ -1,9 +1,11 @@
 /*
- * STM32F1 port: entropy without a TRNG. Each output byte collects the noisy
- * low bits of several ADC1 conversions of the internal temperature sensor
- * (RM0008 §11.10) mixed with the SysTick counter (conversion time jitter
- * against the CPU clock). The caller conditions it with a hash; the quality is
- * lower than a true RNG and documented as such.
+ * STM32F1 port: entropy without a TRNG. Each output byte is the two low bits
+ * of four ADC1 conversions of the internal temperature sensor (RM0008 §11.10):
+ * their noise is the only source. Measured on a Blue Pill
+ * (tools/hw/entropy_test.py): about 0.6 bit per conversion (NIST SP 800-90B
+ * Markov estimate), about 79 bits of min-entropy per 32-byte block; SysTick
+ * adds none (the ADC runs from the same PLL, a conversion takes a fixed number
+ * of cycles). The caller conditions it with a hash (src/util/random.c).
  */
 #include "f1.h"
 
@@ -47,7 +49,7 @@ int umcub_port_entropy(uint8_t *buf, size_t len)
             if (sample(&v) != UMCUB_OK) {
                 return UMCUB_ETIMEOUT;
             }
-            b = (uint8_t)((b << 2) ^ (v & 0x3u) ^ (SysTick->VAL & 0xFFu));
+            b = (uint8_t)(b << 2 | (v & 0x3u));
         }
         *buf++ = b;
     }
