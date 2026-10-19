@@ -3,7 +3,7 @@
  *
  * The CMake target builds this file; an IDE project (STM32CubeIDE, Keil MDK,
  * IAR, ...) adds just this one source plus the include paths listed in the
- * README ("Using umcub from an IDE"). The family part comes from
+ * docs/application.md ("Using umcub from an IDE"). The family part comes from
  * port/<family>/include/umcub_family_app.inc, so the IDE project needs no
  * per-series source list.
  */

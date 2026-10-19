@@ -144,7 +144,7 @@ for e in "${examples[@]}"; do
   fi
 done
 
-# IDE integration (README "Using umcub from an IDE"): umcub_app_all.c with only
+# IDE integration (docs/application.md, "Using umcub from an IDE"): umcub_app_all.c with only
 # the documented include paths and the CMSIS CORE_CMx define, also with clang
 # (armclang in Keil MDK is clang based).
 ide_incs=(include config "boards/$BOARD" port/stm32h7/include port/include src/image/mcuboot/include

@@ -35,7 +35,7 @@ endif()
 
 set(MCUBOOT ${UMCUB_ROOT}/third_party/mcuboot)
 
-# One translation unit (the same file IDE projects add, see README).
+# One translation unit (the same file IDE projects add, see docs/application.md).
 # Target per core: one build tree may hold applications for both cores
 # (umcub's own build with UMCUB_BUILD_EXAMPLES). UMCUB_APP_LIB names it for
 # the caller; umcub::app is the alias of the first (usually only) one.

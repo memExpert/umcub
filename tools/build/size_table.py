@@ -2,11 +2,11 @@
 """Bootloader flash size per MCU and the cost of every transport / feature.
 
 Builds the reference boards' bootloaders in many variants (Release, -Os) and
-prints the Markdown tables of README.md "Bootloader size":
+prints the Markdown tables of docs/configuration.md "Bootloader size":
 
   tools/build/size_table.py [--out build/sizes] [-j 4]     print the tables
-  tools/build/size_table.py --update                       rewrite them in README.md
-  tools/build/size_table.py --check                        exit 1 if README.md is stale
+  tools/build/size_table.py --update                       rewrite them in docs/configuration.md
+  tools/build/size_table.py --check                        exit 1 if they are stale
 
 Base = MCUboot + ECDSA-P256 validation + jump: no transport, no log, no text
 commands, no inspection. Every other row is what one item adds (size =
@@ -122,7 +122,7 @@ SECTOR_SETS = ["UART lite", "UART", "USB CDC only", "CAN only", "Ethernet only",
 SECTOR_LABELS = {"UART lite": "UART, lite (no SMP)", "UART": "UART", "USB CDC only": "USB CDC",
                  "CAN only": "CAN", "Ethernet only": "Ethernet", "secure": "UART, link SECURE",
                  "everything": "all on"}
-README = ROOT / "README.md"
+DOC = ROOT / "docs/configuration.md"
 BEGIN, END = "<!-- size-table:begin -->", "<!-- size-table:end -->"
 
 
@@ -176,8 +176,8 @@ def main():
     ap.add_argument("--out", default=str(ROOT / "build/sizes"))
     ap.add_argument("-j", type=int, default=max(1, (os.cpu_count() or 4) // 4))
     mode = ap.add_mutually_exclusive_group()
-    mode.add_argument("--update", action="store_true", help="rewrite the tables in README.md")
-    mode.add_argument("--check", action="store_true", help="exit 1 if README.md differs")
+    mode.add_argument("--update", action="store_true", help="rewrite the tables in docs/configuration.md")
+    mode.add_argument("--check", action="store_true", help="exit 1 if docs/configuration.md differs")
     a = ap.parse_args()
     out = Path(a.out)
 
@@ -251,21 +251,21 @@ def main():
     if not (a.update or a.check):
         print(tables)
         return
-    text = README.read_text()
+    text = DOC.read_text()
     if BEGIN not in text or END not in text:
-        sys.exit(f"{README}: markers {BEGIN} / {END} not found")
+        sys.exit(f"{DOC}: markers {BEGIN} / {END} not found")
     head, rest = text.split(BEGIN, 1)
     _, tail = rest.split(END, 1)
     new_text = f"{head}{BEGIN}\n{tables}\n{END}{tail}"
     if a.check:
         if new_text != text:
-            print("README.md size tables are stale - run tools/build/size_table.py --update")
+            print("docs/configuration.md size tables are stale - run tools/build/size_table.py --update")
             print(tables)
             sys.exit(1)
-        print("README.md size tables are up to date")
+        print("docs/configuration.md size tables are up to date")
     elif new_text != text:
-        README.write_text(new_text)
-        print("README.md size tables updated")
+        DOC.write_text(new_text)
+        print("docs/configuration.md size tables updated")
 
 if __name__ == "__main__":
     main()
