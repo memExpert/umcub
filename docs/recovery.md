@@ -1,7 +1,28 @@
 # Recovery mode
 
-What the bootloader understands besides SMP: text commands, the lite upload, a board protocol, and checking what was
-written.
+How images get into the bootloader over SMP, what it understands besides SMP (text commands, the lite upload, a
+board protocol), and checking what was written.
+
+## Updating over SMP
+
+SMP (mcumgr) works the same over every SMP transport; only the connection differs:
+
+```sh
+smpmgr --port /dev/ttyACM0 image state-read                 # or: mcumgr --conntype serial ...
+smpmgr --port /dev/ttyACM0 image upload build/ex-cm7/h755_cm7_app.signed.bin
+smpmgr --port /dev/ttyACM0 image upload --slot 1 build/ex-cm4/h755_cm4_app.signed.bin
+smpmgr --port /dev/ttyACM0 os reset
+mcumgr --conntype udp --connstring=<ip>:1337 image upload build/ex-cm7/h755_cm7_app.signed.bin
+smpmgr --ip <ip> image upload build/ex-cm7/h755_cm7_app.signed.bin              # UDP (default --mtu 1500)
+dfu-util -a 0 -D build/ex-cm7/h755_cm7_app.signed.bin -R    # DFU: alt N = image N
+tools/host/smp_can.py --channel can0 upload build/ex-cm7/h755_cm7_app.signed.bin
+```
+
+SMP serial recovery writes straight into the **primary** slot (this is how MCUboot works); the image number is the
+`image` field (`smpmgr --slot`, `mcumgr -n`; 1 = CM4). The bootloader answers MCUMGR_PARAMETERS
+(`UMCUB_CFG_SMP_PARAMS`), so smpmgr sizes serial packets to `UMCUB_CFG_SMP_MTU` by itself (default 1472 with
+Ethernet - one full UDP datagram, what smpmgr sends over UDP - otherwise 1024); other hosts: `--line-buffers`
+lines of 128 bytes within it. DFU and `umcub_slot_*` write into the **secondary** slot and mark the image for a test boot.
 
 ## Text commands
 

@@ -5,45 +5,14 @@ Adding a board to umcub: its configuration, its identity on a bus, external cont
 ## Your own board
 
 Ported families: STM32H7 (H743/H753 and the dual-core H745/H755/H747/H757; not H7A3/B0/H72x/H73x yet) and
-STM32F1 (F103x8/xB). For another series the port comes first, see the next section.
+STM32F1 (F103x8/xB). For another series the port comes first, see [Porting](porting.md).
 
 **1. Describe the board.** The board directory can live in your own repository (umcub as a submodule):
-`boards/my_board/umcub_config.h`. Start from [`config/umcub_config_template.h`](../config/umcub_config_template.h).
-Everything not set takes the default from `config/umcub_config_defaults.h`. A complete minimal example:
-
-```c
-/* umcub configuration: my_board (STM32H743, 8 MHz crystal, RS-232 on USART1). */
-#ifndef UMCUB_CONFIG_H
-#define UMCUB_CONFIG_H
-
-#define UMCUB_CFG_MCU                   STM32H743xx
-#define UMCUB_CFG_CLOCK_SOURCE          UMCUB_CLK_HSE
-#define UMCUB_CFG_HSE_HZ                8000000
-#define UMCUB_CFG_PWR_SUPPLY            UMCUB_H7_SUPPLY_LDO
-
-/* 2 MiB, 128 KiB sectors: bootloader 1 sector, swap-move needs the primary
- * slot one sector larger than the secondary. */
-#define UMCUB_CFG_UPGRADE_MODE          UMCUB_MODE_SWAP_MOVE
-#define UMCUB_CFG_BOOT_SIZE             UMCUB_KB(128)
-#define UMCUB_CFG_IMG0_PRIMARY_ADDR     0x08020000
-#define UMCUB_CFG_IMG0_PRIMARY_SIZE     UMCUB_KB(512)
-#define UMCUB_CFG_IMG0_SECONDARY_ADDR   0x080A0000
-#define UMCUB_CFG_IMG0_SECONDARY_SIZE   UMCUB_KB(384)
-
-/* Recovery: button on PC13 (low = pressed) or a request from the application. */
-#define UMCUB_CFG_ENTRY_GPIO            1
-#define UMCUB_CFG_ENTRY_GPIO_PIN        UMCUB_PIN('C', 13, 0)
-#define UMCUB_CFG_ENTRY_GPIO_ACTIVE     0
-#define UMCUB_CFG_ENTRY_GPIO_PULL       UMCUB_PULL_UP
-
-#define UMCUB_CFG_TRANSPORT_UART        1
-#define UMCUB_CFG_UART_INSTANCE         1
-#define UMCUB_CFG_UART_BAUD             115200
-#define UMCUB_CFG_UART_TX_PIN           UMCUB_PIN('A', 9, 7)    /* AF7 */
-#define UMCUB_CFG_UART_RX_PIN           UMCUB_PIN('A', 10, 7)
-
-#endif /* UMCUB_CONFIG_H */
-```
+`boards/my_board/umcub_config.h`. Copy [`config/umcub_config_minimal.h`](../config/umcub_config_minimal.h) (the part,
+the clock, the flash layout, a way into the bootloader and one transport - it builds as it is, the build matrix checks
+that) and change the lines marked "yours". Every other option takes its default from
+`config/umcub_config_defaults.h`; [`config/umcub_config_template.h`](../config/umcub_config_template.h) lists all of
+them with their meaning, [Configuration](configuration.md) explains the groups.
 
 **2. Make your own signing key.** The repository key is public and for development only:
 
@@ -226,3 +195,40 @@ Checked by the build matrix (`tests/boards/custom_drivers`: board CAN + Ethernet
 on-chip drivers left out) and by the host test `umcub_host_board` (SMP over a board CAN driver, SMP and commands
 over a board transport, DHCP through a board Ethernet driver, deinit of all three). Not yet run with a real
 external controller.
+
+## Reference boards
+
+**NUCLEO-H755ZI-Q** ([`boards/nucleo_h755zi_q/umcub_config.h`](../boards/nucleo_h755zi_q/umcub_config.h)): one
+bootloader for both cores (CM7 and CM4 images), all transports, log on the ST-LINK virtual COM port (USART3,
+115200), recovery by B1 held during reset. Before the first start the option bytes must let the CM4 wait in the
+bootloader: `tools/hw/h755_option_bytes.py single` (see [Configuration](configuration.md#dual-core-h745h755h747h757)).
+
+**Blue Pill** ([`boards/bluepill_f103c8/umcub_config.h`](../boards/bluepill_f103c8/umcub_config.h)): STM32F103C8T6,
+SMP over USART1 (PA9 TX, PA10 RX, the pins of the ROM bootloader), overwrite mode, bootloader 32 KiB + two 16 KiB
+slots.
+
+There is no user button. Recovery mode starts on a request from the application (key `b` in the example), when there
+is no valid image, or when `b` arrives within 300 ms after reset (`UMCUB_CFG_ENTRY_WAIT_MS`).
+`--line-buffers 4` matches `UMCUB_CFG_SMP_MTU` = 512 (20 KiB SRAM).
+
+USB (CDC with SMP and DFU, micro-USB connector) needs more room: preset `bluepill-usb` (overlay
+`tests/configs/bluepill/usb.h`: bootloader 44 KiB, two 10 KiB slots; the example in the same tree uses the same
+layout):
+
+```sh
+cmake --preset bluepill-usb && cmake --build --preset bluepill-usb
+smpmgr --port /dev/ttyACM0 --line-buffers 4 image upload build/bluepill-usb/examples/bluepill_app/bluepill_app.signed.bin
+dfu-util -a 0 -D build/bluepill-usb/examples/bluepill_app/bluepill_app.signed.bin -R
+```
+
+The F1 has no switchable D+ pull-up and the Blue Pill ties D+ to 3.3 V, so the board looks attached whenever it is
+powered, and a host would try to enumerate a device that does not answer. The STM32F1 port therefore drives D+ low
+(detached) from reset on, and whenever its USB is not running. That includes the application: an application that
+uses USB itself must make PA12 an input before enabling its USB peripheral. The USB preset has no wait window
+(`UMCUB_CFG_ENTRY_WAIT_MS 0`): USB would attach and vanish again on every boot (see the option in the template).
+While a debugger holds the MCU in reset (`mode=UR`) D+ floats high again: flash with `mode=HOTPLUG`, or with the
+USB cable unplugged.
+
+CAN (bxCAN, classic CAN, ISO-TP like on the H7) on PB9 TX / PB8 RX with an external transceiver: overlay
+`tests/configs/bluepill/can.h` (+2.4 K, still in the 32 KiB region), host side `tools/host/smp_can.py`. Not together with
+USB: on the F103 both share the same 512 bytes of SRAM (the build refuses it).

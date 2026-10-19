@@ -164,3 +164,20 @@ waits for `RCC_FLAG_D2CKRDY` times out into `Error_Handler()`; make that wait no
 folder (toolchain *MCU ARM GCC*). Then, under *C/C++ Build*, set the build command to `cmake --build build/h755-cm7`
 after running `cmake --preset h755-cm7` once (CMake, Ninja and `.venv` are needed). Debug
 `build/h755-cm7/umcub_nucleo_h755zi_q_cm7.elf` with an *STM32 C/C++ Application* configuration.
+
+## Build trees (CMake presets) and Windows
+
+Every preset in `CMakePresets.json` builds the bootloader target `umcub_<board>_<core>` and, with
+`UMCUB_BUILD_EXAMPLES=ON` (set in the presets), the example applications of that board in the same tree:
+`build/<preset>/examples/<app>/<app>.{elf,map,signed.bin,signed.hex}`. An IDE using CMake presets (VS Code with
+CMake Tools, CLion, ...) therefore lists the bootloader and the applications as targets, and every `.elf` has its
+`.map` next to it for memory analysis tools. The examples remain standalone projects (`cmake -S examples/<app>`).
+In your own build that adds `lib/umcub_app` for two cores, link each application with `${UMCUB_APP_LIB}` (one target
+per core); with a single application `umcub::app` is enough.
+
+Presets: `h755-cm7` (one bootloader for both cores; `h755-cm7-debug`: the same at -Og), `h755-per-core-cm7` +
+`h755-per-core-cm4` (a bootloader per core), `bluepill` (UART), `bluepill-usb` (USB CDC + DFU, larger bootloader).
+
+On Windows (no `setup.sh`): `git submodule update --init`, `py -m venv .venv`,
+`.venv\Scripts\pip install -r tools\requirements.txt -e third_party\mcuboot\scripts`; CMake finds imgtool in
+`.venv\Scripts`. The IDE workflow is described in [Using umcub from an IDE](#using-umcub-from-an-ide-stm32cubeide-keil-mdk).
