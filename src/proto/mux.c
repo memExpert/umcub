@@ -333,36 +333,6 @@ bool umcub_mux_link_rx(const umcub_transport_t *t, const uint8_t *payload, size_
 {
     return queue_packet(t, payload, len);
 }
-
-/* Link mode stream transport: only "0x05 0x0B base64 \n" lines count. */
-static void pump_link_stream(unsigned i)
-{
-    const umcub_transport_t *t = umcub_transports[i];
-    struct line *l = line_of(i);
-    uint8_t c;
-    while (l && t->read(&c, 1) == 1) {
-        if (l->len == 0 && c != UMCUB_LINK_LINE_START1) {
-            continue;                   /* not a frame: ignored in link mode */
-        }
-        if (l->len == 1 && c != UMCUB_LINK_LINE_START2) {
-            l->len = 0;
-            continue;
-        }
-        if (c == '\n') {
-            umcub_link_rx_line(t, &l->buf[2], l->len - 2u);
-            l->len = 0;
-            continue;
-        }
-        if (c == '\r') {
-            continue;
-        }
-        if (l->len >= LINE_MAX) {
-            l->len = 0;                 /* overlong: drop */
-            continue;
-        }
-        l->buf[l->len++] = (char)c;
-    }
-}
 #endif
 
 #if FRAMES
@@ -384,46 +354,61 @@ static void frame_line(const umcub_transport_t *t, char *buf, size_t len)
 }
 #endif
 
-/* Pull bytes of stream transport i until a full line is assembled. */
+/* Pull bytes of stream transport i until a full line is assembled. A plain
+ * stream carries NLIP lines for boot_serial, frame lines and typed text; a
+ * stream in umcub link mode only "0x05 0x0B base64 \n" link frame lines. */
 static void pump_stream(unsigned i)
 {
     const umcub_transport_t *t = umcub_transports[i];
     struct line *l = line_of(i);
+#if UMCUB_CFG_LINK_ANY
+    bool link = !nlip_stream(t);
+#endif
     uint8_t c;
 
     while (l && !l->ready && t->read(&c, 1) == 1) {
-        uint8_t first = l->len ? (uint8_t)l->buf[0] : c;
-        bool nlip = first == NLIP_PKT_START1 || first == NLIP_DATA_START1 ||
-                    (FRAMES && first == 0x05);   /* 05 0C / 05 0D: lite upload / board frame line */
-        if (!nlip) {
-            /* Console text: a configured command or noise. */
-#if UMCUB_CFG_CMD_ENABLE
-            if (c == '\r' || c == '\n') {
-                if (l->len) {
-                    cmd_run(t, l->buf, l->len);
-                }
-                l->len = 0;
+#if UMCUB_CFG_LINK_ANY
+        if (link) {
+            if ((l->len == 0 && c != UMCUB_LINK_LINE_START1) || (l->len == 1 && c != UMCUB_LINK_LINE_START2)) {
+                l->len = 0;             /* not a frame: ignored in link mode */
                 continue;
             }
-            if (l->len >= CMD_MAX) {
-                l->len = 0;
-            }
-            l->buf[l->len++] = (char)c;
+        } else
+#endif
+        {
+            uint8_t first = l->len ? (uint8_t)l->buf[0] : c;
+            bool nlip = first == NLIP_PKT_START1 || first == NLIP_DATA_START1 ||
+                        (FRAMES && first == 0x05);   /* 05 0C / 05 0D: lite upload / board frame line */
+            if (!nlip) {
+                /* Console text: a configured command or noise. */
+#if UMCUB_CFG_CMD_ENABLE
+                if (c == '\r' || c == '\n') {
+                    if (l->len) {
+                        cmd_run(t, l->buf, l->len);
+                    }
+                    l->len = 0;
+                    continue;
+                }
+                if (l->len >= CMD_MAX) {
+                    l->len = 0;
+                }
+                l->buf[l->len++] = (char)c;
 #if UMCUB_CFG_CMD_IMMEDIATE
-            umcub_cmd_match_t m = umcub_cmd_match(l->buf, l->len);
-            if (m == UMCUB_CMD_MATCH_FULL) {
-                size_t n = l->len;
-                l->len = 0;
-                cmd_run(t, l->buf, n);
-            }
-            /* Commands are recognised from the start of a line only (a letter
-             * inside other text must not fire one); unknown text accumulates
-             * until Enter and is answered with "? text". */
+                umcub_cmd_match_t m = umcub_cmd_match(l->buf, l->len);
+                if (m == UMCUB_CMD_MATCH_FULL) {
+                    size_t n = l->len;
+                    l->len = 0;
+                    cmd_run(t, l->buf, n);
+                }
+                /* Commands are recognised from the start of a line only (a
+                 * letter inside other text must not fire one); unknown text
+                 * accumulates until Enter and is answered with "? text". */
 #endif
 #else
-            l->len = 0;
+                l->len = 0;
 #endif
-            continue;
+                continue;
+            }
         }
         if (c == '\r') {
             continue;
@@ -435,6 +420,15 @@ static void pump_stream(unsigned i)
         if (c != '\n') {
             continue;
         }
+#if UMCUB_CFG_LINK_ANY
+        if (link) {
+            if (l->len >= 3) {                  /* not after an overlong line's reset */
+                umcub_link_rx_line(t, &l->buf[2], l->len - 3u);     /* base64 without the newline */
+            }
+            l->len = 0;
+            continue;
+        }
+#endif
 #if FRAMES
         if ((uint8_t)l->buf[0] == 0x05) {
             frame_line(t, l->buf, l->len);
@@ -473,14 +467,9 @@ static void pump_all(void)
     umcub_led_poll();
     umcub_transports_poll();
     for (unsigned i = 0; i < umcub_transport_count && i < MAX_TRANSPORTS; i++) {
-        if (nlip_stream(umcub_transports[i])) {
+        if (is_stream(umcub_transports[i])) {
             pump_stream(i);
         }
-#if UMCUB_CFG_LINK_ANY
-        else if (is_stream(umcub_transports[i])) {
-            pump_link_stream(i);
-        }
-#endif
     }
 #if UMCUB_CFG_LINK_ANY
     umcub_link_poll();
