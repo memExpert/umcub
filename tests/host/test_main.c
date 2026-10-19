@@ -376,6 +376,41 @@ static const uint8_t *in_flash(const uint8_t *img, size_t len, const uint8_t *pl
     return x;
 }
 
+#if UMCUB_CFG_ENCRYPT_IMAGES
+/* A copy of an encrypted image without its ENC_EC256 TLV (unprotected area). */
+static uint8_t *strip_key_tlv(const uint8_t *img, size_t len, size_t *out_len)
+{
+    size_t off = (size_t)(img[8] | img[9] << 8) + (img[12] | img[13] << 8 | img[14] << 16 | (uint32_t)img[15] << 24);
+    uint8_t *o = malloc(len);
+    memcpy(o, img, off);
+    size_t n = off;
+    while (off + 4 <= len) {
+        uint16_t magic = (uint16_t)(img[off] | img[off + 1] << 8);
+        size_t end = off + (size_t)(img[off + 2] | img[off + 3] << 8);
+        if ((magic != IMAGE_TLV_INFO_MAGIC && magic != IMAGE_TLV_PROT_INFO_MAGIC) || end > len) {
+            break;
+        }
+        size_t area = n;
+        n += 4;
+        for (size_t p = off + 4; p + 4 <= end;) {
+            uint16_t type = (uint16_t)(img[p] | img[p + 1] << 8), l = (uint16_t)(img[p + 2] | img[p + 3] << 8);
+            if (type != IMAGE_TLV_ENC_EC256) {
+                memcpy(o + n, img + p, 4u + l);
+                n += 4u + l;
+            }
+            p += 4u + l;
+        }
+        o[area] = (uint8_t)magic;
+        o[area + 1] = (uint8_t)(magic >> 8);
+        o[area + 2] = (uint8_t)(n - area);
+        o[area + 3] = (uint8_t)((n - area) >> 8);
+        off = end;
+    }
+    *out_len = n;
+    return o;
+}
+#endif
+
 static void test_packet_upload_and_boot(const uint8_t *v1, size_t v1_len, const uint8_t *v1_flash)
 {
     printf("[packet transport] SMP echo, upload to primary, boot_go\n");
@@ -405,6 +440,16 @@ static void test_packet_upload_and_boot(const uint8_t *v1, size_t v1_len, const 
     CHECK(!boot_ok(ver));
     free(bad);
     printf("  tampered encrypted upload refused (rc 3), left encrypted, not booted\n");
+    /* The key TLV is unprotected: an image without it still has a valid
+     * signature, but nothing to decrypt with - refused, not "decrypted". */
+    size_t nk_len;
+    uint8_t *nokey = strip_key_tlv(v1, v1_len, &nk_len);
+    CHECK(nokey && nk_len < v1_len);
+    CHECK(upload_packets(nokey, nk_len, 0) == 3);
+    CHECK(memcmp(fake_flash + (UMCUB_CFG_IMG0_PRIMARY_ADDR - 0x08000000), nokey, nk_len) == 0);
+    CHECK(!boot_ok(ver));
+    free(nokey);
+    printf("  encrypted upload without its key TLV refused (rc 3), left as it is\n");
 #endif
     CHECK(upload_packets(v1, v1_len, 0) == 0);
     CHECK(memcmp(fake_flash + (UMCUB_CFG_IMG0_PRIMARY_ADDR - 0x08000000), v1_flash, v1_len) == 0);

@@ -38,7 +38,9 @@ static bool load_key(struct boot_loader_state *state, int slot, const struct ima
         rc = boot_enc_set_key(BOOT_CURR_ENC_SLOT(state, slot), bs.enckey[slot]);
     }
     memset(&bs, 0, sizeof(bs));
-    return rc >= 0;                     /* 1: already loaded */
+    /* boot_enc_load() returns 1 both for "already loaded" and for an image
+     * without its key TLV (which is unprotected): only a set key counts. */
+    return rc >= 0 && boot_enc_valid(BOOT_CURR_ENC_SLOT(state, slot));
 }
 
 fih_ret boot_image_validate_encrypted(struct boot_loader_state *state, const struct flash_area *fa_p,
