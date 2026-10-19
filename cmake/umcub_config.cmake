@@ -158,13 +158,13 @@ endfunction()
 
 # The configured pins against ST's pin data (tools/build/check_pins.py): a pin
 # without the signal / alternate function the option needs stops the
-# configuration. Bootloader builds only; the probe prints every pin as
-# "PIN '<port>' <num> <af>".
+# configuration, as does a pin the package (UMCUB_CFG_MCU_PART) does not bring
+# out. Bootloader builds only; the probe prints every pin as "PIN '<port>' <num> <af>".
 function(umcub_check_pins)
   set(_names UMCUB_CFG_TRANSPORT_UART UMCUB_CFG_UART_INSTANCE UMCUB_CFG_UART_TX_PIN UMCUB_CFG_UART_RX_PIN
              UMCUB_CFG_UART_DE_PIN UMCUB_CFG_TRANSPORT_CAN UMCUB_CFG_CAN_DRIVER UMCUB_CFG_CAN_INSTANCE
              UMCUB_CFG_CAN_TX_PIN UMCUB_CFG_CAN_RX_PIN UMCUB_CFG_TRANSPORT_ETH UMCUB_CFG_ETH_DRIVER
-             UMCUB_CFG_ETH_RMII_PINS)
+             UMCUB_CFG_ETH_RMII_PINS UMCUB_CFG_ENTRY_GPIO UMCUB_CFG_ENTRY_GPIO_PIN UMCUB_CFG_MCU_PART)
   set(_probe "#include \"umcub_cfg.h\"\n#undef UMCUB_PIN\n#define UMCUB_PIN(port, pin, af) PIN port pin af\n")
   string(APPEND _probe "@@MCU \"${UMCUB_MCU}\"\n")
   foreach(n IN LISTS _names)

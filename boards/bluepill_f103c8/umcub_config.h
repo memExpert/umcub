@@ -7,6 +7,7 @@
 #define UMCUB_CONFIG_H
 
 #define UMCUB_CFG_MCU                   STM32F103xB
+#define UMCUB_CFG_MCU_PART              "STM32F103C8T6"         /* LQFP48 */
 #define UMCUB_CFG_BOARD_TYPE            0x46103001      /* images must carry this (signed TLV) */
 #define UMCUB_CFG_BOARD_REV             1
 

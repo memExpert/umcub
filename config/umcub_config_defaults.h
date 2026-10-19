@@ -12,6 +12,9 @@
 #endif
 
 /* --- target -------------------------------------------------------------- */
+#ifndef UMCUB_CFG_MCU_PART
+#define UMCUB_CFG_MCU_PART              ""
+#endif
 #ifndef UMCUB_CFG_DUALCORE_MODE
 #define UMCUB_CFG_DUALCORE_MODE         UMCUB_DUALCORE_NONE
 #endif

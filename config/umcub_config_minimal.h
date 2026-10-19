@@ -14,6 +14,7 @@
 
 /* --- the part (yours): CMSIS device define, clock ------------------------ */
 #define UMCUB_CFG_MCU                   STM32H743xx
+#define UMCUB_CFG_MCU_PART              "STM32H743ZIT6"     /* on the chip: pins checked against its package */
 #define UMCUB_CFG_CLOCK_SOURCE          UMCUB_CLK_HSE       /* or UMCUB_CLK_HSI: no crystal */
 #define UMCUB_CFG_HSE_HZ                8000000
 #define UMCUB_CFG_PWR_SUPPLY            UMCUB_H7_SUPPLY_LDO /* H7 only: as on your board */

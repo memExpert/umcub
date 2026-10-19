@@ -7,6 +7,7 @@ tools/build/build_matrix.sh                 # 33 bootloader configurations (side
                                             # host tests; warning-free
 ctest --test-dir build/matrix/host    # host tests only
 tests/host/link_e2e.py build/matrix/host   # simulated devices: umcub link bus, smpmgr, host tools, lite upload
+tests/tools/check_pins_test.py              # pin check: right / wrong pins and AF numbers, packages
 tools/build/check_docs.py                   # README and docs/ still match the repository (size tables, links, ...)
 ```
 

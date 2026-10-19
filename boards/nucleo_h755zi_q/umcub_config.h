@@ -18,6 +18,7 @@
 #define UMCUB_CONFIG_H
 
 #define UMCUB_CFG_MCU                   STM32H755xx
+#define UMCUB_CFG_MCU_PART              "STM32H755ZIT6"         /* LQFP144 */
 #define UMCUB_CFG_BOARD_TYPE            0x48755001      /* images must carry this (signed TLV) */
 #define UMCUB_CFG_BOARD_REV             1
 

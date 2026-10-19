@@ -67,7 +67,7 @@ tools/hw/        bench (SWD through probe.py: STM32_Programmer_CLI or pyOCD): pr
                  powerfail_test.py, stack_usage.py, udev/
 tests/host/      host tests
 tests/configs/   configuration overlays: mode/, transport/, feature/, bluepill/
-tests/tools/     helpers for the build matrix
+tests/tools/     helpers for the build matrix (image comparison, check_pins_test.py: pin check cases)
 tests/boards/    build-matrix boards (custom_drivers: board drivers + board transport)
 ```
 

@@ -7,11 +7,13 @@
 <pins.txt> is the preprocessed probe CMake writes (cmake/umcub_config.cmake):
 "@@MCU STM32H755xx" and one "@@ <option> PIN '<port>' <num> <af>" line per
 configured pin, "@@ <option> <value>" for the options that select a pin's
-signal (instance, enabled transports, drivers). For every pin the expected
-signal (e.g. USART3_TX for UMCUB_CFG_UART_TX_PIN with UMCUB_CFG_UART_INSTANCE
-3) must exist on that pin with that alternate function number; otherwise the
-pins that carry the signal are listed. Families without AF numbers (F1:
-AFIO remap) are checked by their port at build time instead.
+signal (instance, enabled transports, drivers) and for UMCUB_CFG_MCU_PART.
+For every pin the expected signal (e.g. USART3_TX for UMCUB_CFG_UART_TX_PIN
+with UMCUB_CFG_UART_INSTANCE 3) must exist on that pin with that alternate
+function number; otherwise the pins that carry the signal are listed.
+Families without AF numbers (F1: AFIO remap) are checked by their port at
+build time instead. With UMCUB_CFG_MCU_PART (the part number, e.g.
+STM32F103C8T6) every pin in use must also be brought out by that package.
 Exit 0 = fine (or not checkable: a note), 1 = wrong pins.
 """
 import argparse
@@ -39,7 +41,7 @@ def parse_probe(path):
         if pins:
             opts[name] = [(p, int(n), int(af)) for p, n, af in pins]
         elif val != name:
-            opts[name] = val.strip()
+            opts[name] = val.strip().strip('"')
     return mcu, opts
 
 
@@ -52,13 +54,32 @@ def descendants(el, tag):
     return [c for c in el.iter() if c.tag.rsplit("}", 1)[-1] == tag]
 
 
-def gpio_modes(data, mcu):
-    """Signal -> {(pin name, AF)} of the GPIO data of every part of `mcu`;
-    None if the family has no AF numbers. `mcu` is the CMSIS define
-    (STM32H755xx, STM32F411xE): the part names start with it up to the x."""
+def find_part(data, part):
+    """The pin data file of a part number: ST names them with ranges and
+    wildcards (STM32F103C(8-B)Tx.xml matches STM32F103C8T6)."""
+    for f in sorted(os.listdir(os.path.join(data, "mcu"))):
+        if not f.endswith(".xml"):
+            continue
+        pat = re.sub(r"\(([A-Z0-9-]+)\)", lambda m: "[" + m.group(1).replace("-", "") + "]", f[:-4]).replace("x", ".")
+        if re.match(pat, part):
+            return f
+    return None
+
+
+def package_pins(data, f):
+    """(package, {pin names}) of a part file; "PC14-OSC32_IN" counts as PC14."""
+    root = ET.parse(os.path.join(data, "mcu", f)).getroot()
+    pins = {m.group(0) for p in children(root, "Pin") for m in [re.match(r"P[A-K]\d+", p.get("Name") or "")] if m}
+    return root.get("Package"), pins
+
+
+def gpio_modes(data, mcu, files=None):
+    """Signal -> {(pin name, AF)} of the GPIO data of every part of `mcu` (or
+    of `files` only); None if the family has no AF numbers. `mcu` is the CMSIS
+    define (STM32H755xx, STM32F411xE): the part names start with it up to the x."""
     prefix = re.sub(r"x.*$", "", mcu)
     versions = set()
-    for f in os.listdir(os.path.join(data, "mcu")):
+    for f in files or os.listdir(os.path.join(data, "mcu")):
         if not f.startswith(prefix) or not f.endswith(".xml"):
             continue
         root = ET.parse(os.path.join(data, "mcu", f)).getroot()
@@ -110,6 +131,16 @@ def expected(opts):
     return out
 
 
+def used_pins(opts):
+    """(option, pin) of every pin the configuration drives."""
+    out = [(o, p) for o, p, _ in expected(opts)]
+    on = lambda n: opts.get(n, "0") not in ("0", "")   # noqa: E731
+    for o, en in (("UMCUB_CFG_UART_DE_PIN", "UMCUB_CFG_TRANSPORT_UART"), ("UMCUB_CFG_ENTRY_GPIO_PIN", "UMCUB_CFG_ENTRY_GPIO")):
+        if on(en) and isinstance(opts.get(o), list):
+            out += [(o, p) for p in opts[o] if (o, p) not in out]
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("probe")
@@ -120,12 +151,24 @@ def main():
         print("umcub: pin check skipped - no pin data (git submodule update --init --depth 1 "
               "third_party/st/stm32_open_pin_data)")
         return 0
-    signals, info = gpio_modes(a.data, mcu)
+    errors, notes, files = [], [], None
+    part = opts.get("UMCUB_CFG_MCU_PART", "")
+    if part:
+        f = find_part(a.data, part)
+        if not f or not f.startswith(re.sub(r"x.*$", "", mcu)):
+            print(f"umcub: UMCUB_CFG_MCU_PART {part}: " +
+                  (f"not a part of {mcu} (pin data {f})" if f else "no such part in the ST pin data"))
+            return 1
+        files = [f]
+        package, bonded = package_pins(a.data, f)
+        for opt, (port, num, af) in used_pins(opts):
+            if f"P{port}{num}" not in bonded:
+                errors.append(f"{opt} = P{port}{num}: not brought out on {part} ({package})")
+        notes.append(f"package {package}")
+    signals, info = gpio_modes(a.data, mcu, files)
+    checks = expected(opts) if signals is not None else []
     if signals is None:
-        print(f"umcub: pin check: {mcu} has no AF numbers ({info}) - checked by the port")
-        return 0
-    errors = []
-    checks = expected(opts)
+        notes.append(f"no AF numbers ({info}): AF checked by the port")
     for opt, (port, num, af), names in checks:
         pin = f"P{port}{num}"
         fit = {n for n in signals for pat in names
@@ -144,7 +187,8 @@ def main():
     if errors:
         print("umcub: pins that do not fit the part (ST pin data, " + info + "):\n  " + "\n  ".join(errors))
         return 1
-    print(f"umcub: pin check: {len(checks)} pin(s) fit {mcu} (ST pin data)")
+    n = len(used_pins(opts)) if part else len(checks)
+    print(f"umcub: pin check: {n} pin(s) fit {part or mcu} (ST pin data" + "".join(f"; {x}" for x in notes) + ")")
     return 0
 
 

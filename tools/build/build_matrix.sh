@@ -173,6 +173,13 @@ for m in overwrite swap_move swap_offset direct_xip direct_xip_revert; do
 done
 summary+=("$(printf '%-24s umcub_app_all.c: %s, all upgrade modes' "ide-library" "$ide_ok")")
 
+# Pin check (tools/build/check_pins.py): right and wrong pins, packages.
+if python3 tests/tools/check_pins_test.py >"$OUT/check_pins.log" 2>&1; then
+  summary+=("$(printf '%-24s %s' "pin-check" "$(tail -1 "$OUT/check_pins.log")")")
+else
+  echo "FAIL pin check (see $OUT/check_pins.log)"; cat "$OUT/check_pins.log"; fail=1
+fi
+
 # Host tests: real MCUboot + umcub transports on emulated flash.
 if cmake -S tests/host -B "$OUT/host" -G Ninja >"$OUT/host.configure.log" 2>&1 &&
    cmake --build "$OUT/host" >"$OUT/host.build.log" 2>&1 &&

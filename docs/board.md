@@ -56,8 +56,9 @@ Things that are easy to get wrong:
   chosen from the TX pin. Both are checked when CMake configures the bootloader: UART (TX, RX, hardware DE), CAN
   and Ethernet RMII pins against ST's pin data (`third_party/st/stm32_open_pin_data`, `tools/build/check_pins.py`:
   a wrong pin or AF number stops the configuration and lists the pins that carry the signal), F1 pin pairs against
-  the port's remap tables. The pin data does not know your package: a pin the package does not bring out still
-  passes.
+  the port's remap tables. With `UMCUB_CFG_MCU_PART` (the part number on the chip, e.g. `"STM32F103C8T6"`) every
+  pin in use - including the entry button and a software DE pin - must also be brought out by that package
+  (LQFP48 has no port E, LQFP100 no port G); without it only the pins of the whole line are known.
 - **RAM.** The handoff area (`UMCUB_CFG_SHARED_RAM_ADDR`, 256 bytes) must stay out of the application's RAM. The
   generated application linker scripts already exclude it.
 - **Image header.** `UMCUB_CFG_IMAGE_HEADER_SIZE` is also the offset of the application vector table: it must meet

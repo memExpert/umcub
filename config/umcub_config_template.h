@@ -25,6 +25,10 @@
 
 /* CMSIS device define of the MCU (selects family port, startup, CPU flags). */
 #define UMCUB_CFG_MCU                     STM32H755xx
+/* Part number as printed on the chip (or the CubeMX name): the build then also
+ * refuses pins this package does not bring out (ST pin data). Build check
+ * only, nothing in the image. "" = only the pins of the whole line are known. */
+/* #define UMCUB_CFG_MCU_PART             "STM32H755ZIT6" */
 
 /* Dual-core handling (only for dual-core parts such as STM32H745/H755/H747):
  *   UMCUB_DUALCORE_NONE        - single core part or second core unused
