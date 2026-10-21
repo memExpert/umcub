@@ -164,10 +164,26 @@ NUCLEO-H755ZI-Q with ST's `BootCM4_CM7` template (STM32CubeH7, NUCLEO-H745ZI-Q) 
 (there: `--core cm4 --image 0` with the per-core overlay). Without a valid CM4 image, the CM4 stays parked in the bootloader. In that case the CubeMX CM7 code that
 waits for `RCC_FLAG_D2CKRDY` times out into `Error_Handler()`; make that wait non-fatal if the CM7 must run alone.
 
-**Bootloader inside STM32CubeIDE (optional).** *File → New → Makefile Project with Existing Code* on the umcub
-folder (toolchain *MCU ARM GCC*). Then, under *C/C++ Build*, set the build command to `cmake --build build/h755-cm7`
-after running `cmake --preset h755-cm7` once (CMake, Ninja and `.venv` are needed). Debug
-`build/h755-cm7/umcub_nucleo_h755zi_q_cm7.elf` with an *STM32 C/C++ Application* configuration.
+**Bootloader inside STM32CubeIDE (optional).** CubeIDE only drives the CMake build, so these are needed besides
+CubeIDE: CMake, Ninja, Python with the `.venv` (`tools/setup.sh`; Windows: see
+[below](#build-trees-cmake-presets-and-windows); imgtool embeds the keys into the bootloader) and the submodules.
+A separate GNU Arm toolchain is not needed. CubeIDE ships one, but it is not in `PATH` outside CubeIDE, so
+pass its prefix with `UMCUB_TOOLCHAIN_PREFIX` (full path up to and including `arm-none-eabi-`, forward slashes):
+
+```sh
+cmake -S umcub -B umcub/build/boot -G Ninja -DCMAKE_BUILD_TYPE=Release \
+      -DUMCUB_BOARD=$PWD/boards/my_board -DUMCUB_SIGNING_KEY=$PWD/keys/prod.pem \
+      -DUMCUB_TOOLCHAIN_PREFIX=<CubeIDE>/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.<version>/tools/bin/arm-none-eabi-
+```
+
+`<CubeIDE>` is the installation folder (on Linux e.g. `/opt/st/stm32cubeide_<version>`). Without
+`UMCUB_TOOLCHAIN_PREFIX`, `arm-none-eabi-gcc` must be in `PATH`. The prefix is stored in the build tree, so this
+configure step runs once; for the NUCLEO-H755ZI-Q, `cmake --preset h755-cm7 -DUMCUB_TOOLCHAIN_PREFIX=...` does the same.
+
+Then in CubeIDE: *File → New → Makefile Project with Existing Code* on the umcub folder (toolchain *MCU ARM GCC*),
+under *C/C++ Build* turn off *Use default build command* and set the build command to `cmake --build build/boot`
+(`build/h755-cm7` for the preset). Debug `build/boot/umcub_<board>_<core>.elf` (e.g. `umcub_my_board_cm7.elf`) with
+an *STM32 C/C++ Application* configuration.
 
 ## Build trees (CMake presets) and Windows
 
