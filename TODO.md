@@ -12,6 +12,12 @@ shared drivers (clock, flash, sys, tables), not yet proven on a series that was 
   when the board arrives (USART v1, USB OTG FS = the H7 dwc2 glue, no CAN, no RNG -> ADC entropy like the F1, flash
   sectors 16/16/16/16/64/128 KiB -> bootloader in at most 3 sectors = 48 KiB). G4 later: needs a branch in `fdcan.c`
   for its fixed message RAM layout.
+- [ ] **2. Pins without AF numbers.** Today a board writes `UMCUB_PIN('A', 9, 7)` with the alternate function
+  looked up in the datasheet. The configure-time pin check already has ST's pin data for the package
+  (`UMCUB_CFG_MCU_PART`), so `UMCUB_PIN('A', 9)` could get its AF from the peripheral instance and signal
+  (USART1_TX -> AF7) and pass it to the build; an explicit AF stays possible and is still checked. Configure-time
+  only, no firmware size change. Open: how the value gets from CMake into the C config (generated header?), F1
+  (no AF numbers, remap chosen by the port), IDE builds without CMake (`umcub_app_all.c` does not use pins).
 
 ## Hardware verification (NUCLEO-H755ZI-Q)
 
