@@ -32,16 +32,20 @@ shared drivers (clock, flash, sys, tables), not yet proven on a series that was 
 
 ## Known limitations / ideas
 
-- [ ] Security review leftovers: one device key per product - per-device keys (provisioning, key derived from
-  the UID + a master on the host), H7 PCROP / secure-access area for the key; on the F1, RDP level 1 can be
-  defeated by known attacks, so the key there is only as safe as the product's physical access.
+- [ ] Security review leftovers: one device key per product - per-device keys. Not derived on the device from
+  the UID + a master key (the master would then sit in every device): each device gets its own key at provisioning
+  and the port hands it to MCUboot, which already has the hooks - `MCUBOOT_ENC_BUILTIN_KEY`
+  (`boot_enc_retrieve_private_key()`, the host encrypts for that device's public key) and `MCUBOOT_HW_KEY` (hash
+  of the signing key on the device, the key in the image TLV; several keys in open PR mcu-tools/mcuboot#2915).
+  Key storage: H7 PCROP / secure-access area; on the F1, RDP level 1 can be defeated by known attacks, so the key
+  there is only as safe as the product's physical access.
 - [ ] MCUboot submodule is v2.5.0-rc1 (move to the final v2.5.0 when it is out). Its in-place decryption
   (`boot_serial_encryption.c`) needs a sector-sized VLA on the stack, assumes uniform sectors and does not validate
   first, so `src/image/mcuboot/enc_image.c` replaces it (VLA rejected upstream in #2631, success before decryption
   "expected" in #2770). Two bugs confirmed on main e19ad039 (ASan / host): `boot_enc_zeroize(&enc_data)` writes past
   one `enc_key_data`; an image without its (unprotected) key TLV is decrypted without a key. Reported: #2911, fix
-  PR #2913.
-- [ ] **Waiting for the MCUboot decision on PR #2912** (mcu-tools/mcuboot#2910): an encrypted SMP upload into the
+  PR #2913 (reworked after review, waiting for the maintainers).
+- [ ] **Waiting for the MCUboot decision on PR #2912** (mcu-tools/mcuboot#2910, reworked after review): an encrypted SMP upload into the
   primary slot of image 1+ is not decrypted by MCUboot (`bs_upload()` checks `FLASH_AREA_IMAGE_PRIMARY(0)` only).
   Until then umcub refuses it (rc 3 at the last chunk, `umcub_enc_upload_check()`); encrypted CM4 updates go through
   the secondary slot. If the PR is merged: move the submodule to a release with it and drop the refusal. If it is
