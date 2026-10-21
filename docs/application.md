@@ -164,26 +164,31 @@ NUCLEO-H755ZI-Q with ST's `BootCM4_CM7` template (STM32CubeH7, NUCLEO-H745ZI-Q) 
 (there: `--core cm4 --image 0` with the per-core overlay). Without a valid CM4 image, the CM4 stays parked in the bootloader. In that case the CubeMX CM7 code that
 waits for `RCC_FLAG_D2CKRDY` times out into `Error_Handler()`; make that wait non-fatal if the CM7 must run alone.
 
-**Bootloader inside STM32CubeIDE (optional).** CubeIDE only drives the CMake build, so these are needed besides
-CubeIDE: CMake, Ninja, Python with the `.venv` (`tools/setup.sh`; Windows: see
+**Bootloader inside STM32CubeIDE (optional).** CubeIDE 2.x builds the bootloader from the CMake presets with the GCC,
+CMake and Ninja it ships. Needed besides CubeIDE: Python with the `.venv` (`tools/setup.sh`; Windows: see
 [below](#build-trees-cmake-presets-and-windows); imgtool embeds the keys into the bootloader) and the submodules.
-A separate GNU Arm toolchain is not needed. CubeIDE ships one, but it is not in `PATH` outside CubeIDE, so
-pass its prefix with `UMCUB_TOOLCHAIN_PREFIX` (full path up to and including `arm-none-eabi-`, forward slashes):
 
-```sh
-cmake -S umcub -B umcub/build/boot -G Ninja -DCMAKE_BUILD_TYPE=Release \
-      -DUMCUB_BOARD=$PWD/boards/my_board -DUMCUB_SIGNING_KEY=$PWD/keys/prod.pem \
-      -DUMCUB_TOOLCHAIN_PREFIX=<CubeIDE>/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.<version>/tools/bin/arm-none-eabi-
-```
+1. *File → New → STM32 CMake Project* → *Project with existing CMake sources*. Untick *Use default location* and
+   put the project **outside** the umcub folder (e.g. next to it), *Source directory* = the umcub folder; the build
+   directory does not matter (the presets set it). On the next page pick the MCU of the board: one project per
+   board, it is what the debugger uses.
+2. Every preset of `CMakePresets.json` becomes a build configuration (*Project → Build Configurations → Set
+   Active*). For your own board use the preset `custom`: *Properties → C/C++ Build → CMake Settings*, *CMake
+   Preset* `custom`, *Other options* `-DUMCUB_BOARD=/path/to/boards/my_board -DUMCUB_SIGNING_KEY=/path/to/keys/prod.pem`
+   (it builds in `build/custom`). CubeIDE reads only `CMakePresets.json`, not `CMakeUserPresets.json`.
+3. Build each configuration you use once, close the project and run
+   ```sh
+   python tools/host/umcub_cubeide.py <project folder>
+   ```
+   then open the project again. The wizard shows the whole source tree and every build tree; the script adds
+   resource filters (no `.venv`, `.git` or build trees other than those of the configurations, and in those only
+   `.elf .map .hex .bin .ld`), which keeps refreshing fast, and one *Build Targets* entry per executable
+   ("bluepill: bluepill_app" builds only that application). Run it again after adding a configuration; it
+   replaces only what it added before.
 
-`<CubeIDE>` is the installation folder (on Linux e.g. `/opt/st/stm32cubeide_<version>`). Without
-`UMCUB_TOOLCHAIN_PREFIX`, `arm-none-eabi-gcc` must be in `PATH`. The prefix is stored in the build tree, so this
-configure step runs once; for the NUCLEO-H755ZI-Q, `cmake --preset h755-cm7 -DUMCUB_TOOLCHAIN_PREFIX=...` does the same.
-
-Then in CubeIDE: *File → New → Makefile Project with Existing Code* on the umcub folder (toolchain *MCU ARM GCC*),
-under *C/C++ Build* turn off *Use default build command* and set the build command to `cmake --build build/boot`
-(`build/h755-cm7` for the preset). Debug `build/boot/umcub_<board>_<core>.elf` (e.g. `umcub_my_board_cm7.elf`) with
-an *STM32 C/C++ Application* configuration.
+The *Build Analyzer* shows the ELF selected in the project tree (under `umcub/build/<preset>`), so click the
+bootloader or the application to see its memory use. Debug that ELF with an *STM32 C/C++ Application*
+configuration.
 
 ## Build trees (CMake presets) and Windows
 
@@ -194,7 +199,9 @@ CMake Tools, CLion, ...) therefore lists the bootloader and the applications as 
 `.map` next to it for memory analysis tools. The examples remain standalone projects (`cmake -S examples/<app>`).
 
 Presets: `h755-cm7` (one bootloader for both cores; `h755-cm7-debug`: the same at -Og), `h755-per-core-cm7` +
-`h755-per-core-cm4` (a bootloader per core), `bluepill` (UART), `bluepill-usb` (USB CDC + DFU, larger bootloader).
+`h755-per-core-cm4` (a bootloader per core), `bluepill` (UART), `bluepill-usb` (USB CDC + DFU, larger bootloader), `custom` (your board:
+`-DUMCUB_BOARD=<board directory>` or the environment variable `UMCUB_BOARD`; no examples). Presets of your own go
+into `CMakeUserPresets.json` (not in git); CMake, VS Code and CLion read it, STM32CubeIDE does not.
 
 On Windows (no `setup.sh`): `git submodule update --init`, `py -m venv .venv`,
 `.venv\Scripts\pip install -r tools\requirements.txt -e third_party\mcuboot\scripts`; CMake finds imgtool in

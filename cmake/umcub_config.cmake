@@ -49,6 +49,10 @@ function(_umcub_cpp out_var probe_file)
 endfunction()
 
 macro(umcub_load_config board_dir core)
+  if("${board_dir}" STREQUAL "")
+    message(FATAL_ERROR "umcub: UMCUB_BOARD is empty: pass -DUMCUB_BOARD=<board directory> "
+                        "(preset 'custom': or the environment variable UMCUB_BOARD)")
+  endif()
   get_filename_component(UMCUB_BOARD_DIR "${board_dir}" ABSOLUTE BASE_DIR "${UMCUB_ROOT}/boards")
   if(NOT EXISTS "${UMCUB_BOARD_DIR}/umcub_config.h")
     message(FATAL_ERROR "umcub: ${UMCUB_BOARD_DIR}/umcub_config.h not found")

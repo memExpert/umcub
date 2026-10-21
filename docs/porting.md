@@ -60,7 +60,8 @@ tools/           setup.sh, requirements.txt, keys/ (development keys)
 tools/host/      host tools: umcub_image.py (slot addresses, signing for IDE projects), umcub_inspect.py,
                  umcub_link.py, umcub_lite.py (lite upload), smp_can.py, app_upload.py, umcub_keys.py
                  (umcub link keys as C arrays), umcub_smp.py (SMP helpers of the host tools, on smp / smpclient),
-                 umcub_bus.py (their connections: --port / --udp / --can options, serial lines, UDP, ISO-TP)
+                 umcub_bus.py (their connections: --port / --udp / --can options, serial lines, UDP, ISO-TP),
+                 umcub_cubeide.py (filters and build targets for an STM32CubeIDE CMake project)
 tools/build/     build_matrix.sh, size_table.py (size tables), check_docs.py (README / docs consistency),
                  check_layers.py (layering), check_pins.py (configured pins vs ST pin data, run by CMake)
 tools/hw/        bench (SWD through probe.py: STM32_Programmer_CLI or pyOCD): probe.py (flash / read / write /

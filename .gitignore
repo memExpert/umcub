@@ -1,4 +1,5 @@
 /build/
+/CMakeUserPresets.json
 .venv/
 examples/*/build/
 __pycache__/

@@ -21,8 +21,10 @@ shared drivers (clock, flash, sys, tables), not yet proven on a series that was 
   signing, debug download of the signed image, Keil key codes (`#L`, `$L@L`), armclang as preprocessor. So far
   verified: `umcub_app_all.c` compiles with the documented include list (GCC, clang); `tools/host/umcub_image.py` gives
   the same image as CMake (header, payload, hash) from ELF and HEX; a tool-signed image boots on the board; the
-  bootloader builds (F1, H7) with only the GCC inside STM32CubeIDE 2.2 (`UMCUB_TOOLCHAIN_PREFIX`). Open: the
-  Makefile project in CubeIDE itself.
+  bootloader builds (F1, H7) with only the GCC inside STM32CubeIDE 2.2 (`UMCUB_TOOLCHAIN_PREFIX`); in CubeIDE 2.2
+  the "STM32 CMake Project" wizard + `tools/host/umcub_cubeide.py` build every preset and the `custom` one (own
+  board through *Other options*), single targets, Build Analyzer on the clicked ELF (Linux). Open: debugging from
+  that project, CubeIDE on Windows, VS Code (CMake Tools shows no targets / build analysis yet).
 - [ ] **Bluetooth UART bridge** (HC-05/HC-06 SPP on USART1 D0/D1, PC over RFCOMM): SMP upload, text commands,
   verify / hash over a slow, packetizing link without flow control.
 - [ ] Board drivers / board transport with a real external controller (e.g. MCP2518FD, ENC28J60, W5500).

@@ -56,6 +56,16 @@
         "UMCUB_BOARD": "bluepill_f103c8",
         "UMCUB_CONFIG_POST": "${sourceDir}/tests/configs/bluepill/usb.h"
       }
+    },
+    {
+      "name": "custom",
+      "displayName": "Your board: UMCUB_BOARD (-D or environment) = its directory (Release)",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "UMCUB_BOARD": "$env{UMCUB_BOARD}",
+        "UMCUB_BUILD_EXAMPLES": "OFF"
+      }
     }
   ],
   "buildPresets": [
@@ -64,6 +74,7 @@
     { "name": "h755-per-core-cm7", "configurePreset": "h755-per-core-cm7" },
     { "name": "h755-per-core-cm4", "configurePreset": "h755-per-core-cm4" },
     { "name": "bluepill", "configurePreset": "bluepill" },
-    { "name": "bluepill-usb", "configurePreset": "bluepill-usb" }
+    { "name": "bluepill-usb", "configurePreset": "bluepill-usb" },
+    { "name": "custom", "configurePreset": "custom" }
   ]
 }

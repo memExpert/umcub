@@ -28,9 +28,13 @@ cmake -S umcub -B build/boot -G Ninja -DCMAKE_BUILD_TYPE=Release \
 cmake --build build/boot                # build/boot/umcub_my_board_cm7.{elf,hex,bin}
 ```
 
-`arm-none-eabi-gcc` is taken from `PATH`. A toolchain that is not there, e.g. the one inside STM32CubeIDE, is set
-with `-DUMCUB_TOOLCHAIN_PREFIX=<path>/arm-none-eabi-` (see
-[Bootloader inside STM32CubeIDE](application.md#using-umcub-from-an-ide-stm32cubeide-keil-mdk)).
+The same with the preset `custom` (what IDEs use, builds in `build/custom`):
+`cmake --preset custom -DUMCUB_BOARD=$PWD/boards/my_board -DUMCUB_SIGNING_KEY=$PWD/keys/prod.pem`, or the board in
+the environment variable `UMCUB_BOARD`. In STM32CubeIDE see
+[Bootloader inside STM32CubeIDE](application.md#using-umcub-from-an-ide-stm32cubeide-keil-mdk).
+
+`arm-none-eabi-gcc` is taken from `PATH`. A toolchain that is not there, e.g. the one inside STM32CubeIDE when
+building from a terminal, is set with `-DUMCUB_TOOLCHAIN_PREFIX=<path>/arm-none-eabi-`.
 
 Configuration mistakes stop the build with a message: slots overlapping or off sector boundaries, the wrong slot
 sizes for the mode, a missing scratch area, an HSE the port cannot use, and so on.
