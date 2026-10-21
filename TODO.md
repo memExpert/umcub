@@ -41,18 +41,16 @@ shared drivers (clock, flash, sys, tables), not yet proven on a series that was 
   of the signing key on the device, the key in the image TLV; several keys in open PR mcu-tools/mcuboot#2915).
   Key storage: H7 PCROP / secure-access area; on the F1, RDP level 1 can be defeated by known attacks, so the key
   there is only as safe as the product's physical access.
-- [ ] MCUboot submodule is v2.5.0-rc1 (move to the final v2.5.0 when it is out). Its in-place decryption
-  (`boot_serial_encryption.c`) needs a sector-sized VLA on the stack, assumes uniform sectors and does not validate
-  first, so `src/image/mcuboot/enc_image.c` replaces it (VLA rejected upstream in #2631, success before decryption
-  "expected" in #2770). Two bugs confirmed on main e19ad039 (ASan / host): `boot_enc_zeroize(&enc_data)` writes past
-  one `enc_key_data`; an image without its (unprotected) key TLV is decrypted without a key. Reported: #2911, fix
-  PR #2913 (reworked after review, waiting for the maintainers).
-- [ ] **Waiting for the MCUboot decision on PR #2912** (mcu-tools/mcuboot#2910, reworked after review): an encrypted SMP upload into the
-  primary slot of image 1+ is not decrypted by MCUboot (`bs_upload()` checks `FLASH_AREA_IMAGE_PRIMARY(0)` only).
-  Until then umcub refuses it (rc 3 at the last chunk, `umcub_enc_upload_check()`); encrypted CM4 updates go through
-  the secondary slot. If the PR is merged: move the submodule to a release with it and drop the refusal. If it is
-  rejected: decrypt image 1+ ourselves after such an upload (umcub's `boot_handle_enc_fw()` already handles any
-  image) and keep it covered by tests/host test_dual_enc.c.
+- [ ] MCUboot submodule is v2.5.0-rc1: move it to the first release after v2.5.0-rc2 (our fixes mcu-tools/mcuboot#2912
+  and #2913 were merged into main on 2026-10-21, after rc2). Then:
+  - drop the refusal of an encrypted upload into the primary slot of image 1+ (`image > 0` in
+    `umcub_enc_upload_check()`, src/image/mcuboot/enc_image.c): MCUboot now decrypts it (#2912);
+  - tests/host/test_dual_enc.c: expect that upload to be decrypted (rc 0, both images boot) instead of rc 3;
+  - docs/security.md ("Encrypted images"): image 1 works like image 0.
+
+  `src/image/mcuboot/enc_image.c` still replaces MCUboot's in-place decryption (`boot_serial_encryption.c`): a
+  sector-sized VLA on the stack (rejected upstream in #2631; 128 KiB on the H7), uniform sectors assumed, no
+  validation first ("expected" in #2770). #2913 fixed only its key data cleanup.
 - [ ] Recovery over the network / CAN is not authenticated without `UMCUB_LINK_SECURE` (see docs/configuration.md, "Mode notes
   and limitations").
 - [ ] When the application writes a slot in the same flash bank it executes from, the CPU stalls for the duration of a
