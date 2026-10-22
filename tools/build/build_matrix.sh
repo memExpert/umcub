@@ -51,6 +51,8 @@ configs=(
   "encrypt-images|cm7|Release||feature/encrypt_images.h"
   "bluepill-encrypt|cm3|Release||bluepill/encrypt.h|bluepill_f103c8"
   "per-core-cm4-encrypt|cm4|Release|feature/per_core.h|feature/encrypt_only.h"
+  "blackpill-f411|cm4|Release|||blackpill_f411ce"
+  "blackpill-f411-rs485|cm4|Release||blackpill/rs485.h|blackpill_f411ce"
 )
 
 # One configuration: configure, build, warnings. Writes $dir.result: OK or
@@ -128,6 +130,7 @@ examples=(
   "h755_cm7_app|nucleo_h755zi_q|cm7|0"
   "h755_cm4_app|nucleo_h755zi_q|cm4|1"
   "bluepill_app|bluepill_f103c8||0"
+  "blackpill_app|blackpill_f411ce||0"
 )
 for e in "${examples[@]}"; do
   IFS='|' read -r name eboard ecore eimage <<<"$e"

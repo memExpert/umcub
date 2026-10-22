@@ -99,7 +99,9 @@
 #endif
 /* Erase sector by sector while receiving instead of the whole slot on the
  * first chunk (seconds on 128 KiB sectors, hosts time out meanwhile). */
+#if UMCUB_CFG_ERASE_PROGRESSIVELY
 #define MCUBOOT_ERASE_PROGRESSIVELY
+#endif
 
 #if UMCUB_CFG_SMP_DIRECT_UPLOAD || UMCUB_CFG_UPGRADE_MODE >= UMCUB_MODE_DIRECT_XIP
 /* SMP upload "image" N selects a slot: 0/1 image 0 primary, 2 image 0

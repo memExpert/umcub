@@ -4,8 +4,8 @@ Adding a board to umcub: its configuration, its identity on a bus, external cont
 
 ## Adding a board
 
-Ported families: STM32H7 (H743/H753 and the dual-core H745/H755/H747/H757; not H7A3/B0/H72x/H73x yet) and
-STM32F1 (F103x8/xB). For another series the port comes first, see [Porting](porting.md).
+Ported families: STM32H7 (H743/H753 and the dual-core H745/H755/H747/H757; not H7A3/B0/H72x/H73x yet),
+STM32F1 (F103x8/xB) and STM32F4 (F411xC/xE). For another series the port comes first, see [Porting](porting.md).
 
 **1. Describe the board.** The board directory can live in your own repository (umcub as a submodule):
 `boards/my_board/umcub_config.h`. Copy [`config/umcub_config_minimal.h`](../config/umcub_config_minimal.h) (the part,
@@ -53,13 +53,20 @@ commands (`UMCUB_CMD_USER`), drivers for external controllers (`UMCUB_DRIVER_BOA
 (`UMCUB_CFG_TRANSPORT_USER`); see [External controllers and custom transports](#external-controllers-and-custom-transports).
 
 Things that are easy to get wrong:
-- **Slots.** Slots start and end on sector boundaries. swap-move needs a primary slot one sector larger than the
-  secondary, swap-offset the other way round. Only swap-scratch needs a scratch sector. The last
-  `UMCUB_CFG_TRAILER_RESERVE` bytes of a slot belong to MCUboot.
+- **Slots.** Slots start and end on sector boundaries (checked also where sectors differ in size, as on the F4).
+  swap-move needs a primary slot one sector larger than the secondary, swap-offset the other way round. Only
+  swap-scratch needs a scratch sector. The last `UMCUB_CFG_TRAILER_RESERVE` bytes of a slot belong to MCUboot.
+  With `UMCUB_CFG_ERASE_PROGRESSIVELY` (default; SMP upload erases sector by sector) that reserve must cover the
+  last sector of every slot plus 1 KiB for the TLVs imgtool appends behind the application: MCUboot up to v2.5.0
+  erases that sector again after the upload (mcu-tools/mcuboot#2920) and an image ending in it would be lost. On
+  the H7 the reserve is therefore 129 KiB, on the Blue Pill 2 KiB; a slot of one sector (F4) needs
+  `UMCUB_CFG_ERASE_PROGRESSIVELY 0` (the whole slot is erased on the first chunk). The build checks both, and that
+  a watchdog (`UMCUB_CFG_WATCHDOG_MS`) outlasts one sector erase.
 - **Clocks and power.**
   - STM32H7: HSE must be a multiple of 2 MHz (8, 12, 16, 24 MHz; not 25 MHz). The application must select the same
     power supply (`UMCUB_CFG_PWR_SUPPLY`): it can be set only once per power-up.
   - STM32F1: HSE of 8, 12 or 16 MHz, otherwise HSI.
+  - STM32F4: HSE of 4..26 MHz in whole MHz (25 MHz works), otherwise HSI; 96 MHz (48 MHz for USB).
 - **Pins.** Alternate-function numbers come from the datasheet of your part. F1 has no AF numbers: the remap is
   chosen from the TX pin. Both are checked when CMake configures the bootloader: UART (TX, RX, hardware DE), CAN
   and Ethernet RMII pins against ST's pin data (`third_party/st/stm32_open_pin_data`, `tools/build/check_pins.py`:
@@ -244,3 +251,21 @@ USB cable unplugged.
 CAN (bxCAN, classic CAN, ISO-TP like on the H7) on PB9 TX / PB8 RX with an external transceiver: overlay
 `tests/configs/bluepill/can.h` (+2.4 K, still in the 32 KiB region), host side `tools/host/smp_can.py`. Not together with
 USB: on the F103 both share the same 512 bytes of SRAM (the build refuses it).
+
+**Black Pill** ([`boards/blackpill_f411ce/umcub_config.h`](../boards/blackpill_f411ce/umcub_config.h), WeAct):
+STM32F411CEU6, 25 MHz crystal, SMP over USART1 (PA9 TX, PA10 RX), overwrite mode, bootloader in sectors 0-1
+(32 KiB), slots in sectors 5 and 6 (128 KiB each; sectors 2-4 and 7 stay free). Recovery by KEY (PA0) held during
+reset, LED PC13. A slot is one sector, so SMP upload erases it on the first chunk (about 2 s,
+`UMCUB_CFG_ERASE_PROGRESSIVELY 0`); the CPU stalls meanwhile, so a watchdog (`UMCUB_CFG_WATCHDOG_MS`) needs at
+least 3 s (LSI 17..47 kHz). RS485 through a MAX485 (RO PA10, DI PA9, DE and /RE on PA8): overlay
+`tests/configs/blackpill/rs485.h`. Example application: [`examples/blackpill_app`](../examples/blackpill_app)
+(drives PA8 as DE while sending, so it also talks over RS485):
+
+```sh
+cmake -S . -B build/blackpill -G Ninja -DCMAKE_BUILD_TYPE=Release -DUMCUB_BOARD=blackpill_f411ce -DUMCUB_BUILD_EXAMPLES=ON
+cmake --build build/blackpill
+smpmgr --port /dev/ttyUSB0 --timeout 5 image upload build/blackpill/examples/blackpill_app/blackpill_app.signed.bin
+```
+
+Not ported yet on the F4: USB OTG FS and an entropy source (the F411 has no RNG; umcub link and encrypted images
+need one), so the configure step refuses those options.

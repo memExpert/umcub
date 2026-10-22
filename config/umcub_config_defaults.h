@@ -59,6 +59,14 @@
 #ifndef UMCUB_CFG_TRAILER_RESERVE
 #define UMCUB_CFG_TRAILER_RESERVE       0x2000
 #endif
+#ifndef UMCUB_CFG_ERASE_PROGRESSIVELY
+#define UMCUB_CFG_ERASE_PROGRESSIVELY   1
+#endif
+/* Size of the erase sector holding `a` (layout checks); a family with sectors
+ * of different sizes defines it itself. */
+#if !defined(UMCUB_FAMILY_SECTOR_AT) && defined(UMCUB_FAMILY_UNIFORM_SECTOR)
+#define UMCUB_FAMILY_SECTOR_AT(a)       UMCUB_FAMILY_UNIFORM_SECTOR
+#endif
 #ifndef UMCUB_CFG_SCRATCH_ADDR
 #define UMCUB_CFG_SCRATCH_ADDR          0
 #define UMCUB_CFG_SCRATCH_SIZE          0

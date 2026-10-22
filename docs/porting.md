@@ -6,7 +6,8 @@ Adding an STM32 series and the source tree.
 
 1. `cmake/families/stm32<fam>.cmake`: CPU flags, sources (with `port/arch/cortexm/cortexm_sys.c` and
    `cortexm_common.c`), the `cmsis_device_<fam>` and LL driver submodules.
-2. `port/stm32<fam>/`: `include/umcub_family_defaults.h` (flash write unit, sector size, erased value if not 0xFF),
+2. `port/stm32<fam>/`: `include/umcub_family_defaults.h` (flash write unit, sector size - `UMCUB_FAMILY_UNIFORM_SECTOR`,
+   or `UMCUB_FAMILY_SECTOR_AT(addr)` where sectors differ in size, see `port/stm32f4` - erased value if not 0xFF),
    `include/umcub_family_cmsis.h` (the device header), `include/umcub_family_app.inc` (port sources of the
    application library), register-level flash driver (LL has none), clocks (including restoring the reset state
    before the jump), reset cause, GPIO / IWDG, linker templates, then the optional peripherals (UART, CAN, ETH, USB).
@@ -23,9 +24,14 @@ Adding an STM32 series and the source tree.
    `port/stm32h7/can.c`); the message RAM layout comes from the device header (H7: configurable; a part with the
    fixed layout, e.g. G4, needs its branch in `fdcan.c`). Entropy (SECURE link, encrypted images): with an RNG add
    `rng.c` and give `stm32_rng_clock_on()` (see `port/stm32h7/rng.c`); without one, `umcub_port_entropy()` of
-   your own (the F1 samples ADC noise, `port/stm32f1/entropy.c`).
+   your own (the F1 samples ADC noise, `port/stm32f1/entropy.c`); a family without one sets
+   `UMCUB_FAMILY_UNSUPPORTED_ENTROPY` in its CMake file (like `_CAN`, `_ETH`, `_USB`) so configure refuses the
+   features that need it. Big sectors: see `UMCUB_CFG_ERASE_PROGRESSIVELY` / `UMCUB_CFG_TRAILER_RESERVE`
+   ([Your own board](board.md#adding-a-board), "Slots").
 3. `boards/<board>/umcub_config.h` (and optionally `umcub_board.c`).
-4. Add the new configuration to `tools/build/build_matrix.sh`.
+4. Add the new configuration to `tools/build/build_matrix.sh`; an example application goes into `examples/`, the
+   `_examples` list of `CMakeLists.txt` and the `examples` list of the build matrix (`examples/blackpill_app` is
+   the smallest one to start from).
 
 Rules: no `stm32*.h` / LL includes outside `port/<family>/`; all series differences stay in the port; RAM that must
 survive a reset (handoff area) is written with 32-bit stores only (ECC SRAM loses narrower writes on reset).
@@ -43,7 +49,7 @@ config/          L0  template, defaults, types, compile-time checks
 port/            L1  hardware: include/ (port API umcub_port*.h), arch/cortexm/ (SysTick, deinit, jump, waits,
                      common linker sections), arch/stm32/ (drivers of ST peripherals that several series share: USART v1
                      and v2, bxCAN, FDCAN, RNG; IWDG, UART rings),
-                     port/stm32h7/, port/stm32f1/ (family ports + linker templates)
+                     port/stm32h7/, port/stm32f1/, port/stm32f4/ (family ports + linker templates)
 src/             the bootloader itself:
   util/          L2  log, random (CSPRNG), state (handoff RAM, node address), libc (snprintf, assert), crc16/base64,
                      byte order, version, link keys (generated)
@@ -55,7 +61,7 @@ src/             the bootloader itself:
   boot/          L6  main (entry decision, boot_go, jump), startup, info block
 boards/          board configurations (umcub_config.h, optional umcub_board.c)
 lib/umcub_app/   application library (umcub::app); umcub_app_all.c = the whole library as one file for IDEs
-examples/        CM7 / CM4 applications for NUCLEO-H755ZI-Q, Blue Pill application
+examples/        CM7 / CM4 applications for NUCLEO-H755ZI-Q, Blue Pill and Black Pill applications
 tools/           setup.sh, requirements.txt, keys/ (development keys)
 tools/host/      host tools: umcub_image.py (slot addresses, signing for IDE projects), umcub_inspect.py,
                  umcub_link.py, umcub_lite.py (lite upload), smp_can.py, app_upload.py, umcub_keys.py
@@ -69,7 +75,7 @@ tools/hw/        bench (SWD through probe.py: STM32_Programmer_CLI or pyOCD): pr
                  powerfail_test.py, stack_usage.py, entropy_test.py (+ entropy_sampler_f1.c: F1 ADC entropy
                  measured from SRAM), udev/
 tests/host/      host tests
-tests/configs/   configuration overlays: mode/, transport/, feature/, bluepill/
+tests/configs/   configuration overlays: mode/, transport/, feature/, bluepill/, blackpill/
 tests/tools/     helpers for the build matrix (image comparison, check_pins_test.py: pin check cases)
 tests/boards/    build-matrix boards (custom_drivers: board drivers + board transport)
 ```

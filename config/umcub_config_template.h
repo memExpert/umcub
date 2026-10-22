@@ -87,6 +87,12 @@
  * trailer; imgtool --slot-size checks it). Swap modes need room for the swap
  * status, overwrite only a few dozen bytes: one flash page is plenty. */
 /* #define UMCUB_CFG_TRAILER_RESERVE      0x2000 */
+/* SMP upload erases the slot sector by sector as the chunks arrive (1) or the
+ * whole slot on the first chunk (0; seconds on big sectors, hosts may time
+ * out). MCUboot up to v2.5.0 erases the last sector of the slot again after
+ * the upload (mcu-tools/mcuboot#2920): with 1, UMCUB_CFG_TRAILER_RESERVE must
+ * cover that sector, so a slot of one sector needs 0. */
+/* #define UMCUB_CFG_ERASE_PROGRESSIVELY  1 */
 
 /* ======================================================================== */
 /* MCUboot                                                                  */
@@ -416,7 +422,8 @@
  * this for one build tree. */
 /* #define UMCUB_CFG_LTO                  0 */
 
-/* Independent watchdog fed by the bootloader (timeout in ms, 0 = off). */
+/* Independent watchdog fed by the bootloader (timeout in ms, 0 = off); at least
+ * 1.5 x the erase time of one sector (H7 6 s, F4 3 s, F1 60 ms). */
 /* #define UMCUB_CFG_WATCHDOG_MS          0 */
 
 /* RAM shared with the application (handoff struct, survives reset).

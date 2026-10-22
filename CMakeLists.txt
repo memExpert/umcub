@@ -143,12 +143,16 @@ elseif(UMCUB_CFG_TRANSPORT_USER OR (UMCUB_CFG_TRANSPORT_CAN AND UMCUB_CFG_CAN_DR
 endif()
 
 # --- transports -------------------------------------------------------------
-if(UMCUB_CFG_LINK_ANY)             # umcub link: addressing / discovery on shared buses
-  list(APPEND BOOT_SOURCES src/proto/link.c src/util/random.c ${UMCUB_FAMILY_ENTROPY_SOURCES})
+# src/util/random.c: nonces / back-off of the umcub link, default_CSPRNG for the
+# blinded ECDH of the image key unwrap; both on the port's umcub_port_entropy().
+if(UMCUB_CFG_LINK_ANY OR UMCUB_CFG_ENCRYPT_IMAGES)
+  list(APPEND BOOT_SOURCES src/util/random.c ${UMCUB_FAMILY_ENTROPY_SOURCES})
+endif()
+if(UMCUB_CFG_LINK_ANY)            # umcub link: addressing / discovery on shared buses
+  list(APPEND BOOT_SOURCES src/proto/link.c)
 endif()
 if(UMCUB_CFG_ENCRYPT_IMAGES)       # MCUboot ECIES-P256 image encryption with the device key
-  # src/util/random.c: default_CSPRNG for the blinded ECDH of the key unwrap
-  list(APPEND BOOT_SOURCES src/image/mcuboot/enc_image.c src/util/random.c ${UMCUB_FAMILY_ENTROPY_SOURCES})
+  list(APPEND BOOT_SOURCES src/image/mcuboot/enc_image.c)
   list(APPEND MCUBOOT_SOURCES
     ${MCUBOOT}/boot/bootutil/src/encrypted.c
     ${TINYCRYPT}/source/ecc.c
@@ -187,6 +191,10 @@ foreach(_t CAN ETH)
 endforeach()
 if(UMCUB_FAMILY_UNSUPPORTED_USB AND UMCUB_CFG_USB)
   message(FATAL_ERROR "umcub: ${UMCUB_FAMILY} has no USB device port yet")
+endif()
+if(UMCUB_FAMILY_UNSUPPORTED_ENTROPY AND (UMCUB_CFG_LINK_ANY OR UMCUB_CFG_ENCRYPT_IMAGES))
+  message(FATAL_ERROR "umcub: ${UMCUB_FAMILY} has no entropy source yet (umcub_port_entropy(), needed by "
+                      "the umcub link and encrypted images)")
 endif()
 if(UMCUB_CFG_TRANSPORT_UART)
   list(APPEND BOOT_SOURCES src/transport/uart/uart_transport.c ${UMCUB_FAMILY_UART_SOURCES})
@@ -323,6 +331,8 @@ if(UMCUB_BUILD_EXAMPLES)
     endif()
   elseif(UMCUB_BOARD_NAME STREQUAL "bluepill_f103c8")
     list(APPEND _examples bluepill_app)
+  elseif(UMCUB_BOARD_NAME STREQUAL "blackpill_f411ce")
+    list(APPEND _examples blackpill_app)
   endif()
   if(NOT _examples)
     message(STATUS "umcub: no example application for board ${UMCUB_BOARD_NAME}")
