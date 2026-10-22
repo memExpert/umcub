@@ -29,9 +29,10 @@ BOARD = "nucleo_h755zi_q"
 # name, core, PRE overlay, extra POST lines, board
 CHIPS = [
     ("STM32H755 CM7 (2 images, SINGLE_BOOT)", "cm7", None, ""),
-    # The board gives the CM4 instance only CAN; borrow the CM7 pins to size the rest.
+    # The board gives the CM4 instance only CAN; borrow the CM7 pins to size the rest
+    # (status LED: LD2, the default PC13 is the B1 button there).
     ("STM32H755 CM4 (PER_CORE)", "cm4", "tests/configs/feature/per_core.h",
-     "#define UMCUB_CFG_UART_INSTANCE 3\n#define UMCUB_CFG_UART_BAUD 115200\n"
+     "#define UMCUB_CFG_STATUS_LED_PIN UMCUB_PIN('E', 1, 0)\n#define UMCUB_CFG_UART_INSTANCE 3\n#define UMCUB_CFG_UART_BAUD 115200\n"
      "#define UMCUB_CFG_UART_TX_PIN UMCUB_PIN('D', 8, 7)\n#define UMCUB_CFG_UART_RX_PIN UMCUB_PIN('D', 9, 7)\n"
      "#define UMCUB_CFG_ETH_PHY_ADDR 0\n#define UMCUB_CFG_ETH_RMII_PINS UMCUB_PIN('A', 1, 11), UMCUB_PIN('A', 2, 11), "
      "UMCUB_PIN('A', 7, 11), UMCUB_PIN('C', 1, 11), UMCUB_PIN('C', 4, 11), UMCUB_PIN('C', 5, 11), "

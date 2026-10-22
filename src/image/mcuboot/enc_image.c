@@ -68,16 +68,6 @@ int umcub_enc_upload_check(int image, const struct flash_area *fap)
     if (!IS_ENCRYPTED(&hdr)) {
         return 0;                       /* plain: checked at boot as usual */
     }
-#if UMCUB_CFG_IMAGE_NUMBER > 1
-    if (image > 0) {
-        /* MCUboot up to v2.5.0-rc2 decrypts uploads into the primary slot of
-         * image 0 only (mcu-tools/mcuboot#2910, fixed by #2912 after rc2):
-         * image 1+ would keep the ciphertext. Refuse it instead of answering
-         * success. */
-        UMCUB_LOG_ERR("encrypted image %d: upload it into its secondary slot", image);
-        return -1;
-    }
-#endif
     if (UMCUB_CFG_IMAGE_NUMBER == 1) {
         image = 0;                      /* folds the slot id below */
     }

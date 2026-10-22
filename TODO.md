@@ -49,16 +49,12 @@ shared drivers (clock, flash, sys, tables), not yet proven on a series that was 
   of the signing key on the device, the key in the image TLV; several keys in open PR mcu-tools/mcuboot#2915).
   Key storage: H7 PCROP / secure-access area; on the F1, RDP level 1 can be defeated by known attacks, so the key
   there is only as safe as the product's physical access.
-- [ ] MCUboot submodule is v2.5.0-rc1: move it to the first release after v2.5.0-rc2 (our fixes mcu-tools/mcuboot#2912
-  and #2913 were merged into main on 2026-10-21, after rc2). Then:
-  - drop the refusal of an encrypted upload into the primary slot of image 1+ (`image > 0` in
-    `umcub_enc_upload_check()`, src/image/mcuboot/enc_image.c): MCUboot now decrypts it (#2912);
-  - tests/host/test_dual_enc.c: expect that upload to be decrypted (rc 0, both images boot) instead of rc 3;
-  - docs/security.md ("Encrypted images"): image 1 works like image 0.
-
-  `src/image/mcuboot/enc_image.c` still replaces MCUboot's in-place decryption (`boot_serial_encryption.c`): a
-  sector-sized VLA on the stack (rejected upstream in #2631; 128 KiB on the H7), uniform sectors assumed, no
-  validation first ("expected" in #2770). #2913 fixed only its key data cleanup.
+- [ ] MCUboot in-place decryption: `src/image/mcuboot/enc_image.c` still replaces MCUboot's
+  (`boot_serial_encryption.c`): a sector-sized VLA on the stack (rejected upstream in #2631; 128 KiB on the H7),
+  uniform sectors assumed, no validation first ("expected" in #2770). #2913 fixed only its key data cleanup.
+- [ ] MCUboot v2.5.0 `boot_serial.c` includes `"../bootutil/src/bootutil_loader.h"` (direct-xip / RAM load), found
+  only through the stopgap include directory `${MCUBOOT}/boot/boot_serial` in CMakeLists.txt. Fix prepared, not sent
+  yet (branch boot-serial-loader-include: `"../src/bootutil_loader.h"`); drop the stopgap with the release that has it.
 - [ ] Recovery over the network / CAN is not authenticated without `UMCUB_LINK_SECURE` (see docs/configuration.md, "Mode notes
   and limitations").
 - [ ] When the application writes a slot in the same flash bank it executes from, the CPU stalls for the duration of a

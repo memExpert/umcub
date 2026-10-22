@@ -124,6 +124,9 @@ set(BOOT_INCLUDES
   ${MCUBOOT}/boot/bootutil/src
   ${MCUBOOT}/boot/boot_serial/include
   ${MCUBOOT}/boot/boot_serial/src
+  # MCUboot v2.5.0 boot_serial.c (direct-xip / ram-load) includes
+  # "../bootutil/src/bootutil_loader.h", found only from here. Remove with the upstream fix.
+  ${MCUBOOT}/boot/boot_serial
   ${MCUBOOT}/boot/zcbor/include
   ${TINYCRYPT}/include
   ${MCUBOOT}/ext/mbedtls-asn1/include

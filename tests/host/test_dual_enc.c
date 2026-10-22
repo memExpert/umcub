@@ -1,9 +1,8 @@
 /*
  * umcub host test: encrypted SMP uploads with two images (H755 SINGLE_BOOT,
- * swap-scratch). MCUboot decrypts an upload into the primary slot of image 0
- * only (mcu-tools/mcuboot#2910), so umcub refuses an encrypted upload into the
- * primary slot of image 1 (rc 3) instead of keeping the ciphertext; image 1
- * goes through its secondary slot (direct upload + state-write, swap).
+ * swap-scratch). An encrypted upload into the primary slot of either image is
+ * decrypted in place (image 1+: MCUboot v2.5.0, mcu-tools/mcuboot#2912); with
+ * direct upload image 1 also goes through its secondary slot (state-write, swap).
  *   test_dual_enc <image0 signed> <image0 encrypted> <image1 2.0.0 signed> <image1 2.1.0 signed> <image1 2.1.0 encrypted>
  */
 #include <stdio.h>
@@ -231,31 +230,34 @@ int main(int argc, char **argv)
     uint8_t *p0 = load(argv[1], &p0n), *e0 = load(argv[2], &e0n), *p1 = load(argv[3], &p1n);
     uint8_t *q1 = load(argv[4], &q1n), *e1 = load(argv[5], &e1n);   /* 2.1.0: plain reference, encrypted */
     (void)q1n;
-    (void)q1;
     setvbuf(stdout, NULL, _IONBF, 0);
     fake_flash_reset();
     boot_uf = umcub_mux_funcs_for_test();
 #if !UMCUB_CFG_SMP_DIRECT_UPLOAD
-    printf("[two images] encrypted upload into image 1's primary slot refused (MCUboot would not decrypt it)\n");
+    printf("[two images] encrypted uploads into the primary slots of image 0 and image 1 decrypted\n");
     CHECK(upload(e0, e0n, 0) == 0);                     /* image 0: decrypted in place */
     CHECK(plain_in(UMCUB_CFG_IMG0_PRIMARY_ADDR, p0));
     CHECK(upload(p1, p1n, 1) == 0);                     /* a plain image 1 is fine */
     CHECK(both_boot());
-    CHECK(upload(e1, e1n, 1) == 3);                     /* encrypted image 1: refused at the last chunk */
+    CHECK(upload(e1, e1n, 1) == 0);                     /* encrypted image 1: decrypted in place too */
+    CHECK(plain_in(UMCUB_CFG_IMG1_PRIMARY_ADDR, q1));
+    CHECK(both_boot());
 #else
-    printf("[two images, direct upload] image 0 as 1, image 1 primary (3) refused, secondary (4) + swap\n");
+    printf("[two images, direct upload] image 0 as 1, image 1 secondary (4) + swap, primary (3) decrypted\n");
     CHECK(upload(e0, e0n, 1) == 0);                     /* "image" 1 = image 0's primary slot */
     CHECK(plain_in(UMCUB_CFG_IMG0_PRIMARY_ADDR, p0));
     CHECK(upload(p1, p1n, 3) == 0);
     CHECK(both_boot());
-    CHECK(upload(e1, e1n, 3) == 3);                     /* image 1's primary slot: refused */
-    CHECK(upload(p1, p1n, 3) == 0);                     /* back to a bootable image 1 */
     CHECK(upload(e1, e1n, 4) == 0);                     /* image 1's secondary slot */
     const uint8_t *h = hash_tlv(e1, e1n);
     CHECK(h && state_write_test(h) == 0);
     CHECK(primary_minor(UMCUB_CFG_IMG1_PRIMARY_ADDR) == 0);
     CHECK(both_boot());                                 /* swap: 2.1.0 decrypted into the primary slot */
-    CHECK(primary_minor(UMCUB_CFG_IMG1_PRIMARY_ADDR) == 1 && plain_in(UMCUB_CFG_IMG1_PRIMARY_ADDR, q1));
+    CHECK(primary_minor(UMCUB_CFG_IMG1_PRIMARY_ADDR) == 1);
+    CHECK(plain_in(UMCUB_CFG_IMG1_PRIMARY_ADDR, q1));
+    CHECK(upload(e1, e1n, 3) == 0);                     /* image 1's primary slot: decrypted in place */
+    CHECK(plain_in(UMCUB_CFG_IMG1_PRIMARY_ADDR, q1));
+    CHECK(both_boot());
 #endif
     printf(failures ? "\n%d FAILURE(S)\n" : "\nALL TESTS PASSED\n", failures);
     return failures ? 1 : 0;
