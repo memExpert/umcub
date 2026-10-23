@@ -258,7 +258,8 @@ STM32F411CEU6, 25 MHz crystal, SMP over USART1 (PA9 TX, PA10 RX), overwrite mode
 reset, LED PC13. A slot is one sector, so SMP upload erases it on the first chunk (about 2 s,
 `UMCUB_CFG_ERASE_PROGRESSIVELY 0`); the CPU stalls meanwhile, so a watchdog (`UMCUB_CFG_WATCHDOG_MS`) needs at
 least 3 s (LSI 17..47 kHz). RS485 through a MAX485 (RO PA10, DI PA9, DE and /RE on PA8): overlay
-`tests/configs/blackpill/rs485.h`. Example application: [`examples/blackpill_app`](../examples/blackpill_app)
+`tests/configs/blackpill/rs485.h`; SMP and log on USART2 instead (PA2 TX, PA3 RX, e.g. a USB-UART adapter, with
+USART1 left to the application): `tests/configs/blackpill/usart2.h`. Example application: [`examples/blackpill_app`](../examples/blackpill_app)
 (drives PA8 as DE while sending, so it also talks over RS485):
 
 ```sh

@@ -53,6 +53,7 @@ configs=(
   "per-core-cm4-encrypt|cm4|Release|feature/per_core.h|feature/encrypt_only.h"
   "blackpill-f411|cm4|Release|||blackpill_f411ce"
   "blackpill-f411-rs485|cm4|Release||blackpill/rs485.h|blackpill_f411ce"
+  "blackpill-f411-usart2|cm4|Release||blackpill/usart2.h|blackpill_f411ce"
 )
 
 # One configuration: configure, build, warnings. Writes $dir.result: OK or
