@@ -1,8 +1,10 @@
 /*
  * umcub example application, Black Pill (STM32F411CEU6).
  *
- * Runs on the reset clock the bootloader leaves behind (HSI 16 MHz), blinks
- * the LED on PC13 and talks on USART1 PA9/PA10 (115200), the bootloader's
+ * Starts on the reset clock the bootloader leaves behind (HSI 16 MHz) and
+ * switches to the 25 MHz crystal: HSI is only +-4 % over temperature (DS10314,
+ * more after soldering), too far off for 115200 baud. Blinks the LED on PC13
+ * and talks on USART1 PA9/PA10 (115200), the bootloader's
  * port; PA8 is driven high while sending (DE of an RS485 transceiver, no
  * effect on a plain UART):
  *   i  show bootloader / image information
@@ -167,8 +169,19 @@ static void upload(void)
 int main(void)
 {
     umcub_set_node_address(APP_NODE_ADDR);   /* address on a shared bus, used by the bootloader */
-    /* HSI 16 MHz (reset clock, the bootloader restored it). */
+    /* HSE 25 MHz as SYSCLK (no PLL, 0 wait states up to 30 MHz); stays on
+     * HSI 16 MHz, the reset clock the bootloader restored, without a crystal. */
     SystemCoreClock = 16000000u;
+    RCC->CR |= RCC_CR_HSEON;
+    for (uint32_t n = 0; n < 500000u; n++) {
+        if (RCC->CR & RCC_CR_HSERDY) {
+            RCC->CFGR = (RCC->CFGR & ~RCC_CFGR_SW) | RCC_CFGR_SW_HSE;
+            while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_HSE) {
+            }
+            SystemCoreClock = 25000000u;
+            break;
+        }
+    }
     SysTick_Config(SystemCoreClock / 1000u);
 
     RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN | RCC_AHB1ENR_GPIOCEN;
@@ -179,7 +192,7 @@ int main(void)
     GPIOA->MODER = (GPIOA->MODER & ~(0x3Fu << 16)) | (0x29u << 16); /* PA8 output, PA9/PA10 AF */
     GPIOA->AFR[1] = (GPIOA->AFR[1] & ~0xFF0u) | 0x770u;              /* PA9/PA10 AF7 = USART1 */
     GPIOA->PUPDR = (GPIOA->PUPDR & ~(3u << 20)) | (1u << 20);       /* PA10 pull-up */
-    USART1->BRR = (16000000u + 115200u / 2u) / 115200u;
+    USART1->BRR = (SystemCoreClock + 115200u / 2u) / 115200u;
     USART1->CR1 = USART_CR1_TE | USART_CR1_RE | USART_CR1_UE;
 
     show_info();
