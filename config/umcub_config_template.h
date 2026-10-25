@@ -373,11 +373,12 @@
 /* #define UMCUB_CFG_LOG_LEVEL            0 */
 
 /* EXPERIMENTAL - link-time optimisation of the bootloader (-flto): 3-4 K
- * smaller on Cortex-M3, about 7 K on the H7. Not part of the verified
- * configurations: inlining makes stack frames much larger (check the stack
- * on your part), and weak functions overridden in boards/<b>/umcub_board.c
- * should be checked. Use at your own risk; CMake -DUMCUB_LTO=ON/OFF overrides
- * this for one build tree. */
+ * smaller on Cortex-M3, about 7 K on the H7. Verified on the Blue Pill only
+ * (boot, SMP, overwrite upgrade, SECURE + encrypted images), not on the H7:
+ * inlining makes stack frames much larger (check the stack on your part,
+ * tools/hw/stack_usage.py), and weak functions overridden in
+ * boards/<b>/umcub_board.c should be checked. CMake -DUMCUB_LTO=ON/OFF
+ * overrides this for one build tree. */
 /* #define UMCUB_CFG_LTO                  0 */
 
 /* Independent watchdog fed by the bootloader (timeout in ms, 0 = off); at least
