@@ -103,7 +103,10 @@
  * UMCUB_MODE_SWAP_OFFSET, UMCUB_MODE_DIRECT_XIP, UMCUB_MODE_DIRECT_XIP_REVERT */
 /* #define UMCUB_CFG_UPGRADE_MODE         UMCUB_MODE_OVERWRITE */
 
-/* Signature: UMCUB_SIGN_EC256 (tinycrypt) or UMCUB_SIGN_NONE (hash only). */
+/* Signature: UMCUB_SIGN_EC256 (ECDSA-P256, tinycrypt) or UMCUB_SIGN_NONE:
+ * images carry a SHA-256 only - damaged ones are refused, but anybody's are
+ * booted (no authenticity; about 4.6 K smaller, CMake warns). Only for closed
+ * devices on small parts. */
 /* #define UMCUB_CFG_SIGNATURE            UMCUB_SIGN_EC256 */
 
 /* Refuse images with a lower version than the running one. */

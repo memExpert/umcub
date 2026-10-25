@@ -45,6 +45,7 @@ configs=(
   "lite-upload|cm7|Release||feature/lite_upload.h"
   "minimal-template|cm7|Release|||$PWD/tests/boards/minimal"     # config/umcub_config_minimal.h as it ships
   "bluepill-lite|cm3|Release||feature/lite_upload.h|bluepill_f103c8"
+  "bluepill-sign-none|cm3|Release||feature/sign_none.h|bluepill_f103c8"
   "lto|cm7|Release||feature/lto.h"
   "bluepill-lto|cm3|Release||feature/lto.h|bluepill_f103c8"
   "bluepill-can|cm3|Release||bluepill/can.h|bluepill_f103c8"

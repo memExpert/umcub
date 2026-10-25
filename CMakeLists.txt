@@ -114,6 +114,9 @@ if(UMCUB_CFG_SIGNATURE EQUAL 1)   # UMCUB_SIGN_EC256
     ${CMAKE_BINARY_DIR}/umcub_keys.c
   )
   umcub_generate_pubkey("${UMCUB_SIGNING_KEY}" "${CMAKE_BINARY_DIR}/umcub_keys.c")
+else()
+  message(WARNING "umcub: UMCUB_CFG_SIGNATURE UMCUB_SIGN_NONE - images carry a SHA-256 only: "
+                  "the bootloader rejects damaged images but boots anybody's.")
 endif()
 
 set(BOOT_INCLUDES
