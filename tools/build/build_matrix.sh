@@ -26,6 +26,7 @@ configs=(
   "all-direct-xip|cm7|Release|mode/direct_xip.h|"
   "all-direct-xip-revert|cm7|Release|mode/direct_xip_revert.h|"
   "uart-only|cm7|Release||transport/uart_only.h"
+  "uart-tx-ring|cm7|Release||feature/uart_tx_ring.h"
   "uart-usb|cm7|Release||transport/uart_usb.h"
   "uart-canfd-loopback|cm7|Release||transport/uart_can.h"
   "usb-dfu-only|cm7|Release||transport/usb_dfu_only.h"
@@ -46,6 +47,7 @@ configs=(
   "minimal-template|cm7|Release|||$PWD/tests/boards/minimal"     # config/umcub_config_minimal.h as it ships
   "bluepill-lite|cm3|Release||feature/lite_upload.h|bluepill_f103c8"
   "bluepill-sign-none|cm3|Release||feature/sign_none.h|bluepill_f103c8"
+  "bluepill-tx-ring|cm3|Release||feature/uart_tx_ring.h|bluepill_f103c8"
   "lto|cm7|Release||feature/lto.h"
   "bluepill-lto|cm3|Release||feature/lto.h|bluepill_f103c8"
   "bluepill-can|cm3|Release||bluepill/can.h|bluepill_f103c8"
