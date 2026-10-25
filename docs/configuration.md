@@ -5,8 +5,8 @@ modes.
 
 ## Options
 
-All options are documented in [`config/umcub_config_template.h`](../config/umcub_config_template.h); defaults are in
-`config/umcub_config_defaults.h`. Example: [`boards/nucleo_h755zi_q/umcub_config.h`](../boards/nucleo_h755zi_q/umcub_config.h).
+The options are documented in [`config/umcub_config_template.h`](../config/umcub_config_template.h), the rarely
+changed ones in [Advanced options](#advanced-options) below; defaults are in `config/umcub_config_defaults.h`. Example: [`boards/nucleo_h755zi_q/umcub_config.h`](../boards/nucleo_h755zi_q/umcub_config.h).
 
 | Group | Main options |
 |---|---|
@@ -28,6 +28,31 @@ The configuration can be extended without editing the board file through overlay
 
 Configuration errors (overlapping slots, slots not on sector boundaries, missing scratch area, conflicting modes) are
 caught at compile time (`config/umcub_config_check.h`).
+
+### Advanced options
+
+Not in the template: their defaults fit almost every board, and some of them weaken the bootloader when changed. They
+are set the same way in `umcub_config.h`.
+
+| Option | Default | What it does |
+|---|---|---|
+| `UMCUB_CFG_ENTRY_ON_REQUEST` | 1 | Stay in recovery when the application asked for it (`umcub_enter_bootloader()`). **0 can lock the device out**: without a button or a wait window nothing else brings it back. |
+| `UMCUB_CFG_ENTRY_ON_NO_IMAGE` | 1 | Stay in recovery when no image is bootable. **0 = a device without a valid image is unreachable** (debugger only). |
+| `UMCUB_CFG_LINK_REQUIRE_RDP` | 1 | Keep SECURE transports closed while flash readout protection is off (RDP level 0, the device key can be read with a debugger). 0 only for development. |
+| `UMCUB_CFG_USB_DFU_ALLOW_UNAUTH` | 0 | USB DFU cannot authenticate the host; with a SECURE transport it is refused at build time unless this is 1. |
+| `UMCUB_CFG_LINK_SESSION_MS` | 60000 | An umcub link session ends after this long without a valid frame. |
+| `UMCUB_CFG_USER_LINK` | `UMCUB_LINK_PLAIN` | umcub link mode of the board transport (`UMCUB_CFG_TRANSPORT_USER`), like `UMCUB_CFG_UART_LINK`. |
+| `UMCUB_CFG_LITE_UPLOAD` | 1 without SMP | Lite upload protocol (`tools/host/umcub_lite.py`): begin / data / end frames with CRC, written with `umcub_slot_*` (test or permanent mark, in-place decryption). |
+| `UMCUB_CFG_CMD_REPLY` | 1 | Text commands answer `ok <cmd>` / `? <text>`. |
+| `UMCUB_CFG_SMP_INSPECT_GROUP` | 100 | SMP group id of verify (0) / hash (1) / read (2). |
+| `UMCUB_CFG_IMAGE_VECTOR_CHECK` | 1 | Refuse an image whose reset vector lies outside the slot it runs from (wrong image number, built for the other core), about 200 bytes. |
+| `UMCUB_CFG_ERASE_PROGRESSIVELY` | 1 (F4: 0) | SMP upload erases sector by sector (1) or the whole slot on the first chunk (0; seconds on big sectors). With 1, `UMCUB_CFG_TRAILER_RESERVE` must cover the last sector of every slot plus 1 KiB (mcu-tools/mcuboot#2920, see [Your own board](board.md#adding-a-board)). |
+| `UMCUB_CFG_ENC_INPLACE` | 1 (H7 CM4, F4: 0) | In-place decryption of an encrypted SMP upload into the primary slot, buffering one sector in RAM. Without it encrypted images go through the secondary slot. |
+| `UMCUB_CFG_UART_TX_RING` | 0 | Transmit through a RAM ring of this many bytes (power of two) drained by the UART interrupt, so the log does not stall the boot; the last lines can be lost on a hang. Not with RS485. |
+| `UMCUB_CFG_ETH_DHCP_TIMEOUT_MS` | 10000 | Fall back to `UMCUB_CFG_ETH_IP` when no DHCP lease comes in this time. |
+| `UMCUB_CFG_ETH_SMP_PORT` | 1337 | UDP port of SMP. |
+| `UMCUB_CFG_CORE2_DONE_TIMEOUT_MS` | 3000 | `UMCUB_DUALCORE_PER_CORE`, main core: how long to wait for the second core's bootloader before handing the clocks to the application. |
+| `UMCUB_CFG_APP_WRITE_SLOT` | from the mode | Where `umcub_slot_*()` in the application writes by default: `UMCUB_SLOT_SECONDARY`, `UMCUB_SLOT_PRIMARY`, `UMCUB_SLOT_INACTIVE` (direct-xip). |
 
 ### Dual-core H745/H755/H747/H757
 

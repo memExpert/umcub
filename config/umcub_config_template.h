@@ -13,6 +13,10 @@
  *   UMCUB_BUILDING_APP               - defined when an application includes
  *                                      this file through umcub::app
  *
+ * Rarely changed and safety-relevant options (entry conditions, link
+ * escapes, timeouts, ids) are not listed here: docs/configuration.md,
+ * "Advanced options". They take the same #define in this file.
+ *
  * Helper macros (from umcub_config_types.h): UMCUB_KB(n), UMCUB_MB(n),
  * UMCUB_PIN(port, pin) (the alternate function filled in from ST's pin data
  * when CMake configures) or UMCUB_PIN(port, pin, af), UMCUB_IP4(a, b, c, d).
@@ -39,9 +43,6 @@
  *   UMCUB_DUALCORE_PER_CORE    - every core runs its own bootloader instance
  *                                with its own image(s) and transports        */
 /* #define UMCUB_CFG_DUALCORE_MODE        UMCUB_DUALCORE_NONE */
-/* PER_CORE, main core: how long to wait for the second core's bootloader
- * before the clocks are handed to the application (then they stay running). */
-/* #define UMCUB_CFG_CORE2_DONE_TIMEOUT_MS 3000 */
 
 /* ======================================================================== */
 /* Clocks / power (family port computes the PLL settings)                  */
@@ -88,12 +89,6 @@
  * trailer; imgtool --slot-size checks it). Swap modes need room for the swap
  * status, overwrite only a few dozen bytes: one flash page is plenty. */
 /* #define UMCUB_CFG_TRAILER_RESERVE      0x2000 */
-/* SMP upload erases the slot sector by sector as the chunks arrive (1) or the
- * whole slot on the first chunk (0; seconds on big sectors, hosts may time
- * out). MCUboot up to v2.5.0 erases the last sector of the slot again after
- * the upload (mcu-tools/mcuboot#2920): with 1, UMCUB_CFG_TRAILER_RESERVE must
- * cover that sector, so a slot of one sector needs 0. */
-/* #define UMCUB_CFG_ERASE_PROGRESSIVELY  1 */
 
 /* ======================================================================== */
 /* MCUboot                                                                  */
@@ -130,10 +125,6 @@
 /* Entering the bootloader (recovery / update mode)                         */
 /* ======================================================================== */
 
-/* Application asked for it via umcub_enter_bootloader(). */
-/* #define UMCUB_CFG_ENTRY_ON_REQUEST     1 */
-/* No bootable image found. */
-/* #define UMCUB_CFG_ENTRY_ON_NO_IMAGE    1 */
 /* Button / strap pin held at reset. */
 /* #define UMCUB_CFG_ENTRY_GPIO           0 */
 /* #define UMCUB_CFG_ENTRY_GPIO_PIN       UMCUB_PIN('C', 13) */
@@ -169,7 +160,8 @@
 
 /* SMP (MCUboot serial recovery: mcumgr / smpmgr) on UART, USB CDC, CAN, UDP
  * and the board transport. 0 leaves boot_serial, zcbor and the SMP framing
- * out (about 10 K): images then come through the lite upload protocol below,
+ * out (about 10 K): images then come through the lite upload protocol
+ * (UMCUB_CFG_LITE_UPLOAD, on by default without SMP),
  * USB DFU, the application (umcub_slot_*) or the board's own protocol. */
 /* #define UMCUB_CFG_SMP_ENABLE           1 */
 /* Largest SMP packet (decoded); every SMP buffer is this size (RAM only).
@@ -191,11 +183,6 @@
  * "image slot-info" along, about 2.4 K; without it "state-read" lists
  * versions only. */
 /* #define UMCUB_CFG_SMP_DIRECT_UPLOAD    0 */
-/* Built-in lite upload protocol (about 1 K plus the slot writer; host tool
- * tools/host/umcub_lite.py): begin / data / end frames with CRC on the same
- * transports, written with umcub_slot_* (header check, test or permanent
- * mark, in-place decryption of encrypted images). Default: on without SMP. */
-/* #define UMCUB_CFG_LITE_UPLOAD          (1 - UMCUB_CFG_SMP_ENABLE) */
 /* Board protocol: frames that are neither SMP, lite nor a text command go to
  * umcub_proto_user() in boards/<b>/umcub_board.c (packets of packet
  * transports and umcub link DATA payloads; on stream transports lines
@@ -217,8 +204,6 @@
  * 0: only after Enter (CR or LF). A command that is the beginning of
  * another one ("r" and "read") always waits for Enter. */
 /* #define UMCUB_CFG_CMD_IMMEDIATE        1 */
-/* Send "ok <cmd>" / "? <text>" replies. */
-/* #define UMCUB_CFG_CMD_REPLY            1 */
 /* Table of UMCUB_CMD("text", action). Actions: UMCUB_CMD_BOOT_APP,
  * UMCUB_CMD_STAY, UMCUB_CMD_RESET, UMCUB_CMD_INFO, UMCUB_CMD_USER(n).
  * UMCUB_CMD_USER(n) calls umcub_cmd_user(n, text, reply) - implement it in
@@ -252,20 +237,12 @@
  * an encrypted umcub link session (UMCUB_LINK_SECURE + UMCUB_CFG_LINK_ENCRYPT),
  * never over USB DFU. Not available in the direct-xip modes. */
 /* #define UMCUB_CFG_ENCRYPT_IMAGES       0 */
-/* In-place decryption of an encrypted SMP upload into the primary slot; costs
- * one flash sector of RAM (default 1, 0 on the H7 CM4 bootloader). Without it
- * encrypted images go through the secondary slot (USB DFU, the application,
- * or SMP with UMCUB_CFG_SMP_DIRECT_UPLOAD to image 2); an encrypted image
- * uploaded into the primary slot stays invalid. */
-/* #define UMCUB_CFG_ENC_INPLACE          1 */
 /* Swap modes: during an update MCUboot keeps the AES keys of both images in
  * the slot trailers until the swap is over (resume after a reset, revert).
  * 1 stores the encrypted key TLVs there instead (MCUBOOT_SWAP_SAVE_ENCTLV):
  * flash never holds a plain image key, it is unwrapped with the device key
  * when needed. Signing passes --save-enctlv (bigger trailer). */
 /* #define UMCUB_CFG_SWAP_SAVE_ENCTLV     1 */
-/* SMP group id of verify (0) / hash (1) / read (2) for host software. */
-/* #define UMCUB_CFG_SMP_INSPECT_GROUP    100 */
 
 /* ======================================================================== */
 /* Transports                                                               */
@@ -285,15 +262,6 @@
 /* #define UMCUB_CFG_UART_DE_ACTIVE       1     (1 = DE high while sending) */
 /* Pause before answering, so the host has released the bus (ms). */
 /* #define UMCUB_CFG_UART_TURNAROUND_MS   0 */
-/* Transmit through a RAM ring of this many bytes (power of two, e.g. 512),
- * drained by the UART interrupt: writes (log, SMP answers) return at once and
- * the boot log overlaps the signature check instead of stalling it (~5 ms per
- * 60-character line at 115200). 0 = blocking writes (default). Costs the RAM
- * and ~0.1-0.2 K of code; the ring is drained before the jump, but on a hang,
- * fault or reset the last lines can stay in RAM and never reach the UART -
- * keep 0 when the log is used to find where the bootloader stops. Not with
- * RS485 (UMCUB_CFG_UART_DE_PIN). */
-/* #define UMCUB_CFG_UART_TX_RING         0 */
 
 /* --- USB device (tinyUSB): CDC-ACM with SMP and/or DFU ------------------ */
 /* #define UMCUB_CFG_TRANSPORT_USB_CDC    0 */
@@ -327,13 +295,11 @@
 /* --- Ethernet: SMP over UDP, minimal IPv4 stack with DHCP --------------- */
 /* #define UMCUB_CFG_TRANSPORT_ETH        0 */
 /* #define UMCUB_CFG_ETH_DHCP             1 */
-/* Used when DHCP is off, or as fallback after UMCUB_CFG_ETH_DHCP_TIMEOUT_MS. */
+/* Used when DHCP is off, or as fallback when no lease comes. */
 /* #define UMCUB_CFG_ETH_IP               UMCUB_IP4(192, 168, 1, 50) */
 /* #define UMCUB_CFG_ETH_NETMASK          UMCUB_IP4(255, 255, 255, 0) */
-/* #define UMCUB_CFG_ETH_DHCP_TIMEOUT_MS  10000 */
 /* MAC: 0 = derived from the MCU unique ID (locally administered). */
 /* #define UMCUB_CFG_ETH_MAC              0 */
-/* #define UMCUB_CFG_ETH_SMP_PORT         1337 */
 /* #define UMCUB_CFG_ETH_PHY_ADDR         0 */
 /* RMII pins as an initializer list of UMCUB_PIN(...). */
 /* #define UMCUB_CFG_ETH_RMII_PINS        UMCUB_PIN('A', 1), ... */
@@ -364,7 +330,6 @@
 /* #define UMCUB_CFG_USB_CDC_LINK         UMCUB_LINK_PLAIN */
 /* #define UMCUB_CFG_CAN_LINK             UMCUB_LINK_PLAIN */
 /* #define UMCUB_CFG_ETH_LINK             UMCUB_LINK_PLAIN */
-/* #define UMCUB_CFG_USER_LINK            UMCUB_LINK_PLAIN */
 
 /* UMCUB_LINK_SECURE: a host must prove it holds the admin key (ECDSA over a
  * fresh challenge) before the bootloader executes anything; the session keys
@@ -376,15 +341,6 @@
 /* #define UMCUB_CFG_LINK_ENCRYPT         0 */
 /* SECURE needs UMCUB_CFG_VALIDATE_PRIMARY and, with the watchdog on,
  * UMCUB_CFG_WATCHDOG_MS >= 2000 (an AUTH costs two ECC operations). */
-/* Keep SECURE transports closed while flash readout protection is off (RDP
- * level 0): without it the device key can be read out with a debugger. Set 0
- * only for development. */
-/* #define UMCUB_CFG_LINK_REQUIRE_RDP     1 */
-/* A session ends after this long without a valid frame. */
-/* #define UMCUB_CFG_LINK_SESSION_MS      60000 */
-/* USB DFU cannot authenticate the host. With any SECURE transport it is
- * refused at build time unless this is set. */
-/* #define UMCUB_CFG_USB_DFU_ALLOW_UNAUTH 0 */
 /* A PLAIN transport next to a SECURE one gives unauthenticated access through
  * that transport; the build warns unless this is set. */
 /* #define UMCUB_CFG_LINK_MIXED_OK        0 */
@@ -401,10 +357,6 @@
  * can never be booted, even when it is signed with the same key. */
 /* #define UMCUB_CFG_BOARD_TYPE           0 */
 /* #define UMCUB_CFG_BOARD_REV            0 */
-/* Reject an image whose reset vector lies outside the slot it runs from (built
- * for another image / core, or uploaded with the wrong image number), before
- * MCUboot validates it. About 200 bytes. */
-/* #define UMCUB_CFG_IMAGE_VECTOR_CHECK   1 */
 
 /* The node address on a shared bus, in this order: from the application
  * (umcub_set_node_address(), kept over resets, not over power-off), from
@@ -441,9 +393,5 @@
 /* RAM shared with the application (handoff struct, survives reset).
  * Must be outside of the application's .data/.bss. */
 /* #define UMCUB_CFG_SHARED_RAM_ADDR      0x3800FF00 */
-
-/* Where umcub_slot_*() in the application writes by default:
- * UMCUB_SLOT_SECONDARY, UMCUB_SLOT_PRIMARY, UMCUB_SLOT_INACTIVE. */
-/* #define UMCUB_CFG_APP_WRITE_SLOT       UMCUB_SLOT_SECONDARY */
 
 #endif /* UMCUB_CONFIG_H */
