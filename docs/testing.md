@@ -3,7 +3,7 @@
 The build matrix, host tests, simulated devices and the hardware tests.
 
 ```sh
-tools/build/build_matrix.sh                 # 42 bootloader configurations (side by side, JOBS=n), examples, IDE checks,
+tools/build/build_matrix.sh                 # 41 bootloader configurations (side by side, JOBS=n), examples, IDE checks,
                                             # host tests; warning-free
 ctest --test-dir build/matrix/host    # host tests only
 tests/host/link_e2e.py build/matrix/host   # simulated devices: umcub link bus, smpmgr, host tools, lite upload
@@ -13,7 +13,7 @@ tools/build/check_docs.py                   # README and docs/ still match the r
 
 Host tests (`tests/host`) run the real MCUboot (boot_go, boot_serial, ECDSA) on an emulated H7 flash (32-byte
 words, no double programming) through the umcub transport layer. Covered: SMP upload / echo / list over the packet
-and stream paths (including two interleaved streams), swap → revert → confirm in scratch / move / offset modes, SMP
+and stream paths (including two interleaved streams), swap → revert → confirm in scratch / offset modes, SMP
 upload into the secondary slot (`UMCUB_CFG_SMP_DIRECT_UPLOAD`) marked by `image state-write` for a test or for good, text
 commands, verify / hash / read, ISO-TP classic/FD, DHCP / ARP / ICMP, board-supplied drivers and transports, the
 status LED patterns (listening, data, a failed transport init), the

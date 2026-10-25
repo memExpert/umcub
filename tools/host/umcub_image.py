@@ -31,7 +31,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 DEV_KEY = ROOT / "tools/keys/dev-ecdsa-p256.pem"
 DEV_DEVICE_KEY = ROOT / "tools/keys/dev-device-p256.pem"
-MODES = {1: "overwrite", 2: "swap-scratch", 3: "swap-move", 4: "swap-offset",
+MODES = {1: "overwrite", 2: "swap-scratch", 4: "swap-offset",
          5: "direct-xip", 6: "direct-xip-revert"}
 
 
@@ -275,7 +275,7 @@ def cmd_sign(cfg, a):
     slot_addr, slot_size = cfg.slot(a.image, slot)
     if not slot_size:
         die(f"image {a.image} slot {slot} is not configured")
-    if not cfg.xip():                               # secondary may be smaller (swap-move)
+    if not cfg.xip():                               # slots may differ in size (swap-offset)
         sec = cfg.slot(a.image, 1)[1]
         if sec and sec < slot_size:
             slot_size = sec

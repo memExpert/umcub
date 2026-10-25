@@ -11,7 +11,7 @@ Ethernet. A board is one configuration file; what you do not enable is not compi
   - CAN / CAN FD — SMP over ISO-TP (`tools/host/smp_can.py`);
   - Ethernet — SMP over UDP with DHCP (`smpmgr --ip`, `mcumgr --conntype udp`);
   - from the application itself (`umcub_slot_*`), or a lite protocol / your own one without SMP.
-- **MCUboot upgrade modes**: overwrite, swap-scratch, swap-move, swap-offset, direct-xip (with or without revert).
+- **MCUboot upgrade modes**: overwrite, swap-scratch, swap-offset, direct-xip (with or without revert).
 - **Images** signed with ECDSA-P256 (`imgtool`), optionally encrypted for the device.
 - **Several devices on one bus** (RS485, CAN, Ethernet): node addresses, a SECURE mode with authentication and
   encryption ([umcub link](docs/link.md)).

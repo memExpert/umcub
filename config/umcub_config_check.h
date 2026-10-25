@@ -56,13 +56,10 @@
 #error "umcub: scratch area overlaps an image 0 slot"
 #endif
 
-/* swap-move needs the extra sector in the primary slot, swap-offset in the
- * secondary slot (MCUboot docs/design.md). */
-#if UMCUB_CFG_UPGRADE_MODE == UMCUB_MODE_SWAP_MOVE && \
-    (UMCUB_CFG_IMG0_PRIMARY_SIZE < UMCUB_CFG_IMG0_SECONDARY_SIZE || \
-     UMCUB_CFG_IMG1_PRIMARY_SIZE < UMCUB_CFG_IMG1_SECONDARY_SIZE)
-#error "umcub: swap-move: primary slot must be >= secondary slot (ideally + 1 sector)"
+#if UMCUB_CFG_UPGRADE_MODE == 3
+#error "umcub: swap-move was removed - use UMCUB_MODE_SWAP_OFFSET (the secondary slot one sector larger instead of the primary)"
 #endif
+/* swap-offset needs the extra sector in the secondary slot (MCUboot docs/design.md). */
 #if UMCUB_CFG_UPGRADE_MODE == UMCUB_MODE_SWAP_OFFSET && \
     (UMCUB_CFG_IMG0_SECONDARY_SIZE < UMCUB_CFG_IMG0_PRIMARY_SIZE || \
      UMCUB_CFG_IMG1_SECONDARY_SIZE < UMCUB_CFG_IMG1_PRIMARY_SIZE)

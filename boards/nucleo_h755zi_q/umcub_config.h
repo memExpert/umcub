@@ -44,12 +44,9 @@
 #define H755_BANK2                      0x08100000
 
 /* Sector arithmetic shared by both cores' slot sets: base = bank of the
- * images, first = first image sector. Primary gets one extra sector for
- * swap-move, secondary one extra for swap-offset. */
-#if UMCUB_CFG_UPGRADE_MODE == UMCUB_MODE_SWAP_MOVE
-#define H755_PRI_SECTORS 4
-#define H755_SEC_SECTORS 3
-#elif UMCUB_CFG_UPGRADE_MODE == UMCUB_MODE_SWAP_OFFSET
+ * images, first = first image sector. The secondary gets one extra sector
+ * for swap-offset. */
+#if UMCUB_CFG_UPGRADE_MODE == UMCUB_MODE_SWAP_OFFSET
 #define H755_PRI_SECTORS 3
 #define H755_SEC_SECTORS 4
 #else

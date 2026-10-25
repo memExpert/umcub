@@ -21,7 +21,6 @@ fi
 configs=(
   "all-swap-scratch|cm7|Release||"
   "all-overwrite|cm7|Release|mode/overwrite.h|"
-  "all-swap-move|cm7|Release|mode/swap_move.h|"
   "all-swap-offset|cm7|Release|mode/swap_offset.h|"
   "all-direct-xip|cm7|Release|mode/direct_xip.h|"
   "all-direct-xip-revert|cm7|Release|mode/direct_xip_revert.h|"
@@ -178,7 +177,7 @@ if command -v clang >/dev/null; then
 fi
 # The single translation unit in every upgrade mode (mode-specific code must
 # not clash: static names are shared by all library sources there).
-for m in overwrite swap_move swap_offset direct_xip direct_xip_revert; do
+for m in overwrite swap_offset direct_xip direct_xip_revert; do
   arm-none-eabi-gcc -mcpu=cortex-m7 -mthumb -mfpu=fpv5-d16 -mfloat-abi=hard \
     "-DUMCUB_CONFIG_PRE=\"$PWD/tests/configs/mode/$m.h\"" "${ide_flags[@]}" -o "$OUT/ide_$m.o" >>"$OUT/ide.log" 2>&1 ||
     { echo "FAIL IDE build ($m), see $OUT/ide.log"; fail=1; ide_ok+=" ($m FAILED)"; }

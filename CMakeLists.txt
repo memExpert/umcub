@@ -79,7 +79,6 @@ set(MCUBOOT_SOURCES
   ${MCUBOOT}/boot/bootutil/src/loader.c
   ${MCUBOOT}/boot/bootutil/src/swap_misc.c
   ${MCUBOOT}/boot/bootutil/src/swap_scratch.c
-  ${MCUBOOT}/boot/bootutil/src/swap_move.c
   ${MCUBOOT}/boot/bootutil/src/swap_offset.c
   ${MCUBOOT}/boot/bootutil/src/tlv.c
   ${TINYCRYPT}/source/sha256.c

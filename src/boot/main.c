@@ -40,7 +40,7 @@
 #endif
 
 static const char *const mode_names[] __attribute__((unused)) = {
-    "?", "overwrite", "swap-scratch", "swap-move", "swap-offset", "direct-xip", "direct-xip-revert",
+    "?", "overwrite", "swap-scratch", "?", "swap-offset", "direct-xip", "direct-xip-revert",
 };
 
 static bool entry_gpio_active(void)

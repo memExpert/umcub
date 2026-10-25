@@ -20,15 +20,15 @@
 #define UMCUB_CFG_PWR_SUPPLY            UMCUB_H7_SUPPLY_LDO /* H7 only: as on your board */
 
 /* --- flash (yours): bootloader, then the two slots of the application ---- */
-/* Whole erase sectors (H7: 128 KiB). swap-move: the primary slot is one
- * sector larger than the secondary. The application is linked for the
+/* Whole erase sectors (H7: 128 KiB). swap-offset: the secondary slot is one
+ * sector larger than the primary. The application is linked for the
  * primary slot (tools/host/umcub_image.py info prints where). */
-#define UMCUB_CFG_UPGRADE_MODE          UMCUB_MODE_SWAP_MOVE
+#define UMCUB_CFG_UPGRADE_MODE          UMCUB_MODE_SWAP_OFFSET
 #define UMCUB_CFG_BOOT_SIZE             UMCUB_KB(128)
 #define UMCUB_CFG_IMG0_PRIMARY_ADDR     0x08020000
-#define UMCUB_CFG_IMG0_PRIMARY_SIZE     UMCUB_KB(512)
-#define UMCUB_CFG_IMG0_SECONDARY_ADDR   0x080A0000
-#define UMCUB_CFG_IMG0_SECONDARY_SIZE   UMCUB_KB(384)
+#define UMCUB_CFG_IMG0_PRIMARY_SIZE     UMCUB_KB(384)
+#define UMCUB_CFG_IMG0_SECONDARY_ADDR   0x08080000
+#define UMCUB_CFG_IMG0_SECONDARY_SIZE   UMCUB_KB(512)
 
 /* --- how to get into the bootloader (yours) ------------------------------ */
 /* A button (here PC13, low = pressed); the application can always ask

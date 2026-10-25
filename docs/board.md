@@ -66,8 +66,8 @@ address to the bootloader (several boards with `UMCUB_CFG_NODE_ADDR_FLASH` on on
 
 Things that are easy to get wrong:
 - **Slots.** Slots start and end on sector boundaries (checked also where sectors differ in size, as on the F4).
-  swap-move needs a primary slot one sector larger than the secondary, swap-offset the other way round. Only
-  swap-scratch needs a scratch sector. The last `UMCUB_CFG_TRAILER_RESERVE` bytes of a slot belong to MCUboot.
+  swap-offset needs a secondary slot one sector larger than the primary. Only swap-scratch needs a scratch
+  sector. The last `UMCUB_CFG_TRAILER_RESERVE` bytes of a slot belong to MCUboot.
   With `UMCUB_CFG_ERASE_PROGRESSIVELY` (default; SMP upload erases sector by sector) that reserve must cover the
   last sector of every slot plus 1 KiB for the TLVs imgtool appends behind the application: MCUboot up to v2.5.0
   erases that sector again after the upload (mcu-tools/mcuboot#2920) and an image ending in it would be lost. On

@@ -68,7 +68,7 @@
 /* UMCUB_CFG_UPGRADE_MODE */
 #define UMCUB_MODE_OVERWRITE        1
 #define UMCUB_MODE_SWAP_SCRATCH     2
-#define UMCUB_MODE_SWAP_MOVE        3
+/* 3 was swap-move (removed: swap-offset does the same with less flash wear) */
 #define UMCUB_MODE_SWAP_OFFSET      4
 #define UMCUB_MODE_DIRECT_XIP       5
 #define UMCUB_MODE_DIRECT_XIP_REVERT 6

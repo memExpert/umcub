@@ -143,7 +143,7 @@ static __attribute__((noreturn)) void flush_and_reset(umcub_cmd_reply_t reply)
 
 static void info(umcub_cmd_reply_t reply)
 {
-    static const char *const modes[] = { "?", "overwrite", "swap-scratch", "swap-move", "swap-offset",
+    static const char *const modes[] = { "?", "overwrite", "swap-scratch", "?", "swap-offset",
                                          "direct-xip", "direct-xip-revert" };
     say(reply, "umcub %d.%d.%d %s %s images %d", UMCUB_VERSION_MAJOR, UMCUB_VERSION_MINOR,
         UMCUB_VERSION_PATCH, UMCUB_BOARD_NAME, modes[UMCUB_CFG_UPGRADE_MODE], UMCUB_CFG_IMAGE_NUMBER);

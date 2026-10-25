@@ -94,8 +94,8 @@
 /* MCUboot                                                                  */
 /* ======================================================================== */
 
-/* UMCUB_MODE_OVERWRITE, UMCUB_MODE_SWAP_SCRATCH, UMCUB_MODE_SWAP_MOVE,
- * UMCUB_MODE_SWAP_OFFSET, UMCUB_MODE_DIRECT_XIP, UMCUB_MODE_DIRECT_XIP_REVERT */
+/* UMCUB_MODE_OVERWRITE, UMCUB_MODE_SWAP_SCRATCH, UMCUB_MODE_SWAP_OFFSET,
+ * UMCUB_MODE_DIRECT_XIP, UMCUB_MODE_DIRECT_XIP_REVERT */
 /* #define UMCUB_CFG_UPGRADE_MODE         UMCUB_MODE_OVERWRITE */
 
 /* Signature: UMCUB_SIGN_EC256 (ECDSA-P256, tinycrypt) or UMCUB_SIGN_NONE:
