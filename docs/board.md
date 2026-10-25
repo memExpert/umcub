@@ -52,6 +52,16 @@ also program the option bytes (`tools/hw/h755_option_bytes.py`). For production,
 commands (`UMCUB_CMD_USER`), drivers for external controllers (`UMCUB_DRIVER_BOARD`) or a transport of your own
 (`UMCUB_CFG_TRANSPORT_USER`); see [External controllers and custom transports](#external-controllers-and-custom-transports).
 
+**7. Optional: an example application.** The console examples share
+[`examples/common/umcub_example.c`](../examples/common/umcub_example.h): keys `i c b u w r`, the info from
+`umcub_boot_info()`, the upload protocol of `tools/host/app_upload.py`. A board's example only brings the clock,
+the pins and five functions (`ex_putc`, `ex_getc`, `ex_millis`, `ex_led_toggle`, `ex_watchdog_feed`), then calls
+`ex_run()`: copy `examples/blackpill_app` (about 70 lines). `boards/my_board/umcub_examples.cmake` lists the
+examples `-DUMCUB_BUILD_EXAMPLES=ON` builds with the bootloader (`list(APPEND UMCUB_BOARD_EXAMPLES my_app)`, a
+directory under `examples/` or an absolute path). The examples hand `-DAPP_NODE_ADDR=<n>` (default 0) to the
+bootloader with `umcub_set_node_address()`, which beats an address in flash; `-DAPP_NODE_ADDR=none` leaves the
+address to the bootloader (several boards with `UMCUB_CFG_NODE_ADDR_FLASH` on one bus).
+
 Things that are easy to get wrong:
 - **Slots.** Slots start and end on sector boundaries (checked also where sectors differ in size, as on the F4).
   swap-move needs a primary slot one sector larger than the secondary, swap-offset the other way round. Only

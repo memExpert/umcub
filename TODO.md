@@ -7,10 +7,7 @@ Goal: a user adds a board without reading the internals. Today, a board on a por
 flash, sys, tables): the F411 took about 470 lines of C/H (2026-10-22).
 
 - [ ] **1. Rest of the F4 port.** Other F4 parts (sector map and SRAM per part).
-  G4 later: needs a branch in `fdcan.c` for its fixed message RAM layout. Examples: let a board declare its
-  example applications instead of the `elseif` chain in CMakeLists.txt, and move what the Blue Pill and Black Pill
-  examples share (info printing, the `u` upload protocol of tools/host/app_upload.py) into examples/common
-  (needs both boards to test).
+  G4 later: needs a branch in `fdcan.c` for its fixed message RAM layout.
 
 ## Hardware verification (NUCLEO-H755ZI-Q)
 

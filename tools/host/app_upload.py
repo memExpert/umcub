@@ -3,8 +3,9 @@
 
   app_upload.py /dev/ttyACM0 build/h755_cm7_app.signed.bin [--image 0]
 
-Protocol of examples/h755_cm7_app: 'u' <image:u8, bit 7 = primary slot> <size:u32le>, then chunks
-of 1024 bytes, each acknowledged with 'K'; final 'D' (done) or 'E' (error).
+Protocol of the console examples (examples/common/umcub_example.c): 'u' <image:u8,
+bit 7 = primary slot> <size:u32le>, then chunks of 1024 bytes, each acknowledged
+with 'K'; final 'D' (done) or 'E' (error).
 """
 import argparse
 import struct

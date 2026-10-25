@@ -9,10 +9,10 @@
 
 int main(void)
 {
-    ex_led_init('E', 1);
+    h7_led_init('E', 1);
     for (uint32_t t = 0;; t++) {
-        ex_led_toggle('E', 1);
-        ex_delay_ms(100);
+        h7_led_toggle('E', 1);
+        h7_delay_ms(100);
         if (t == 50) {
             (void)umcub_confirm();
         }

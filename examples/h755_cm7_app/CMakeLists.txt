@@ -8,7 +8,7 @@ set(CMAKE_TOOLCHAIN_FILE ${CMAKE_CURRENT_LIST_DIR}/../../cmake/arm-none-eabi.cma
 project(h755_cm7_app C ASM)
 
 set(APP_VERSION "1.0.0" CACHE STRING "Image version written by imgtool")
-set(APP_NODE_ADDR "0" CACHE STRING "Node address handed to the bootloader (0 = unassigned)")
+set(APP_NODE_ADDR "0" CACHE STRING "Node address handed to the bootloader (0 = unassigned, none = keep the bootloader's own)")
 set(APP_SLOT "0" CACHE STRING "direct-xip modes: slot the image is linked for (0 primary, 1 secondary)")
 set(UMCUB_BOARD nucleo_h755zi_q)
 set(UMCUB_CORE cm7)
@@ -18,12 +18,13 @@ set(ST ${UMCUB_ROOT}/third_party/st/cmsis_device_h7)
 add_executable(h755_cm7_app
   main.c
   ../common/h7_example.c
+  ../common/umcub_example.c
   ${ST}/Source/Templates/gcc/startup_stm32h755xx.s
   ${ST}/Source/Templates/system_stm32h7xx_dualcore_boot_cm4_cm7.c)
 target_include_directories(h755_cm7_app PRIVATE
   ../common ${ST}/Include ${UMCUB_ROOT}/third_party/cmsis_core/Include)
 target_compile_definitions(h755_cm7_app PRIVATE
-  STM32H755xx CORE_CM7 USE_PWR_DIRECT_SMPS_SUPPLY APP_VERSION_STR="${APP_VERSION}" APP_NODE_ADDR=${APP_NODE_ADDR})
+  STM32H755xx CORE_CM7 USE_PWR_DIRECT_SMPS_SUPPLY APP_VERSION_STR="${APP_VERSION}" $<$<NOT:$<STREQUAL:${APP_NODE_ADDR},none>>:APP_NODE_ADDR=${APP_NODE_ADDR}>)
 target_compile_options(h755_cm7_app PRIVATE ${UMCUB_CPU_FLAGS_HARD} -Os -g -Wall -Wextra
   $<$<COMPILE_LANGUAGE:ASM>:-x assembler-with-cpp>)
 target_link_options(h755_cm7_app PRIVATE ${UMCUB_CPU_FLAGS_HARD} --specs=nano.specs --specs=nosys.specs -nostartfiles

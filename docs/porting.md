@@ -33,8 +33,8 @@ Adding an STM32 series and the source tree.
    ([Your own board](board.md#adding-a-board), "Slots").
 3. `boards/<board>/umcub_config.h` (and optionally `umcub_board.c`).
 4. Add the new configuration to `tools/build/build_matrix.sh`; an example application goes into `examples/`, the
-   `_examples` list of `CMakeLists.txt` and the `examples` list of the build matrix (`examples/blackpill_app` is
-   the smallest one to start from).
+   board's `umcub_examples.cmake` and the `examples` list of the build matrix (`examples/blackpill_app` on
+   `examples/common/umcub_example.c` is the one to start from, see [Your own board](board.md#adding-a-board), step 7).
 
 Rules: no `stm32*.h` / LL includes outside `port/<family>/`; all series differences stay in the port; RAM that must
 survive a reset (handoff area) is written with 32-bit stores only (ECC SRAM loses narrower writes on reset).
@@ -62,9 +62,9 @@ src/             the bootloader itself:
   proto/         L5  mux (SMP, lite upload, board frames, recovery loop), umcub link, lite upload, text commands,
                      SMP inspection group
   boot/          L6  main (entry decision, boot_go, jump), startup, info block
-boards/          board configurations (umcub_config.h, optional umcub_board.c)
+boards/          board configurations (umcub_config.h, optional umcub_board.c, umcub_examples.cmake)
 lib/umcub_app/   application library (umcub::app); umcub_app_all.c = the whole library as one file for IDEs
-examples/        CM7 / CM4 applications for NUCLEO-H755ZI-Q, Blue Pill and Black Pill applications
+examples/        CM7 / CM4 applications for NUCLEO-H755ZI-Q, Blue Pill and Black Pill applications; common/ = the shared console
 tools/           setup.sh, requirements.txt, keys/ (development keys)
 tools/host/      host tools: umcub_image.py (slot addresses, signing for IDE projects), umcub_inspect.py,
                  umcub_link.py, umcub_lite.py (lite upload), smp_can.py, app_upload.py, umcub_keys.py

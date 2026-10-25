@@ -6,16 +6,12 @@
 #include <stddef.h>
 #include <stdint.h>
 
-void ex_led_init(char port, int pin);
-void ex_led_toggle(char port, int pin);
-void ex_delay_ms(uint32_t ms);
+void h7_led_init(char port, int pin);
+void h7_led_toggle(char port, int pin);
+void h7_delay_ms(uint32_t ms);              /* SysTick polled, no interrupt */
 
-/* USART3 (ST-LINK VCP) 115200 8N1 on the reset clock (HSI 64 MHz). */
-void ex_uart_init(void);
-bool ex_uart_getc(uint8_t *c);
-void ex_uart_putc(char c);
-void ex_puts(const char *s);
-void ex_put_u32(uint32_t v);
-void ex_put_hex(uint32_t v);
+/* USART3 (ST-LINK VCP) 115200 8N1 on the reset clock (HSI 64 MHz); its
+ * ex_putc() / ex_getc() are those of umcub_example.h. */
+void h7_uart_init(void);
 
 #endif
