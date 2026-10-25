@@ -10,8 +10,7 @@ flash, sys, tables): the F411 took about 470 lines of C/H (2026-10-22).
   G4 later: needs a branch in `fdcan.c` for its fixed message RAM layout. Examples: let a board declare its
   example applications instead of the `elseif` chain in CMakeLists.txt, and move what the Blue Pill and Black Pill
   examples share (info printing, the `u` upload protocol of tools/host/app_upload.py) into examples/common
-  (needs both boards to test). The Blue Pill example still runs its UART on HSI (F103: +-1 % at 25 °C, more over
-  temperature): switch it to the 8 MHz crystal like the Black Pill one.
+  (needs both boards to test).
 - [ ] **2. Pins without AF numbers.** Today a board writes `UMCUB_PIN('A', 9, 7)` with the alternate function
   looked up in the datasheet. The configure-time pin check already has ST's pin data for the package
   (`UMCUB_CFG_MCU_PART`), so `UMCUB_PIN('A', 9)` could get its AF from the peripheral instance and signal

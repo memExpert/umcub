@@ -1,8 +1,8 @@
 /*
  * umcub example application, Blue Pill (STM32F103C8T6).
  *
- * Runs on the reset clock the bootloader leaves behind (HSI 8 MHz), blinks
- * the LED on PC13 and talks on USART1 PA9/PA10 (115200), the bootloader's
+ * Switches to the 8 MHz crystal (the HSI the bootloader leaves behind is only
+ * +-1 % at 25 C, too little margin for 115200 baud), blinks the LED on PC13 and talks on USART1 PA9/PA10 (115200), the bootloader's
  * port:
  *   i  show bootloader / image information
  *   b  reboot into the bootloader's recovery mode
@@ -164,15 +164,26 @@ static void upload(void)
 int main(void)
 {
     umcub_set_node_address(APP_NODE_ADDR);   /* address on a shared bus, used by the bootloader */
-    /* HSI 8 MHz (reset clock, the bootloader restored it). */
+    /* HSE 8 MHz as SYSCLK (no PLL, 0 wait states up to 24 MHz); stays on
+     * HSI 8 MHz, the reset clock the bootloader restored, without a crystal.
+     * Same frequency either way: only the accuracy changes. */
     SystemCoreClock = 8000000u;
+    RCC->CR |= RCC_CR_HSEON;
+    for (uint32_t n = 0; n < 500000u; n++) {
+        if (RCC->CR & RCC_CR_HSERDY) {
+            RCC->CFGR = (RCC->CFGR & ~RCC_CFGR_SW) | RCC_CFGR_SW_HSE;
+            while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_HSE) {
+            }
+            break;
+        }
+    }
     SysTick_Config(SystemCoreClock / 1000u);
 
     RCC->APB2ENR |= RCC_APB2ENR_IOPAEN | RCC_APB2ENR_IOPCEN | RCC_APB2ENR_USART1EN;
     (void)RCC->APB2ENR;
     GPIOC->CRH = (GPIOC->CRH & ~(0xFu << 20)) | (0x2u << 20);      /* PC13 push-pull 2 MHz */
     GPIOA->CRH = (GPIOA->CRH & ~(0xFFu << 4)) | (0x4Bu << 4);      /* PA9 AF PP 50 MHz, PA10 input */
-    USART1->BRR = (8000000u + 115200u / 2u) / 115200u;
+    USART1->BRR = (SystemCoreClock + 115200u / 2u) / 115200u;
     USART1->CR1 = USART_CR1_TE | USART_CR1_RE | USART_CR1_UE;
 
     show_info();

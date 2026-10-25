@@ -89,7 +89,7 @@ keep free: 0x3800FF00..0x38010000 (bootloader handoff, kept over reset)
   The clocks are back in the reset state when the application starts, so the CubeMX `SystemClock_Config()` works
   unchanged. Until it runs the core is on the internal HSI oscillator, which is only calibrated to about 1 % at
   25 °C and drifts by several percent over temperature (more after soldering; one F411 measured -4.85 %): a UART at
-  115200 baud needs the crystal (or a trimmed HSI), as `examples/blackpill_app` switches to the 25 MHz HSE first.
+  115200 baud needs the crystal (or a trimmed HSI), as the examples switch to the crystal first (`examples/bluepill_app`: 8 MHz, `examples/blackpill_app`: 25 MHz).
 
 **2. The library.** Add one source file, `lib/umcub_app/umcub_app_all.c` (the whole library, family part included),
 and these include paths (relative to the umcub checkout):
