@@ -237,12 +237,6 @@
  * an encrypted umcub link session (UMCUB_LINK_SECURE + UMCUB_CFG_LINK_ENCRYPT),
  * never over USB DFU. Not available in the direct-xip modes. */
 /* #define UMCUB_CFG_ENCRYPT_IMAGES       0 */
-/* Swap modes: during an update MCUboot keeps the AES keys of both images in
- * the slot trailers until the swap is over (resume after a reset, revert).
- * 1 stores the encrypted key TLVs there instead (MCUBOOT_SWAP_SAVE_ENCTLV):
- * flash never holds a plain image key, it is unwrapped with the device key
- * when needed. Signing passes --save-enctlv (bigger trailer). */
-/* #define UMCUB_CFG_SWAP_SAVE_ENCTLV     1 */
 
 /* ======================================================================== */
 /* Transports                                                               */
