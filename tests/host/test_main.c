@@ -568,6 +568,26 @@ static void test_swap_revert_confirm(const uint8_t *v2, size_t v2_len)
     CHECK(umcub_image_version(0, 0, &v) == 0 && v.minor == 1);
 }
 
+#if UMCUB_CFG_DOWNGRADE_PREVENTION
+/* UMCUB_CFG_DOWNGRADE_PREVENTION: an update through the secondary slot with a
+ * lower version than the running one is refused and dropped, the running
+ * image stays; a higher one still goes in. */
+static void test_downgrade(const uint8_t *v1, size_t v1_len, const uint8_t *v2, size_t v2_len)
+{
+    char ver[16];
+    printf("[downgrade prevention] 1.0.0 over 1.1.0 refused\n");
+    CHECK(boot_ok(ver) && strcmp(ver, "1.1.0") == 0);
+    write_secondary(v1, v1_len);
+    CHECK(boot_ok(ver) && strcmp(ver, "1.1.0") == 0);
+    CHECK(umcub_inspect_verify(0, 1) != 0);     /* dropped from the secondary slot */
+    CHECK(boot_ok(ver) && strcmp(ver, "1.1.0") == 0);
+    printf("  still %s, secondary slot cleared\n", ver);
+    write_secondary(v2, v2_len);                /* same version: not a downgrade */
+    CHECK(boot_ok(ver) && strcmp(ver, "1.1.0") == 0);
+    CHECK(umcub_confirm_image(0) == 0);
+}
+#endif
+
 /* An image signed with the right key but for another board type is never
  * installed (MCUboot image check hook, src/image/mcuboot/hooks.c). */
 static void test_board_type(const uint8_t *foreign, size_t len)
@@ -1211,6 +1231,9 @@ int main(int argc, char **argv)
     test_packet_upload_and_boot(v1, v1_len, v1_flash);
     test_secondary_views(v2, v2_len);
     test_swap_revert_confirm(v2, v2_len);
+#if UMCUB_CFG_DOWNGRADE_PREVENTION
+    test_downgrade(v1, v1_len, v2, v2_len);
+#endif
     test_board_type(foreign, foreign_len);
     test_vector_slot(wrong, wrong_len);
     test_inspect(v2_flash, v2_len);

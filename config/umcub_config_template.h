@@ -109,7 +109,11 @@
  * devices on small parts. */
 /* #define UMCUB_CFG_SIGNATURE            UMCUB_SIGN_EC256 */
 
-/* Refuse images with a lower version than the running one. */
+/* Refuse images with a lower version than the running one. MCUboot checks it
+ * when it installs from the secondary slot (DFU, lite, umcub_slot_*, SMP
+ * with UMCUB_CFG_SMP_DIRECT_UPLOAD): the image is dropped, the running one
+ * stays. A plain SMP upload writes the primary slot directly and is not
+ * checked. Not in the direct-xip modes (the newest valid image wins anyway). */
 /* #define UMCUB_CFG_DOWNGRADE_PREVENTION 0 */
 
 /* Validate the primary slot (hash + signature, board type, reset vector) on
