@@ -26,6 +26,9 @@ void SysTick_Handler(void)
     ticks++;
 }
 
+/* Stands still while a flash erase in the bank the code runs from stalls the
+ * CPU (SysTick keeps at most one tick pending): intervals spanning an erase
+ * only get longer, timeouts never fire early; log times there are short. */
 uint32_t umcub_port_millis(void)
 {
     return ticks;
