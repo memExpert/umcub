@@ -56,7 +56,8 @@ __attribute__((noreturn)) void umcub_enter_bootloader(uint32_t arg);
 /* Node address of this device on a shared bus (RS485, CAN, ...), used by the
  * bootloader for addressing (umcub link, CAN IDs). Call it on every start:
  * the value lives in the handoff RAM and survives resets, not power cycles.
- * 0 = unassigned. umcub_boot_info()->node_addr shows what the bootloader used. */
+ * 0 = unassigned. umcub_boot_info()->node_addr shows what the bootloader used
+ * (always 0 in a bootloader without umcub link and CAN, which has none). */
 void umcub_set_node_address(uint16_t addr);
 
 /* The node address as stored for the bootloader: in the handoff RAM, and in

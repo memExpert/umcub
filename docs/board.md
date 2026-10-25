@@ -141,7 +141,8 @@ W: second core stays parked (no valid image 1)
    its own. The word must lie outside the image slots (checked at compile time); erased flash means "no address";
 3. the board hook `bool umcub_board_node_address(uint16_t *addr)` in `umcub_board.c` (DIP switches, EEPROM).
 
-0 means unassigned: the node is then reachable by its UID only. The bootloader reports the address it uses (`i`,
+Only umcub link and the CAN IDs use the address: a bootloader with neither has none (0, the sources above are
+not compiled). 0 means unassigned: the node is then reachable by its UID only. The bootloader reports the address it uses (`i`,
 `umcub_boot_info()->node_addr`).
 
 ## External controllers and custom transports

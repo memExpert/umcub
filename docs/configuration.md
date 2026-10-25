@@ -76,39 +76,39 @@ same core; check the real size after porting.
 <!-- size-table:begin -->
 | | STM32H755 CM7 (2 images, SINGLE_BOOT) | STM32H755 CM4 (PER_CORE) | STM32H743 / H753 (single core) | STM32F103 (Blue Pill, overwrite) |
 |---|---:|---:|---:|---:|
-| **base**: MCUboot, signature check, jump | 18.7 K | 16.3 K | 17.0 K | 12.8 K |
-| + SMP (recovery protocol: once, with the first SMP transport) | +7.4 K | +7.2 K | +7.2 K | +7.4 K |
+| **base**: MCUboot, signature check, jump | 18.6 K | 16.2 K | 16.9 K | 12.5 K |
+| + SMP (recovery protocol: once, with the first SMP transport) | +5.7 K | +5.6 K | +5.6 K | +5.6 K |
 | + UART | +1.3 K | +1.3 K | +1.3 K | +1.3 K |
-| + USB CDC | +11.2 K | +11.2 K | +11.2 K | +9.8 K |
-| + USB DFU (needs no SMP) | +10.6 K | +10.5 K | +10.5 K | +9.1 K |
-| + CAN | +2.7 K | +2.7 K | +2.7 K | +2.4 K |
+| + USB CDC | +11.2 K | +11.2 K | +11.2 K | +9.7 K |
+| + USB DFU (needs no SMP) | +10.7 K | +10.7 K | +10.7 K | +9.4 K |
+| + CAN | +2.9 K | +2.8 K | +2.9 K | +2.6 K |
 | + CAN FD (on top of CAN) | 0 | 0 | 0 | — |
 | + Ethernet (IPv4, UDP, DHCP) | +4.2 K | +4.2 K | +4.2 K | — |
 | + lite upload (instead of SMP) | +2.5 K | +2.5 K | +2.5 K | +2.6 K |
-| + log (level 3) | +3.7 K | +3.5 K | +3.6 K | +3.2 K |
+| + log (level 3) | +3.6 K | +3.4 K | +3.5 K | +3.0 K |
 | + text commands | +2.2 K | +2.2 K | +2.2 K | +2.0 K |
 | + status LED | +0.2 K | +0.2 K | +0.2 K | +0.2 K |
-| + verify + hash | +0.9 K | +0.9 K | +0.9 K | +0.9 K |
+| + verify + hash | +1.0 K | +0.9 K | +0.9 K | +0.9 K |
 | + readback (on top of verify + hash) | +0.2 K | +0.2 K | +0.2 K | +0.2 K |
-| + umcub link (addressed) | +1.9 K | +1.9 K | +1.9 K | +1.8 K |
-| + umcub link SECURE | +4.8 K | +4.8 K | +4.8 K | +4.7 K |
+| + umcub link (addressed) | +2.0 K | +2.0 K | +2.0 K | +1.9 K |
+| + umcub link SECURE | +4.9 K | +4.9 K | +4.9 K | +4.9 K |
 | + link encryption (on top of SECURE) | +1.5 K | +1.5 K | +1.5 K | +1.5 K |
-| + encrypted images | +7.3 K | +6.6 K | +6.8 K | +6.4 K |
-| **all on** | 55.5 K | 52.6 K | 53.4 K | 39.0 K |
+| + encrypted images | +7.2 K | +6.5 K | +6.8 K | +6.4 K |
+| **all on** | 53.8 K | 51.1 K | 51.8 K | 37.1 K |
 
 | Flash layout | UART, lite (no SMP) | UART | USB CDC | CAN | Ethernet | UART, link SECURE | all on |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| STM32H7 (128 KiB sectors) | 1 (22.6 K) | 1 (27.4 K) | 1 (37.3 K) | 1 (28.8 K) | 1 (30.3 K) | 1 (32.3 K) | 1 (55.5 K) |
-| STM32F2 / F4, F72x / F73x (16, 16, 16, 16, 64, 128 KiB ...) — estimate: Cortex-M4 build | 2 (20.2 K) | 2 (24.9 K) | 3 (34.7 K) | 2 (26.3 K) | 2 (27.8 K) | 2 (29.7 K) | 4 (52.6 K) > 3 |
-| STM32F74x ... F77x (32, 32, 32, 32, 128, 256 KiB ...) — estimate: Cortex-M7 build | 1 (22.6 K) | 1 (27.4 K) | 2 (37.3 K) | 1 (28.8 K) | 1 (30.3 K) | 2 (32.3 K) | 2 (55.5 K) |
-| STM32F1 (1 / 2 KiB pages) | 16.7 K | 21.4 K | 29.9 K | 22.6 K | — | 26.2 K | 39.0 K |
-| STM32G4 / L4 (2 KiB pages) — estimate: Cortex-M4 build | 20.2 K | 24.9 K | 34.7 K | 26.3 K | 27.8 K | 29.7 K | 52.6 K |
+| STM32H7 (128 KiB sectors) | 1 (22.4 K) | 1 (25.6 K) | 1 (35.4 K) | 1 (27.1 K) | 1 (28.5 K) | 1 (30.5 K) | 1 (53.8 K) |
+| STM32F2 / F4, F72x / F73x (16, 16, 16, 16, 64, 128 KiB ...) — estimate: Cortex-M4 build | 2 (20.0 K) | 2 (23.1 K) | 3 (32.9 K) | 2 (24.6 K) | 2 (26.0 K) | 2 (28.0 K) | 4 (51.1 K) > 3 |
+| STM32F74x ... F77x (32, 32, 32, 32, 128, 256 KiB ...) — estimate: Cortex-M7 build | 1 (22.4 K) | 1 (25.6 K) | 2 (35.4 K) | 1 (27.1 K) | 1 (28.5 K) | 1 (30.5 K) | 2 (53.8 K) |
+| STM32F1 (1 / 2 KiB pages) | 16.4 K | 19.4 K | 27.8 K | 20.7 K | — | 24.3 K | 37.1 K |
+| STM32G4 / L4 (2 KiB pages) — estimate: Cortex-M4 build | 20.0 K | 23.1 K | 32.9 K | 24.6 K | 26.0 K | 28.0 K | 51.1 K |
 
 | with LTO | STM32H755 CM7 (2 images, SINGLE_BOOT) | STM32H755 CM4 (PER_CORE) | STM32H743 / H753 (single core) | STM32F103 (Blue Pill, overwrite) |
 |---|---:|---:|---:|---:|
-| base | 15.7 K (-3.0 K) | 13.3 K (-3.0 K) | 14.0 K (-3.0 K) | 10.2 K (-2.6 K) |
-| base + SMP + UART | 23.6 K (-3.9 K) | 20.8 K (-4.1 K) | 21.5 K (-4.1 K) | 17.6 K (-3.9 K) |
-| all on | 49.7 K (-5.7 K) | 46.3 K (-6.3 K) | 47.1 K (-6.3 K) | 33.6 K (-5.4 K) |
+| base | 15.6 K (-2.9 K) | 13.2 K (-2.9 K) | 14.0 K (-2.9 K) | 10.0 K (-2.5 K) |
+| base + SMP + UART | 21.7 K (-3.9 K) | 19.2 K (-3.9 K) | 19.9 K (-3.9 K) | 15.7 K (-3.7 K) |
+| all on | 47.6 K (-6.2 K) | 44.8 K (-6.3 K) | 45.5 K (-6.3 K) | 31.9 K (-5.3 K) |
 <!-- size-table:end -->
 
 Notes:

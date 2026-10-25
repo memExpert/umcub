@@ -80,12 +80,20 @@
 
 /* --- serial recovery (SMP), used by every umcub transport ---------------- */
 #define MCUBOOT_SERIAL_MAX_RECEIVE_SIZE UMCUB_CFG_SMP_MTU
+#if UMCUB_CFG_SMP_DIRECT_UPLOAD || UMCUB_CFG_UPGRADE_MODE >= UMCUB_MODE_DIRECT_XIP
+/* Uploads into a chosen slot: image state (confirmed / pending flags in
+ * "image state-read", "image state-write" marks an image in the secondary
+ * slot for a test boot), the image hash TLV as its identifier ("hash" in
+ * state-read, required by state-write with several images) and slot info
+ * ("image slot-info": sizes and the upload_image_id of each slot). Without
+ * direct upload SMP writes the primary slot: nothing to mark or choose. The
+ * flash itself is checked by the inspect group (verify / hash), not by these. */
 #if UMCUB_CFG_UPGRADE_MODE < UMCUB_MODE_DIRECT_XIP
-/* Image state write marks the secondary slot pending: swap modes only. */
-#define MCUBOOT_SERIAL_IMG_GRP_IMAGE_STATE
+#define MCUBOOT_SERIAL_IMG_GRP_IMAGE_STATE      /* direct-xip: MCUboot picks the version */
 #endif
 #define MCUBOOT_SERIAL_IMG_GRP_HASH
 #define MCUBOOT_SERIAL_IMG_GRP_SLOT_INFO
+#endif
 #define MCUBOOT_BOOT_MGMT_ECHO
 #if UMCUB_CFG_SMP_PARAMS
 /* MCUMGR_PARAMETERS (os group 0, id 6): {buf_size: MCUBOOT_SERIAL_MAX_RECEIVE_SIZE,

@@ -29,7 +29,11 @@
 #define ERR_ENOENT  5
 #define ERR_ENOTSUP 8
 #define ERR_EACCESS 11
-#define READ_MAX    128u     /* fits boot_serial's response buffer */
+/* Data per read response: boot_serial's response buffer is 128 bytes per
+ * image when its image state / hash / slot info groups are off
+ * (BOOT_SERIAL_OUT_MAX, boot_serial.c), minus the map around the data (rc,
+ * off, data key and bstr head: at most 24 bytes). */
+#define READ_MAX    (128u * MCUBOOT_IMAGE_NUMBER - 32u)
 
 static int map_rc(int rc)
 {

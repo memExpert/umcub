@@ -72,7 +72,7 @@ async def run(a):
                 return 0 if local == r.sha else 1
             return 0
 
-        # read: 128-byte chunks (bootloader response buffer)
+        # read: up to 128-byte chunks; the bootloader returns what fits its response buffer (96 bytes with one image)
         if not a.len:
             a.len = (await request(client, InspectHash(**sel))).len - a.off   # length of the stored image
         out = bytearray()

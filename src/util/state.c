@@ -33,6 +33,7 @@ void umcub_handoff_note_transport(uint8_t id)
     store_words(w, &u.word, 1);
 }
 
+#if UMCUB_CFG_LINK_ANY || UMCUB_CFG_TRANSPORT_CAN
 /* Node address handed over by the application; false if none (power-up,
  * application that never set one). */
 bool umcub_handoff_node_request(uint16_t *addr)
@@ -80,6 +81,12 @@ void umcub_node_init(void)
     }
 }
 
+uint16_t umcub_node_address(void)
+{
+    return node_addr;
+}
+#endif /* UMCUB_CFG_LINK_ANY || UMCUB_CFG_TRANSPORT_CAN */
+
 /* Counter of boots since power-up (handoff RAM): makes nonces differ between
  * resets even if the entropy source were to repeat. 32-bit stores only. */
 uint32_t umcub_handoff_boot_count(void)
@@ -95,11 +102,6 @@ uint32_t umcub_handoff_boot_count(void)
         store_words((volatile uint32_t *)&HANDOFF->boot_count, w, 2);
     }
     return count;
-}
-
-uint16_t umcub_node_address(void)
-{
-    return node_addr;
 }
 
 uint8_t umcub_handoff_last_transport(void)
