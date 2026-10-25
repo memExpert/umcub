@@ -271,7 +271,8 @@
 /* #define UMCUB_CFG_TRANSPORT_CAN        0 */
 /* #define UMCUB_CFG_CAN_INSTANCE         1 */
 /* #define UMCUB_CFG_CAN_BITRATE          500000 */
-/* #define UMCUB_CFG_CAN_FD               0     (1 = CAN-FD frames, 64 byte) */
+/* #define UMCUB_CFG_CAN_FD               0     (1 = CAN-FD frames, 64 byte;
+                                                  loopback only, not run on a bus yet) */
 /* #define UMCUB_CFG_CAN_DATA_BITRATE     2000000 */
 /* #define UMCUB_CFG_CAN_RX_ID            0x7C0 (host -> device) */
 /* #define UMCUB_CFG_CAN_TX_ID            0x7C8 (device -> host) */

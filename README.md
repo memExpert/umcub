@@ -8,7 +8,7 @@ Ethernet. A board is one configuration file; what you do not enable is not compi
 - **Transports**, each enabled separately, any one of them can be the only one:
   - UART (also RS485) — SMP serial (`smpmgr`, `mcumgr --conntype serial`);
   - USB — CDC-ACM with SMP and/or DFU 1.1 (`dfu-util`);
-  - CAN / CAN FD — SMP over ISO-TP (`tools/host/smp_can.py`);
+  - CAN / CAN FD — SMP over ISO-TP (`tools/host/smp_can.py`; CAN FD verified in loopback only, not on a bus yet);
   - Ethernet — SMP over UDP with DHCP (`smpmgr --ip`, `mcumgr --conntype udp`);
   - from the application itself (`umcub_slot_*`), or a lite protocol / your own one without SMP.
 - **MCUboot upgrade modes**: overwrite, swap-scratch, swap-offset, direct-xip (with or without revert).
