@@ -8,7 +8,7 @@ set(CMAKE_TOOLCHAIN_FILE ${CMAKE_CURRENT_LIST_DIR}/../../cmake/arm-none-eabi.cma
 project(h755_cm4_app C ASM)
 
 set(APP_VERSION "1.0.0" CACHE STRING "Image version written by imgtool")
-set(UMCUB_BOARD nucleo_h755zi_q)
+set(UMCUB_BOARD nucleo_h755zi_q CACHE STRING "Board (boards/<name> or a path) whose layout the image is linked for")
 set(UMCUB_CORE cm4)
 add_subdirectory(../../lib/umcub_app umcub)
 

@@ -9,7 +9,7 @@ project(bluepill_app C ASM)
 
 set(APP_VERSION "1.0.0" CACHE STRING "Image version written by imgtool")
 set(APP_NODE_ADDR "0" CACHE STRING "Node address handed to the bootloader (0 = unassigned, none = keep the bootloader's own)")
-set(UMCUB_BOARD bluepill_f103c8)
+set(UMCUB_BOARD bluepill_f103c8 CACHE STRING "Board (boards/<name> or a path) whose layout the image is linked for")
 add_subdirectory(../../lib/umcub_app umcub)
 
 set(ST ${UMCUB_ROOT}/third_party/st/cmsis_device_f1)

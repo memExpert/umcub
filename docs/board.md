@@ -58,7 +58,9 @@ commands (`UMCUB_CMD_USER`), drivers for external controllers (`UMCUB_DRIVER_BOA
 the pins and five functions (`ex_putc`, `ex_getc`, `ex_millis`, `ex_led_toggle`, `ex_watchdog_feed`), then calls
 `ex_run()`: copy `examples/blackpill_app` (about 70 lines). `boards/my_board/umcub_examples.cmake` lists the
 examples `-DUMCUB_BUILD_EXAMPLES=ON` builds with the bootloader (`list(APPEND UMCUB_BOARD_EXAMPLES my_app)`, a
-directory under `examples/` or an absolute path). The examples hand `-DAPP_NODE_ADDR=<n>` (default 0) to the
+directory under `examples/` or an absolute path). The examples link for the board they are built with
+(`UMCUB_BOARD`), so a board on the same MCU can reuse one, e.g. `examples/blackpill_app` for any F411 board with
+USART1 on PA9/PA10 and a LED on PC13. The examples hand `-DAPP_NODE_ADDR=<n>` (default 0) to the
 bootloader with `umcub_set_node_address()`, which beats an address in flash; `-DAPP_NODE_ADDR=none` leaves the
 address to the bootloader (several boards with `UMCUB_CFG_NODE_ADDR_FLASH` on one bus).
 
@@ -268,7 +270,9 @@ USB: on the F103 both share the same 512 bytes of SRAM (the build refuses it).
 
 **Black Pill** ([`boards/blackpill_f411ce/umcub_config.h`](../boards/blackpill_f411ce/umcub_config.h), WeAct):
 STM32F411CEU6, 25 MHz crystal, SMP over USART1 (PA9 TX, PA10 RX), overwrite mode, bootloader in sectors 0-1
-(32 KiB), slots in sectors 5 and 6 (128 KiB each; sectors 2-4 and 7 stay free). Recovery by KEY (PA0) held during
+(32 KiB), slots in sectors 5 and 6 (128 KiB each; sectors 2-4 and 7 stay free, e.g. for application data). A
+slot may also span sectors of different sizes: sectors 3-5 (16 + 64 + 128 KiB) as primary and 6-7 as secondary
+work the same way in overwrite mode (a 155 KiB image, checked on the board). Recovery by KEY (PA0) held during
 reset, LED PC13. A slot is one sector, so SMP upload erases it on the first chunk (about 2 s,
 `UMCUB_CFG_ERASE_PROGRESSIVELY 0`); the CPU stalls meanwhile, so a watchdog (`UMCUB_CFG_WATCHDOG_MS`) needs at
 least 3 s (LSI 17..47 kHz). RS485 through a MAX485 (RO PA10, DI PA9, DE and /RE on PA8): overlay
