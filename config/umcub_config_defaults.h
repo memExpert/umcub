@@ -194,7 +194,7 @@
                                         UMCUB_CMD("b", UMCUB_CMD_STAY)     \
                                         UMCUB_CMD("r", UMCUB_CMD_RESET)    \
                                         UMCUB_CMD("i", UMCUB_CMD_INFO)     \
-                                        UMCUB_CMD_INSPECT_DEFAULTS
+                                        UMCUB_DEFAULT_CMD_INSPECT
 #endif
 
 /* --- UART ---------------------------------------------------------------- */
@@ -337,6 +337,14 @@
 #endif
 #ifndef UMCUB_CFG_LITE_UPLOAD
 #define UMCUB_CFG_LITE_UPLOAD           (1 - UMCUB_CFG_SMP_ENABLE)
+#endif
+/* The default command table has verify / hash / read as text only without
+ * SMP: with it, hosts check slots through the SMP inspect group (about 0.9 K
+ * less); add UMCUB_CMD_INSPECT_DEFAULTS to a table to have both. */
+#if UMCUB_CFG_SMP_ENABLE
+#define UMCUB_DEFAULT_CMD_INSPECT
+#else
+#define UMCUB_DEFAULT_CMD_INSPECT       UMCUB_CMD_INSPECT_DEFAULTS
 #endif
 #ifndef UMCUB_CFG_PROTO_USER
 #define UMCUB_CFG_PROTO_USER            0

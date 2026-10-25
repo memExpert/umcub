@@ -105,7 +105,7 @@
                                         UMCUB_CMD("r",     UMCUB_CMD_RESET)     \
                                         UMCUB_CMD("i",     UMCUB_CMD_INFO)      \
                                         UMCUB_CMD("hello", UMCUB_CMD_USER(1))   /* umcub_board.c */ \
-                                        UMCUB_CMD_INSPECT_DEFAULTS              /* verify, hash (+ read) */
+                                        UMCUB_DEFAULT_CMD_INSPECT               /* verify, hash: without SMP */
 
 /* --- transports ---------------------------------------------------------- */
 #if defined(UMCUB_CORE_CM4)

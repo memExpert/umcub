@@ -207,11 +207,14 @@
 /* Table of UMCUB_CMD("text", action). Actions: UMCUB_CMD_BOOT_APP,
  * UMCUB_CMD_STAY, UMCUB_CMD_RESET, UMCUB_CMD_INFO, UMCUB_CMD_USER(n).
  * UMCUB_CMD_USER(n) calls umcub_cmd_user(n, text, reply) - implement it in
- * boards/<board>/umcub_board.c (compiled automatically when present). */
+ * boards/<board>/umcub_board.c (compiled automatically when present).
+ * UMCUB_DEFAULT_CMD_INSPECT: verify / hash / read, only without SMP (with
+ * it: the SMP inspect group); UMCUB_CMD_INSPECT_DEFAULTS: always. */
 /* #define UMCUB_CFG_CMD_TABLE            UMCUB_CMD("a", UMCUB_CMD_BOOT_APP) \
                                           UMCUB_CMD("b", UMCUB_CMD_STAY)     \
                                           UMCUB_CMD("r", UMCUB_CMD_RESET)    \
-                                          UMCUB_CMD("i", UMCUB_CMD_INFO) */
+                                          UMCUB_CMD("i", UMCUB_CMD_INFO)     \
+                                          UMCUB_DEFAULT_CMD_INSPECT */
 
 /* ======================================================================== */
 /* Slot inspection (host checks what was written)                           */

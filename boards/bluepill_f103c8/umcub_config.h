@@ -40,7 +40,8 @@
 #define UMCUB_CFG_CMD_TABLE             UMCUB_CMD("a", UMCUB_CMD_BOOT_APP) \
                                         UMCUB_CMD("b", UMCUB_CMD_STAY)     \
                                         UMCUB_CMD("r", UMCUB_CMD_RESET)    \
-                                        UMCUB_CMD("i", UMCUB_CMD_INFO)
+                                        UMCUB_CMD("i", UMCUB_CMD_INFO)     \
+                                        UMCUB_DEFAULT_CMD_INSPECT   /* verify, hash: without SMP */
 
 #define UMCUB_CFG_SMP_MTU               512     /* 20 KiB SRAM */
 

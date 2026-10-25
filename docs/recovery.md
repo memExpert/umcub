@@ -42,8 +42,12 @@ a few lines of host code:
                                  UMCUB_CMD("r",     UMCUB_CMD_RESET)     \
                                  UMCUB_CMD("i",     UMCUB_CMD_INFO)      \
                                  UMCUB_CMD("hello", UMCUB_CMD_USER(1))   \
-                                 UMCUB_CMD_INSPECT_DEFAULTS     /* verify, hash (+ read) */
+                                 UMCUB_DEFAULT_CMD_INSPECT      /* verify, hash (+ read) without SMP */
 ```
+
+`UMCUB_DEFAULT_CMD_INSPECT` adds `verify`, `hash` (and `read` with `UMCUB_CFG_READBACK`) only when SMP is off: with
+SMP, hosts check slots through the SMP inspect group (`tools/host/umcub_inspect.py`), about 0.9 K less.
+`UMCUB_CMD_INSPECT_DEFAULTS` adds them in any case.
 
 | Action | What it does |
 |---|---|
