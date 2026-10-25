@@ -31,9 +31,9 @@ set(UMCUB_FAMILY_BOOT_SOURCES
   ${UMCUB_ROOT}/third_party/st/cmsis_device_f4/Source/Templates/gcc/startup_${_mcu_lc}.s
 )
 set(UMCUB_FAMILY_UART_SOURCES ${UMCUB_FAMILY_DIR}/uart.c ${UMCUB_ROOT}/port/arch/stm32/usart_v1.c)
-# Not ported yet: entropy (F411: no RNG, ADC noise like the F1), USB OTG FS, bxCAN (not on the F411).
-set(UMCUB_FAMILY_ENTROPY_SOURCES "")
-set(UMCUB_FAMILY_UNSUPPORTED_ENTROPY 1)
+# Nonces / random back-off (umcub link), encrypted images: ADC noise, no RNG on the F411.
+set(UMCUB_FAMILY_ENTROPY_SOURCES ${UMCUB_FAMILY_DIR}/entropy.c)
+# Not ported yet: USB OTG FS, bxCAN (not on the F411).
 set(UMCUB_FAMILY_USB_SOURCES  "")
 set(UMCUB_FAMILY_UNSUPPORTED_USB 1)
 set(UMCUB_FAMILY_CAN_SOURCES  "")

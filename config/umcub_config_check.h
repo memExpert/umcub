@@ -106,6 +106,10 @@
 #error "umcub: UMCUB_CFG_WATCHDOG_MS must be >= 1.5 x UMCUB_FAMILY_SECTOR_ERASE_MS (one sector erase stalls the CPU)"
 #endif
 
+#if UMCUB_CFG_ENCRYPT_IMAGES && UMCUB_CFG_ENC_INPLACE && !defined(UMCUB_FAMILY_UNIFORM_SECTOR)
+#error "umcub: UMCUB_CFG_ENC_INPLACE needs sectors of one size (it buffers one in RAM): set it 0"
+#endif
+
 #if (UMCUB_CFG_IMAGE_HEADER_SIZE & (UMCUB_CFG_IMAGE_HEADER_SIZE - 1)) != 0 || UMCUB_CFG_IMAGE_HEADER_SIZE < 0x200
 #error "umcub: UMCUB_CFG_IMAGE_HEADER_SIZE must be a power of two >= 0x200 (VTOR alignment)"
 #endif

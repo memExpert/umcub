@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Quality of the STM32F1 entropy source (port/stm32f1/entropy.c) on a board.
+"""Quality of the ADC entropy source (port/stm32f1/entropy.c, port/stm32f4/entropy.c) on a board.
 
-  entropy_test.py [--serial ST-LINK-ID] [--rounds 256] [--boots 100] [--save DIR]
+  entropy_test.py [--family f1|f4] [--serial ST-LINK-ID] [--rounds 256] [--boots 100] [--save DIR]
 
-Builds tools/hw/entropy_sampler_f1.c (arm-none-eabi-gcc), loads it into SRAM
+Builds tools/hw/entropy_sampler_<family>.c (arm-none-eabi-gcc), loads it into SRAM
 over SWD with pyOCD (nothing is written to flash; the board is reset into its
 bootloader afterwards) and collects the raw ADC conversions the bootloader
 uses: one long run (--rounds x 4096 samples) and the first 4096 samples of
@@ -30,7 +30,12 @@ ROOT = os.path.dirname(os.path.dirname(HERE))
 N = 4096                    # samples per round (entropy_sampler_f1.c)
 SHARED = 0x20001000         # struct shared: magic, ready, rounds, ms, timeouts, v[N], st[N]
 MAGIC = 0x454E5452
-LD = """MEMORY { RAM (rwx) : ORIGIN = 0x20000000, LENGTH = 20K }
+# family: CPU flags, device define, CMSIS device package, SRAM size
+FAMILIES = {
+    "f1": (["-mcpu=cortex-m3"], "STM32F103xB", "cmsis_device_f1", "20K"),
+    "f4": (["-mcpu=cortex-m4", "-mfloat-abi=soft"], "STM32F411xE", "cmsis_device_f4", "128K"),
+}
+LD = """MEMORY { RAM (rwx) : ORIGIN = 0x20000000, LENGTH = %s }
 _estack = ORIGIN(RAM) + LENGTH(RAM);
 SECTIONS {
   .vectors : { KEEP(*(.vectors)) } > RAM
@@ -41,16 +46,18 @@ SECTIONS {
 """
 
 
-def build(tmp):
+def build(tmp, family):
+    cpu, device, cmsis, ram = FAMILIES[family]
     ld = os.path.join(tmp, "sampler.ld")
     elf = os.path.join(tmp, "sampler.elf")
     binf = os.path.join(tmp, "sampler.bin")
     with open(ld, "w") as f:
-        f.write(LD)
+        f.write(LD % ram)
     tp = os.path.join(ROOT, "third_party")
-    subprocess.run(["arm-none-eabi-gcc", "-mcpu=cortex-m3", "-mthumb", "-Os", "-ffreestanding", "-nostdlib",
-                    "-DSTM32F103xB", f"-I{tp}/st/cmsis_device_f1/Include", f"-I{tp}/cmsis_core/Include",
-                    "-T", ld, "-Wl,--gc-sections", os.path.join(HERE, "entropy_sampler_f1.c"), "-o", elf], check=True)
+    subprocess.run(["arm-none-eabi-gcc", *cpu, "-mthumb", "-Os", "-ffreestanding", "-nostdlib",
+                    f"-D{device}", f"-I{tp}/st/{cmsis}/Include", f"-I{tp}/cmsis_core/Include",
+                    "-T", ld, "-Wl,--gc-sections", os.path.join(HERE, f"entropy_sampler_{family}.c"), "-o", elf],
+                   check=True)
     subprocess.run(["arm-none-eabi-objcopy", "-O", "binary", "-j", ".vectors", "-j", ".text", elf, binf], check=True)
     return open(binf, "rb").read()
 
@@ -147,6 +154,7 @@ def report(name, data):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--family", choices=sorted(FAMILIES), default="f1", help="MCU family of the board")
     ap.add_argument("--serial", help="unique ID of the debug probe (pyocd list)")
     ap.add_argument("--rounds", type=int, default=256, help="rounds of 4096 conversions in the long run")
     ap.add_argument("--boots", type=int, default=100, help="fresh starts")
@@ -154,7 +162,7 @@ def main():
     a = ap.parse_args()
     from pyocd.core.helpers import ConnectHelper
     with tempfile.TemporaryDirectory() as tmp:
-        code = build(tmp)
+        code = build(tmp, a.family)
     with ConnectHelper.session_with_chosen_probe(unique_id=a.serial, target_override="cortex_m",
                                                  connect_mode="attach", options={"frequency": 4000000}) as s:
         t = s.target

@@ -16,6 +16,11 @@
 #ifndef UMCUB_CFG_ERASE_PROGRESSIVELY
 #define UMCUB_CFG_ERASE_PROGRESSIVELY   0
 #endif
+/* Encrypted images: no in-place decryption (it buffers one sector in RAM -
+ * 128 KiB); encrypted updates go through the secondary slot. */
+#ifndef UMCUB_CFG_ENC_INPLACE
+#define UMCUB_CFG_ENC_INPLACE           0
+#endif
 /* Worst-case erase of the largest (128 KiB) sector with x32 parallelism
  * (DS10314 Table 45: 2 s). */
 #define UMCUB_FAMILY_SECTOR_ERASE_MS    2000
