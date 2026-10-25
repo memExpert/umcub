@@ -271,5 +271,18 @@ smpmgr --port /dev/ttyUSB0 --timeout 5 image upload build/blackpill/examples/bla
 The F411 has no RNG: nonces (umcub link) and the key unwrap of encrypted images use ADC noise of the temperature
 sensor, like the F1 (`port/stm32f4/entropy.c`). umcub link on RS485: `tests/configs/blackpill/rs485_link.h`.
 Encrypted images need a 48 KiB bootloader (`tests/configs/blackpill/encrypt.h`, sectors 0-2) and go through the
-secondary slot: no in-place decryption on the F4 (it would buffer a 128 KiB sector in RAM). Not ported yet on the
-F4: USB OTG FS, so the configure step refuses USB.
+secondary slot: no in-place decryption on the F4 (it would buffer a 128 KiB sector in RAM).
+
+USB (CDC with SMP and DFU on the USB-C socket, OTG FS PA11/PA12) needs a 48 KiB bootloader (sectors 0-2) and the
+crystal: the 48 MHz come from the PLL, and on the HSI they would be too far off for USB (the port then refuses USB
+and the bootloader goes on without it). Overlay `tests/configs/blackpill/usb.h`; the slots stay where they are, so
+the example of the default build works unchanged. VBUS sensing is off (PA9 stays free for USART1); the board has a
+switchable D+ pull-up inside the MCU, so unlike the Blue Pill it detaches cleanly in reset:
+
+```sh
+cmake -S . -B build/blackpill-usb -G Ninja -DCMAKE_BUILD_TYPE=Release -DUMCUB_BOARD=blackpill_f411ce \
+      -DUMCUB_CONFIG_POST=tests/configs/blackpill/usb.h
+cmake --build build/blackpill-usb
+smpmgr --port /dev/ttyACM0 image upload build/blackpill/examples/blackpill_app/blackpill_app.signed.bin
+dfu-util -a 0 -D build/blackpill/examples/blackpill_app/blackpill_app.signed.bin -R
+```

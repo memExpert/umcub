@@ -56,6 +56,7 @@ configs=(
   "blackpill-f411-usart2|cm4|Release||blackpill/usart2.h|blackpill_f411ce"
   "blackpill-f411-rs485-link|cm4|Release||blackpill/rs485_link.h|blackpill_f411ce"
   "blackpill-f411-encrypt|cm4|Release||blackpill/encrypt.h|blackpill_f411ce"
+  "blackpill-f411-usb|cm4|Release||blackpill/usb.h|blackpill_f411ce"
 )
 
 # One configuration: configure, build, warnings. Writes $dir.result: OK or

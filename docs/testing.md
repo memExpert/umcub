@@ -3,7 +3,7 @@
 The build matrix, host tests, simulated devices and the hardware tests.
 
 ```sh
-tools/build/build_matrix.sh                 # 38 bootloader configurations (side by side, JOBS=n), examples, IDE checks,
+tools/build/build_matrix.sh                 # 39 bootloader configurations (side by side, JOBS=n), examples, IDE checks,
                                             # host tests; warning-free
 ctest --test-dir build/matrix/host    # host tests only
 tests/host/link_e2e.py build/matrix/host   # simulated devices: umcub link bus, smpmgr, host tools, lite upload

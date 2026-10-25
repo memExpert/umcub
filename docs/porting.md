@@ -26,7 +26,10 @@ Adding an STM32 series and the source tree.
    `rng.c` and give `stm32_rng_clock_on()` (see `port/stm32h7/rng.c`); without one, `umcub_port_entropy()` of
    your own (the F1 and F4 sample ADC noise, `port/stm32f1/entropy.c`, measured with `tools/hw/entropy_test.py`); a family without one sets
    `UMCUB_FAMILY_UNSUPPORTED_ENTROPY` in its CMake file (like `_CAN`, `_ETH`, `_USB`) so configure refuses the
-   features that need it. Big sectors: see `UMCUB_CFG_ERASE_PROGRESSIVELY` / `UMCUB_CFG_TRAILER_RESERVE`
+   features that need it. USB: give `umcub_port_usb_init()` / `_deinit()` (48 MHz clock, pins, controller clock;
+   returns the tinyUSB rhport) and the IRQ vector calling `umcub_usb_irq_handler()`, and name the tinyUSB driver
+   in the CMake file (`UMCUB_FAMILY_TUSB_MCU`, `UMCUB_FAMILY_TUSB_SOURCES`): OTG FS (dwc2) see `port/stm32f4/usb.c`,
+   `port/stm32h7/usb.c`, the USB FS device (fsdev) `port/stm32f1/usb.c`. Big sectors: see `UMCUB_CFG_ERASE_PROGRESSIVELY` / `UMCUB_CFG_TRAILER_RESERVE`
    ([Your own board](board.md#adding-a-board), "Slots").
 3. `boards/<board>/umcub_config.h` (and optionally `umcub_board.c`).
 4. Add the new configuration to `tools/build/build_matrix.sh`; an example application goes into `examples/`, the

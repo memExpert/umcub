@@ -33,9 +33,12 @@ set(UMCUB_FAMILY_BOOT_SOURCES
 set(UMCUB_FAMILY_UART_SOURCES ${UMCUB_FAMILY_DIR}/uart.c ${UMCUB_ROOT}/port/arch/stm32/usart_v1.c)
 # Nonces / random back-off (umcub link), encrypted images: ADC noise, no RNG on the F411.
 set(UMCUB_FAMILY_ENTROPY_SOURCES ${UMCUB_FAMILY_DIR}/entropy.c)
-# Not ported yet: USB OTG FS, bxCAN (not on the F411).
-set(UMCUB_FAMILY_USB_SOURCES  "")
-set(UMCUB_FAMILY_UNSUPPORTED_USB 1)
+set(UMCUB_FAMILY_USB_SOURCES  ${UMCUB_FAMILY_DIR}/usb.c)
+# tinyUSB device controller driver (USB OTG FS) + MCU option for tusb_config.h
+set(UMCUB_FAMILY_TUSB_MCU OPT_MCU_STM32F4)
+set(UMCUB_FAMILY_TUSB_SOURCES ${UMCUB_ROOT}/third_party/tinyusb/src/portable/synopsys/dwc2/dcd_dwc2.c
+                              ${UMCUB_ROOT}/third_party/tinyusb/src/portable/synopsys/dwc2/dwc2_common.c)
+# Not ported yet: bxCAN (not on the F411).
 set(UMCUB_FAMILY_CAN_SOURCES  "")
 set(UMCUB_FAMILY_UNSUPPORTED_CAN 1)
 set(UMCUB_FAMILY_ETH_SOURCES  "")
