@@ -283,7 +283,8 @@
 /* Controller driver: UMCUB_DRIVER_PORT (on-chip FDCAN/bxCAN) or
  * UMCUB_DRIVER_BOARD (external controller, e.g. MCP2515/MCP2518FD on SPI):
  * then boards/<b>/umcub_board.c implements umcub_port_can_init/deinit/send/recv
- * (port/include/umcub_port_can.h) and ISO-TP + SMP run on top of it. */
+ * (port/include/umcub_port_can.h) and ISO-TP + SMP run on top of it.
+ * EXPERIMENTAL: host test only, not run with a real controller yet. */
 /* #define UMCUB_CFG_CAN_DRIVER           UMCUB_DRIVER_PORT */
 
 /* --- Ethernet: SMP over UDP, minimal IPv4 stack with DHCP --------------- */
@@ -300,7 +301,8 @@
 /* MAC driver: UMCUB_DRIVER_PORT (on-chip MAC + RMII PHY) or UMCUB_DRIVER_BOARD
  * (external MAC, e.g. ENC28J60/LAN9250 on SPI): boards/<b>/umcub_board.c then
  * implements umcub_port_eth_* (port/include/umcub_port_eth.h, raw frames) and
- * the IPv4/DHCP stack runs on top of it. */
+ * the IPv4/DHCP stack runs on top of it. EXPERIMENTAL: host test only, not
+ * run with a real controller yet. */
 /* #define UMCUB_CFG_ETH_DRIVER           UMCUB_DRIVER_PORT */
 
 /* --- Board transport ------------------------------------------------------ */
@@ -308,7 +310,8 @@
  * boards/<b>/umcub_board.c defines
  *     const umcub_transport_t umcub_transport_user = { ... };
  * (src/transport/include/umcub_transport.h) - a stream (SMP serial framing) or a
- * packet transport (raw SMP packets). Polled with the built-in ones. */
+ * packet transport (raw SMP packets). Polled with the built-in ones.
+ * EXPERIMENTAL: host test only, not run with real hardware yet. */
 /* #define UMCUB_CFG_TRANSPORT_USER       0 */
 
 /* ======================================================================== */

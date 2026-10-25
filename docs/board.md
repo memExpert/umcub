@@ -152,6 +152,9 @@ MAC on SPI (ENC28J60, LAN9250), a W5500 with its own TCP/IP, an RS-485 line with
 The bootloader supports this at two levels. Both live in `boards/<board>/umcub_board.c`, which is added to the
 build automatically. Board code may use LL / registers: it is tied to the MCU anyway.
 
+**Experimental:** both levels are exercised by the build matrix and the host test `umcub_host_board` with the
+fixture in `tests/boards/custom_drivers` only; neither has run with a real external controller yet.
+
 ### 1. Board driver under a built-in transport
 
 ISO-TP + SMP (CAN) and the IPv4/ARP/DHCP/UDP stack + SMP (Ethernet) sit on a small driver interface. Select the
