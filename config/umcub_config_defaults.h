@@ -374,6 +374,10 @@
 #ifndef UMCUB_CFG_LOG_LEVEL
 #define UMCUB_CFG_LOG_LEVEL             0
 #endif
+/* MCUboot's own messages (at most UMCUB_CFG_LOG_LEVEL). */
+#ifndef UMCUB_CFG_MCUBOOT_LOG_LEVEL
+#define UMCUB_CFG_MCUBOOT_LOG_LEVEL     UMCUB_CFG_LOG_LEVEL
+#endif
 #ifndef UMCUB_CFG_LTO
 #define UMCUB_CFG_LTO                   0
 #endif

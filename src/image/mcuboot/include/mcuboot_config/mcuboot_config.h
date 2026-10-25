@@ -118,7 +118,7 @@
 #endif
 
 /* --- logging / misc ------------------------------------------------------ */
-#if UMCUB_CFG_LOG_LEVEL > 0 && !defined(UMCUB_BUILDING_APP)
+#if UMCUB_CFG_LOG_LEVEL > 0 && UMCUB_CFG_MCUBOOT_LOG_LEVEL > 0 && !defined(UMCUB_BUILDING_APP)
 #define MCUBOOT_HAVE_LOGGING 1
 #endif
 #define MCUBOOT_HAVE_ASSERT_H 1
