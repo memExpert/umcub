@@ -187,7 +187,7 @@
  * umcub_proto_user() in boards/<b>/umcub_board.c (packets of packet
  * transports and umcub link DATA payloads; on stream transports lines
  * 0x05 0x0D <base64> \n). Answer with umcub_proto_reply(); umcub_slot_* is
- * available to write images. */
+ * available to write images. EXPERIMENTAL: host test only, no board uses it. */
 /* #define UMCUB_CFG_PROTO_USER           0 */
 
 /* ======================================================================== */

@@ -93,6 +93,7 @@ UART bootloader is about 5 K smaller (F103: 16.6 K instead of 21.4 K, H7: 22.5 K
   nor a text command goes to `umcub_proto_user(t, data, len)` in `boards/<b>/umcub_board.c` - a packet of a
   packet transport, a umcub link DATA payload, or a line `0x05 0x0D <base64> \n` on a stream. Both are declared
   in `umcub_proto.h` (`#include "umcub_proto.h"`). Answer with `umcub_proto_reply()`; write images with `umcub_slot_*` (`umcub.h`), which is part of the bootloader then.
+  Experimental: exercised by the host test with the fixture in `tests/boards/custom_drivers` only, no board uses it yet.
 - USB DFU and updates from the application, as with SMP.
 
 Text commands (`verify`, `hash`, `read`, `i`, ...), the umcub link (ADDRESSED and SECURE: DATA payloads are lite
