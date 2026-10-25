@@ -2,6 +2,7 @@
  * Cortex-M system services of the bootloader shared by the family ports:
  * SysTick time base, deinit before the jump, reset, jump, UID.
  */
+#include "umcub_cfg.h"
 #include "umcub_family_cmsis.h"
 #include "umcub_port.h"
 #include "cortexm_port.h"
@@ -124,6 +125,15 @@ __attribute__((noreturn)) void umcub_port_reset(void)
 {
     NVIC_SystemReset();
 }
+
+#if UMCUB_CFG_ASSERT_TRAP
+/* MCUboot assertions trap (mcuboot_assert.h): reset instead of the startup
+ * file's endless default handler - for every other fault as well. */
+void HardFault_Handler(void)
+{
+    NVIC_SystemReset();
+}
+#endif
 
 __attribute__((noreturn)) void umcub_port_jump(uint32_t vtor)
 {

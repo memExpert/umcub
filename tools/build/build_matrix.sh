@@ -48,6 +48,7 @@ configs=(
   "bluepill-sign-none|cm3|Release||feature/sign_none.h|bluepill_f103c8"
   "bluepill-tx-ring|cm3|Release||feature/uart_tx_ring.h|bluepill_f103c8"
   "bluepill-mcuboot-log-err|cm3|Release||feature/mcuboot_log_err.h|bluepill_f103c8"
+  "bluepill-assert-trap|cm3|Release||feature/assert_trap.h|bluepill_f103c8"
   "lto|cm7|Release||feature/lto.h"
   "bluepill-lto|cm3|Release||feature/lto.h|bluepill_f103c8"
   "bluepill-can|cm3|Release||bluepill/can.h|bluepill_f103c8"

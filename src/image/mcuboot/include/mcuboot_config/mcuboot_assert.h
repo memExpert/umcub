@@ -21,6 +21,12 @@ __attribute__((noreturn)) void umcub_assert_fail(const char *file, int line);
 #endif
 
 #undef assert
+#if UMCUB_CFG_ASSERT_TRAP && !defined(UMCUB_BUILDING_APP) && !defined(UMCUB_HOST_TEST)
+/* One udf per assertion; the bootloader's HardFault handler resets
+ * (port/arch/cortexm/cortexm_sys.c). */
+#define assert(x) ((x) ? (void)0 : __builtin_trap())
+#else
 #define assert(x) ((x) ? (void)0 : umcub_assert_fail(UMCUB_ASSERT_FILE, __LINE__))
+#endif
 
 #endif

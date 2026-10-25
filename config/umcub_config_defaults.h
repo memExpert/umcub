@@ -374,6 +374,11 @@
 #ifndef UMCUB_CFG_LOG_LEVEL
 #define UMCUB_CFG_LOG_LEVEL             0
 #endif
+/* A failed assertion in MCUboot traps (HardFault -> reset) instead of logging
+ * file:line and resetting: smaller, but silent. */
+#ifndef UMCUB_CFG_ASSERT_TRAP
+#define UMCUB_CFG_ASSERT_TRAP           0
+#endif
 /* MCUboot's own messages (at most UMCUB_CFG_LOG_LEVEL). */
 #ifndef UMCUB_CFG_MCUBOOT_LOG_LEVEL
 #define UMCUB_CFG_MCUBOOT_LOG_LEVEL     UMCUB_CFG_LOG_LEVEL
