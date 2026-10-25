@@ -14,7 +14,8 @@
  *                                      this file through umcub::app
  *
  * Helper macros (from umcub_config_types.h): UMCUB_KB(n), UMCUB_MB(n),
- * UMCUB_PIN(port, pin, af), UMCUB_IP4(a, b, c, d).
+ * UMCUB_PIN(port, pin) (the alternate function filled in from ST's pin data
+ * when CMake configures) or UMCUB_PIN(port, pin, af), UMCUB_IP4(a, b, c, d).
  */
 #ifndef UMCUB_CONFIG_H
 #define UMCUB_CONFIG_H
@@ -128,7 +129,7 @@
 /* #define UMCUB_CFG_ENTRY_ON_NO_IMAGE    1 */
 /* Button / strap pin held at reset. */
 /* #define UMCUB_CFG_ENTRY_GPIO           0 */
-/* #define UMCUB_CFG_ENTRY_GPIO_PIN       UMCUB_PIN('C', 13, 0) */
+/* #define UMCUB_CFG_ENTRY_GPIO_PIN       UMCUB_PIN('C', 13) */
 /* #define UMCUB_CFG_ENTRY_GPIO_ACTIVE    1 */
 /* #define UMCUB_CFG_ENTRY_GPIO_PULL      UMCUB_PULL_NONE */
 /* Listen this long on every boot for an SMP request or a text command such as
@@ -152,7 +153,7 @@
  *                       1 UART, 2 USB, 4 CAN, 5 Ethernet, 7 board transport
  * Untouched on a plain boot; back in reset state before the application. */
 /* #define UMCUB_CFG_STATUS_LED           0 */
-/* #define UMCUB_CFG_STATUS_LED_PIN       UMCUB_PIN('C', 13, 0) */
+/* #define UMCUB_CFG_STATUS_LED_PIN       UMCUB_PIN('C', 13) */
 /* #define UMCUB_CFG_STATUS_LED_ACTIVE    1 */
 
 /* ======================================================================== */
@@ -263,12 +264,12 @@
 /* #define UMCUB_CFG_TRANSPORT_UART       1 */
 /* #define UMCUB_CFG_UART_INSTANCE        3            (USART3) */
 /* #define UMCUB_CFG_UART_BAUD            115200 */
-/* #define UMCUB_CFG_UART_TX_PIN          UMCUB_PIN('D', 8, 7) */
-/* #define UMCUB_CFG_UART_RX_PIN          UMCUB_PIN('D', 9, 7) */
+/* #define UMCUB_CFG_UART_TX_PIN          UMCUB_PIN('D', 8) */
+/* #define UMCUB_CFG_UART_RX_PIN          UMCUB_PIN('D', 9) */
 /* RS485 (half duplex): driver-enable pin of the transceiver (DE, usually tied
  * to /RE), UMCUB_PIN_NONE = plain UART. STM32H7: give the USART's RTS/DE pin
- * with its AF number for hardware DE timing, a pin with AF 0 is switched by
- * software; STM32F1 always by software. */
+ * with its AF number for hardware DE timing (UMCUB_PIN('D', 12, 7)); a pin
+ * without an AF (or AF 0) is switched by software; STM32F1 always by software. */
 /* #define UMCUB_CFG_UART_DE_PIN          UMCUB_PIN_NONE */
 /* #define UMCUB_CFG_UART_DE_ACTIVE       1     (1 = DE high while sending) */
 /* Pause before answering, so the host has released the bus (ms). */
@@ -302,8 +303,8 @@
 /* #define UMCUB_CFG_CAN_RX_ID            0x7C0 (host -> device) */
 /* #define UMCUB_CFG_CAN_TX_ID            0x7C8 (device -> host) */
 /* #define UMCUB_CFG_CAN_EXT_ID           0 */
-/* #define UMCUB_CFG_CAN_TX_PIN           UMCUB_PIN('D', 1, 9) */
-/* #define UMCUB_CFG_CAN_RX_PIN           UMCUB_PIN('D', 0, 9) */
+/* #define UMCUB_CFG_CAN_TX_PIN           UMCUB_PIN('D', 1) */
+/* #define UMCUB_CFG_CAN_RX_PIN           UMCUB_PIN('D', 0) */
 /* Internal loopback (no transceiver needed) - for self-test only. */
 /* #define UMCUB_CFG_CAN_LOOPBACK         0 */
 /* Controller driver: UMCUB_DRIVER_PORT (on-chip FDCAN/bxCAN) or
@@ -324,7 +325,7 @@
 /* #define UMCUB_CFG_ETH_SMP_PORT         1337 */
 /* #define UMCUB_CFG_ETH_PHY_ADDR         0 */
 /* RMII pins as an initializer list of UMCUB_PIN(...). */
-/* #define UMCUB_CFG_ETH_RMII_PINS        UMCUB_PIN('A', 1, 11), ... */
+/* #define UMCUB_CFG_ETH_RMII_PINS        UMCUB_PIN('A', 1), ... */
 /* MAC driver: UMCUB_DRIVER_PORT (on-chip MAC + RMII PHY) or UMCUB_DRIVER_BOARD
  * (external MAC, e.g. ENC28J60/LAN9250 on SPI): boards/<b>/umcub_board.c then
  * implements umcub_port_eth_* (port/include/umcub_port_eth.h, raw frames) and

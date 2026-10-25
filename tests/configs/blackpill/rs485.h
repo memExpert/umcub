@@ -2,7 +2,7 @@
  * DE (with /RE) driven by software on PA8 (F4 USARTs have no hardware DE).
  * No log on a shared bus. */
 #undef UMCUB_CFG_UART_DE_PIN
-#define UMCUB_CFG_UART_DE_PIN           UMCUB_PIN('A', 8, 0)
+#define UMCUB_CFG_UART_DE_PIN           UMCUB_PIN('A', 8)
 #undef UMCUB_CFG_UART_DE_ACTIVE
 #define UMCUB_CFG_UART_DE_ACTIVE        1
 #undef UMCUB_CFG_UART_TURNAROUND_MS

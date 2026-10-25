@@ -38,6 +38,11 @@ static void uart_write(const uint8_t *buf, size_t len)
     umcub_port_uart_write(buf, len);
 }
 
+/* A pin written without its AF that the configure step did not complete
+ * (built without CMake / tools/build/check_pins.py --header). */
+_Static_assert(UMCUB_PIN_HAS_AF(UMCUB_CFG_UART_TX_PIN) && UMCUB_PIN_HAS_AF(UMCUB_CFG_UART_RX_PIN),
+               "umcub: UMCUB_CFG_UART_TX_PIN / _RX_PIN without an alternate function: configure with CMake");
+
 static int uart_init(void)
 {
     if (up) {

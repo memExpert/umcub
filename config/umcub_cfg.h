@@ -17,6 +17,11 @@
 #ifdef UMCUB_CONFIG_POST
 #include UMCUB_CONFIG_POST
 #endif
+/* Pins written without an AF, completed by the configure step
+ * (tools/build/check_pins.py --header): #undef / #define of those options. */
+#ifdef UMCUB_CONFIG_PINS
+#include UMCUB_CONFIG_PINS
+#endif
 #include "umcub_family_defaults.h"
 #include "umcub_config_defaults.h"
 #include "umcub_config_check.h"

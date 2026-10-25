@@ -33,7 +33,7 @@
 #define UMCUB_CFG_ENTRY_WAIT_MS         300
 
 #define UMCUB_CFG_STATUS_LED            1       /* PC13, lit low: blinks while in the bootloader */
-#define UMCUB_CFG_STATUS_LED_PIN        UMCUB_PIN('C', 13, 0)
+#define UMCUB_CFG_STATUS_LED_PIN        UMCUB_PIN('C', 13)
 #define UMCUB_CFG_STATUS_LED_ACTIVE     0
 
 #define UMCUB_CFG_CMD_ENABLE            1
@@ -47,13 +47,13 @@
 #define UMCUB_CFG_TRANSPORT_UART        1
 #define UMCUB_CFG_UART_INSTANCE         1
 #define UMCUB_CFG_UART_BAUD             115200
-#define UMCUB_CFG_UART_TX_PIN           UMCUB_PIN('A', 9, 0)
-#define UMCUB_CFG_UART_RX_PIN           UMCUB_PIN('A', 10, 0)
+#define UMCUB_CFG_UART_TX_PIN           UMCUB_PIN('A', 9)
+#define UMCUB_CFG_UART_RX_PIN           UMCUB_PIN('A', 10)
 
 /* bxCAN on PB9 (TX) / PB8 (RX) - needs a transceiver; not together with USB
  * (shared SRAM). Enable with UMCUB_CFG_TRANSPORT_CAN (tests/configs/bluepill/can.h). */
-#define UMCUB_CFG_CAN_TX_PIN            UMCUB_PIN('B', 9, 0)
-#define UMCUB_CFG_CAN_RX_PIN            UMCUB_PIN('B', 8, 0)
+#define UMCUB_CFG_CAN_TX_PIN            UMCUB_PIN('B', 9)
+#define UMCUB_CFG_CAN_RX_PIN            UMCUB_PIN('B', 8)
 
 #define UMCUB_CFG_LOG_LEVEL             3
 

@@ -3,7 +3,7 @@
 ## Ease of use (next big step)
 
 Goal: a user adds a board without reading the internals. Today, a board on a ported family (H7, F1, F4) is one
-~40-line `umcub_config.h` (pins checked at build time); a new series is a port on the shared drivers (clock,
+~40-line `umcub_config.h` (pins checked at build time, alternate functions filled in); a new series is a port on the shared drivers (clock,
 flash, sys, tables): the F411 took about 470 lines of C/H (2026-10-22).
 
 - [ ] **1. Rest of the F4 port.** Other F4 parts (sector map and SRAM per part).
@@ -11,12 +11,6 @@ flash, sys, tables): the F411 took about 470 lines of C/H (2026-10-22).
   example applications instead of the `elseif` chain in CMakeLists.txt, and move what the Blue Pill and Black Pill
   examples share (info printing, the `u` upload protocol of tools/host/app_upload.py) into examples/common
   (needs both boards to test).
-- [ ] **2. Pins without AF numbers.** Today a board writes `UMCUB_PIN('A', 9, 7)` with the alternate function
-  looked up in the datasheet. The configure-time pin check already has ST's pin data for the package
-  (`UMCUB_CFG_MCU_PART`), so `UMCUB_PIN('A', 9)` could get its AF from the peripheral instance and signal
-  (USART1_TX -> AF7) and pass it to the build; an explicit AF stays possible and is still checked. Configure-time
-  only, no firmware size change. Open: how the value gets from CMake into the C config (generated header?), F1
-  (no AF numbers, remap chosen by the port), IDE builds without CMake (`umcub_app_all.c` does not use pins).
 
 ## Hardware verification (NUCLEO-H755ZI-Q)
 

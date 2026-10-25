@@ -22,6 +22,11 @@ static uint8_t rx_msg[UMCUB_CFG_SMP_MTU];
 static isotp_t tp;
 static bool up;
 
+/* A pin written without its AF that the configure step did not complete
+ * (built without CMake / tools/build/check_pins.py --header). */
+_Static_assert(UMCUB_PIN_HAS_AF(UMCUB_CFG_CAN_TX_PIN) && UMCUB_PIN_HAS_AF(UMCUB_CFG_CAN_RX_PIN),
+               "umcub: UMCUB_CFG_CAN_TX_PIN / _RX_PIN without an alternate function: configure with CMake");
+
 static int can_init(void)
 {
     if (up) {

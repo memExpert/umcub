@@ -11,6 +11,7 @@ include(${CMAKE_CURRENT_LIST_DIR}/../../cmake/umcub_config.cmake)
 set(UMCUB_SIGNING_KEY ${UMCUB_ROOT}/tools/keys/dev-ecdsa-p256.pem)
 set(UMCUB_CONFIG_PRE ${CMAKE_CURRENT_LIST_DIR}/cfg_swap_scratch.h)
 umcub_load_config("${UMCUB_BOARD}" "${UMCUB_CORE}")
+umcub_check_pins()
 include(${UMCUB_ROOT}/cmake/umcub_imgtool.cmake)
 
 set(MCUBOOT ${UMCUB_ROOT}/third_party/mcuboot)
@@ -104,6 +105,7 @@ endfunction()
 function(umcub_host_variant name)
   set(UMCUB_CONFIG_PRE ${CMAKE_CURRENT_LIST_DIR}/cfg_${name}.h)
   umcub_load_config("${UMCUB_BOARD}" "${UMCUB_CORE}")
+  umcub_check_pins(_${name})
   set(t umcub_host_${name})
   add_executable(${t}
     test_main.c
@@ -195,6 +197,7 @@ function(umcub_host_board)
   set(UMCUB_CONFIG_PRE ${CMAKE_CURRENT_LIST_DIR}/cfg_swap_scratch.h)
   set(UMCUB_CONFIG_POST ${CMAKE_CURRENT_LIST_DIR}/test_board_post.h)
   umcub_load_config("${UMCUB_BOARD}" "${UMCUB_CORE}")
+  umcub_check_pins(_board)
   set(t umcub_host_board)
   add_executable(${t}
     test_board.c
@@ -217,6 +220,7 @@ function(umcub_host_link t src post)
   set(UMCUB_CONFIG_PRE ${CMAKE_CURRENT_LIST_DIR}/cfg_swap_scratch.h)
   set(UMCUB_CONFIG_POST ${CMAKE_CURRENT_LIST_DIR}/${post})
   umcub_load_config("${UMCUB_BOARD}" "${UMCUB_CORE}")
+  umcub_check_pins(_${t})
   add_executable(${t}
     ${src}
     ${ARGN}
@@ -250,6 +254,7 @@ umcub_python(_py)
 function(umcub_host_dual name)
   set(UMCUB_CONFIG_PRE ${CMAKE_CURRENT_LIST_DIR}/cfg_${name}.h)
   umcub_load_config("${UMCUB_BOARD}" "${UMCUB_CORE}")
+  umcub_check_pins(_${name})
   set(t umcub_host_${name})
   add_executable(${t} test_dual_enc.c ${HOST_SOURCES} ${LINK_SECURE_SOURCES})
   umcub_host_setup(${t})

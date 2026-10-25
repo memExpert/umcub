@@ -30,12 +30,12 @@
 
 /* KEY (PA0 to GND) held at reset: stay in recovery. */
 #define UMCUB_CFG_ENTRY_GPIO            1
-#define UMCUB_CFG_ENTRY_GPIO_PIN        UMCUB_PIN('A', 0, 0)
+#define UMCUB_CFG_ENTRY_GPIO_PIN        UMCUB_PIN('A', 0)
 #define UMCUB_CFG_ENTRY_GPIO_ACTIVE     0
 #define UMCUB_CFG_ENTRY_GPIO_PULL       UMCUB_PULL_UP
 
 #define UMCUB_CFG_STATUS_LED            1       /* PC13, lit low: blinks while in the bootloader */
-#define UMCUB_CFG_STATUS_LED_PIN        UMCUB_PIN('C', 13, 0)
+#define UMCUB_CFG_STATUS_LED_PIN        UMCUB_PIN('C', 13)
 #define UMCUB_CFG_STATUS_LED_ACTIVE     0
 
 #define UMCUB_CFG_CMD_ENABLE            1
@@ -47,8 +47,8 @@
 #define UMCUB_CFG_TRANSPORT_UART        1
 #define UMCUB_CFG_UART_INSTANCE         1
 #define UMCUB_CFG_UART_BAUD             115200
-#define UMCUB_CFG_UART_TX_PIN           UMCUB_PIN('A', 9, 7)    /* AF7 (DS10314 Table 9) */
-#define UMCUB_CFG_UART_RX_PIN           UMCUB_PIN('A', 10, 7)
+#define UMCUB_CFG_UART_TX_PIN           UMCUB_PIN('A', 9)
+#define UMCUB_CFG_UART_RX_PIN           UMCUB_PIN('A', 10)
 
 #define UMCUB_CFG_LOG_LEVEL             3
 

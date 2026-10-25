@@ -96,7 +96,7 @@
 
 /* --- entry --------------------------------------------------------------- */
 #define UMCUB_CFG_ENTRY_GPIO            1
-#define UMCUB_CFG_ENTRY_GPIO_PIN        UMCUB_PIN('C', 13, 0)   /* B1 USER */
+#define UMCUB_CFG_ENTRY_GPIO_PIN        UMCUB_PIN('C', 13)  /* B1 USER */
 #define UMCUB_CFG_ENTRY_GPIO_ACTIVE     1
 #define UMCUB_CFG_ENTRY_WAIT_MS         0
 
@@ -120,25 +120,25 @@
 #define UMCUB_CFG_UART_INSTANCE         3                       /* ST-LINK VCP */
 #define UMCUB_CFG_LOG_LEVEL             3                       /* log on the VCP (development board) */
 #define UMCUB_CFG_STATUS_LED            1                       /* LD1 green */
-#define UMCUB_CFG_STATUS_LED_PIN        UMCUB_PIN('B', 0, 0)
+#define UMCUB_CFG_STATUS_LED_PIN        UMCUB_PIN('B', 0)
 #define UMCUB_CFG_UART_BAUD             115200
-#define UMCUB_CFG_UART_TX_PIN           UMCUB_PIN('D', 8, 7)
-#define UMCUB_CFG_UART_RX_PIN           UMCUB_PIN('D', 9, 7)
+#define UMCUB_CFG_UART_TX_PIN           UMCUB_PIN('D', 8)
+#define UMCUB_CFG_UART_RX_PIN           UMCUB_PIN('D', 9)
 
 #define UMCUB_CFG_TRANSPORT_USB_CDC     1                       /* CN13 USB user */
 #define UMCUB_CFG_TRANSPORT_USB_DFU     1
 
 #define UMCUB_CFG_TRANSPORT_ETH         1                       /* LAN8742A */
 #define UMCUB_CFG_ETH_PHY_ADDR          0
-#define UMCUB_CFG_ETH_RMII_PINS         UMCUB_PIN('A', 1, 11),  /* REF_CLK */ \
-                                        UMCUB_PIN('A', 2, 11),  /* MDIO    */ \
-                                        UMCUB_PIN('A', 7, 11),  /* CRS_DV  */ \
-                                        UMCUB_PIN('C', 1, 11),  /* MDC     */ \
-                                        UMCUB_PIN('C', 4, 11),  /* RXD0    */ \
-                                        UMCUB_PIN('C', 5, 11),  /* RXD1    */ \
-                                        UMCUB_PIN('G', 11, 11), /* TX_EN   */ \
-                                        UMCUB_PIN('G', 13, 11), /* TXD0    */ \
-                                        UMCUB_PIN('B', 13, 11)  /* TXD1    */
+#define UMCUB_CFG_ETH_RMII_PINS         UMCUB_PIN('A', 1),  /* REF_CLK */ \
+                                        UMCUB_PIN('A', 2),  /* MDIO    */ \
+                                        UMCUB_PIN('A', 7),  /* CRS_DV  */ \
+                                        UMCUB_PIN('C', 1),  /* MDC     */ \
+                                        UMCUB_PIN('C', 4),  /* RXD0    */ \
+                                        UMCUB_PIN('C', 5),  /* RXD1    */ \
+                                        UMCUB_PIN('G', 11), /* TX_EN   */ \
+                                        UMCUB_PIN('G', 13), /* TXD0    */ \
+                                        UMCUB_PIN('B', 13)  /* TXD1    */
 
 #if UMCUB_CFG_DUALCORE_MODE == UMCUB_DUALCORE_PER_CORE
 #define UMCUB_CFG_TRANSPORT_CAN         0                       /* owned by CM4 */
@@ -148,7 +148,7 @@
 #endif
 
 #define UMCUB_CFG_CAN_INSTANCE          1
-#define UMCUB_CFG_CAN_TX_PIN            UMCUB_PIN('D', 1, 9)
-#define UMCUB_CFG_CAN_RX_PIN            UMCUB_PIN('D', 0, 9)
+#define UMCUB_CFG_CAN_TX_PIN            UMCUB_PIN('D', 1)
+#define UMCUB_CFG_CAN_RX_PIN            UMCUB_PIN('D', 0)
 
 #endif /* UMCUB_CONFIG_H */

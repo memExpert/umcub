@@ -167,14 +167,25 @@ endfunction()
 # The configured pins against ST's pin data (tools/build/check_pins.py): a pin
 # without the signal / alternate function the option needs stops the
 # configuration, as does a pin the package (UMCUB_CFG_MCU_PART) does not bring
-# out. Bootloader builds only; the probe prints every pin as "PIN '<port>' <num> <af>".
-function(umcub_check_pins)
+# out. A pin written without its AF (UMCUB_PIN('A', 9)) gets it from the pin
+# data: umcub_pins.h in the build tree redefines those options, included by
+# umcub_cfg.h through UMCUB_CONFIG_PINS (added to UMCUB_CONFIG_DEFS here).
+# Bootloader builds only; the probe prints every pin as "PIN '<port>', <num>[, <af>]".
+# umcub_check_pins([<suffix>]): umcub_pins<suffix>.h, for several configurations
+# in one build tree (host tests).
+macro(umcub_check_pins)
+  set(_umcub_pins_h "${CMAKE_BINARY_DIR}/umcub_probe/umcub_pins${ARGN}.h")
+  _umcub_check_pins("${_umcub_pins_h}")
+  list(APPEND UMCUB_CONFIG_DEFS "UMCUB_CONFIG_PINS=\"${_umcub_pins_h}\"")
+endmacro()
+
+function(_umcub_check_pins header)
   set(_names UMCUB_CFG_TRANSPORT_UART UMCUB_CFG_UART_INSTANCE UMCUB_CFG_UART_TX_PIN UMCUB_CFG_UART_RX_PIN
              UMCUB_CFG_UART_DE_PIN UMCUB_CFG_TRANSPORT_CAN UMCUB_CFG_CAN_DRIVER UMCUB_CFG_CAN_INSTANCE
              UMCUB_CFG_CAN_TX_PIN UMCUB_CFG_CAN_RX_PIN UMCUB_CFG_TRANSPORT_ETH UMCUB_CFG_ETH_DRIVER
              UMCUB_CFG_ETH_RMII_PINS UMCUB_CFG_ENTRY_GPIO UMCUB_CFG_ENTRY_GPIO_PIN UMCUB_CFG_MCU_PART
              UMCUB_CFG_STATUS_LED UMCUB_CFG_STATUS_LED_PIN UMCUB_CFG_TRANSPORT_USB_CDC UMCUB_CFG_TRANSPORT_USB_DFU)
-  set(_probe "#include \"umcub_cfg.h\"\n#undef UMCUB_PIN\n#define UMCUB_PIN(port, pin, af) PIN port pin af\n")
+  set(_probe "#include \"umcub_cfg.h\"\n#undef UMCUB_PIN\n#define UMCUB_PIN(...) PIN __VA_ARGS__\n")
   string(APPEND _probe "@@MCU \"${UMCUB_MCU}\"\n")
   foreach(n IN LISTS _names)
     string(APPEND _probe "@@ \"${n}\" ${n}\n")
@@ -185,10 +196,12 @@ function(umcub_check_pins)
   file(WRITE "${_dir}/pins.txt" "${_out}")
   find_program(_py NAMES python3 python HINTS "${UMCUB_ROOT}/.venv/bin" NO_CACHE)
   if(NOT _py)
+    file(WRITE "${header}" "/* no Python: pins not checked, AF not filled in */\n")
     message(STATUS "umcub: pin check skipped (no Python)")
     return()
   endif()
   execute_process(COMMAND "${_py}" "${UMCUB_ROOT}/tools/build/check_pins.py" "${_dir}/pins.txt"
+                          --header "${header}"
                   OUTPUT_VARIABLE _msg ERROR_VARIABLE _err RESULT_VARIABLE _rc)
   string(STRIP "${_msg}${_err}" _msg)
   if(NOT _rc EQUAL 0)

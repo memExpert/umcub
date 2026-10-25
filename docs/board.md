@@ -67,11 +67,15 @@ Things that are easy to get wrong:
     power supply (`UMCUB_CFG_PWR_SUPPLY`): it can be set only once per power-up.
   - STM32F1: HSE of 8, 12 or 16 MHz, otherwise HSI.
   - STM32F4: HSE of 4..26 MHz in whole MHz (25 MHz works), otherwise HSI; 96 MHz (48 MHz for USB).
-- **Pins.** Alternate-function numbers come from the datasheet of your part. F1 has no AF numbers: the remap is
-  chosen from the TX pin. Both are checked when CMake configures the bootloader: UART (TX, RX, hardware DE), CAN
-  and Ethernet RMII pins against ST's pin data (`third_party/st/stm32_open_pin_data`, `tools/build/check_pins.py`:
-  a wrong pin or AF number stops the configuration and lists the pins that carry the signal), F1 pin pairs against
-  the port's remap tables. With `UMCUB_CFG_MCU_PART` (the part number on the chip, e.g. `"STM32F103C8T6"`) every
+- **Pins.** Write a pin as `UMCUB_PIN('A', 9)`: when CMake configures the bootloader, the alternate function
+  comes from ST's pin data (`third_party/st/stm32_open_pin_data`, `tools/build/check_pins.py`) for the signal the
+  option needs on that pin (`UMCUB_CFG_UART_TX_PIN` with `UMCUB_CFG_UART_INSTANCE 1`: USART1_TX, AF7 on PA9) and
+  goes into `umcub_probe/umcub_pins.h` in the build tree; the configure output lists the filled-in AFs. A pin
+  that does not carry the signal stops the configuration and lists the pins that do. Plain GPIOs (entry button,
+  LED, a software-switched DE) need no AF. `UMCUB_PIN('A', 9, 7)` gives the AF explicitly (needed for the
+  hardware DE of a USART: `UMCUB_PIN('D', 12, 7)` = USART3_DE; without an AF a DE pin is switched by software);
+  it is checked the same way. F1 has no AF numbers: the remap is chosen from the TX pin and checked against the
+  port's remap tables. With `UMCUB_CFG_MCU_PART` (the part number on the chip, e.g. `"STM32F103C8T6"`) every
   pin in use - including the entry button and a software DE pin - must also be brought out by that package
   (LQFP48 has no port E, LQFP100 no port G); without it only the pins of the whole line are known. A pin used by
   two options (the status LED on the UART TX pin, the entry button on USB D+ PA11/PA12, ...) stops the

@@ -18,8 +18,18 @@
 #define UMCUB_KB(n)                 ((n) * 1024)
 #define UMCUB_MB(n)                 ((n) * 1024 * 1024)
 
-/* GPIO pin: port letter ('A'..'K'), pin number 0..15, alternate function 0..15. */
-#define UMCUB_PIN(port, pin, af)    ((((port) - 'A') << 8) | ((pin) << 4) | (af))
+/* GPIO pin: port letter ('A'..'K'), pin number 0..15 and optionally the
+ * alternate function 0..15. Without it, the configure step fills it in from
+ * ST's pin data for the signal the option needs (UMCUB_CFG_UART_TX_PIN with
+ * UMCUB_CFG_UART_INSTANCE 1: USART1_TX) into a generated header (umcub_cfg.h);
+ * plain GPIOs (button, LED, a software-switched DE) get AF 0. */
+#define UMCUB_PIN(...)              UMCUB_PIN_SEL_(__VA_ARGS__, UMCUB_PIN_AF_, UMCUB_PIN_NOAF_, )(__VA_ARGS__)
+#define UMCUB_PIN_SEL_(a, b, c, f, ...) f
+#define UMCUB_PIN_AF_(port, pin, af) ((((port) - 'A') << 8) | ((pin) << 4) | (af))
+#define UMCUB_PIN_NOAF_(port, pin)  (UMCUB_PIN_AF_(port, pin, 0) | UMCUB_PIN_AF_UNSET)
+/* Set while the configure step has not resolved the AF (the pin otherwise works as AF 0). */
+#define UMCUB_PIN_AF_UNSET          0x1000u
+#define UMCUB_PIN_HAS_AF(p)         ((p) == UMCUB_PIN_NONE || ((p) & UMCUB_PIN_AF_UNSET) == 0)
 /* No pin (optional pins such as UMCUB_CFG_UART_DE_PIN). */
 #define UMCUB_PIN_NONE              0xFFFFFFFFu
 #define UMCUB_PIN_PORT(p)           (((p) >> 8) & 0xF)
