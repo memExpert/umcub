@@ -6,11 +6,16 @@ updates (and reverts a failed one), and takes new images over the interface your
 Ethernet. A board is one configuration file; what you do not enable is not compiled.
 
 - **Transports**, each enabled separately, any one of them can be the only one:
-  - UART (also RS485) — SMP serial (`smpmgr`, `mcumgr --conntype serial`);
-  - USB — CDC-ACM with SMP and/or DFU 1.1 (`dfu-util`);
-  - CAN / CAN FD — SMP over ISO-TP (`tools/host/smp_can.py`; CAN FD verified in loopback only, not on a bus yet);
-  - Ethernet — SMP over UDP with DHCP (`smpmgr --ip`, `mcumgr --conntype udp`);
-  - from the application itself (`umcub_slot_*`), or a lite protocol / your own one without SMP.
+  - UART (also RS485);
+  - USB — CDC-ACM and/or DFU 1.1 (`dfu-util`, no other tool needed);
+  - CAN / CAN FD over ISO-TP (CAN FD verified in loopback only, not on a bus yet);
+  - Ethernet — UDP with DHCP;
+  - from the application itself (`umcub_slot_*`).
+- **Upload protocols** on these transports - SMP is not required:
+  - SMP, MCUboot's serial recovery: the standard tools (`smpmgr`, `mcumgr`; over CAN `tools/host/smp_can.py`);
+  - the **lite upload protocol**: begin / data / end frames with CRC, about 3 K smaller than SMP for small parts,
+    host side `tools/host/umcub_lite.py` ([without SMP](docs/recovery.md#recovery-without-smp-lite-upload-and-board-protocols));
+  - text commands next to either (`i`, `b`, `verify`, ...), or a protocol of your own.
 - **MCUboot upgrade modes**: overwrite, swap-scratch, swap-offset, direct-xip (with or without revert).
 - **Images** signed with ECDSA-P256 (`imgtool`), optionally encrypted for the device.
 - **Several devices on one bus** (RS485, CAN, Ethernet): node addresses, a SECURE mode with authentication and
@@ -65,7 +70,8 @@ RS485 and the other variants of each board: [Reference boards](docs/board.md#ref
    [F1](config/umcub_config_minimal_f1.h), [F4](config/umcub_config_minimal_f4.h) or
    [H7](config/umcub_config_minimal_h7.h) - to `boards/<your_board>/umcub_config.h` (the board directory can live in your own repository) and change the lines
    marked "yours": the part, the clock, the flash layout, how to get into the bootloader, one transport with its
-   pins. Pins and slots are checked when CMake configures; a mistake stops it with a hint.
+   pins. Pins and slots are checked when CMake configures; a mistake stops it with a hint. SMP is on by default;
+   `#define UMCUB_CFG_SMP_ENABLE 0` switches the transports to the lite upload protocol (smaller bootloader).
 2. **Make your own signing key**: `imgtool keygen -t ecdsa-p256 -k keys/prod.pem` (the key in the repository is
    public, for development only).
 3. **Build the bootloader**: `cmake -S umcub -B build/boot -DUMCUB_BOARD=$PWD/boards/<your_board>
