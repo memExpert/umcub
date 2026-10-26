@@ -22,6 +22,13 @@ flash, sys, tables): the F411 took about 470 lines of C/H (2026-10-22).
   as tests gives `ctest -j`, `-R`, `--rerun-failed`, `--output-junit` and IDE test lists; the warning / flash fill
   checks of one configuration move to a small wrapper script. After the open points of the simplification report.
 
+- [ ] **4. Production.** Keys, RDP / WRP, option bytes and the log are spread over a few sentences in four pages,
+  without commands for the F1 / F4, and the development keys only warn. A `docs/production.md` checklist (own
+  keys, log off, board type, watchdog, WRP on the bootloader sectors, RDP 1, H755 option bytes, how to check;
+  the `STM32_Programmer_CLI -ob` lines checked against the reference manuals) and `-DUMCUB_PRODUCTION=ON`, which
+  turns the development keys, `UMCUB_CFG_LOG_LEVEL > 0`, `UMCUB_CFG_LINK_REQUIRE_RDP 0`, `UMCUB_CFG_LINK_MIXED_OK`
+  and `UMCUB_CFG_USB_DFU_ALLOW_UNAUTH` into build errors (no firmware change).
+
 ## Hardware verification (NUCLEO-H755ZI-Q)
 
 - [ ] **CAN-FD on a bus** — 64-byte frames, data bit rate switch. Needs a CAN-FD transceiver on PD0/PD1 (classic CAN
