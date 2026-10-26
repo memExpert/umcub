@@ -41,8 +41,6 @@ flash, sys, tables): the F411 took about 470 lines of C/H (2026-10-22).
   the "STM32 CMake Project" wizard + `tools/ide/umcub_cubeide.py` build every preset and the `custom` one (own
   board through *Other options*), single targets, Build Analyzer on the clicked ELF (Linux). Open: debugging from
   that project, CubeIDE on Windows, VS Code (CMake Tools shows no targets / build analysis yet).
-- [ ] **Bluetooth UART bridge** (HC-05/HC-06 SPP on USART1 D0/D1, PC over RFCOMM): SMP upload, text commands,
-  verify / hash over a slow, packetizing link without flow control.
 - [ ] Board drivers / board transport with a real external controller (e.g. MCP2518FD, ENC28J60, W5500).
   So far: build matrix (`tests/boards/custom_drivers`) and host test `umcub_host_board`.
 
