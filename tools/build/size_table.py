@@ -12,7 +12,7 @@ Base = MCUboot + ECDSA-P256 validation + jump: no transport, no log, no text
 commands, no inspection. Every other row is what one item adds (size =
 .text + .data, flash). SMP (MCUboot's boot_serial + zcbor) comes once with the
 first SMP transport; it and the UART driver are told apart by building CAN
-alone and UART + CAN. Transports and features are measured on top of base +
+alone and UART + CAN (without CAN: USB CDC alone and UART + USB CDC). Transports and features are measured on top of base +
 SMP + UART.
 """
 import argparse
@@ -46,6 +46,9 @@ CHIPS = [
     # SRAM with USB on the F103).
     ("STM32F103 (Blue Pill, overwrite)", "", None, f'#include "{ROOT}/boards/bluepill_f103c8/variants/usb.h"\n',
      "bluepill_f103c8", {"CAN_FD", "TRANSPORT_ETH"}, {"TRANSPORT_CAN"}),
+    # Cortex-M4, in the 48 KiB region of the USB layout; no CAN and no Ethernet on the F411.
+    ("STM32F411 (Black Pill, overwrite)", "cm4", None, f'#include "{ROOT}/boards/blackpill_f411ce/variants/usb.h"\n',
+     "blackpill_f411ce", {"TRANSPORT_CAN", "CAN_FD", "TRANSPORT_ETH"}, set()),
 ]
 
 OFF = {"TRANSPORT_UART": 0, "TRANSPORT_USB_CDC": 0, "TRANSPORT_USB_DFU": 0, "TRANSPORT_CAN": 0,
@@ -109,18 +112,13 @@ ROWS = [
     ("+ encrypted images", ["encrypted images"], ["UART"]),
     ("**all on**", ["everything"], []),
 ]
-# Sectors the bootloader region needs: sector layouts from the start of flash
-# (KiB), sizes taken from the measured row CHIPS[chip] - for series without a
-# port an estimate from a build for the same core. None = page flash (any size,
-# shown in KiB). The bootloader region also holds the 256-byte info block.
+# The bootloader region (UMCUB_CFG_BOOT_SIZE) a set of transports needs on
+# each ported family: the measured size of CHIPS[chip] plus the 256-byte info
+# block, rounded up to the erase units from the start of flash (KiB).
 LAYOUTS = [
-    ("STM32H7 (128 KiB sectors)", 0, [128] * 8, ""),
-    ("STM32F2 / F4, F72x / F73x (16, 16, 16, 16, 64, 128 KiB ...)", 1, [16] * 4 + [64] + [128] * 7,
-     "estimate: Cortex-M4 build"),
-    ("STM32F74x ... F77x (32, 32, 32, 32, 128, 256 KiB ...)", 0, [32] * 4 + [128] + [256] * 7,
-     "estimate: Cortex-M7 build"),
-    ("STM32F1 (1 / 2 KiB pages)", 3, None, ""),
-    ("STM32G4 / L4 (2 KiB pages)", 1, None, "estimate: Cortex-M4 build"),
+    ("STM32H7 (128 KiB sectors)", 0, [128] * 16),
+    ("STM32F4 (16, 16, 16, 16, 64, 128 KiB ...)", 4, [16] * 4 + [64] + [128] * 7),
+    ("STM32F1 (1 KiB pages; 2 KiB on high-density parts)", 3, [1] * 1024),
 ]
 SECTOR_SETS = ["UART lite", "UART", "USB CDC only", "CAN only", "Ethernet only", "secure", "everything"]
 SECTOR_LABELS = {"UART lite": "UART, lite (no SMP)", "UART": "UART", "USB CDC only": "USB CDC",
@@ -196,9 +194,12 @@ def main():
                 print(f"note: {CHIPS[jobs[fut][0]][0]} / {jobs[fut][1]} does not build (see {log})", file=sys.stderr)
 
     def value(ci, name):
-        if name == "uart":
-            a_, b_ = size.get((ci, "UART+CAN")), size.get((ci, "CAN only"))
-            return None if a_ is None or b_ is None else a_ - b_
+        if name == "uart":                      # the UART driver: next to CAN, or (no CAN) next to USB CDC
+            for with_uart, without in (("UART+CAN", "CAN only"), ("USB CDC", "USB CDC only")):
+                a_, b_ = size.get((ci, with_uart)), size.get((ci, without))
+                if a_ is not None and b_ is not None:
+                    return a_ - b_
+            return None
         return size.get((ci, name))
 
     def cost_table():
@@ -215,29 +216,24 @@ def main():
             rows.append(f"| {label} | " + " | ".join(cells) + " |")
         return "\n".join(rows)
 
-    def sectors(layout, n):
+    def region(layout, n):
         need, used = n + 256, 0
-        for i, s in enumerate(layout):
-            used += s * 1024
-            if used >= need:
-                return i + 1
-        return len(layout) + 1
+        for s in layout:
+            used += s
+            if used * 1024 >= need:
+                return used
+        return None
 
     def sector_table():
-        rows = ["| Flash layout | " + " | ".join(SECTOR_LABELS[c] for c in SECTOR_SETS) + " |",
+        rows = ["| Bootloader size → `UMCUB_CFG_BOOT_SIZE` | " + " | ".join(SECTOR_LABELS[c] for c in SECTOR_SETS) + " |",
                 "|---|" + "---:|" * len(SECTOR_SETS)]
-        for name, ci, layout, note in LAYOUTS:
+        for name, ci, layout in LAYOUTS:
             cells = []
             for col in SECTOR_SETS:
                 n = size.get((ci, col))
-                if n is None:
-                    cells.append("—")
-                elif layout is None:
-                    cells.append(kb(n))
-                else:
-                    k = sectors(layout, n)
-                    cells.append(f"{k} ({kb(n)})" + (" > 3" if k > 3 else ""))
-            rows.append(f"| {name}{' — ' + note if note else ''} | " + " | ".join(cells) + " |")
+                r = None if n is None else region(layout, n)
+                cells.append("—" if r is None else f"{kb(n)} → {r} K")
+            rows.append(f"| {name} | " + " | ".join(cells) + " |")
         return "\n".join(rows)
 
     def lto_table():

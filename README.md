@@ -24,7 +24,7 @@ Ethernet. A board is one configuration file; what you do not enable is not compi
 | STM32F1 (F103x8/xB) | Blue Pill (STM32F103C8T6) | UART, USB CDC / DFU, bxCAN (not together with USB) |
 | STM32F4 (F411xC/xE) | Black Pill (STM32F411CEU6) | UART (also RS485 with umcub link), USB CDC / DFU |
 
-Size: from 12.7 K (F103) / 17.0 K (H743) without a transport, about 21 K with one UART on the F103; every transport
+Size: from 12.5 K (F103) / 16.9 K (H743) without a transport, about 19 K with one UART on the F103 (20 K on the F411); every transport
 and feature is listed in [Bootloader size](docs/size.md).
 
 ## Quick start
