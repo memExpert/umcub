@@ -61,6 +61,9 @@ Writing from the application:
 | STM32CubeIDE (GCC) | build with CMake; CubeIDE can drive the build and debug the ELF | yes |
 | Keil MDK (Arm Compiler 6) | build with CMake (GCC); Keil can flash the .hex and debug the ELF | yes |
 
+The Keil MDK steps below are not verified in a real Keil project yet (only `umcub_app_all.c` compiles with clang, as
+armclang is clang based); the STM32CubeIDE steps are (CubeIDE 2.2 on Linux, build and Build Analyzer).
+
 The bootloader is written once and rarely changes, so it does not have to live in the IDE. Build it with CMake (see the
 [quick start](../README.md#quick-start-nucleo-h755zi-q)) and program the `.hex` with STM32CubeProgrammer or the IDE. Building the bootloader with Arm Compiler 6
 is not supported: it depends on GCC startup code, GCC linker script templates and its own newlib stdio overrides.
@@ -187,7 +190,7 @@ CMake and Ninja it ships. Needed besides CubeIDE: Python with the `.venv` (`tool
    (it builds in `build/custom`). CubeIDE reads only `CMakePresets.json`, not `CMakeUserPresets.json`.
 3. Build each configuration you use once, close the project and run
    ```sh
-   python tools/host/umcub_cubeide.py <project folder>
+   python tools/ide/umcub_cubeide.py <project folder>
    ```
    then open the project again. The wizard shows the whole source tree and every build tree; the script adds
    resource filters (no `.venv`, `.git` or build trees other than those of the configurations, and in those only

@@ -16,6 +16,12 @@ flash, sys, tables): the F411 took about 470 lines of C/H (2026-10-22).
   preprocess `umcub_config.h`, and the slot window is computed in `cmake/umcub_app.cmake` and `Config.window()`;
   CMake would take the values from the Python one (Python is needed for signing and the pin check anyway).
 
+- [ ] **3. Build matrix on CTest.** `tools/build/build_matrix.sh` (bash) drives 47 bootloader build trees, presets,
+  examples, the IDE compile, `check_layers`, the pin check cases, host tests (already CTest) and the link e2e. A
+  `tests/CMakeLists.txt` with one test per configuration (`ctest --build-and-test` into its own tree) plus the checks
+  as tests gives `ctest -j`, `-R`, `--rerun-failed`, `--output-junit` and IDE test lists; the warning / flash fill
+  checks of one configuration move to a small wrapper script. After the open points of the simplification report.
+
 ## Hardware verification (NUCLEO-H755ZI-Q)
 
 - [ ] **CAN-FD on a bus** — 64-byte frames, data bit rate switch. Needs a CAN-FD transceiver on PD0/PD1 (classic CAN
@@ -25,7 +31,7 @@ flash, sys, tables): the F411 took about 470 lines of C/H (2026-10-22).
   verified: `umcub_app_all.c` compiles with the documented include list (GCC, clang); `tools/host/umcub_image.py` gives
   the same image as CMake (header, payload, hash) from ELF and HEX; a tool-signed image boots on the board; the
   bootloader builds (F1, H7) with only the GCC inside STM32CubeIDE 2.2 (`UMCUB_TOOLCHAIN_PREFIX`); in CubeIDE 2.2
-  the "STM32 CMake Project" wizard + `tools/host/umcub_cubeide.py` build every preset and the `custom` one (own
+  the "STM32 CMake Project" wizard + `tools/ide/umcub_cubeide.py` build every preset and the `custom` one (own
   board through *Other options*), single targets, Build Analyzer on the clicked ELF (Linux). Open: debugging from
   that project, CubeIDE on Windows, VS Code (CMake Tools shows no targets / build analysis yet).
 - [ ] **Bluetooth UART bridge** (HC-05/HC-06 SPP on USART1 D0/D1, PC over RFCOMM): SMP upload, text commands,
