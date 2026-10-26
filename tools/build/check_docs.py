@@ -58,6 +58,17 @@ def main():
             if n not in all_text:
                 problems.append(f"{kind} '{n}' is not mentioned in README.md or docs/")
 
+    # Every option a board can set (#ifndef in the defaults) is described: in the template, in the advanced options
+    # of docs/configuration.md, or (test only) in docs/testing.md. Values without #ifndef are derived, no options.
+    template = (ROOT / "config/umcub_config_template.h").read_text()
+    for f in [ROOT / "config/umcub_config_defaults.h", *sorted(ROOT.glob("port/*/include/umcub_family_defaults.h"))]:
+        for opt in sorted(set(re.findall(r"#\s*ifndef\s+(UMCUB_CFG_[A-Z0-9_]+)", f.read_text()))):
+            where = texts[ROOT / "docs/testing.md"] if opt.startswith("UMCUB_CFG_TEST_") else \
+                texts[ROOT / "docs/configuration.md"]
+            if not re.search(rf"\b{opt}\b", template) and not re.search(rf"`{opt}[` ]", where):
+                problems.append(f"option {opt} ({f.relative_to(ROOT)}) is described neither in the template nor in "
+                                f"docs/configuration.md \"Advanced options\"")
+
     need("board", [p.name for p in (ROOT / "boards").iterdir() if (p / "umcub_config.h").is_file()])
     need("family port", [f"port/{p.name}" for p in (ROOT / "port").glob("stm32*") if p.is_dir()])
     need("example", [p.name for p in (ROOT / "examples").iterdir() if (p / "CMakeLists.txt").is_file()])

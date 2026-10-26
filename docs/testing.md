@@ -40,7 +40,7 @@ SysTick adds, and whether the first block after start-up repeats. Blue Pill at r
 block, SysTick nothing.
 
 Hardware tests: `tests/hw/powerfail_test.py` resets the MCU in the middle of the K-th flash operation (build with
-`tests/configs/feature/fault_inject.h`, test only) and checks that an interrupted upgrade or revert (swap modes) or an
+`tests/configs/feature/fault_inject.h`: `UMCUB_CFG_TEST_FAULT_INJECT 1`, test only) and checks that an interrupted upgrade or revert (swap modes) or an
 interrupted overwrite copy always completes. The images are signed with `tools/host/umcub_image.py` for the
 bootloader's board and overlays; the fault record (`UMCUB_CFG_TEST_FAULT_ADDR`, a RAM word that survives a reset) and
 the handoff area come from that configuration too. A run ends when the bootloader publishes the handoff (right before

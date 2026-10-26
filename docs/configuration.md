@@ -54,6 +54,7 @@ are set the same way in `umcub_config.h`.
 | `UMCUB_CFG_ETH_DHCP_TIMEOUT_MS` | 10000 | Fall back to `UMCUB_CFG_ETH_IP` when no DHCP lease comes in this time. |
 | `UMCUB_CFG_ETH_SMP_PORT` | 1337 | UDP port of SMP. |
 | `UMCUB_CFG_CORE2_DONE_TIMEOUT_MS` | 3000 | `UMCUB_DUALCORE_PER_CORE`, main core: how long to wait for the second core's bootloader before handing the clocks to the application. |
+| `UMCUB_CFG_BOOT_INFO_ADDR` | last 256 bytes of the bootloader region | Where the bootloader's info block lies (version, mode, slots, board type: `umcub_boot_version()`, `i`). Part of the application ABI: the application finds the block there. |
 | `UMCUB_CFG_APP_WRITE_SLOT` | from the mode | Where `umcub_slot_*()` in the application writes by default: `UMCUB_SLOT_SECONDARY`, `UMCUB_SLOT_PRIMARY`, `UMCUB_SLOT_INACTIVE` (direct-xip). |
 
 ### Dual-core H745/H755/H747/H757
