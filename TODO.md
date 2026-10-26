@@ -11,7 +11,10 @@ flash, sys, tables): the F411 took about 470 lines of C/H (2026-10-22).
 - [ ] **2. One host CLI.** `tools/host/` has six scripts a user may meet (`umcub_image.py`, `umcub_link.py`,
   `umcub_lite.py`, `umcub_inspect.py`, `umcub_keys.py`, `smp_can.py`), sharing `--port/--udp/--can`
   (`umcub_bus.py`, `umcub_smp.py`). One `tools/umcub.py` with subcommands (`image`, `link`, `lite`, `inspect`,
-  `keys`, `can`) and one library module; docs, tests and CMake move to it.
+  `keys`, `can`) and one library module; docs, tests and CMake move to it. With it: one reader of the
+  configuration - today `umcub_load_config` (cmake/umcub_config.cmake) and `Config` in `umcub_image.py` both
+  preprocess `umcub_config.h`, and the slot window is computed in `cmake/umcub_app.cmake` and `Config.window()`;
+  CMake would take the values from the Python one (Python is needed for signing and the pin check anyway).
 
 ## Hardware verification (NUCLEO-H755ZI-Q)
 

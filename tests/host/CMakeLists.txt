@@ -101,6 +101,26 @@ function(umcub_host_setup t)
   endif()
 endfunction()
 
+# Test images signed with imgtool directly: arguments for the board type TLV (protected): "--custom-tlv 0xa0 0x<u32 LE>",
+# empty when UMCUB_CFG_BOARD_TYPE is 0. Same encoding as tools/host/umcub_image.py.
+function(umcub_board_type_tlv_args out_var board_type)
+  set(_args)
+  if(board_type)
+    set(_hex "")
+    foreach(_i 0 1 2 3)
+      math(EXPR _b "(${board_type} >> (8 * ${_i})) & 0xFF" OUTPUT_FORMAT HEXADECIMAL)
+      string(SUBSTRING "${_b}" 2 -1 _b)
+      string(LENGTH "${_b}" _n)
+      if(_n EQUAL 1)
+        set(_b "0${_b}")
+      endif()
+      string(APPEND _hex "${_b}")
+    endforeach()
+    set(_args --custom-tlv 0xa0 0x${_hex})
+  endif()
+  set(${out_var} ${_args} PARENT_SCOPE)
+endfunction()
+
 # One test executable per upgrade mode, each with its own probed config.
 function(umcub_host_variant name)
   set(UMCUB_CONFIG_PRE ${CMAKE_CURRENT_LIST_DIR}/cfg_${name}.h)
