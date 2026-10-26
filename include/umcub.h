@@ -1,5 +1,7 @@
 /*
- * umcub application library.
+ * umcub application library. Most applications need two calls:
+ * umcub_enter_bootloader() for an update and, in the swap modes,
+ * umcub_confirm(); the rest is for applications that want more.
  *
  *   #include "umcub.h"
  *

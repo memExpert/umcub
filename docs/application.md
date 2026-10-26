@@ -24,6 +24,11 @@ umcub_sign_image(app VERSION 1.2.3)
 A build with applications for both cores adds `lib/umcub_app` for each; `umcub_add_application()` links each
 application with its core's library (`${UMCUB_APP_LIB}`).
 
+What the library costs the application (with `--gc-sections` only what it calls is linked): `umcub_confirm()` and
+`umcub_enter_bootloader()` add 92 bytes on the Blue Pill and the Black Pill (overwrite: nothing to confirm) and
+2.5 K on the H755 CM7 (swap-scratch: confirming writes the slot trailer through MCUboot's bootutil and the flash
+driver). Writing an image from the application (`umcub_slot_*`) adds the rest of the flash driver.
+
 ```c
 #include "umcub.h"
 umcub_version_t v;
