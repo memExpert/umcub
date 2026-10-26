@@ -22,7 +22,7 @@
 #define ENT_LEN         32u
 /* Distinct byte values a healthy 32-byte block has at least. A stuck source
  * gives 1; the F1 ADC source gives about 20, at least 6 in 11392 measured
- * blocks (tools/hw/entropy_test.py); a TRNG about 28. */
+ * blocks (tests/hw/entropy_test.py); a TRNG about 28. */
 #define MIN_DISTINCT    4u
 
 static bool healthy(const uint8_t *ent)

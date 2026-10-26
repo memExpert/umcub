@@ -1,7 +1,7 @@
 /*
  * TEST ONLY: power-loss emulation for the bootloader (UMCUB_CFG_TEST_FAULT_INJECT).
  *
- * The host (tools/hw/powerfail_test.py) writes { MAGIC, target K, 0, 0 } to
+ * The host (tests/hw/powerfail_test.py) writes { MAGIC, target K, 0, 0 } to
  * UMCUB_CFG_TEST_FAULT_ADDR through SWD. Every fault point in the flash
  * driver increments `count`; at count == K the MCU resets immediately - in
  * the middle of a running sector erase / flash-word program, like a power

@@ -112,7 +112,7 @@ matrix build compiles this file with exactly this include list, using GCC and cl
 
 **3. Signing after the build.** `tools/host/umcub_image.py sign` takes the ELF / AXF (or an Intel HEX / raw `.bin`). It
 checks that the image is linked at the slot origin and fits the slot, and writes `<name>.signed.bin` and
-`<name>.signed.hex` next to it (and `<name>.bin`, the unsigned flat image, e.g. for `tools/hw/powerfail_test.py`). `umcub_sign_image()` in CMake runs the same tool on the ELF, so an IDE project and a
+`<name>.signed.hex` next to it (and `<name>.bin`, the unsigned flat image, e.g. for `tests/hw/powerfail_test.py`). `umcub_sign_image()` in CMake runs the same tool on the ELF, so an IDE project and a
 CMake build sign identically.
 
 It reads `umcub_config.h` through a C preprocessor. The search order is `--cc`, then `$UMCUB_CC`, then

@@ -1,13 +1,13 @@
 /*
  * The board-independent part of the umcub console examples: a text console on
  * a UART with the keys below, the info umcub_boot_info() gives and the 'u'
- * upload protocol of tools/host/app_upload.py. A board's example provides the
+ * upload protocol of examples/common/app_upload.py. A board's example provides the
  * ex_* functions of the first block (clock, pins, UART, LED, watchdog) and
  * calls ex_run().
  *   i  show bootloader / image information
  *   c  confirm this image (swap modes: otherwise reverted on next reset)
  *   b  reboot into the bootloader's recovery mode
- *   u  receive an image and write it into a slot (tools/host/app_upload.py)
+ *   u  receive an image and write it into a slot (examples/common/app_upload.py)
  *   w  stop feeding the watchdog (UMCUB_CFG_WATCHDOG_MS: reset follows)
  *   r  reset
  */

@@ -2,7 +2,7 @@
  * STM32F1 port: entropy without a TRNG. Each output byte is the two low bits
  * of four ADC1 conversions of the internal temperature sensor (RM0008 §11.10):
  * their noise is the only source. Measured on a Blue Pill
- * (tools/hw/entropy_test.py): about 0.6 bit per conversion (NIST SP 800-90B
+ * (tests/hw/entropy_test.py): about 0.6 bit per conversion (NIST SP 800-90B
  * Markov estimate), about 79 bits of min-entropy per 32-byte block; SysTick
  * adds none (the ADC runs from the same PLL, a conversion takes a fixed number
  * of cycles). The caller conditions it with a hash (src/util/random.c).

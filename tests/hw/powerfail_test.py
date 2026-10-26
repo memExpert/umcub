@@ -19,13 +19,13 @@ Images are signed with tools/host/umcub_image.py for the bootloader's configurat
 and the board-type TLV match.
 
   NUCLEO-H755ZI-Q (swap-scratch):
-  tools/hw/powerfail_test.py --boot build/hw/boot_fault/umcub_nucleo_h755zi_q_cm7.hex \\
+  tests/hw/powerfail_test.py --boot build/hw/boot_fault/umcub_nucleo_h755zi_q_cm7.hex \\
       --app build/hw/sb_app_cm7/h755_cm7_app.bin --board nucleo_h755zi_q --core cm7 \\
       --erase 0x08020000+0xE0000 --sector-size 0x20000 --points 40
   swap-offset (the update sits one sector into the secondary slot, the revert copy at its start):
   ... --pre tests/configs/mode/swap_offset.h --secondary 0x080A0000 --revert-copy 0x08080000
   Blue Pill (overwrite, 16 KiB slots, 1 KiB pages, no NRST on the SWD header):
-  tools/hw/powerfail_test.py --boot build/bp_fault/umcub_bluepill_f103c8_cm3.hex \\
+  tests/hw/powerfail_test.py --boot build/bp_fault/umcub_bluepill_f103c8_cm3.hex \\
       --app build/bluepill/examples/bluepill_app/bluepill_app.bin --board bluepill_f103c8 \\
       --mode overwrite --primary 0x08008000 --secondary 0x0800C000 --erase 0x08008000+0x8000 \\
       --size 12288 --sector-size 0x400 --connect under-reset --reset rst --points 40
@@ -42,7 +42,7 @@ import sys
 import tempfile
 import time
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "tools", "hw"))
 import probe  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

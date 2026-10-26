@@ -30,16 +30,16 @@ The bench tools reach the target through `tools/hw/probe.py` (a thin SWD layer):
 STM32_Programmer_CLI (`$STM32_PROGRAMMER_CLI` or PATH), `--probe pyocd` uses pyOCD (`--target`, `--pack` for the
 part); `$UMCUB_PROBE` sets the default. `probe.py flash a.hex b.bin@0x08008000` programs and resets.
 
-Stack use on the board: `tools/hw/stack_usage.py paint`, run a scenario, `tools/hw/stack_usage.py measure`
+Stack use on the board: `tests/hw/stack_usage.py paint`, run a scenario, `tests/hw/stack_usage.py measure`
 (deepest use since the paint; `loop-app` gives a signed application that does not touch the RAM, for boot paths).
 
-Entropy of the STM32F1 source (no TRNG): `tools/hw/entropy_test.py --serial <probe>` loads a sampler into SRAM
+Entropy of the STM32F1 source (no TRNG): `tests/hw/entropy_test.py --serial <probe>` loads a sampler into SRAM
 (nothing written to flash), collects the raw ADC conversions of one long run and of fresh starts, and prints
 min-entropy estimates (SP 800-90B most-common-value and Markov) per conversion and per 32-byte block, what
 SysTick adds, and whether the first block after start-up repeats. Blue Pill at room temperature: 60-80 bits per
 block, SysTick nothing.
 
-Hardware tests: `tools/hw/powerfail_test.py` resets the MCU in the middle of the K-th flash operation (build with
+Hardware tests: `tests/hw/powerfail_test.py` resets the MCU in the middle of the K-th flash operation (build with
 `tests/configs/feature/fault_inject.h`, test only) and checks that an interrupted upgrade or revert (swap modes) or an
 interrupted overwrite copy always completes. The images are signed with `tools/host/umcub_image.py` for the
 bootloader's board and overlays; the fault record (`UMCUB_CFG_TEST_FAULT_ADDR`, a RAM word that survives a reset) and

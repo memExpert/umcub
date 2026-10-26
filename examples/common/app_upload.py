@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Upload a signed image through the example application (umcub_slot_* API).
 
-  app_upload.py /dev/ttyACM0 build/h755_cm7_app.signed.bin [--image 0]
+  examples/common/app_upload.py /dev/ttyACM0 build/h755_cm7_app.signed.bin [--image 0]
 
 Protocol of the console examples (examples/common/umcub_example.c): 'u' <image:u8,
 bit 7 = primary slot> <size:u32le>, then chunks of 1024 bytes, each acknowledged

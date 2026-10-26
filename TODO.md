@@ -8,6 +8,10 @@ flash, sys, tables): the F411 took about 470 lines of C/H (2026-10-22).
 
 - [ ] **1. Rest of the F4 port.** Other F4 parts (sector map and SRAM per part).
   G4 later: needs a branch in `fdcan.c` for its fixed message RAM layout.
+- [ ] **2. One host CLI.** `tools/host/` has six scripts a user may meet (`umcub_image.py`, `umcub_link.py`,
+  `umcub_lite.py`, `umcub_inspect.py`, `umcub_keys.py`, `smp_can.py`), sharing `--port/--udp/--can`
+  (`umcub_bus.py`, `umcub_smp.py`). One `tools/umcub.py` with subcommands (`image`, `link`, `lite`, `inspect`,
+  `keys`, `can`) and one library module; docs, tests and CMake move to it.
 
 ## Hardware verification (NUCLEO-H755ZI-Q)
 

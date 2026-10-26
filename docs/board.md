@@ -54,7 +54,7 @@ commands (`UMCUB_CMD_USER`), drivers for external controllers (`UMCUB_DRIVER_BOA
 
 **7. Optional: an example application.** The console examples share
 [`examples/common/umcub_example.c`](../examples/common/umcub_example.h): keys `i c b u w r`, the info from
-`umcub_boot_info()`, the upload protocol of `tools/host/app_upload.py`. A board's example only brings the clock,
+`umcub_boot_info()`, the upload protocol of `examples/common/app_upload.py`. A board's example only brings the clock,
 the pins and five functions (`ex_putc`, `ex_getc`, `ex_millis`, `ex_led_toggle`, `ex_watchdog_feed`), then calls
 `ex_run()`: copy `examples/blackpill_app` (about 70 lines). `boards/my_board/umcub_examples.cmake` lists the
 examples `-DUMCUB_BUILD_EXAMPLES=ON` builds with the bootloader (`list(APPEND UMCUB_BOARD_EXAMPLES my_app)`, a

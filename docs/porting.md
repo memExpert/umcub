@@ -24,7 +24,7 @@ Adding an STM32 series and the source tree.
    `port/stm32h7/can.c`); the message RAM layout comes from the device header (H7: configurable; a part with the
    fixed layout, e.g. G4, needs its branch in `fdcan.c`). Entropy (SECURE link, encrypted images): with an RNG add
    `rng.c` and give `stm32_rng_clock_on()` (see `port/stm32h7/rng.c`); without one, `umcub_port_entropy()` of
-   your own (the F1 and F4 sample ADC noise, `port/stm32f1/entropy.c`, measured with `tools/hw/entropy_test.py`); a family without one sets
+   your own (the F1 and F4 sample ADC noise, `port/stm32f1/entropy.c`, measured with `tests/hw/entropy_test.py`); a family without one sets
    `UMCUB_FAMILY_UNSUPPORTED_ENTROPY` in its CMake file (like `_CAN`, `_ETH`, `_USB`) so configure refuses the
    features that need it. USB: give `umcub_port_usb_init()` / `_deinit()` (48 MHz clock, pins, controller clock;
    returns the tinyUSB rhport) and the IRQ vector calling `umcub_usb_irq_handler()`, and name the tinyUSB driver
@@ -67,16 +67,17 @@ lib/umcub_app/   application library (umcub::app); umcub_app_all.c = the whole l
 examples/        CM7 / CM4 applications for NUCLEO-H755ZI-Q, Blue Pill and Black Pill applications; common/ = the shared console
 tools/           setup.sh, requirements.txt, keys/ (development keys)
 tools/host/      host tools: umcub_image.py (slot addresses, signing for IDE projects), umcub_inspect.py,
-                 umcub_link.py, umcub_lite.py (lite upload), smp_can.py, app_upload.py, umcub_keys.py
+                 umcub_link.py, umcub_lite.py (lite upload), smp_can.py, umcub_keys.py
                  (umcub link keys as C arrays), umcub_smp.py (SMP helpers of the host tools, on smp / smpclient),
                  umcub_bus.py (their connections: --port / --udp / --can options, serial lines, UDP, ISO-TP),
                  umcub_cubeide.py (filters and build targets for an STM32CubeIDE CMake project)
 tools/build/     build_matrix.sh, size_table.py (size tables), check_docs.py (README / docs consistency),
                  check_layers.py (layering), check_pins.py (configured pins vs ST pin data, fills in AFs, run by CMake)
-tools/hw/        bench (SWD through probe.py: STM32_Programmer_CLI or pyOCD): probe.py (flash / read / write /
-                 erase / reset), h755_option_bytes.py, dhcp_server.py (DHCP server for one direct link),
-                 powerfail_test.py, stack_usage.py, entropy_test.py (+ entropy_sampler_f1.c / _f4.c: ADC entropy
-                 measured from SRAM), udev/
+tools/hw/        SWD through probe.py (STM32_Programmer_CLI or pyOCD): probe.py (flash / read / write / erase /
+                 reset), h755_option_bytes.py, udev/
+tests/hw/        hardware tests on the bench: powerfail_test.py, stack_usage.py, entropy_test.py
+                 (+ entropy_sampler_f1.c / _f4.c: ADC entropy measured from SRAM), dhcp_server.py (DHCP server
+                 for one direct link)
 tests/host/      host tests
 tests/configs/   configuration overlays: mode/, transport/, feature/, bluepill/, blackpill/
 tests/tools/     helpers for the build matrix (image comparison, check_pins_test.py: pin check cases)

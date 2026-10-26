@@ -406,7 +406,7 @@
 #endif
 
 /* TEST ONLY: reset in the middle of the K-th flash operation (power-loss
- * emulation, tools/hw/powerfail_test.py). Never enable in production. */
+ * emulation, tests/hw/powerfail_test.py). Never enable in production. */
 #ifndef UMCUB_CFG_TEST_FAULT_INJECT
 #define UMCUB_CFG_TEST_FAULT_INJECT     0
 #endif

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Minimal DHCP server for ONE direct link (PC network port <-> board). Needs root.
 
-  sudo tools/hw/dhcp_server.py --iface eth1                    # DISCOVER/OFFER/REQUEST/ACK
-  sudo tools/hw/dhcp_server.py --iface eth1 --lease 30         # renewal every 15 s
-  sudo tools/hw/dhcp_server.py --iface eth1 --mode silent      # no answers: the board's static fallback
-  sudo tools/hw/dhcp_server.py --iface eth1 --mode nak         # NAK every REQUEST
-  sudo tools/hw/dhcp_server.py --iface eth1 --advertise 10     # PC side offers 10 Mbit/s only (or 100)
+  sudo tests/hw/dhcp_server.py --iface eth1                    # DISCOVER/OFFER/REQUEST/ACK
+  sudo tests/hw/dhcp_server.py --iface eth1 --lease 30         # renewal every 15 s
+  sudo tests/hw/dhcp_server.py --iface eth1 --mode silent      # no answers: the board's static fallback
+  sudo tests/hw/dhcp_server.py --iface eth1 --mode nak         # NAK every REQUEST
+  sudo tests/hw/dhcp_server.py --iface eth1 --advertise 10     # PC side offers 10 Mbit/s only (or 100)
 
 The PC side gets the first address of --net, the board the 50th; --fallback-net
 adds a second PC address so that the board's static fallback address is

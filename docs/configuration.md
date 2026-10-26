@@ -154,7 +154,7 @@ Notes:
   table): 3-4 K less on the Cortex-M3, 6-7 K on the H7. It is experimental (verified on the Blue Pill only, not on
   the H7) and up to you: inlining makes single stack frames larger (MCUboot's image validation 248 -> 848 bytes); measured on the
   Blue Pill the peak stays the same (about 1.5-2.9 KiB of the 4 KiB reserve, the deepest path is an SMP upload of
-  an encrypted image), but check the stack of your part (`tools/hw/stack_usage.py`) and weak functions you
+  an encrypted image), but check the stack of your part (`tests/hw/stack_usage.py`) and weak functions you
   override in the board file. Verified on the Blue Pill: boot, SMP recovery upload, overwrite upgrade from the
   application, SECURE + encrypted images.
 - Every byte counts on small parts: the bootloader keeps compiler-generated tables (`-fno-optimize-crc`), 64-bit

@@ -3,7 +3,7 @@
 
   entropy_test.py [--family f1|f4] [--serial ST-LINK-ID] [--rounds 256] [--boots 100] [--save DIR]
 
-Builds tools/hw/entropy_sampler_<family>.c (arm-none-eabi-gcc), loads it into SRAM
+Builds tests/hw/entropy_sampler_<family>.c (arm-none-eabi-gcc), loads it into SRAM
 over SWD with pyOCD (nothing is written to flash; the board is reset into its
 bootloader afterwards) and collects the raw ADC conversions the bootloader
 uses: one long run (--rounds x 4096 samples) and the first 4096 samples of

@@ -2,7 +2,7 @@
  * STM32F4 port: entropy without a TRNG (F411: no RNG). Each output byte is the
  * two low bits of four ADC1 conversions of the internal temperature sensor
  * (RM0383 §11.10, ADC1_IN18): their noise is the only source, like on the F1
- * (port/stm32f1/entropy.c). Measure a board with tools/hw/entropy_test.py
+ * (port/stm32f1/entropy.c). Measure a board with tests/hw/entropy_test.py
  * --family f4. The caller conditions it with a hash (src/util/random.c).
  */
 #include "f4.h"

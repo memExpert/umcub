@@ -20,7 +20,7 @@ import struct
 import subprocess
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "tools", "hw"))
 import probe  # noqa: E402
 
 PATTERN = 0x5AA5C33C
