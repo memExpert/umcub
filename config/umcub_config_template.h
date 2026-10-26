@@ -160,7 +160,7 @@
 
 /* SMP (MCUboot serial recovery: mcumgr / smpmgr) on UART, USB CDC, CAN, UDP
  * and the board transport. 0 leaves boot_serial, zcbor and the SMP framing
- * out (about 10 K): images then come through the lite upload protocol
+ * out (about 6 K): images then come through the lite upload protocol
  * (UMCUB_CFG_LITE_UPLOAD, on by default without SMP),
  * USB DFU, the application (umcub_slot_*) or the board's own protocol. */
 /* #define UMCUB_CFG_SMP_ENABLE           1 */

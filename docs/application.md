@@ -137,7 +137,7 @@ input and output need nothing more.
   ```
 - **Keil MDK**: *Options for Target → User → After Build/Rebuild → Run #1*:
   ```
-  python <umcub>\tools\umcub_image.py sign --board nucleo_h755zi_q --core cm7 --image 0 --version 1.2.3 "#L"
+  python <umcub>\tools\host\umcub_image.py sign --board nucleo_h755zi_q --core cm7 --image 0 --version 1.2.3 "#L"
   ```
   `#L` is the `.axf` with its full path. If armclang is not found automatically, add
   `--cc "$KARM\ARMCLANG\bin\armclang.exe"`.

@@ -34,17 +34,17 @@
 /* A button (here PC13, low = pressed); the application can always ask
  * (umcub_enter_bootloader()), and without a valid image it stays anyway. */
 #define UMCUB_CFG_ENTRY_GPIO            1
-#define UMCUB_CFG_ENTRY_GPIO_PIN        UMCUB_PIN('C', 13, 0)
+#define UMCUB_CFG_ENTRY_GPIO_PIN        UMCUB_PIN('C', 13)
 #define UMCUB_CFG_ENTRY_GPIO_ACTIVE     0
 #define UMCUB_CFG_ENTRY_GPIO_PULL       UMCUB_PULL_UP
 
 /* --- transport (yours): here a UART, SMP for smpmgr / mcumgr ------------- */
-/* UMCUB_PIN(port, pin, alternate function number from the datasheet). */
+/* UMCUB_PIN(port, pin): the alternate function comes from ST's pin data. */
 #define UMCUB_CFG_TRANSPORT_UART        1
 #define UMCUB_CFG_UART_INSTANCE         1
 #define UMCUB_CFG_UART_BAUD             115200
-#define UMCUB_CFG_UART_TX_PIN           UMCUB_PIN('A', 9, 7)
-#define UMCUB_CFG_UART_RX_PIN           UMCUB_PIN('A', 10, 7)
+#define UMCUB_CFG_UART_TX_PIN           UMCUB_PIN('A', 9)
+#define UMCUB_CFG_UART_RX_PIN           UMCUB_PIN('A', 10)
 
 /* For bring-up: boot log on the same UART (0 = off, the default). */
 /* #define UMCUB_CFG_LOG_LEVEL            3 */

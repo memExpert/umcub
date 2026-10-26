@@ -32,6 +32,7 @@ and feature is listed in [Bootloader size](docs/configuration.md#bootloader-size
 ```sh
 git submodule update --init
 tools/setup.sh                                 # .venv: imgtool, smpmgr, python-can, ...
+source .venv/bin/activate                      # smpmgr and the host tools on PATH
 cmake --preset h755-cm7 && cmake --build --preset h755-cm7       # bootloader + the CM7 and CM4 examples
 tools/hw/h755_option_bytes.py single           # once: the CM4 waits in the bootloader (pyOCD)
 cmake --build --preset h755-cm7 --target flash  # bootloader + signed examples over SWD
@@ -53,6 +54,7 @@ smpmgr --port /dev/ttyACM0 os reset
 ## Quick start (Blue Pill, STM32F103C8T6)
 
 ```sh
+git submodule update --init && tools/setup.sh && source .venv/bin/activate   # once, as for the H755
 cmake --preset bluepill && cmake --build --preset bluepill       # SMP on USART1 PA9/PA10
 cmake --build --preset bluepill --target flash                   # bootloader + signed example over SWD
 smpmgr --port /dev/ttyUSB0 --line-buffers 4 image upload build/bluepill/examples/bluepill_app/bluepill_app.signed.bin
