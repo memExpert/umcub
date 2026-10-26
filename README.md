@@ -27,41 +27,37 @@ Ethernet. A board is one configuration file; what you do not enable is not compi
 Size: from 12.7 K (F103) / 17.0 K (H743) without a transport, about 21 K with one UART on the F103; every transport
 and feature is listed in [Bootloader size](docs/configuration.md#bootloader-size).
 
-## Quick start (NUCLEO-H755ZI-Q)
+## Quick start
+
+Once:
 
 ```sh
 git submodule update --init
 tools/setup.sh                                 # .venv: imgtool, smpmgr, python-can, ...
 source .venv/bin/activate                      # smpmgr and the host tools on PATH
-cmake --preset h755-cm7 && cmake --build --preset h755-cm7       # bootloader + the CM7 and CM4 examples
-tools/hw/h755_option_bytes.py single           # once: the CM4 waits in the bootloader (pyOCD)
-cmake --build --preset h755-cm7 --target flash  # bootloader + signed examples over SWD
 ```
 
-The `flash` target programs the bootloader and the signed example images of the build tree through
-`tools/hw/probe.py` (STM32_Programmer_CLI on PATH or in `$STM32_PROGRAMMER_CLI`; `-DUMCUB_PROBE=pyocd` for pyOCD,
-`-DUMCUB_PROBE_ARGS=...` for more options).
-
-The board logs to the ST-LINK virtual COM port (115200). Hold B1 during reset (or press `b` in the example
-application) to stay in the bootloader, then update over any interface:
+Then for the board (`<preset>` from the table): build the bootloader and its example application, program both
+over SWD, update the application over the bootloader's serial port.
 
 ```sh
-smpmgr --port /dev/ttyACM0 image upload build/h755-cm7/examples/h755_cm7_app/h755_cm7_app.signed.bin
-smpmgr --port /dev/ttyACM0 image upload --slot 1 build/h755-cm7/examples/h755_cm4_app/h755_cm4_app.signed.bin
-smpmgr --port /dev/ttyACM0 os reset
+cmake --preset <preset> && cmake --build --preset <preset>
+cmake --build --preset <preset> --target flash      # bootloader + signed example(s), then reset
+smpmgr --port <port> image upload build/<preset>/examples/<app>/<app>.signed.bin
+smpmgr --port <port> os reset
 ```
 
-## Quick start (Blue Pill, STM32F103C8T6)
+| Board | `<preset>` | `<app>` | `<port>`: SMP and log | Stay in the bootloader |
+|---|---|---|---|---|
+| NUCLEO-H755ZI-Q | `h755-cm7` | `h755_cm7_app` (CM4: `h755_cm4_app`, `--slot 1`) | ST-LINK VCP `/dev/ttyACM0` | hold B1 during reset |
+| Blue Pill (STM32F103C8T6) | `bluepill` | `bluepill_app` | USB-UART on PA9/PA10 `/dev/ttyUSB0`, `--line-buffers 4` | send `b` within 300 ms after reset |
+| Black Pill (STM32F411CEU6) | `blackpill` | `blackpill_app` | USB-UART on PA9/PA10 `/dev/ttyUSB0` | hold KEY (PA0) during reset |
 
-```sh
-git submodule update --init && tools/setup.sh && source .venv/bin/activate   # once, as for the H755
-cmake --preset bluepill && cmake --build --preset bluepill       # SMP on USART1 PA9/PA10
-cmake --build --preset bluepill --target flash                   # bootloader + signed example over SWD
-smpmgr --port /dev/ttyUSB0 --line-buffers 4 image upload build/bluepill/examples/bluepill_app/bluepill_app.signed.bin
-```
-
-There is no button: send `b` within 300 ms after reset, or `b` to the running example, to stay in the bootloader.
-USB and CAN builds and the notes on this board: [Reference boards](docs/board.md#reference-boards).
+On every board `b` in the running example application reboots into the bootloader, and a board without a valid
+image stays there. The H755 needs its option bytes once before the first flash: `tools/hw/h755_option_bytes.py single`
+(the CM4 waits in the bootloader). The `flash` target uses `tools/hw/probe.py` (STM32_Programmer_CLI on PATH or in
+`$STM32_PROGRAMMER_CLI`; `-DUMCUB_PROBE=pyocd` for pyOCD, `-DUMCUB_PROBE_ARGS=...` for more options). USB, CAN,
+RS485 and the other variants of each board: [Reference boards](docs/board.md#reference-boards).
 
 ## Your own board in five steps
 

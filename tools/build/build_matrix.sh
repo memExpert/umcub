@@ -122,7 +122,7 @@ fi
 
 # CMake presets (bootloader + the board's example applications in one tree,
 # UMCUB_BUILD_EXAMPLES): every target links, warning-free, .map next to each .elf.
-for p in h755-cm7 h755-per-core-cm4 bluepill-usb; do
+for p in h755-cm7 h755-per-core-cm4 bluepill-usb blackpill; do
   dir="$OUT/preset-$p"
   if cmake --preset "$p" -B "$dir" >"$dir.configure.log" 2>&1 && cmake --build "$dir" >"$dir.build.log" 2>&1 &&
      ! grep -q "warning:" "$dir.build.log"; then

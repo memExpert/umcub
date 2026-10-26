@@ -65,7 +65,7 @@ The Keil MDK steps below are not verified in a real Keil project yet (only `umcu
 armclang is clang based); the STM32CubeIDE steps are (CubeIDE 2.2 on Linux, build and Build Analyzer).
 
 The bootloader is written once and rarely changes, so it does not have to live in the IDE. Build it with CMake (see the
-[quick start](../README.md#quick-start-nucleo-h755zi-q)) and program the `.hex` with STM32CubeProgrammer or the IDE. Building the bootloader with Arm Compiler 6
+[quick start](../README.md#quick-start)) and program the `.hex` with STM32CubeProgrammer or the IDE. Building the bootloader with Arm Compiler 6
 is not supported: it depends on GCC startup code, GCC linker script templates and its own newlib stdio overrides.
 
 The application is a normal CubeMX / IDE project. It needs four things: the right flash address, the library, a

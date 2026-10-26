@@ -285,8 +285,7 @@ USART1 left to the application): `boards/blackpill_f411ce/variants/usart2.h`. Ex
 (drives PA8 as DE while sending, so it also talks over RS485):
 
 ```sh
-cmake -S . -B build/blackpill -G Ninja -DCMAKE_BUILD_TYPE=Release -DUMCUB_BOARD=blackpill_f411ce -DUMCUB_BUILD_EXAMPLES=ON
-cmake --build build/blackpill
+cmake --preset blackpill && cmake --build --preset blackpill --target flash
 smpmgr --port /dev/ttyUSB0 --timeout 5 image upload build/blackpill/examples/blackpill_app/blackpill_app.signed.bin
 ```
 
