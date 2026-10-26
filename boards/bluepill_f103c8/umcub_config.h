@@ -19,9 +19,6 @@
 #ifndef UMCUB_CFG_UPGRADE_MODE
 #define UMCUB_CFG_UPGRADE_MODE          UMCUB_MODE_OVERWRITE
 #endif
-#define UMCUB_CFG_IMAGE_HEADER_SIZE     0x200   /* VTOR: minimum alignment 128 words (PM0056 §4.4.4) */
-#define UMCUB_CFG_TRAILER_RESERVE       0x800   /* last page + TLVs, mcu-tools/mcuboot#2920 */
-#define UMCUB_CFG_BOOT_ADDR             0x08000000
 #define UMCUB_CFG_BOOT_SIZE             UMCUB_KB(32)
 #define UMCUB_CFG_IMG0_PRIMARY_ADDR     0x08008000
 #define UMCUB_CFG_IMG0_PRIMARY_SIZE     UMCUB_KB(16)

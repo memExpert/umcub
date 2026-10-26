@@ -38,6 +38,16 @@
 #ifndef UMCUB_CFG_BOOT_ADDR
 #define UMCUB_CFG_BOOT_ADDR             0x08000000
 #endif
+/* Image header = vector table alignment of the application: Cortex-M3 VTOR
+ * needs 128 words for up to 128 vectors (PM0056 §4.4.4). */
+#ifndef UMCUB_CFG_IMAGE_HEADER_SIZE
+#define UMCUB_CFG_IMAGE_HEADER_SIZE     0x200
+#endif
+/* The last page of every slot plus 1 KiB for the TLVs: MCUboot up to v2.5.0
+ * erases that page again after a progressive SMP upload (mcu-tools/mcuboot#2920). */
+#ifndef UMCUB_CFG_TRAILER_RESERVE
+#define UMCUB_CFG_TRAILER_RESERVE       (UMCUB_FAMILY_UNIFORM_SECTOR + 0x400)
+#endif
 /* Last 256 bytes of SRAM (kept over reset; the application must not use them). */
 #ifndef UMCUB_CFG_SHARED_RAM_ADDR
 #define UMCUB_CFG_SHARED_RAM_ADDR       (0x20000000 + UMCUB_FAMILY_RAM_SIZE - 256)

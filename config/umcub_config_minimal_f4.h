@@ -24,7 +24,6 @@
  * Overwrite: the secondary slot is copied over the primary. The application
  * is linked for the primary slot (tools/host/umcub_image.py info prints where). */
 #define UMCUB_CFG_UPGRADE_MODE          UMCUB_MODE_OVERWRITE
-#define UMCUB_CFG_IMAGE_HEADER_SIZE     0x200   /* vector table alignment (VTOR) */
 #define UMCUB_CFG_BOOT_SIZE             UMCUB_KB(32)
 #define UMCUB_CFG_IMG0_PRIMARY_ADDR     0x08020000
 #define UMCUB_CFG_IMG0_PRIMARY_SIZE     UMCUB_KB(128)

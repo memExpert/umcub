@@ -16,6 +16,11 @@
 #ifndef UMCUB_CFG_ERASE_PROGRESSIVELY
 #define UMCUB_CFG_ERASE_PROGRESSIVELY   0
 #endif
+/* Image header = vector table alignment of the application: Cortex-M4 VTOR
+ * needs 128 words for up to 128 vectors (PM0214 §4.4.4; the F411 has 102). */
+#ifndef UMCUB_CFG_IMAGE_HEADER_SIZE
+#define UMCUB_CFG_IMAGE_HEADER_SIZE     0x200
+#endif
 /* Encrypted images: no in-place decryption (it buffers one sector in RAM -
  * 128 KiB); encrypted updates go through the secondary slot. */
 #ifndef UMCUB_CFG_ENC_INPLACE

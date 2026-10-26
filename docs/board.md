@@ -72,10 +72,10 @@ Things that are easy to get wrong:
   sector. The last `UMCUB_CFG_TRAILER_RESERVE` bytes of a slot belong to MCUboot.
   With `UMCUB_CFG_ERASE_PROGRESSIVELY` (default; SMP upload erases sector by sector) that reserve must cover the
   last sector of every slot plus 1 KiB for the TLVs imgtool appends behind the application: MCUboot up to v2.5.0
-  erases that sector again after the upload (mcu-tools/mcuboot#2920) and an image ending in it would be lost. On
-  the H7 the reserve is therefore 129 KiB, on the Blue Pill 2 KiB; a slot of one sector (F4) needs
-  `UMCUB_CFG_ERASE_PROGRESSIVELY 0` (the whole slot is erased on the first chunk). The build checks both, and that
-  a watchdog (`UMCUB_CFG_WATCHDOG_MS`) outlasts one sector erase.
+  erases that sector again after the upload (mcu-tools/mcuboot#2920) and an image ending in it would be lost. The
+  H7 and F1 ports set that reserve by default (H7 129 KiB, F1 one page + 1 KiB); the F4 port erases the whole slot
+  on the first chunk instead (`UMCUB_CFG_ERASE_PROGRESSIVELY 0`, slots of one 128 KiB sector). The build checks
+  both, and that a watchdog (`UMCUB_CFG_WATCHDOG_MS`) outlasts one sector erase.
 - **Clocks and power.**
   - STM32H7: HSE must be a multiple of 2 MHz (8, 12, 16, 24 MHz; not 25 MHz). The application must select the same
     power supply (`UMCUB_CFG_PWR_SUPPLY`): it can be set only once per power-up.
@@ -97,7 +97,8 @@ Things that are easy to get wrong:
 - **RAM.** The handoff area (`UMCUB_CFG_SHARED_RAM_ADDR`, 256 bytes) must stay out of the application's RAM. The
   generated application linker scripts already exclude it.
 - **Image header.** `UMCUB_CFG_IMAGE_HEADER_SIZE` is also the offset of the application vector table: it must meet
-  the VTOR alignment of the core (0x200 on Cortex-M3/M4 with up to 128 vectors, 0x400 on the H7).
+  the VTOR alignment of the core. The ports set it (0x200 on the F1 / F4 with up to 128 vectors, 0x400 on the H7);
+  a part with more vectors needs the next power of two.
 - **Watchdog.** If `UMCUB_CFG_WATCHDOG_MS` is set, the application must feed the IWDG: once started it cannot be
   stopped.
 - **Log.** The boot log is off by default. For bring-up set `UMCUB_CFG_LOG_LEVEL 3` (info, about 3.5 K) and watch
