@@ -173,4 +173,12 @@ function(umcub_sign_image target)
             -o $<TARGET_FILE_DIR:${target}>/$<TARGET_FILE_BASE_NAME:${target}> $<TARGET_FILE:${target}>
     COMMENT "Signing ${target}: image ${A_IMAGE} version ${A_VERSION}"
     VERBATIM)
+  # What a programmer writes (the flash target): the signed image, in
+  # direct-xip-revert the confirmed one (an unconfirmed image is erased there).
+  set(_hex "$<TARGET_FILE_DIR:${target}>/$<TARGET_FILE_BASE_NAME:${target}>.signed.hex")
+  if(UMCUB_CFG_UPGRADE_MODE EQUAL 6)    # UMCUB_MODE_DIRECT_XIP_REVERT
+    set(_hex "$<TARGET_FILE_DIR:${target}>/$<TARGET_FILE_BASE_NAME:${target}>.confirmed.hex")
+  endif()
+  set_property(GLOBAL APPEND PROPERTY UMCUB_FLASH_IMAGES "${_hex}")
+  set_property(GLOBAL APPEND PROPERTY UMCUB_FLASH_TARGETS ${target})
 endfunction()

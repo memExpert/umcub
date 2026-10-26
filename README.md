@@ -34,10 +34,12 @@ git submodule update --init
 tools/setup.sh                                 # .venv: imgtool, smpmgr, python-can, ...
 cmake --preset h755-cm7 && cmake --build --preset h755-cm7       # bootloader + the CM7 and CM4 examples
 tools/hw/h755_option_bytes.py single           # once: the CM4 waits in the bootloader (pyOCD)
-tools/hw/probe.py flash build/h755-cm7/umcub_nucleo_h755zi_q_cm7.hex \
-    build/h755-cm7/examples/h755_cm7_app/h755_cm7_app.signed.hex \
-    build/h755-cm7/examples/h755_cm4_app/h755_cm4_app.signed.hex
+cmake --build --preset h755-cm7 --target flash  # bootloader + signed examples over SWD
 ```
+
+The `flash` target programs the bootloader and the signed example images of the build tree through
+`tools/hw/probe.py` (STM32_Programmer_CLI on PATH or in `$STM32_PROGRAMMER_CLI`; `-DUMCUB_PROBE=pyocd` for pyOCD,
+`-DUMCUB_PROBE_ARGS=...` for more options).
 
 The board logs to the ST-LINK virtual COM port (115200). Hold B1 during reset (or press `b` in the example
 application) to stay in the bootloader, then update over any interface:
@@ -52,8 +54,7 @@ smpmgr --port /dev/ttyACM0 os reset
 
 ```sh
 cmake --preset bluepill && cmake --build --preset bluepill       # SMP on USART1 PA9/PA10
-STM32_Programmer_CLI -c port=SWD -d build/bluepill/umcub_bluepill_f103c8_cm3.hex -v
-STM32_Programmer_CLI -c port=SWD -d build/bluepill/examples/bluepill_app/bluepill_app.signed.hex -v -rst
+cmake --build --preset bluepill --target flash                   # bootloader + signed example over SWD
 smpmgr --port /dev/ttyUSB0 --line-buffers 4 image upload build/bluepill/examples/bluepill_app/bluepill_app.signed.bin
 ```
 

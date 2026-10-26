@@ -337,3 +337,19 @@ if(UMCUB_BUILD_EXAMPLES)
     add_subdirectory("${_src}" examples/${_name})
   endforeach()
 endif()
+
+# ----------------------------------------------------------------------------
+# cmake --build <tree> --target flash: the bootloader and the signed example
+# images of this tree over SWD (tools/hw/probe.py), then a reset.
+# ----------------------------------------------------------------------------
+set(UMCUB_PROBE "stm32cube" CACHE STRING "tools/hw/probe.py backend of the flash target: stm32cube or pyocd")
+set(UMCUB_PROBE_ARGS "" CACHE STRING "More probe.py options, e.g. --connect;under-reset or --target;stm32f103c8")
+get_property(_flash_images GLOBAL PROPERTY UMCUB_FLASH_IMAGES)
+get_property(_flash_targets GLOBAL PROPERTY UMCUB_FLASH_TARGETS)
+umcub_python(_py)
+add_custom_target(flash
+  COMMAND "${_py}" "${UMCUB_ROOT}/tools/hw/probe.py" --probe ${UMCUB_PROBE} ${UMCUB_PROBE_ARGS} flash
+          "$<TARGET_FILE_DIR:${UMCUB_BOOT_TARGET}>/$<TARGET_FILE_BASE_NAME:${UMCUB_BOOT_TARGET}>.hex" ${_flash_images}
+  DEPENDS ${UMCUB_BOOT_TARGET} ${_flash_targets}
+  COMMENT "Flashing the bootloader and the signed examples over SWD (${UMCUB_PROBE})"
+  USES_TERMINAL VERBATIM)
