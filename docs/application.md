@@ -9,13 +9,20 @@ from an IDE.
 set(UMCUB_BOARD nucleo_h755zi_q)   # same configuration as the bootloader
 set(UMCUB_CORE cm7)
 add_subdirectory(path/to/umcub/lib/umcub_app umcub)
-target_link_libraries(app PRIVATE umcub::app)
-umcub_app_linker_script(app IMAGE 0)        # or your own script with UMCUB_APP_FLASH_ORIGIN_0_0
-umcub_sign_image(app VERSION 1.2.3)         # -> app.signed.bin / app.signed.hex (same signed image)
+umcub_add_application(app IMAGE 0 VERSION 1.2.3)   # -> app.signed.bin / app.signed.hex (same signed image)
 ```
 
-A build with applications for both cores adds `lib/umcub_app` for each and links each application with
-`${UMCUB_APP_LIB}` (one target per core); with a single application `umcub::app` is enough.
+`umcub_add_application()` links the library, links `app` for its slot and signs it. With a linker script of your own
+use the steps it is made of:
+
+```cmake
+target_link_libraries(app PRIVATE umcub::app)
+umcub_app_linker_script(app IMAGE 0)        # or your own script with UMCUB_APP_FLASH_ORIGIN_0_0
+umcub_sign_image(app VERSION 1.2.3)
+```
+
+A build with applications for both cores adds `lib/umcub_app` for each; `umcub_add_application()` links each
+application with its core's library (`${UMCUB_APP_LIB}`).
 
 ```c
 #include "umcub.h"

@@ -26,7 +26,6 @@ target_compile_options(h755_cm4_app PRIVATE ${UMCUB_CPU_FLAGS_HARD} -Os -g -Wall
   $<$<COMPILE_LANGUAGE:ASM>:-x assembler-with-cpp>)
 target_link_options(h755_cm4_app PRIVATE ${UMCUB_CPU_FLAGS_HARD} --specs=nano.specs --specs=nosys.specs -nostartfiles
   -Wl,--gc-sections -Wl,--print-memory-usage -Wl,--no-warn-rwx-segments -Wl,-Map=$<TARGET_FILE_DIR:h755_cm4_app>/h755_cm4_app.map)
-target_link_libraries(h755_cm4_app PRIVATE ${UMCUB_APP_LIB})   # = umcub::app in a single-application project
 
 # SINGLE_BOOT: image 1 of the CM7 bootloader; PER_CORE: image 0 of the CM4 one.
 if(UMCUB_CFG_DUALCORE_MODE EQUAL 2)
@@ -34,5 +33,4 @@ if(UMCUB_CFG_DUALCORE_MODE EQUAL 2)
 else()
   set(APP_IMAGE 1)
 endif()
-umcub_app_linker_script(h755_cm4_app IMAGE ${APP_IMAGE})
-umcub_sign_image(h755_cm4_app IMAGE ${APP_IMAGE} VERSION ${APP_VERSION})
+umcub_add_application(h755_cm4_app IMAGE ${APP_IMAGE} VERSION ${APP_VERSION})   # link umcub::app, slot linker script, sign

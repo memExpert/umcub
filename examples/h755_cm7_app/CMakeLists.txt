@@ -29,7 +29,5 @@ target_compile_options(h755_cm7_app PRIVATE ${UMCUB_CPU_FLAGS_HARD} -Os -g -Wall
   $<$<COMPILE_LANGUAGE:ASM>:-x assembler-with-cpp>)
 target_link_options(h755_cm7_app PRIVATE ${UMCUB_CPU_FLAGS_HARD} --specs=nano.specs --specs=nosys.specs -nostartfiles
   -Wl,--gc-sections -Wl,--print-memory-usage -Wl,--no-warn-rwx-segments -Wl,-Map=$<TARGET_FILE_DIR:h755_cm7_app>/h755_cm7_app.map)
-target_link_libraries(h755_cm7_app PRIVATE ${UMCUB_APP_LIB})   # = umcub::app in a single-application project
 
-umcub_app_linker_script(h755_cm7_app IMAGE 0 SLOT ${APP_SLOT})
-umcub_sign_image(h755_cm7_app IMAGE 0 SLOT ${APP_SLOT} VERSION ${APP_VERSION})
+umcub_add_application(h755_cm7_app IMAGE 0 SLOT ${APP_SLOT} VERSION ${APP_VERSION})   # link umcub::app, slot linker script, sign

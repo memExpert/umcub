@@ -40,7 +40,7 @@ Configuration mistakes stop the build with a message: slots overlapping or off s
 sizes for the mode, a missing scratch area, an HSE the port cannot use, and so on.
 
 **4. Adapt the application.** Use the same board directory and key: CMake with `umcub::app`,
-`umcub_app_linker_script()` and `umcub_sign_image()` (see [Application library](application.md#application-library)), or an IDE
+`umcub_add_application()` (see [Application library](application.md#application-library)), or an IDE
 project with `tools/host/umcub_image.py` (see [Using umcub from an IDE](application.md#using-umcub-from-an-ide-stm32cubeide-keil-mdk)).
 `tools/host/umcub_image.py info --board boards/my_board` prints where to link it.
 

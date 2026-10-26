@@ -45,3 +45,26 @@ function(umcub_app_linker_script target)
   target_link_options(${target} PRIVATE -T${_out})
   set_property(TARGET ${target} APPEND PROPERTY LINK_DEPENDS "${_out}")
 endfunction()
+
+# umcub_add_application(<target> [IMAGE <n>] [SLOT <0|1>] [VERSION <x.y.z>]
+#                       [TEMPLATE <file.ld.in>] [<umcub_sign_image() options>])
+# The usual three steps for an application in one call: links umcub::app
+# (${UMCUB_APP_LIB}), links <target> for the slot (umcub_app_linker_script())
+# and signs it (umcub_sign_image(): <target>.signed.bin / .hex). Applications
+# with their own linker script call the two functions themselves.
+function(umcub_add_application target)
+  cmake_parse_arguments(A "" "IMAGE;SLOT;TEMPLATE" "" ${ARGN})
+  if(NOT DEFINED A_IMAGE)
+    set(A_IMAGE 0)
+  endif()
+  if(NOT DEFINED A_SLOT)
+    set(A_SLOT 0)
+  endif()
+  target_link_libraries(${target} PRIVATE ${UMCUB_APP_LIB})
+  if(A_TEMPLATE)
+    umcub_app_linker_script(${target} IMAGE ${A_IMAGE} SLOT ${A_SLOT} TEMPLATE ${A_TEMPLATE})
+  else()
+    umcub_app_linker_script(${target} IMAGE ${A_IMAGE} SLOT ${A_SLOT})
+  endif()
+  umcub_sign_image(${target} IMAGE ${A_IMAGE} SLOT ${A_SLOT} ${A_UNPARSED_ARGUMENTS})
+endfunction()

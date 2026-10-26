@@ -6,10 +6,13 @@
 #   set(UMCUB_CORE  cm7)                      # dual-core parts only
 #   add_subdirectory(path/to/umcub/lib/umcub_app umcub)
 #
+#   umcub_add_application(app IMAGE 0 VERSION 1.0.0)   # -> app.signed.bin/.hex
+#
+# which is short for
 #   target_link_libraries(app PRIVATE umcub::app)
 #   umcub_app_linker_script(app IMAGE 0)      # or use your own script with
 #                                             # UMCUB_APP_FLASH_ORIGIN/LENGTH
-#   umcub_sign_image(app VERSION 1.0.0)       # -> app.signed.bin/.hex
+#   umcub_sign_image(app VERSION 1.0.0)
 #
 # Optional: UMCUB_APP_CPU_FLAGS (defaults to the family's hard-float flags),
 #           UMCUB_SIGNING_KEY, UMCUB_IMGTOOL, UMCUB_CONFIG_PRE/POST.

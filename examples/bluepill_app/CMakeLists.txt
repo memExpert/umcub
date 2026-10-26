@@ -24,7 +24,5 @@ target_compile_options(bluepill_app PRIVATE ${UMCUB_CPU_FLAGS_HARD} -Os -g -Wall
   -ffunction-sections -fdata-sections $<$<COMPILE_LANGUAGE:ASM>:-x assembler-with-cpp>)
 target_link_options(bluepill_app PRIVATE ${UMCUB_CPU_FLAGS_HARD} --specs=nano.specs --specs=nosys.specs -nostartfiles
   -Wl,--gc-sections -Wl,--print-memory-usage -Wl,--no-warn-rwx-segments -Wl,-Map=$<TARGET_FILE_DIR:bluepill_app>/bluepill_app.map)
-target_link_libraries(bluepill_app PRIVATE ${UMCUB_APP_LIB})   # = umcub::app in a single-application project
 
-umcub_app_linker_script(bluepill_app IMAGE 0)
-umcub_sign_image(bluepill_app IMAGE 0 VERSION ${APP_VERSION})
+umcub_add_application(bluepill_app IMAGE 0 VERSION ${APP_VERSION})   # link umcub::app, slot linker script, sign
