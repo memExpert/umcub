@@ -31,7 +31,7 @@ CHIPS = [
     ("STM32H755 CM7 (2 images, SINGLE_BOOT)", "cm7", None, ""),
     # The board gives the CM4 instance only CAN; borrow the CM7 pins to size the rest
     # (status LED: LD2, the default PC13 is the B1 button there).
-    ("STM32H755 CM4 (PER_CORE)", "cm4", "tests/configs/feature/per_core.h",
+    ("STM32H755 CM4 (PER_CORE)", "cm4", "boards/nucleo_h755zi_q/variants/per_core.h",
      "#define UMCUB_CFG_STATUS_LED_PIN UMCUB_PIN('E', 1, 0)\n#define UMCUB_CFG_UART_INSTANCE 3\n#define UMCUB_CFG_UART_BAUD 115200\n"
      "#define UMCUB_CFG_UART_TX_PIN UMCUB_PIN('D', 8, 7)\n#define UMCUB_CFG_UART_RX_PIN UMCUB_PIN('D', 9, 7)\n"
      "#define UMCUB_CFG_ETH_PHY_ADDR 0\n#define UMCUB_CFG_ETH_RMII_PINS UMCUB_PIN('A', 1, 11), UMCUB_PIN('A', 2, 11), "
@@ -44,7 +44,7 @@ CHIPS = [
     # Cortex-M3, sized in the 44 KiB bootloader region of the USB layout; no
     # CAN FD and no Ethernet on this part; "all on" without CAN (shares its
     # SRAM with USB on the F103).
-    ("STM32F103 (Blue Pill, overwrite)", "", None, f'#include "{ROOT}/tests/configs/bluepill/usb.h"\n',
+    ("STM32F103 (Blue Pill, overwrite)", "", None, f'#include "{ROOT}/boards/bluepill_f103c8/variants/usb.h"\n',
      "bluepill_f103c8", {"CAN_FD", "TRANSPORT_ETH"}, {"TRANSPORT_CAN"}),
 ]
 

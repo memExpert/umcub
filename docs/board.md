@@ -251,7 +251,7 @@ is no valid image, or when `b` arrives within 300 ms after reset (`UMCUB_CFG_ENT
 `--line-buffers 4` matches `UMCUB_CFG_SMP_MTU` = 512 (20 KiB SRAM).
 
 USB (CDC with SMP and DFU, micro-USB connector) needs more room: preset `bluepill-usb` (overlay
-`tests/configs/bluepill/usb.h`: bootloader 44 KiB, two 10 KiB slots; the example in the same tree uses the same
+`boards/bluepill_f103c8/variants/usb.h`: bootloader 44 KiB, two 10 KiB slots; the example in the same tree uses the same
 layout):
 
 ```sh
@@ -269,7 +269,7 @@ While a debugger holds the MCU in reset (`mode=UR`) D+ floats high again: flash 
 USB cable unplugged.
 
 CAN (bxCAN, classic CAN, ISO-TP like on the H7) on PB9 TX / PB8 RX with an external transceiver: overlay
-`tests/configs/bluepill/can.h` (+2.4 K, still in the 32 KiB region), host side `tools/host/smp_can.py`. Not together with
+`boards/bluepill_f103c8/variants/can.h` (+2.4 K, still in the 32 KiB region), host side `tools/host/smp_can.py`. Not together with
 USB: on the F103 both share the same 512 bytes of SRAM (the build refuses it).
 
 **Black Pill** ([`boards/blackpill_f411ce/umcub_config.h`](../boards/blackpill_f411ce/umcub_config.h), WeAct):
@@ -280,8 +280,8 @@ work the same way in overwrite mode (a 155 KiB image, checked on the board). Rec
 reset, LED PC13. A slot is one sector, so SMP upload erases it on the first chunk (about 2 s,
 `UMCUB_CFG_ERASE_PROGRESSIVELY 0`); the CPU stalls meanwhile, so a watchdog (`UMCUB_CFG_WATCHDOG_MS`) needs at
 least 3 s (LSI 17..47 kHz). RS485 through a MAX485 (RO PA10, DI PA9, DE and /RE on PA8): overlay
-`tests/configs/blackpill/rs485.h`; SMP and log on USART2 instead (PA2 TX, PA3 RX, e.g. a USB-UART adapter, with
-USART1 left to the application): `tests/configs/blackpill/usart2.h`. Example application: [`examples/blackpill_app`](../examples/blackpill_app)
+`boards/blackpill_f411ce/variants/rs485.h`; SMP and log on USART2 instead (PA2 TX, PA3 RX, e.g. a USB-UART adapter, with
+USART1 left to the application): `boards/blackpill_f411ce/variants/usart2.h`. Example application: [`examples/blackpill_app`](../examples/blackpill_app)
 (drives PA8 as DE while sending, so it also talks over RS485):
 
 ```sh
@@ -291,19 +291,19 @@ smpmgr --port /dev/ttyUSB0 --timeout 5 image upload build/blackpill/examples/bla
 ```
 
 The F411 has no RNG: nonces (umcub link) and the key unwrap of encrypted images use ADC noise of the temperature
-sensor, like the F1 (`port/stm32f4/entropy.c`). umcub link on RS485: `tests/configs/blackpill/rs485_link.h`.
-Encrypted images need a 48 KiB bootloader (`tests/configs/blackpill/encrypt.h`, sectors 0-2) and go through the
+sensor, like the F1 (`port/stm32f4/entropy.c`). umcub link on RS485: `boards/blackpill_f411ce/variants/rs485_link.h`.
+Encrypted images need a 48 KiB bootloader (`boards/blackpill_f411ce/variants/encrypt.h`, sectors 0-2) and go through the
 secondary slot: no in-place decryption on the F4 (it would buffer a 128 KiB sector in RAM).
 
 USB (CDC with SMP and DFU on the USB-C socket, OTG FS PA11/PA12) needs a 48 KiB bootloader (sectors 0-2) and the
 crystal: the 48 MHz come from the PLL, and on the HSI they would be too far off for USB (the port then refuses USB
-and the bootloader goes on without it). Overlay `tests/configs/blackpill/usb.h`; the slots stay where they are, so
+and the bootloader goes on without it). Overlay `boards/blackpill_f411ce/variants/usb.h`; the slots stay where they are, so
 the example of the default build works unchanged. VBUS sensing is off (PA9 stays free for USART1); the board has a
 switchable D+ pull-up inside the MCU, so unlike the Blue Pill it detaches cleanly in reset:
 
 ```sh
 cmake -S . -B build/blackpill-usb -G Ninja -DCMAKE_BUILD_TYPE=Release -DUMCUB_BOARD=blackpill_f411ce \
-      -DUMCUB_CONFIG_POST=tests/configs/blackpill/usb.h
+      -DUMCUB_CONFIG_POST=boards/blackpill_f411ce/variants/usb.h
 cmake --build build/blackpill-usb
 smpmgr --port /dev/ttyACM0 image upload build/blackpill/examples/blackpill_app/blackpill_app.signed.bin
 dfu-util -a 0 -D build/blackpill/examples/blackpill_app/blackpill_app.signed.bin -R

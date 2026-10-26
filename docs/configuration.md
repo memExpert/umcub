@@ -24,7 +24,7 @@ changed ones in [Advanced options](#advanced-options) below; defaults are in `co
 
 The configuration can be extended without editing the board file through overlay headers:
 `-DUMCUB_CONFIG_PRE=<file>` is included before the board config (for `#ifndef`-guarded options),
-`-DUMCUB_CONFIG_POST=<file>` after it (`#undef`/`#define`). Ready-made variants are in `tests/configs/` (`mode/`, `transport/`, `feature/`, `bluepill/`).
+`-DUMCUB_CONFIG_POST=<file>` after it (`#undef`/`#define`). Ready-made variants of a board are in `boards/<board>/variants/` (USB, RS485, CAN, umcub link, encryption, ...); the overlays the build matrix uses for modes, transports and features are in `tests/configs/` (`mode/`, `transport/`, `feature/`).
 
 Configuration errors (overlapping slots, slots not on sector boundaries, missing scratch area, conflicting modes) are
 caught at compile time (`config/umcub_config_check.h`).

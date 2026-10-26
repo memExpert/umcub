@@ -62,7 +62,7 @@ src/             the bootloader itself:
   proto/         L5  mux (SMP, lite upload, board frames, recovery loop), umcub link, lite upload, text commands,
                      SMP inspection group
   boot/          L6  main (entry decision, boot_go, jump), startup, info block
-boards/          board configurations (umcub_config.h, optional umcub_board.c, umcub_examples.cmake)
+boards/          board configurations (umcub_config.h, optional umcub_board.c, umcub_examples.cmake, variants/)
 lib/umcub_app/   application library (umcub::app); umcub_app_all.c = the whole library as one file for IDEs
 examples/        CM7 / CM4 applications for NUCLEO-H755ZI-Q, Blue Pill and Black Pill applications; common/ = the shared console
 tools/           setup.sh, requirements.txt, keys/ (development keys)
@@ -79,7 +79,7 @@ tests/hw/        hardware tests on the bench: powerfail_test.py, stack_usage.py,
                  (+ entropy_sampler_f1.c / _f4.c: ADC entropy measured from SRAM), dhcp_server.py (DHCP server
                  for one direct link)
 tests/host/      host tests
-tests/configs/   configuration overlays: mode/, transport/, feature/, bluepill/, blackpill/
+tests/configs/   overlays of the build matrix: mode/, transport/, feature/ (board variants: boards/<b>/variants/)
 tests/tools/     helpers for the build matrix (image comparison, check_pins_test.py: pin check cases)
 tests/boards/    build-matrix boards (custom_drivers: board drivers + board transport)
 ```

@@ -30,18 +30,18 @@ configs=(
   "uart-canfd-loopback|cm7|Release||transport/uart_can.h"
   "usb-dfu-only|cm7|Release||transport/usb_dfu_only.h"
   "single-core|cm7|Release|feature/single_core.h|"
-  "per-core-cm7|cm7|Release|feature/per_core.h|"
-  "per-core-cm4|cm4|Release|feature/per_core.h|"
+  "per-core-cm7|cm7|Release|boards/nucleo_h755zi_q/variants/per_core.h|"
+  "per-core-cm4|cm4|Release|boards/nucleo_h755zi_q/variants/per_core.h|"
   "all-debug|cm7|Debug||"
   "bluepill-f103|cm3|Release|||bluepill_f103c8"
-  "bluepill-f103-usb|cm3|Release||bluepill/usb.h|bluepill_f103c8"
+  "bluepill-f103-usb|cm3|Release||boards/bluepill_f103c8/variants/usb.h|bluepill_f103c8"
   "rs485-hw-de|cm7|Release||transport/rs485.h"
-  "bluepill-rs485|cm3|Release||bluepill/rs485.h|bluepill_f103c8"
+  "bluepill-rs485|cm3|Release||boards/bluepill_f103c8/variants/rs485.h|bluepill_f103c8"
   "link-addressed|cm7|Release||feature/link_addressed.h"
-  "bluepill-rs485-link|cm3|Release||bluepill/rs485_link.h|bluepill_f103c8"
-  "bluepill-node-addr-flash|cm3|Release||bluepill/node_addr_flash.h|bluepill_f103c8"
+  "bluepill-rs485-link|cm3|Release||boards/bluepill_f103c8/variants/rs485_link.h|bluepill_f103c8"
+  "bluepill-node-addr-flash|cm3|Release||boards/bluepill_f103c8/variants/node_addr_flash.h|bluepill_f103c8"
   "link-secure|cm7|Release||feature/link_secure.h"
-  "bluepill-rs485-secure|cm3|Release||bluepill/rs485_secure.h|bluepill_f103c8"
+  "bluepill-rs485-secure|cm3|Release||boards/bluepill_f103c8/variants/rs485_secure.h|bluepill_f103c8"
   "lite-upload|cm7|Release||feature/lite_upload.h"
   "minimal-template|cm7|Release|||$PWD/tests/boards/minimal"     # config/umcub_config_minimal.h as it ships
   "bluepill-lite|cm3|Release||feature/lite_upload.h|bluepill_f103c8"
@@ -51,16 +51,16 @@ configs=(
   "bluepill-assert-trap|cm3|Release||feature/assert_trap.h|bluepill_f103c8"
   "lto|cm7|Release||feature/lto.h"
   "bluepill-lto|cm3|Release||feature/lto.h|bluepill_f103c8"
-  "bluepill-can|cm3|Release||bluepill/can.h|bluepill_f103c8"
+  "bluepill-can|cm3|Release||boards/bluepill_f103c8/variants/can.h|bluepill_f103c8"
   "encrypt-images|cm7|Release||feature/encrypt_images.h"
-  "bluepill-encrypt|cm3|Release||bluepill/encrypt.h|bluepill_f103c8"
-  "per-core-cm4-encrypt|cm4|Release|feature/per_core.h|feature/encrypt_only.h"
+  "bluepill-encrypt|cm3|Release||boards/bluepill_f103c8/variants/encrypt.h|bluepill_f103c8"
+  "per-core-cm4-encrypt|cm4|Release|boards/nucleo_h755zi_q/variants/per_core.h|feature/encrypt_only.h"
   "blackpill-f411|cm4|Release|||blackpill_f411ce"
-  "blackpill-f411-rs485|cm4|Release||blackpill/rs485.h|blackpill_f411ce"
-  "blackpill-f411-usart2|cm4|Release||blackpill/usart2.h|blackpill_f411ce"
-  "blackpill-f411-rs485-link|cm4|Release||blackpill/rs485_link.h|blackpill_f411ce"
-  "blackpill-f411-encrypt|cm4|Release||blackpill/encrypt.h|blackpill_f411ce"
-  "blackpill-f411-usb|cm4|Release||blackpill/usb.h|blackpill_f411ce"
+  "blackpill-f411-rs485|cm4|Release||boards/blackpill_f411ce/variants/rs485.h|blackpill_f411ce"
+  "blackpill-f411-usart2|cm4|Release||boards/blackpill_f411ce/variants/usart2.h|blackpill_f411ce"
+  "blackpill-f411-rs485-link|cm4|Release||boards/blackpill_f411ce/variants/rs485_link.h|blackpill_f411ce"
+  "blackpill-f411-encrypt|cm4|Release||boards/blackpill_f411ce/variants/encrypt.h|blackpill_f411ce"
+  "blackpill-f411-usb|cm4|Release||boards/blackpill_f411ce/variants/usb.h|blackpill_f411ce"
 )
 
 # One configuration: configure, build, warnings. Writes $dir.result: OK or
@@ -70,8 +70,9 @@ build_config() {
   IFS='|' read -r name core type pre post board <<<"$1"
   local dir="$OUT/$name"
   local args=(-G Ninja -DCMAKE_BUILD_TYPE="$type" -DUMCUB_BOARD="${board:-$BOARD}" -DUMCUB_CORE="$core")
-  [[ -n "$pre" ]] && args+=(-DUMCUB_CONFIG_PRE="tests/configs/$pre")
-  [[ -n "$post" ]] && args+=(-DUMCUB_CONFIG_POST="tests/configs/$post")
+  # overlays: tests/configs/<file>, or a board variant boards/<b>/variants/<file>
+  [[ -n "$pre" ]] && { [[ "$pre" == boards/* ]] && args+=(-DUMCUB_CONFIG_PRE="$pre") || args+=(-DUMCUB_CONFIG_PRE="tests/configs/$pre"); }
+  [[ -n "$post" ]] && { [[ "$post" == boards/* ]] && args+=(-DUMCUB_CONFIG_POST="$post") || args+=(-DUMCUB_CONFIG_POST="tests/configs/$post"); }
   {
     if ! cmake -B "$dir" "${args[@]}" >"$dir.configure.log" 2>&1; then
       echo FAIL; echo "FAIL configure $name (see $dir.configure.log)"; return
