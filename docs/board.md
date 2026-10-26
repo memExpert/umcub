@@ -145,6 +145,79 @@ Only umcub link and the CAN IDs use the address: a bootloader with neither has n
 not compiled). 0 means unassigned: the node is then reachable by its UID only. The bootloader reports the address it uses (`i`,
 `umcub_boot_info()->node_addr`).
 
+## Reference boards
+
+**NUCLEO-H755ZI-Q** ([`boards/nucleo_h755zi_q/umcub_config.h`](../boards/nucleo_h755zi_q/umcub_config.h)): one
+bootloader for both cores (CM7 and CM4 images), all transports, log on the ST-LINK virtual COM port (USART3,
+115200), recovery by B1 held during reset. Before the first start the option bytes must let the CM4 wait in the
+bootloader: `tools/hw/h755_option_bytes.py single` (see [Configuration](configuration.md#dual-core-h745h755h747h757)).
+
+**Blue Pill** ([`boards/bluepill_f103c8/umcub_config.h`](../boards/bluepill_f103c8/umcub_config.h)): STM32F103C8T6,
+SMP over USART1 (PA9 TX, PA10 RX, the pins of the ROM bootloader), overwrite mode, bootloader 32 KiB + two 16 KiB
+slots.
+
+There is no user button. Recovery mode starts on a request from the application (key `b` in the example), when there
+is no valid image, or when `b` arrives within 300 ms after reset (`UMCUB_CFG_ENTRY_WAIT_MS`).
+`--line-buffers 4` matches `UMCUB_CFG_SMP_MTU` = 512 (20 KiB SRAM).
+
+USB (CDC with SMP and DFU, micro-USB connector) needs more room: preset `bluepill-usb` (overlay
+`boards/bluepill_f103c8/variants/usb.h`: bootloader 44 KiB, two 10 KiB slots; the example in the same tree uses the same
+layout):
+
+```sh
+cmake --preset bluepill-usb && cmake --build --preset bluepill-usb
+smpmgr --port /dev/ttyACM0 --line-buffers 4 image upload build/bluepill-usb/examples/bluepill_app/bluepill_app.signed.bin
+dfu-util -a 0 -D build/bluepill-usb/examples/bluepill_app/bluepill_app.signed.bin -R
+```
+
+The F1 has no switchable D+ pull-up and the Blue Pill ties D+ to 3.3 V, so the board looks attached whenever it is
+powered, and a host would try to enumerate a device that does not answer. The STM32F1 port therefore drives D+ low
+(detached) from reset on, and whenever its USB is not running. That includes the application: an application that
+uses USB itself must make PA12 an input before enabling its USB peripheral. The USB preset has no wait window
+(`UMCUB_CFG_ENTRY_WAIT_MS 0`): USB would attach and vanish again on every boot (see the option in the template).
+While a debugger holds the MCU in reset (`mode=UR`) D+ floats high again: flash with `mode=HOTPLUG`, or with the
+USB cable unplugged.
+
+CAN (bxCAN, classic CAN, ISO-TP like on the H7) on PB9 TX / PB8 RX with an external transceiver: overlay
+`boards/bluepill_f103c8/variants/can.h` (+2.4 K, still in the 32 KiB region), host side `tools/host/smp_can.py`. Not together with
+USB: on the F103 both share the same 512 bytes of SRAM (the build refuses it).
+
+**Black Pill** ([`boards/blackpill_f411ce/umcub_config.h`](../boards/blackpill_f411ce/umcub_config.h), WeAct):
+STM32F411CEU6, 25 MHz crystal, SMP over USART1 (PA9 TX, PA10 RX), overwrite mode, bootloader in sectors 0-1
+(32 KiB), slots in sectors 5 and 6 (128 KiB each; sectors 2-4 and 7 stay free, e.g. for application data). A
+slot may also span sectors of different sizes: sectors 3-5 (16 + 64 + 128 KiB) as primary and 6-7 as secondary
+work the same way in overwrite mode (a 155 KiB image, checked on the board). Recovery by KEY (PA0) held during
+reset, LED PC13. A slot is one sector, so SMP upload erases it on the first chunk (about 2 s,
+`UMCUB_CFG_ERASE_PROGRESSIVELY 0`); the CPU stalls meanwhile, so a watchdog (`UMCUB_CFG_WATCHDOG_MS`) needs at
+least 3 s (LSI 17..47 kHz). RS485 through a MAX485 (RO PA10, DI PA9, DE and /RE on PA8): overlay
+`boards/blackpill_f411ce/variants/rs485.h`; SMP and log on USART2 instead (PA2 TX, PA3 RX, e.g. a USB-UART adapter, with
+USART1 left to the application): `boards/blackpill_f411ce/variants/usart2.h`. Example application: [`examples/blackpill_app`](../examples/blackpill_app)
+(drives PA8 as DE while sending, so it also talks over RS485):
+
+```sh
+cmake --preset blackpill && cmake --build --preset blackpill --target flash
+smpmgr --port /dev/ttyUSB0 --timeout 5 image upload build/blackpill/examples/blackpill_app/blackpill_app.signed.bin
+```
+
+The F411 has no RNG: nonces (umcub link) and the key unwrap of encrypted images use ADC noise of the temperature
+sensor, like the F1 (`port/stm32f4/entropy.c`). umcub link on RS485: `boards/blackpill_f411ce/variants/rs485_link.h`.
+Encrypted images need a 48 KiB bootloader (`boards/blackpill_f411ce/variants/encrypt.h`, sectors 0-2) and go through the
+secondary slot: no in-place decryption on the F4 (it would buffer a 128 KiB sector in RAM).
+
+USB (CDC with SMP and DFU on the USB-C socket, OTG FS PA11/PA12) needs a 48 KiB bootloader (sectors 0-2) and the
+crystal: the 48 MHz come from the PLL, and on the HSI they would be too far off for USB (the port then refuses USB
+and the bootloader goes on without it). Overlay `boards/blackpill_f411ce/variants/usb.h`; the slots stay where they are, so
+the example of the default build works unchanged. VBUS sensing is off (PA9 stays free for USART1); the board has a
+switchable D+ pull-up inside the MCU, so unlike the Blue Pill it detaches cleanly in reset:
+
+```sh
+cmake -S . -B build/blackpill-usb -G Ninja -DCMAKE_BUILD_TYPE=Release -DUMCUB_BOARD=blackpill_f411ce \
+      -DUMCUB_CONFIG_POST=boards/blackpill_f411ce/variants/usb.h
+cmake --build build/blackpill-usb
+smpmgr --port /dev/ttyACM0 image upload build/blackpill/examples/blackpill_app/blackpill_app.signed.bin
+dfu-util -a 0 -D build/blackpill/examples/blackpill_app/blackpill_app.signed.bin -R
+```
+
 ## External controllers and custom transports
 
 Interfaces are often attached through a separate chip: a CAN controller on SPI (MCP2515, MCP2518FD), an Ethernet
@@ -234,76 +307,3 @@ Checked by the build matrix (`tests/boards/custom_drivers`: board CAN + Ethernet
 on-chip drivers left out) and by the host test `umcub_host_board` (SMP over a board CAN driver, SMP and commands
 over a board transport, DHCP through a board Ethernet driver, deinit of all three). Not yet run with a real
 external controller.
-
-## Reference boards
-
-**NUCLEO-H755ZI-Q** ([`boards/nucleo_h755zi_q/umcub_config.h`](../boards/nucleo_h755zi_q/umcub_config.h)): one
-bootloader for both cores (CM7 and CM4 images), all transports, log on the ST-LINK virtual COM port (USART3,
-115200), recovery by B1 held during reset. Before the first start the option bytes must let the CM4 wait in the
-bootloader: `tools/hw/h755_option_bytes.py single` (see [Configuration](configuration.md#dual-core-h745h755h747h757)).
-
-**Blue Pill** ([`boards/bluepill_f103c8/umcub_config.h`](../boards/bluepill_f103c8/umcub_config.h)): STM32F103C8T6,
-SMP over USART1 (PA9 TX, PA10 RX, the pins of the ROM bootloader), overwrite mode, bootloader 32 KiB + two 16 KiB
-slots.
-
-There is no user button. Recovery mode starts on a request from the application (key `b` in the example), when there
-is no valid image, or when `b` arrives within 300 ms after reset (`UMCUB_CFG_ENTRY_WAIT_MS`).
-`--line-buffers 4` matches `UMCUB_CFG_SMP_MTU` = 512 (20 KiB SRAM).
-
-USB (CDC with SMP and DFU, micro-USB connector) needs more room: preset `bluepill-usb` (overlay
-`boards/bluepill_f103c8/variants/usb.h`: bootloader 44 KiB, two 10 KiB slots; the example in the same tree uses the same
-layout):
-
-```sh
-cmake --preset bluepill-usb && cmake --build --preset bluepill-usb
-smpmgr --port /dev/ttyACM0 --line-buffers 4 image upload build/bluepill-usb/examples/bluepill_app/bluepill_app.signed.bin
-dfu-util -a 0 -D build/bluepill-usb/examples/bluepill_app/bluepill_app.signed.bin -R
-```
-
-The F1 has no switchable D+ pull-up and the Blue Pill ties D+ to 3.3 V, so the board looks attached whenever it is
-powered, and a host would try to enumerate a device that does not answer. The STM32F1 port therefore drives D+ low
-(detached) from reset on, and whenever its USB is not running. That includes the application: an application that
-uses USB itself must make PA12 an input before enabling its USB peripheral. The USB preset has no wait window
-(`UMCUB_CFG_ENTRY_WAIT_MS 0`): USB would attach and vanish again on every boot (see the option in the template).
-While a debugger holds the MCU in reset (`mode=UR`) D+ floats high again: flash with `mode=HOTPLUG`, or with the
-USB cable unplugged.
-
-CAN (bxCAN, classic CAN, ISO-TP like on the H7) on PB9 TX / PB8 RX with an external transceiver: overlay
-`boards/bluepill_f103c8/variants/can.h` (+2.4 K, still in the 32 KiB region), host side `tools/host/smp_can.py`. Not together with
-USB: on the F103 both share the same 512 bytes of SRAM (the build refuses it).
-
-**Black Pill** ([`boards/blackpill_f411ce/umcub_config.h`](../boards/blackpill_f411ce/umcub_config.h), WeAct):
-STM32F411CEU6, 25 MHz crystal, SMP over USART1 (PA9 TX, PA10 RX), overwrite mode, bootloader in sectors 0-1
-(32 KiB), slots in sectors 5 and 6 (128 KiB each; sectors 2-4 and 7 stay free, e.g. for application data). A
-slot may also span sectors of different sizes: sectors 3-5 (16 + 64 + 128 KiB) as primary and 6-7 as secondary
-work the same way in overwrite mode (a 155 KiB image, checked on the board). Recovery by KEY (PA0) held during
-reset, LED PC13. A slot is one sector, so SMP upload erases it on the first chunk (about 2 s,
-`UMCUB_CFG_ERASE_PROGRESSIVELY 0`); the CPU stalls meanwhile, so a watchdog (`UMCUB_CFG_WATCHDOG_MS`) needs at
-least 3 s (LSI 17..47 kHz). RS485 through a MAX485 (RO PA10, DI PA9, DE and /RE on PA8): overlay
-`boards/blackpill_f411ce/variants/rs485.h`; SMP and log on USART2 instead (PA2 TX, PA3 RX, e.g. a USB-UART adapter, with
-USART1 left to the application): `boards/blackpill_f411ce/variants/usart2.h`. Example application: [`examples/blackpill_app`](../examples/blackpill_app)
-(drives PA8 as DE while sending, so it also talks over RS485):
-
-```sh
-cmake --preset blackpill && cmake --build --preset blackpill --target flash
-smpmgr --port /dev/ttyUSB0 --timeout 5 image upload build/blackpill/examples/blackpill_app/blackpill_app.signed.bin
-```
-
-The F411 has no RNG: nonces (umcub link) and the key unwrap of encrypted images use ADC noise of the temperature
-sensor, like the F1 (`port/stm32f4/entropy.c`). umcub link on RS485: `boards/blackpill_f411ce/variants/rs485_link.h`.
-Encrypted images need a 48 KiB bootloader (`boards/blackpill_f411ce/variants/encrypt.h`, sectors 0-2) and go through the
-secondary slot: no in-place decryption on the F4 (it would buffer a 128 KiB sector in RAM).
-
-USB (CDC with SMP and DFU on the USB-C socket, OTG FS PA11/PA12) needs a 48 KiB bootloader (sectors 0-2) and the
-crystal: the 48 MHz come from the PLL, and on the HSI they would be too far off for USB (the port then refuses USB
-and the bootloader goes on without it). Overlay `boards/blackpill_f411ce/variants/usb.h`; the slots stay where they are, so
-the example of the default build works unchanged. VBUS sensing is off (PA9 stays free for USART1); the board has a
-switchable D+ pull-up inside the MCU, so unlike the Blue Pill it detaches cleanly in reset:
-
-```sh
-cmake -S . -B build/blackpill-usb -G Ninja -DCMAKE_BUILD_TYPE=Release -DUMCUB_BOARD=blackpill_f411ce \
-      -DUMCUB_CONFIG_POST=boards/blackpill_f411ce/variants/usb.h
-cmake --build build/blackpill-usb
-smpmgr --port /dev/ttyACM0 image upload build/blackpill/examples/blackpill_app/blackpill_app.signed.bin
-dfu-util -a 0 -D build/blackpill/examples/blackpill_app/blackpill_app.signed.bin -R
-```

@@ -3,10 +3,10 @@
 
   tools/build/check_docs.py            all checks, size tables rebuilt (tools/build/size_table.py --check)
   tools/build/check_docs.py --fast     skip the size tables (no builds)
-  tools/build/check_docs.py --update   rewrite the size tables in docs/configuration.md, then check the rest
+  tools/build/check_docs.py --update   rewrite the size tables in docs/size.md, then check the rest
 
 Checks:
-  - the size tables in docs/configuration.md match a fresh build of every variant;
+  - the size tables in docs/size.md match a fresh build of every variant;
   - every board, family port, example, CMake preset and tool script is mentioned (README or docs/);
   - the number of bootloader configurations in docs/testing.md matches tools/build/build_matrix.sh;
   - every relative link points to a file that exists and, with #anchor, to a heading in it.
@@ -48,7 +48,7 @@ def main():
                            capture_output=True, text=True)
         print(r.stdout.splitlines()[0] if r.stdout else r.stderr.strip())
         if r.returncode:
-            problems.append("size tables in docs/configuration.md are stale (tools/build/size_table.py --update)")
+            problems.append("size tables in docs/size.md are stale (tools/build/size_table.py --update)")
 
     texts = {p: p.read_text() for p in DOCS}
     all_text = "\n".join(texts.values())

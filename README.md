@@ -25,7 +25,7 @@ Ethernet. A board is one configuration file; what you do not enable is not compi
 | STM32F4 (F411xC/xE) | Black Pill (STM32F411CEU6) | UART (also RS485 with umcub link), USB CDC / DFU |
 
 Size: from 12.7 K (F103) / 17.0 K (H743) without a transport, about 21 K with one UART on the F103; every transport
-and feature is listed in [Bootloader size](docs/configuration.md#bootloader-size).
+and feature is listed in [Bootloader size](docs/size.md).
 
 ## Quick start
 
@@ -115,14 +115,23 @@ Details: [Recovery mode](docs/recovery.md), [application](docs/application.md).
 
 ## Documentation
 
+Using umcub:
+
 | Page | What is in it |
 |---|---|
-| [Your own board](docs/board.md) | board configuration, board type and node address, external controllers, own transports, reference boards |
-| [Configuration](docs/configuration.md) | where the options live, dual-core, **bootloader size** per transport / feature, upgrade mode notes |
+| [Your own board](docs/board.md) | board configuration, board type and node address, reference boards and their variants |
+| [The application side](docs/application.md) | `umcub::app`, `umcub_add_application()`, IDE projects (STM32CubeIDE, Keil MDK), CMake presets |
 | [Recovery mode](docs/recovery.md) | updating over SMP, text commands, lite upload and board protocols, verify / hash / read |
 | [umcub link](docs/link.md) | several devices on one bus: addressing, SECURE mode, `tools/host/umcub_link.py` |
 | [Encrypted images and security](docs/security.md) | images encrypted for the device, what is and is not protected |
-| [The application side](docs/application.md) | `umcub::app`, IDE projects (STM32CubeIDE, Keil MDK), CMake presets |
+| [Configuration](docs/configuration.md) | where the options live, advanced options, dual-core, upgrade mode notes |
+
+Reference:
+
+| Page | What is in it |
+|---|---|
+| [Bootloader size](docs/size.md) | what every transport and feature adds, sectors per family, size levers |
+| [Your own board: external controllers](docs/board.md#external-controllers-and-custom-transports) | board drivers and board transports (experimental) |
 | [Porting](docs/porting.md) | adding an STM32 series, the source tree |
 | [Testing](docs/testing.md) | build matrix, host tests, simulated devices, hardware tests |
 

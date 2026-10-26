@@ -2,10 +2,10 @@
 """Bootloader flash size per MCU and the cost of every transport / feature.
 
 Builds the reference boards' bootloaders in many variants (Release, -Os) and
-prints the Markdown tables of docs/configuration.md "Bootloader size":
+prints the Markdown tables of docs/size.md:
 
   tools/build/size_table.py [--out build/sizes] [-j 4]     print the tables
-  tools/build/size_table.py --update                       rewrite them in docs/configuration.md
+  tools/build/size_table.py --update                       rewrite them in docs/size.md
   tools/build/size_table.py --check                        exit 1 if they are stale
 
 Base = MCUboot + ECDSA-P256 validation + jump: no transport, no log, no text
@@ -126,7 +126,7 @@ SECTOR_SETS = ["UART lite", "UART", "USB CDC only", "CAN only", "Ethernet only",
 SECTOR_LABELS = {"UART lite": "UART, lite (no SMP)", "UART": "UART", "USB CDC only": "USB CDC",
                  "CAN only": "CAN", "Ethernet only": "Ethernet", "secure": "UART, link SECURE",
                  "everything": "all on"}
-DOC = ROOT / "docs/configuration.md"
+DOC = ROOT / "docs/size.md"
 BEGIN, END = "<!-- size-table:begin -->", "<!-- size-table:end -->"
 
 
@@ -180,8 +180,8 @@ def main():
     ap.add_argument("--out", default=str(ROOT / "build/sizes"))
     ap.add_argument("-j", type=int, default=max(1, (os.cpu_count() or 4) // 4))
     mode = ap.add_mutually_exclusive_group()
-    mode.add_argument("--update", action="store_true", help="rewrite the tables in docs/configuration.md")
-    mode.add_argument("--check", action="store_true", help="exit 1 if docs/configuration.md differs")
+    mode.add_argument("--update", action="store_true", help="rewrite the tables in docs/size.md")
+    mode.add_argument("--check", action="store_true", help="exit 1 if docs/size.md differs")
     a = ap.parse_args()
     out = Path(a.out)
 
@@ -263,13 +263,13 @@ def main():
     new_text = f"{head}{BEGIN}\n{tables}\n{END}{tail}"
     if a.check:
         if new_text != text:
-            print("docs/configuration.md size tables are stale - run tools/build/size_table.py --update")
+            print("docs/size.md size tables are stale - run tools/build/size_table.py --update")
             print(tables)
             sys.exit(1)
-        print("docs/configuration.md size tables are up to date")
+        print("docs/size.md size tables are up to date")
     elif new_text != text:
         DOC.write_text(new_text)
-        print("docs/configuration.md size tables updated")
+        print("docs/size.md size tables updated")
 
 if __name__ == "__main__":
     main()

@@ -71,7 +71,7 @@ SMP, hosts check slots through the SMP inspect group (`tools/host/umcub_inspect.
 ## Recovery without SMP: lite upload and board protocols
 
 SMP (MCUboot serial recovery) is what `mcumgr` / `smpmgr` speak, and it is the biggest part of a bootloader with a
-transport: `boot_serial`, zcbor and the SMP framing cost about 6 K (see "Bootloader size"). `UMCUB_CFG_SMP_ENABLE 0`
+transport: `boot_serial`, zcbor and the SMP framing cost about 6 K (see [Bootloader size](size.md)). `UMCUB_CFG_SMP_ENABLE 0`
 leaves them out; the transports stay, and images come through the protocols below. With the lite upload protocol a
 UART bootloader is about 3 K smaller (F103: 16.4 K instead of 19.4 K, H7: 22.4 K instead of 25.6 K):
 
