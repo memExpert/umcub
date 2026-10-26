@@ -470,11 +470,15 @@ static void test_packet_upload_and_boot(const uint8_t *v1, size_t v1_len, const 
     /* corrupt one byte: the signature check must refuse it */
     fake_flash[UMCUB_CFG_IMG0_PRIMARY_ADDR - 0x08000000 + 0x500] ^= 1;
     CHECK(!boot_ok(ver));
+#if UMCUB_CFG_UPGRADE_MODE == UMCUB_MODE_DIRECT_XIP
+    CHECK(upload_packets(v1, v1_len, 0) == 0);   /* direct-xip erased the invalid image */
+#else
     fake_flash[UMCUB_CFG_IMG0_PRIMARY_ADDR - 0x08000000 + 0x500] ^= 1;
+#endif
     CHECK(boot_ok(ver));
 }
 
-static void write_secondary(const uint8_t *img, size_t len)
+__attribute__((unused)) static void write_secondary(const uint8_t *img, size_t len)   /* not in direct-xip */
 {
     umcub_slot_writer_t w;
     CHECK(umcub_slot_begin(&w, 0, UMCUB_SLOT_DEFAULT, (uint32_t)len) == 0);
@@ -531,6 +535,30 @@ static bool flash_contains(const uint8_t *s, size_t n)
 }
 #endif
 
+#if UMCUB_CFG_UPGRADE_MODE == UMCUB_MODE_DIRECT_XIP
+/* direct-xip: test_xip() instead */
+#elif UMCUB_CFG_UPGRADE_MODE == UMCUB_MODE_OVERWRITE
+/* Overwrite: every valid update from the secondary slot is installed for
+ * good (an older one too, without UMCUB_CFG_DOWNGRADE_PREVENTION); nothing to
+ * confirm, no revert, the secondary slot is free again afterwards. */
+static void test_overwrite_install(const uint8_t *v1, size_t v1_len, const uint8_t *v2, size_t v2_len)
+{
+    char ver[16];
+    printf("[slot writer + overwrite] installed for good, older too, no revert\n");
+    CHECK(umcub_is_confirmed(0) == 1);
+    write_secondary(v1, v1_len);
+    CHECK(boot_ok(ver) && strcmp(ver, "1.0.0") == 0);
+    CHECK(umcub_is_confirmed(0) == 1);
+    CHECK(boot_ok(ver) && strcmp(ver, "1.0.0") == 0);
+    write_secondary(v2, v2_len);            /* the secondary slot is free again */
+    CHECK(boot_ok(ver) && strcmp(ver, "1.1.0") == 0);
+    CHECK(umcub_confirm_image(0) == 0);     /* nothing to confirm, still fine */
+    CHECK(boot_ok(ver) && strcmp(ver, "1.1.0") == 0);
+    printf("  1.0.0 over 1.1.0, then 1.1.0 again: %s\n", ver);
+    umcub_version_t v;
+    CHECK(umcub_image_version(0, 0, &v) == 0 && v.minor == 1);
+}
+#else
 static void test_swap_revert_confirm(const uint8_t *v2, size_t v2_len)
 {
     char ver[16];
@@ -567,6 +595,7 @@ static void test_swap_revert_confirm(const uint8_t *v2, size_t v2_len)
     umcub_version_t v;
     CHECK(umcub_image_version(0, 0, &v) == 0 && v.minor == 1);
 }
+#endif
 
 #if UMCUB_CFG_DOWNGRADE_PREVENTION
 /* UMCUB_CFG_DOWNGRADE_PREVENTION: an update through the secondary slot with a
@@ -588,6 +617,7 @@ static void test_downgrade(const uint8_t *v1, size_t v1_len, const uint8_t *v2, 
 }
 #endif
 
+#if UMCUB_CFG_UPGRADE_MODE != UMCUB_MODE_DIRECT_XIP   /* test_xip() has its own */
 /* An image signed with the right key but for another board type is never
  * installed (MCUboot image check hook, src/image/mcuboot/hooks.c). */
 static void test_board_type(const uint8_t *foreign, size_t len)
@@ -632,6 +662,7 @@ static void test_vector_slot(const uint8_t *wrong, size_t len)
     CHECK(flash_area_read(fa, 0, &h, sizeof(h)) == 0 && h.ih_magic != IMAGE_MAGIC);   /* erased by MCUboot */
     flash_area_close(fa);
 }
+#endif
 
 static void test_streams_interleaved(const uint8_t *img, size_t len)
 {
@@ -882,6 +913,25 @@ static void test_inspect(const uint8_t *img, size_t img_len)
 /* What the host sees in the secondary slot (text "info", "verify") while an
  * update is pending and after the test swap: in swap-offset the update and
  * the revert copy start at different offsets, as MCUboot reads them. */
+#if UMCUB_CFG_UPGRADE_MODE == UMCUB_MODE_DIRECT_XIP
+/* direct-xip: test_xip() instead */
+#elif UMCUB_CFG_UPGRADE_MODE == UMCUB_MODE_OVERWRITE
+/* Overwrite: the pending update is copied over the primary slot for good. */
+static void test_secondary_views(const uint8_t *v2, size_t v2_len)
+{
+    char ver[16];
+    printf("[inspect] secondary slot: pending update, installed for good\n");
+    write_secondary(v2, v2_len);
+    stream_cmd("i");
+    CHECK(stream_out_has(0, "image 0 slot 1: 1.1.0+0 pending"));
+    stream_cmd("verify 0 1\r");
+    CHECK(stream_out_has(0, "ok valid"));
+    CHECK(boot_ok(ver) && strcmp(ver, "1.1.0") == 0);      /* copied over the primary */
+    stream_cmd("i");
+    CHECK(stream_out_has(0, "image 0 slot 0: 1.1.0+0 confirmed") && stream_out_has(0, "image 0 slot 1: empty"));
+    CHECK(boot_ok(ver) && strcmp(ver, "1.1.0") == 0);      /* no revert */
+}
+#else
 static void test_secondary_views(const uint8_t *v2, size_t v2_len)
 {
     char ver[16];
@@ -899,6 +949,7 @@ static void test_secondary_views(const uint8_t *v2, size_t v2_len)
     CHECK(stream_out_has(0, "ok valid"));
     CHECK(boot_ok(ver) && strcmp(ver, "1.0.0") == 0);      /* not confirmed: revert */
 }
+#endif
 
 #if UMCUB_CFG_SMP_DIRECT_UPLOAD
 static void cb_bool(cbor_t *c, bool v) { c->buf[c->n++] = v ? 0xF5 : 0xF4; }
@@ -1208,9 +1259,94 @@ static void log_sink(const char *s, size_t len)
     fwrite(s, 1, len, stdout);
 }
 
+#if UMCUB_CFG_UPGRADE_MODE == UMCUB_MODE_DIRECT_XIP
+/* boot_go(): version and slot (0 primary, 1 secondary) of what it starts. */
+static bool boot_xip(char *version, int *slot)
+{
+    struct boot_rsp rsp;
+    FIH_DECLARE(rc, FIH_FAILURE);
+    FIH_CALL(boot_go, rc, &rsp);
+    if (FIH_NOT_EQ(rc, FIH_SUCCESS)) {
+        strcpy(version, "fail");
+        *slot = -1;
+        return false;
+    }
+    sprintf(version, "%u.%u.%u", rsp.br_hdr->ih_ver.iv_major, rsp.br_hdr->ih_ver.iv_minor,
+            rsp.br_hdr->ih_ver.iv_revision);
+    *slot = rsp.br_image_off == UMCUB_CFG_IMG0_SECONDARY_ADDR ? 1 : rsp.br_image_off == UMCUB_CFG_IMG0_PRIMARY_ADDR ? 0 : -1;
+    return true;
+}
+
+static void write_slot(const uint8_t *img, size_t len, int slot)
+{
+    umcub_slot_writer_t w;
+    CHECK(umcub_slot_begin(&w, 0, slot ? UMCUB_SLOT_SECONDARY : UMCUB_SLOT_PRIMARY, (uint32_t)len) == 0);
+    for (size_t off = 0; off < len;) {
+        size_t n = len - off > 777 ? 777 : len - off;
+        CHECK(umcub_slot_write(&w, img + off, n) == 0);
+        off += n;
+    }
+    CHECK(umcub_slot_finish(&w, true, false) == 0);
+}
+
+static bool slot_empty(int slot)
+{
+    struct image_header h;
+    const struct flash_area *fa;
+    CHECK(flash_area_open(slot ? FLASH_AREA_IMAGE_SECONDARY(0) : FLASH_AREA_IMAGE_PRIMARY(0), &fa) == 0);
+    bool empty = flash_area_read(fa, 0, &h, sizeof(h)) == 0 && h.ih_magic != IMAGE_MAGIC;
+    flash_area_close(fa);
+    return empty;
+}
+
+/* Direct-xip: each image runs from the slot it is linked for, MCUboot starts
+ * the newest valid one and erases an invalid one (it checks the newest first).
+ * v2 / foreign are linked for the primary slot, s1 (1.4.0) for the secondary,
+ * wrong (1.3.0) for the start of flash. Leaves v2 in the primary
+ * slot, the secondary slot empty. */
+static void test_xip(const uint8_t *wrong, size_t wrong_len, const uint8_t *v2, size_t v2_len,
+                     const uint8_t *s1, size_t s1_len, const uint8_t *foreign, size_t foreign_len)
+{
+    char ver[16];
+    int slot;
+    printf("[direct-xip] newest valid slot, fallback, vector and board type checks\n");
+    CHECK(boot_xip(ver, &slot) && strcmp(ver, "1.0.0") == 0 && slot == 0);
+    write_slot(s1, s1_len, 1);
+    CHECK(boot_xip(ver, &slot) && strcmp(ver, "1.4.0") == 0 && slot == 1);
+    stream_cmd("i");
+    CHECK(stream_out_has(0, "image 0 slot 0: 1.0.0+0") && stream_out_has(0, "image 0 slot 1: 1.4.0+0"));
+    write_slot(v2, v2_len, 0);              /* older than the secondary: the secondary keeps running */
+    CHECK(boot_xip(ver, &slot) && strcmp(ver, "1.4.0") == 0 && slot == 1);
+    printf("  1.4.0 in the secondary slot beats 1.1.0 in the primary\n");
+    fake_flash[UMCUB_CFG_IMG0_SECONDARY_ADDR - 0x08000000 + 0x800] ^= 1;
+    CHECK(boot_xip(ver, &slot) && strcmp(ver, "1.1.0") == 0 && slot == 0);
+    CHECK(slot_empty(1));                   /* the broken image is erased */
+    printf("  damaged secondary: back to 1.1.0 in the primary, secondary erased\n");
+#if UMCUB_CFG_IMAGE_VECTOR_CHECK
+    write_slot(wrong, wrong_len, 1);        /* newest, but linked for the start of flash */
+    CHECK(boot_xip(ver, &slot) && strcmp(ver, "1.1.0") == 0 && slot == 0);
+    CHECK(slot_empty(1));
+    printf("  image not linked for the secondary slot refused there\n");
+#else
+    (void)wrong;
+    (void)wrong_len;
+#endif
+#if UMCUB_CFG_BOARD_TYPE
+    write_slot(foreign, foreign_len, 0);    /* newer, but for another board */
+    CHECK(!boot_xip(ver, &slot) && slot_empty(0));
+    write_slot(v2, v2_len, 0);
+    CHECK(boot_xip(ver, &slot) && strcmp(ver, "1.1.0") == 0 && slot == 0);
+    printf("  image for another board erased, not booted\n");
+#else
+    (void)foreign;
+    (void)foreign_len;
+#endif
+}
+#endif
+
 int main(int argc, char **argv)
 {
-    int want_args = UMCUB_CFG_ENCRYPT_IMAGES ? 6 : 5;
+    int want_args = UMCUB_CFG_ENCRYPT_IMAGES || UMCUB_CFG_UPGRADE_MODE == UMCUB_MODE_DIRECT_XIP ? 6 : 5;
     if (argc != want_args) {
         fprintf(stderr, "usage: %s v1.signed.bin v2.signed.bin foreign.signed.bin%s\n", argv[0],
                 UMCUB_CFG_ENCRYPT_IMAGES ? " v1.plain.bin v2.plain.bin (first three encrypted)"
@@ -1223,19 +1359,29 @@ int main(int argc, char **argv)
     uint8_t *foreign = load(argv[3], &foreign_len);
     size_t wrong_len = 0;
     uint8_t *wrong = UMCUB_CFG_ENCRYPT_IMAGES ? NULL : load(argv[4], &wrong_len);
-    const uint8_t *v1_flash = in_flash(v1, v1_len, argc > 5 ? load(argv[4], &plain_len) : NULL);
-    const uint8_t *v2_flash = in_flash(v2, v2_len, argc > 5 ? load(argv[5], &plain_len) : NULL);
+    const uint8_t *v1_flash = in_flash(v1, v1_len, UMCUB_CFG_ENCRYPT_IMAGES ? load(argv[4], &plain_len) : NULL);
+    const uint8_t *v2_flash = in_flash(v2, v2_len, UMCUB_CFG_ENCRYPT_IMAGES ? load(argv[5], &plain_len) : NULL);
     setvbuf(stdout, NULL, _IONBF, 0);
     umcub_log_set_sink(log_sink);
 
     test_packet_upload_and_boot(v1, v1_len, v1_flash);
+#if UMCUB_CFG_UPGRADE_MODE == UMCUB_MODE_DIRECT_XIP
+    size_t s1_len;
+    uint8_t *s1 = load(argv[5], &s1_len);
+    test_xip(wrong, wrong_len, v2, v2_len, s1, s1_len, foreign, foreign_len);
+#else
     test_secondary_views(v2, v2_len);
+#if UMCUB_CFG_UPGRADE_MODE == UMCUB_MODE_OVERWRITE
+    test_overwrite_install(v1, v1_len, v2, v2_len);
+#else
     test_swap_revert_confirm(v2, v2_len);
+#endif
 #if UMCUB_CFG_DOWNGRADE_PREVENTION
     test_downgrade(v1, v1_len, v2, v2_len);
 #endif
     test_board_type(foreign, foreign_len);
     test_vector_slot(wrong, wrong_len);
+#endif
     test_inspect(v2_flash, v2_len);
     test_streams_interleaved(v1, v1_len);
     test_params();

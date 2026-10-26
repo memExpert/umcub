@@ -38,6 +38,11 @@ add_custom_command(OUTPUT ${_bin} DEPENDS ${CMAKE_CURRENT_LIST_DIR}/gen_payload.
   COMMAND python3 ${CMAKE_CURRENT_LIST_DIR}/gen_payload.py ${_bin} 150000 ${_reset})
 add_custom_command(OUTPUT ${_bin_wrong} DEPENDS ${CMAKE_CURRENT_LIST_DIR}/gen_payload.py
   COMMAND python3 ${CMAKE_CURRENT_LIST_DIR}/gen_payload.py ${_bin_wrong} 150000 ${_reset_wrong})
+# direct-xip: an application linked for image 0's secondary slot.
+set(_bin_slot1 ${CMAKE_BINARY_DIR}/payload_slot1.bin)
+math(EXPR _reset_slot1 "${UMCUB_CFG_IMG0_SECONDARY_ADDR} + 0x400 + 0x200" OUTPUT_FORMAT HEXADECIMAL)
+add_custom_command(OUTPUT ${_bin_slot1} DEPENDS ${CMAKE_CURRENT_LIST_DIR}/gen_payload.py
+  COMMAND python3 ${CMAKE_CURRENT_LIST_DIR}/gen_payload.py ${_bin_slot1} 150000 ${_reset_slot1})
 
 set_source_files_properties(${BOOTUTIL_SRCS} ${MCUBOOT}/boot/boot_serial/src/boot_serial.c
   ${MCUBOOT}/boot/zcbor/src/zcbor_common.c ${MCUBOOT}/boot/zcbor/src/zcbor_decode.c
@@ -88,6 +93,7 @@ function(umcub_host_setup t)
     ${MCUBOOT}/boot/bootutil/src
     ${MCUBOOT}/boot/boot_serial/include
     ${MCUBOOT}/boot/boot_serial/src
+    ${MCUBOOT}/boot/boot_serial     # stopgap as in CMakeLists.txt: v2.5.0 "../bootutil/src/bootutil_loader.h" (direct-xip)
     ${MCUBOOT}/boot/zcbor/include
     ${TINYCRYPT}/include
     ${MCUBOOT}/ext/mbedtls-asn1/include)
@@ -170,11 +176,19 @@ function(umcub_host_variant name)
       list(APPEND _enc --save-enctlv)
     endif()
   endif()
+  set(_mode)
+  if(UMCUB_CFG_UPGRADE_MODE EQUAL 1)    # UMCUB_MODE_OVERWRITE: smaller trailer, as umcub_image.py signs
+    set(_mode --overwrite-only)
+  endif()
   set(_key -k ${UMCUB_SIGNING_KEY})
   if(UMCUB_CFG_SIGNATURE EQUAL 0)   # UMCUB_SIGN_NONE: SHA-256 TLV only
     set(_key)
   endif()
-  foreach(v 1.0.0 1.1.0 1.2.0 1.3.0 plain-1.0.0 plain-1.1.0)
+  set(_xip_only)
+  if(UMCUB_CFG_UPGRADE_MODE EQUAL 5)    # UMCUB_MODE_DIRECT_XIP: 1.4.0 linked for the secondary slot
+    set(_xip_only 1.4.0)
+  endif()
+  foreach(v 1.0.0 1.1.0 1.2.0 1.3.0 plain-1.0.0 plain-1.1.0 ${_xip_only})
     set(_o ${CMAKE_BINARY_DIR}/${name}_${v}.bin)
     string(REPLACE "plain-" "" _ver ${v})
     set(_e ${_enc})
@@ -184,6 +198,9 @@ function(umcub_host_variant name)
         continue()
       endif()
       set(_in ${_bin_wrong})
+    endif()
+    if(v STREQUAL "1.4.0")
+      set(_in ${_bin_slot1})
     endif()
     if(v MATCHES "^plain-")
       if(NOT UMCUB_CFG_ENCRYPT_IMAGES)
@@ -197,7 +214,7 @@ function(umcub_host_variant name)
       set(_t ${_tlv})
     endif()
     add_custom_command(OUTPUT ${_o} DEPENDS ${_in}
-      COMMAND ${UMCUB_IMGTOOL} sign ${_key} --version ${_ver} --header-size 0x400 --pad-header
+      COMMAND ${UMCUB_IMGTOOL} sign ${_key} ${_mode} --version ${_ver} --header-size 0x400 --pad-header
               --slot-size ${_slot} --align 32 --max-align 32 --max-sectors ${_sectors} ${_t} ${_e} ${_in} ${_o})
     list(APPEND _imgs ${_o})
   endforeach()
@@ -209,6 +226,8 @@ umcub_host_variant(swap_scratch)
 umcub_host_variant(swap_offset)
 umcub_host_variant(sign_none)
 umcub_host_variant(downgrade)
+umcub_host_variant(overwrite)
+umcub_host_variant(direct_xip)
 umcub_host_variant(swap_scratch_enc)
 umcub_host_variant(swap_scratch_enc_nobt)
 umcub_host_variant(swap_scratch_enc_rawkey)

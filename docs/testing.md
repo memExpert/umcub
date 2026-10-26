@@ -13,7 +13,9 @@ tools/build/check_docs.py                   # README and docs/ still match the r
 
 Host tests (`tests/host`) run the real MCUboot (boot_go, boot_serial, ECDSA) on an emulated H7 flash (32-byte
 words, no double programming) through the umcub transport layer. Covered: SMP upload / echo / list over the packet
-and stream paths (including two interleaved streams), swap → revert → confirm in scratch / offset modes, SMP
+and stream paths (including two interleaved streams), swap → revert → confirm in scratch / offset modes, overwrite
+(installed for good, an older image too, no revert), direct-xip (the newest valid slot runs, a damaged or misplaced
+image is erased, fallback to the other slot), downgrade prevention, unsigned images (`UMCUB_SIGN_NONE`), SMP
 upload into the secondary slot (`UMCUB_CFG_SMP_DIRECT_UPLOAD`) marked by `image state-write` for a test or for good, text
 commands, verify / hash / read, ISO-TP classic/FD, DHCP / ARP / ICMP, board-supplied drivers and transports, the
 status LED patterns (listening, data, a failed transport init), the
