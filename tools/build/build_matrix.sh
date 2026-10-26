@@ -43,7 +43,9 @@ configs=(
   "link-secure|cm7|Release||feature/link_secure.h"
   "bluepill-rs485-secure|cm3|Release||boards/bluepill_f103c8/variants/rs485_secure.h|bluepill_f103c8"
   "lite-upload|cm7|Release||feature/lite_upload.h"
-  "minimal-template|cm7|Release|||$PWD/tests/boards/minimal"     # config/umcub_config_minimal.h as it ships
+  "minimal-h7|cm7|Release|||$PWD/tests/boards/minimal_h7"     # config/umcub_config_minimal_<family>.h as they ship
+  "minimal-f1|cm3|Release|||$PWD/tests/boards/minimal_f1"
+  "minimal-f4|cm4|Release|||$PWD/tests/boards/minimal_f4"
   "bluepill-lite|cm3|Release||feature/lite_upload.h|bluepill_f103c8"
   "bluepill-sign-none|cm3|Release||feature/sign_none.h|bluepill_f103c8"
   "bluepill-tx-ring|cm3|Release||feature/uart_tx_ring.h|bluepill_f103c8"

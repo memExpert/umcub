@@ -61,8 +61,9 @@ RS485 and the other variants of each board: [Reference boards](docs/board.md#ref
 
 ## Your own board in five steps
 
-1. **Describe the board**: copy [`config/umcub_config_minimal.h`](config/umcub_config_minimal.h) to
-   `boards/<your_board>/umcub_config.h` (the board directory can live in your own repository) and change the lines
+1. **Describe the board**: copy the minimal configuration of your family -
+   [F1](config/umcub_config_minimal_f1.h), [F4](config/umcub_config_minimal_f4.h) or
+   [H7](config/umcub_config_minimal_h7.h) - to `boards/<your_board>/umcub_config.h` (the board directory can live in your own repository) and change the lines
    marked "yours": the part, the clock, the flash layout, how to get into the bootloader, one transport with its
    pins. Pins and slots are checked when CMake configures; a mistake stops it with a hint.
 2. **Make your own signing key**: `imgtool keygen -t ecdsa-p256 -k keys/prod.pem` (the key in the repository is

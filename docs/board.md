@@ -8,9 +8,11 @@ Ported families: STM32H7 (H743/H753 and the dual-core H745/H755/H747/H757; not H
 STM32F1 (F103x8/xB) and STM32F4 (F411xC/xE). For another series the port comes first, see [Porting](porting.md).
 
 **1. Describe the board.** The board directory can live in your own repository (umcub as a submodule):
-`boards/my_board/umcub_config.h`. Copy [`config/umcub_config_minimal.h`](../config/umcub_config_minimal.h) (the part,
-the clock, the flash layout, a way into the bootloader and one transport - it builds as it is, the build matrix checks
-that) and change the lines marked "yours". Every other option takes its default from
+`boards/my_board/umcub_config.h`. Copy the minimal configuration of your family,
+[`umcub_config_minimal_f1.h`](../config/umcub_config_minimal_f1.h),
+[`_f4.h`](../config/umcub_config_minimal_f4.h) or [`_h7.h`](../config/umcub_config_minimal_h7.h) in `config/` (the part,
+the clock, the flash layout, a way into the bootloader and one transport - each builds as it is, the build matrix
+checks that) and change the lines marked "yours". Every other option takes its default from
 `config/umcub_config_defaults.h`; [`config/umcub_config_template.h`](../config/umcub_config_template.h) lists all of
 them with their meaning, [Configuration](configuration.md) explains the groups.
 

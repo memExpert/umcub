@@ -1,6 +1,7 @@
 /*
- * umcub configuration: the minimum. Copy it to boards/<your_board>/umcub_config.h
- * and change the lines marked "yours". Everything else takes its default
+ * umcub configuration: the minimum for an STM32H7. Copy it to
+ * boards/<your_board>/umcub_config.h and change the lines marked "yours".
+ * Everything else takes its default
  * (config/umcub_config_defaults.h); all options with their meaning are in
  * config/umcub_config_template.h. The build stops with a message when
  * something does not fit (slots off sector boundaries, pins without the
