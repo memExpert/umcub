@@ -76,7 +76,7 @@ RS485 and the other variants of each board: [Reference boards](docs/board.md#ref
    public, for development only).
 3. **Build the bootloader**: `cmake -S umcub -B build/boot -DUMCUB_BOARD=$PWD/boards/<your_board>
    -DUMCUB_SIGNING_KEY=$PWD/keys/prod.pem && cmake --build build/boot`.
-4. **Adapt the application**: link it for the primary slot (`tools/host/umcub_image.py info --board ...` prints
+4. **Adapt the application**: link it for the primary slot (`tools/host/umcub image info --board ...` prints
    where) and sign it with the same key - with CMake (`umcub::app`) or from an IDE
    ([application](docs/application.md)).
 5. **Program both** `.hex` files; for production protect the bootloader sector (WRP) and enable readout protection.

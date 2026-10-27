@@ -53,7 +53,7 @@ function(umcub_generate_enc_key device out)
 endfunction()
 
 # umcub_generate_link_keys(<device.pem> <admin.pem> <out.c>)
-# umcub link SECURE keys for the bootloader (tools/host/umcub_keys.py): the private
+# umcub link SECURE keys for the bootloader (umcub keys c, tools/host/umcub): the private
 # device key and the public half of the admin key.
 function(umcub_generate_link_keys device admin out)
   foreach(_k "${device}" "${admin}")
@@ -81,8 +81,8 @@ function(umcub_python out_var)
 endfunction()
 
 # umcub_keys_command(<c|host-c> <device.pem> <admin.pem or ""> <out.c>):
-# rule running tools/host/umcub_keys.py with the Python next to imgtool (it has
-# `cryptography`, an imgtool dependency).
+# rule running `umcub keys` (tools/host/umcub, run as a directory: no install
+# needed) with the Python next to imgtool (it has `cryptography`, an imgtool dependency).
 function(umcub_keys_command mode device admin out)
   if("${device}" MATCHES "/tools/keys/dev-[a-z]+-p256.pem$" AND NOT mode STREQUAL "host-c")
     message(WARNING "umcub: using the development device key ${device} from the repository "
@@ -94,8 +94,8 @@ function(umcub_keys_command mode device admin out)
   endif()
   umcub_python(_py)
   add_custom_command(OUTPUT "${out}"
-    COMMAND "${_py}" "${UMCUB_ROOT}/tools/host/umcub_keys.py" ${mode} --device "${device}" ${_admin_args} -o "${out}"
-    DEPENDS "${device}" ${admin} "${UMCUB_ROOT}/tools/host/umcub_keys.py"
+    COMMAND "${_py}" "${UMCUB_ROOT}/tools/host/umcub" keys ${mode} --device "${device}" ${_admin_args} -o "${out}"
+    DEPENDS "${device}" ${admin} "${UMCUB_ROOT}/tools/host/umcub/keys.py"
     COMMENT "umcub link keys (${mode})"
     VERBATIM)
 endfunction()
@@ -113,7 +113,7 @@ endfunction()
 # set) is produced for programmers and serial recovery: an image without a
 # confirmed trailer is erased by MCUboot on the next boot in that mode.
 # DEPENDS example (multi-image): "(1,1.0.0)" = needs image 1 >= 1.0.0.
-# Signing itself is tools/host/umcub_image.py sign (the tool IDE projects use),
+# Signing itself is `umcub image sign` (tools/host/umcub, the tool IDE projects use),
 # on the same board configuration and overlays: one implementation.
 function(umcub_sign_image target)
   cmake_parse_arguments(A "CONFIRM;PAD" "IMAGE;SLOT;VERSION;KEY;ENCRYPT_KEY" "DEPENDS" ${ARGN})
@@ -169,7 +169,7 @@ function(umcub_sign_image target)
 
   umcub_python(_py)
   add_custom_command(TARGET ${target} POST_BUILD
-    COMMAND "${_py}" "${UMCUB_ROOT}/tools/host/umcub_image.py" ${_args}
+    COMMAND "${_py}" "${UMCUB_ROOT}/tools/host/umcub" image ${_args}
             -o $<TARGET_FILE_DIR:${target}>/$<TARGET_FILE_BASE_NAME:${target}> $<TARGET_FILE:${target}>
     COMMENT "Signing ${target}: image ${A_IMAGE} version ${A_VERSION}"
     VERBATIM)

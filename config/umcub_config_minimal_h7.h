@@ -23,7 +23,7 @@
 /* --- flash (yours): bootloader, then the two slots of the application ---- */
 /* Whole erase sectors (H7: 128 KiB). swap-offset: the secondary slot is one
  * sector larger than the primary. The application is linked for the
- * primary slot (tools/host/umcub_image.py info prints where). */
+ * primary slot (tools/host/umcub image info prints where). */
 #define UMCUB_CFG_UPGRADE_MODE          UMCUB_MODE_SWAP_OFFSET
 #define UMCUB_CFG_BOOT_SIZE             UMCUB_KB(128)
 #define UMCUB_CFG_IMG0_PRIMARY_ADDR     0x08020000

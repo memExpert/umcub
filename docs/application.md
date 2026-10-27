@@ -80,7 +80,7 @@ signing step after the build and a debug setup that flashes the signed image.
 bootloader:
 
 ```sh
-python tools/host/umcub_image.py info --board nucleo_h755zi_q --core cm7
+python tools/host/umcub image info --board nucleo_h755zi_q --core cm7
 ```
 ```
 image 0 (CM7 application): slot 0x08020000 size 0x60000
@@ -125,24 +125,25 @@ in `third_party/` work as well. Defines: the device define (`STM32H755xx`) and, 
 `UMCUB_CONFIG_PRE/POST` overlays, define the same macros, e.g. `UMCUB_CONFIG_POST="path/to/overlay.h"`. The
 matrix build compiles this file with exactly this include list, using GCC and clang (Arm Compiler 6 is clang-based).
 
-**3. Signing after the build.** `tools/host/umcub_image.py sign` takes the ELF / AXF (or an Intel HEX / raw `.bin`). It
+**3. Signing after the build.** `umcub image sign` takes the ELF / AXF (or an Intel HEX / raw `.bin`). It
 checks that the image is linked at the slot origin and fits the slot, and writes `<name>.signed.bin` and
 `<name>.signed.hex` next to it (and `<name>.bin`, the unsigned flat image, e.g. for `tests/hw/powerfail_test.py`). `umcub_sign_image()` in CMake runs the same tool on the ELF, so an IDE project and a
 CMake build sign identically.
 
 It reads `umcub_config.h` through a C preprocessor. The search order is `--cc`, then `$UMCUB_CC`, then
 `arm-none-eabi-gcc`, then `armclang` (also in the default Keil folders), then `gcc` / `clang`. It needs Python 3
-with imgtool's dependencies: `pip install -r tools/requirements.txt` (on Windows `py -m pip install ...`); Intel HEX
+with imgtool's dependencies: `pip install -r tools/requirements.txt` (on Windows `py -m pip install ...`). The tool
+runs straight from the checkout as `python <umcub>/tools/host/umcub ...` (installed: `umcub ...`); Intel HEX
 input and output need nothing more.
 
 - **STM32CubeIDE**: *Project → Properties → C/C++ Build → Settings → Build Steps → Post-build steps*. The command
   runs in the build folder, with the CubeIDE toolchain in `PATH`:
   ```
-  python <umcub>/tools/host/umcub_image.py sign --board nucleo_h755zi_q --core cm7 --image 0 --version 1.2.3 ${ProjName}.elf
+  python <umcub>/tools/host/umcub image sign --board nucleo_h755zi_q --core cm7 --image 0 --version 1.2.3 ${ProjName}.elf
   ```
 - **Keil MDK**: *Options for Target → User → After Build/Rebuild → Run #1*:
   ```
-  python <umcub>\tools\host\umcub_image.py sign --board nucleo_h755zi_q --core cm7 --image 0 --version 1.2.3 "#L"
+  python <umcub>\tools\host\umcub image sign --board nucleo_h755zi_q --core cm7 --image 0 --version 1.2.3 "#L"
   ```
   `#L` is the `.axf` with its full path. If armclang is not found automatically, add
   `--cc "$KARM\ARMCLANG\bin\armclang.exe"`.
@@ -177,7 +178,7 @@ that is `--core cm7 --image 0` for the CM7 and `--core cm4 --image 1` for the CM
 to the CM7 one, so the CubeMX start-up handshake finds the CM4 in STOP as it expects (CM4 enters STOP, the CM7
 waits for `RCC_FLAG_D2CKRDY` to drop, configures the clocks and wakes the CM4 through HSEM 0). Verified on the
 NUCLEO-H755ZI-Q with ST's `BootCM4_CM7` template (STM32CubeH7, NUCLEO-H745ZI-Q) and the CubeMX system file
-`system_stm32h7xx_dualcore_boot_cm4_cm7.c`, signed with `umcub_image.py`, in `SINGLE_BOOT` and in `PER_CORE`
+`system_stm32h7xx_dualcore_boot_cm4_cm7.c`, signed with `umcub image sign`, in `SINGLE_BOOT` and in `PER_CORE`
 (there: `--core cm4 --image 0` with the per-core overlay). Without a valid CM4 image, the CM4 stays parked in the bootloader. In that case the CubeMX CM7 code that
 waits for `RCC_FLAG_D2CKRDY` times out into `Error_Handler()`; make that wait non-fatal if the CM7 must run alone.
 

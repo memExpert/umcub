@@ -8,7 +8,7 @@ Images encrypted for one device key, and what the bootloader does and does not p
 the same `UMCUB_DEVICE_KEY` as the SECURE link). An image file then does not show the firmware, wherever it is
 stored or sent. The signature still covers the plain image, so encryption adds confidentiality, not trust.
 
-`umcub_sign_image()` and `tools/host/umcub_image.py sign` then write two files:
+`umcub_sign_image()` and `tools/host/umcub image sign` then write two files:
 
 | File | Use |
 |---|---|

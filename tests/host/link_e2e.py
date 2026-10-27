@@ -128,7 +128,7 @@ def can_tools(build, py):
         p = tool(py, can + ["echo", "hello-can"])
         check(p.returncode == 0 and "hello-can" in p.stdout, "umcub echo over CAN")
         with tempfile.TemporaryDirectory() as d:
-            subprocess.run([py, os.path.join(ROOT, "tools/host/umcub_image.py"), "sign", "--board", "nucleo_h755zi_q",
+            subprocess.run([py, os.path.join(ROOT, "tools/host/umcub"), "image", "sign", "--board", "nucleo_h755zi_q",
                             "--core", "cm7", "--pre", os.path.join(ROOT, "tests/host/cfg_swap_scratch.h"),
                             "--post", os.path.join(ROOT, "tests/host/sim_can_post.h"), "--version", "3.1.4",
                             os.path.join(build, "payload.bin"), "-o", os.path.join(d, "app")],
@@ -151,7 +151,7 @@ def lite_tools(build, py):
     """Bootloaders without SMP: umcub upload --lite on a stream (pty) and on CAN."""
     print("[e2e] without SMP: umcub upload --lite over a stream and over CAN, verify", flush=True)
     with tempfile.TemporaryDirectory() as d:
-        subprocess.run([py, os.path.join(ROOT, "tools/host/umcub_image.py"), "sign", "--board", "nucleo_h755zi_q",
+        subprocess.run([py, os.path.join(ROOT, "tools/host/umcub"), "image", "sign", "--board", "nucleo_h755zi_q",
                         "--core", "cm7", "--pre", os.path.join(ROOT, "tests/host/cfg_swap_scratch.h"),
                         "--post", os.path.join(ROOT, "tests/host/sim_lite_post.h"), "--version", "4.0.1",
                         os.path.join(build, "payload.bin"), "-o", os.path.join(d, "app")],
@@ -208,7 +208,7 @@ def plain_tools(build, py, smpmgr):
     port = ["-d", hub.path, "--timeout", "5"]
     try:
         with tempfile.TemporaryDirectory() as d:
-            subprocess.run([py, os.path.join(ROOT, "tools/host/umcub_image.py"), "sign", "--board", "nucleo_h755zi_q",
+            subprocess.run([py, os.path.join(ROOT, "tools/host/umcub"), "image", "sign", "--board", "nucleo_h755zi_q",
                             "--core", "cm7", "--pre", os.path.join(ROOT, "tests/host/cfg_swap_scratch.h"),
                             "--post", os.path.join(ROOT, "tests/host/sim_plain_post.h"), "--version", "2.0.1",
                             os.path.join(build, "payload.bin"), "-o", os.path.join(d, "app")],
@@ -233,7 +233,7 @@ def plain_tools(build, py, smpmgr):
                 print(p.stdout[-500:], p.stderr[-1500:])
             p = tool(py, port + ["list"])
             check(p.returncode == 0 and "2.0.1" in p.stdout, "umcub list: 2.0.1")
-            subprocess.run([py, os.path.join(ROOT, "tools/host/umcub_image.py"), "sign", "--board", "nucleo_h755zi_q",
+            subprocess.run([py, os.path.join(ROOT, "tools/host/umcub"), "image", "sign", "--board", "nucleo_h755zi_q",
                             "--core", "cm7", "--pre", os.path.join(ROOT, "tests/host/cfg_swap_scratch.h"),
                             "--post", os.path.join(ROOT, "tests/host/sim_plain_post.h"), "--version", "2.0.2",
                             os.path.join(build, "payload.bin"), "-o", os.path.join(d, "app2")],
@@ -294,7 +294,7 @@ def secure_tools(build, py, smpmgr):
             post = os.path.join(d, "other.h")
             open(post, "w").write(f'#include "{ROOT}/tests/host/test_link_secure_post.h"\n'
                                   "#undef UMCUB_CFG_BOARD_TYPE\n#define UMCUB_CFG_BOARD_TYPE 0x12345678\n")
-            subprocess.run([py, os.path.join(ROOT, "tools/host/umcub_image.py"), "sign", "--board", "nucleo_h755zi_q",
+            subprocess.run([py, os.path.join(ROOT, "tools/host/umcub"), "image", "sign", "--board", "nucleo_h755zi_q",
                             "--core", "cm7", "--pre", os.path.join(ROOT, "tests/host/cfg_swap_scratch.h"),
                             "--post", post, "--version", "1.0.0", os.path.join(build, "payload.bin"),
                             "-o", os.path.join(d, "other")], check=True, capture_output=True)
@@ -323,7 +323,7 @@ def secure_tools(build, py, smpmgr):
             check("hello-umcub" in p.stdout, "smpmgr os echo")
             # Image for the simulator's configuration (board type TLV, encrypted with the device key),
             # signed the way an IDE project would do it.
-            subprocess.run([py, os.path.join(ROOT, "tools/host/umcub_image.py"), "sign", "--board", "nucleo_h755zi_q",
+            subprocess.run([py, os.path.join(ROOT, "tools/host/umcub"), "image", "sign", "--board", "nucleo_h755zi_q",
                             "--core", "cm7", "--pre", os.path.join(ROOT, "tests/host/cfg_swap_scratch.h"),
                             "--post", os.path.join(ROOT, "tests/host/test_link_secure_post.h"), "--version",
                             "1.2.3", os.path.join(build, "payload.bin"), "-o", os.path.join(d, "app")],
@@ -337,7 +337,7 @@ def secure_tools(build, py, smpmgr):
             check("1.2.3" in p.stdout, "state-read: 1.2.3 decrypted in place, signature and board type valid")
             srv.terminate()
             srv.wait(5)
-            subprocess.run([py, os.path.join(ROOT, "tools/host/umcub_image.py"), "sign", "--board", "nucleo_h755zi_q",
+            subprocess.run([py, os.path.join(ROOT, "tools/host/umcub"), "image", "sign", "--board", "nucleo_h755zi_q",
                             "--core", "cm7", "--pre", os.path.join(ROOT, "tests/host/cfg_swap_scratch.h"),
                             "--post", os.path.join(ROOT, "tests/host/test_link_secure_post.h"), "--version",
                             "1.2.4", os.path.join(build, "payload.bin"), "-o", os.path.join(d, "app2")],

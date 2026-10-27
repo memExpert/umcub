@@ -43,8 +43,8 @@ sizes for the mode, a missing scratch area, an HSE the port cannot use, and so o
 
 **4. Adapt the application.** Use the same board directory and key: CMake with `umcub::app`,
 `umcub_add_application()` (see [Application library](application.md#application-library)), or an IDE
-project with `tools/host/umcub_image.py` (see [Using umcub from an IDE](application.md#using-umcub-from-an-ide-stm32cubeide-keil-mdk)).
-`tools/host/umcub_image.py info --board boards/my_board` prints where to link it.
+project with `umcub image sign` (see [Using umcub from an IDE](application.md#using-umcub-from-an-ide-stm32cubeide-keil-mdk)).
+`tools/host/umcub image info --board boards/my_board` prints where to link it.
 
 **5. Program and protect.** Program the bootloader `.hex` and the signed application `.hex`. On dual-core H7 parts,
 also program the option bytes (`tools/hw/h755_option_bytes.py`). For production, write-protect the bootloader sector
@@ -111,7 +111,7 @@ Things that are easy to get wrong:
 by the text command `i` and to the application (`umcub_boot_info()->board_type`, `->board_rev`).
 
 With a board type other than 0, every image must carry the same value in a signed TLV (tag `0xA0`, u32 little
-endian). `umcub_sign_image()` and `tools/host/umcub_image.py sign` add it automatically from the board configuration.
+endian). `umcub_sign_image()` and `tools/host/umcub image sign` add it automatically from the board configuration.
 MCUboot rejects an image with another board type, or without one, before installing it. This holds even when the
 image is signed with the right key, so firmware of another product cannot be booted:
 

@@ -9,9 +9,8 @@ flash, sys, tables): the F411 took about 470 lines of C/H (2026-10-22).
 - [ ] **1. Rest of the F4 port.** Other F4 parts (sector map and SRAM per part).
   G4 later: needs a branch in `fdcan.c` for its fixed message RAM layout.
 - [ ] **2. Host library, the rest** (`tools/host/umcub`, docs/host.md; base for a GUI flasher). Open:
-  - `umcub_image.py` and `umcub_keys.py` into the package (`umcub image`, `umcub keys`), CMake calls `umcub`;
   - one reader of the configuration: `umcub_load_config` (cmake/umcub_config.cmake) and `Config` in
-    `umcub_image.py` both preprocess `umcub_config.h`, and the slot window is computed in `cmake/umcub_app.cmake`
+    `umcub/config.py` both preprocess `umcub_config.h`, and the slot window is computed in `cmake/umcub_app.cmake`
     and `Config.window()`; CMake would take the values from the Python one.
 
 - [ ] **3. Build matrix on CTest.** `tools/build/build_matrix.sh` (bash) drives 47 bootloader build trees, presets,
@@ -33,7 +32,7 @@ flash, sys, tables): the F411 took about 470 lines of C/H (2026-10-22).
   with ISO-TP + SMP is verified on a real bus).
 - [ ] **IDE workflow** (docs/application.md "Using umcub from an IDE") in real STM32CubeIDE and Keil MDK projects: post-build
   signing, debug download of the signed image, Keil key codes (`#L`, `$L@L`), armclang as preprocessor. So far
-  verified: `umcub_app_all.c` compiles with the documented include list (GCC, clang); `tools/host/umcub_image.py` gives
+  verified: `umcub_app_all.c` compiles with the documented include list (GCC, clang); `umcub image sign` gives
   the same image as CMake (header, payload, hash) from ELF and HEX; a tool-signed image boots on the board; the
   bootloader builds (F1, H7) with only the GCC inside STM32CubeIDE 2.2 (`UMCUB_TOOLCHAIN_PREFIX`); in CubeIDE 2.2
   the "STM32 CMake Project" wizard + `tools/ide/umcub_cubeide.py` build every preset and the `custom` one (own

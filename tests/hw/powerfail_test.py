@@ -14,7 +14,7 @@ Swap modes (--mode swap), for every K:
   5. check: primary == v1, secondary == v2 (revert completed)
 Overwrite (--mode overwrite): steps 1-3, check primary == v2 only.
 
-Images are signed with tools/host/umcub_image.py for the bootloader's configuration
+Images are signed with `umcub image sign` for the bootloader's configuration
 (--board / --core / --pre / --post, as for the build), so header size, alignment
 and the board-type TLV match.
 
@@ -47,7 +47,7 @@ import probe  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(ROOT, "tools/host"))
-from umcub_image import Config  # noqa: E402
+from umcub.config import Config  # noqa: E402
 
 PY = os.path.join(ROOT, ".venv/bin/python")
 FAULT_MAGIC = 0xFA017E57
@@ -58,7 +58,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--boot", required=True, help="fault-injection bootloader .hex")
     ap.add_argument("--app", required=True, help="raw application .bin (unsigned) used as payload start")
-    ap.add_argument("--board", required=True, help="board of the bootloader (tools/host/umcub_image.py --board)")
+    ap.add_argument("--board", required=True, help="board of the bootloader (umcub image --board)")
     ap.add_argument("--core", help="dual-core parts: cm7 / cm4")
     ap.add_argument("--pre", help="UMCUB_CONFIG_PRE of the bootloader build")
     ap.add_argument("--post", default=os.path.join(ROOT, "tests/configs/feature/fault_inject.h"),
@@ -95,7 +95,7 @@ def main():
     handoff_magic = cfg["SHARED_RAM_ADDR"] + 16  # umcub_handoff_t.magic (UMCUB_HANDOFF_INFO_OFFSET)
 
     def sign(payload, version, out, pad):
-        args = [PY, os.path.join(ROOT, "tools/host/umcub_image.py"), "sign", "--board", a.board, "--version", version]
+        args = [PY, os.path.join(ROOT, "tools/host/umcub"), "image", "sign", "--board", a.board, "--version", version]
         for opt in ("core", "pre", "post"):
             if getattr(a, opt):
                 args += [f"--{opt}", getattr(a, opt)]

@@ -233,7 +233,7 @@
 /* #define UMCUB_CFG_READBACK             0 */
 /* Encrypted images (MCUboot ECIES-P256, AES-128-CTR) with the device key
  * (CMake UMCUB_DEVICE_KEY): image files and transfers do not show the
- * firmware. umcub_sign_image() / tools/host/umcub_image.py encrypt automatically.
+ * firmware. umcub_sign_image() / `umcub image sign` encrypt automatically.
  * Installed from the secondary slot, the image is decrypted while it is
  * copied; uploaded over SMP into the primary slot, it is decrypted in place
  * after the last chunk. Readback (UMCUB_CFG_READBACK) then answers only inside
@@ -353,7 +353,7 @@
 /* Board type (product id, u32) and hardware revision (u16). Reported to the
  * host (text command "i", SMP) and to the application (umcub_boot_info()).
  * Board type != 0: every image must carry the same value in its signed TLV
- * UMCUB_TLV_BOARD_TYPE (umcub_sign_image() / tools/host/umcub_image.py add it),
+ * UMCUB_TLV_BOARD_TYPE (umcub_sign_image() / `umcub image sign` add it),
  * otherwise MCUboot rejects it before installing - firmware of another product
  * can never be booted, even when it is signed with the same key. */
 /* #define UMCUB_CFG_BOARD_TYPE           0 */

@@ -10,14 +10,23 @@
 
 Nothing here prints or exits: errors are UmcubError (NoAnswer, DeviceError,
 LinkError, Cancelled), progress is a callback, a threading.Event cancels.
-The command line tool is `umcub` (umcub.cli).
+Signing and keys (umcub.config, umcub.sign, umcub.keys) are for builds and IDE
+post-build steps. The command line tool is `umcub` (umcub.cli).
 """
 from . import lite
 from .connection import KIND_LINK, KIND_LITE, KIND_SMP, KIND_USER, open_connection
 from .device import Device, connect, discover
 from .errors import Cancelled, DeviceError, LinkError, NoAnswer, UmcubError
 from .image import Image
-from .smp import Smp
+
+
+def __getattr__(name):
+    # SMP (smpclient) only when used: signing and keys work without it.
+    if name == "Smp":
+        from .smp import Smp
+        return Smp
+    raise AttributeError(f"module 'umcub' has no attribute '{name}'")
+
 
 __all__ = ["Cancelled", "Device", "DeviceError", "Image", "KIND_LINK", "KIND_LITE", "KIND_SMP", "KIND_USER", "LinkError",
            "NoAnswer", "Smp", "UmcubError", "connect", "discover", "lite", "open_connection"]

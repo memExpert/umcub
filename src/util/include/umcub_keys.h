@@ -1,6 +1,6 @@
 /*
  * umcub link SECURE keys, generated at build time from UMCUB_DEVICE_KEY /
- * UMCUB_HOST_KEY by tools/host/umcub_keys.py (umcub_link_keys.c in the build
+ * UMCUB_HOST_KEY by `umcub keys` (tools/host/umcub, umcub_link_keys.c in the build
  * tree). Only linked with UMCUB_CFG_LINK_SECURE_ANY.
  */
 #ifndef UMCUB_KEYS_H

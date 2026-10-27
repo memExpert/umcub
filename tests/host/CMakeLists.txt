@@ -108,7 +108,7 @@ function(umcub_host_setup t)
 endfunction()
 
 # Test images signed with imgtool directly: arguments for the board type TLV (protected): "--custom-tlv 0xa0 0x<u32 LE>",
-# empty when UMCUB_CFG_BOARD_TYPE is 0. Same encoding as tools/host/umcub_image.py.
+# empty when UMCUB_CFG_BOARD_TYPE is 0. Same encoding as `umcub image sign`.
 function(umcub_board_type_tlv_args out_var board_type)
   set(_args)
   if(board_type)
@@ -177,7 +177,7 @@ function(umcub_host_variant name)
     endif()
   endif()
   set(_mode)
-  if(UMCUB_CFG_UPGRADE_MODE EQUAL 1)    # UMCUB_MODE_OVERWRITE: smaller trailer, as umcub_image.py signs
+  if(UMCUB_CFG_UPGRADE_MODE EQUAL 1)    # UMCUB_MODE_OVERWRITE: smaller trailer, as `umcub image sign` signs
     set(_mode --overwrite-only)
   endif()
   set(_key -k ${UMCUB_SIGNING_KEY})
@@ -292,7 +292,7 @@ umcub_host_link(umcub_host_link_secure test_link_secure.c test_link_secure_post.
   ${CMAKE_BINARY_DIR}/umcub_link_host_keys.c)
 
 # Two images with encrypted uploads (test_dual_enc.c); images signed like an IDE
-# project does it, with tools/host/umcub_image.py on the variant's configuration.
+# project does it, with `umcub image sign` on the variant's configuration.
 umcub_python(_py)
 function(umcub_host_dual name)
   set(UMCUB_CONFIG_PRE ${CMAKE_CURRENT_LIST_DIR}/cfg_${name}.h)
@@ -314,9 +314,9 @@ function(umcub_host_dual name)
     math(EXPR _reset "${_slot} + 0x400 + 0x200" OUTPUT_FORMAT HEXADECIMAL)
     set(_b ${CMAKE_BINARY_DIR}/${name}_${_base})
     add_custom_command(OUTPUT ${_b}.signed.bin ${_b}.encrypted.bin
-      DEPENDS ${CMAKE_CURRENT_LIST_DIR}/gen_payload.py ${UMCUB_ROOT}/tools/host/umcub_image.py
+      DEPENDS ${CMAKE_CURRENT_LIST_DIR}/gen_payload.py ${UMCUB_ROOT}/tools/host/umcub/sign.py
       COMMAND ${_py} ${CMAKE_CURRENT_LIST_DIR}/gen_payload.py ${_b}.payload.bin 150000 ${_reset}
-      COMMAND ${_py} ${UMCUB_ROOT}/tools/host/umcub_image.py sign --board ${UMCUB_BOARD} --core ${UMCUB_CORE} --quiet
+      COMMAND ${_py} ${UMCUB_ROOT}/tools/host/umcub image sign --board ${UMCUB_BOARD} --core ${UMCUB_CORE} --quiet
               --pre ${UMCUB_CONFIG_PRE_ABS} --post ${UMCUB_CONFIG_POST_ABS} --imgtool ${UMCUB_IMGTOOL}
               --image ${_img} --version ${_ver} ${_b}.payload.bin -o ${_b})
     list(APPEND _imgs ${_b}.signed.bin ${_b}.encrypted.bin)

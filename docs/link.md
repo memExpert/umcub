@@ -39,7 +39,7 @@ imgtool keygen -t ecdsa-p256 -k keys/admin.pem      # stays on the hosts allowed
 cmake ... -DUMCUB_DEVICE_KEY=$PWD/keys/device.pem -DUMCUB_HOST_KEY=$PWD/keys/admin.pem
 ```
 
-CMake embeds them with `tools/host/umcub_keys.py` (`c`: device private key and admin public key for the bootloader;
+CMake embeds them with `umcub keys` (`c`: device private key and admin public key for the bootloader;
 `host-c`: the host side for C tools and tests); the device key for [encrypted images](security.md#encrypted-images) with
 `imgtool getpriv`. `tools/keys/dev-device-p256.pem` and `dev-admin-p256.pem` are
 development keys from the repository, the build warns about them.

@@ -20,7 +20,7 @@
 
 /* --- flash (yours): bootloader, then the two slots of the application ---- */
 /* Whole pages. Overwrite: the secondary slot is copied over the primary.
- * The application is linked for the primary slot (tools/host/umcub_image.py
+ * The application is linked for the primary slot (tools/host/umcub image
  * info prints where). */
 #define UMCUB_CFG_UPGRADE_MODE          UMCUB_MODE_OVERWRITE
 #define UMCUB_CFG_BOOT_SIZE             UMCUB_KB(32)

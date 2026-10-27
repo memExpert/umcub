@@ -22,7 +22,7 @@
 /* --- flash (yours): bootloader, then the two slots of the application ---- */
 /* Whole sectors: bootloader in sectors 0-1, the slots in sectors 5 and 6.
  * Overwrite: the secondary slot is copied over the primary. The application
- * is linked for the primary slot (tools/host/umcub_image.py info prints where). */
+ * is linked for the primary slot (tools/host/umcub image info prints where). */
 #define UMCUB_CFG_UPGRADE_MODE          UMCUB_MODE_OVERWRITE
 #define UMCUB_CFG_BOOT_SIZE             UMCUB_KB(32)
 #define UMCUB_CFG_IMG0_PRIMARY_ADDR     0x08020000
