@@ -67,6 +67,7 @@ configs=(
   "blackpill-f411-rs485-link|cm4|Release||boards/blackpill_f411ce/variants/rs485_link.h|blackpill_f411ce"
   "blackpill-f411-encrypt|cm4|Release||boards/blackpill_f411ce/variants/encrypt.h|blackpill_f411ce"
   "blackpill-f411-usb|cm4|Release||boards/blackpill_f411ce/variants/usb.h|blackpill_f411ce"
+  "blackpill-f411-proto-user|cm4|Release||boards/blackpill_f411ce/variants/proto_user.h|blackpill_f411ce"
 )
 
 # One configuration: configure, build, warnings. Writes $dir.result: OK or

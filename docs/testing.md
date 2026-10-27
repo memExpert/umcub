@@ -3,7 +3,7 @@
 The build matrix, host tests, simulated devices and the hardware tests.
 
 ```sh
-tools/build/build_matrix.sh                 # 49 bootloader configurations (side by side, JOBS=n), examples, IDE checks,
+tools/build/build_matrix.sh                 # 50 bootloader configurations (side by side, JOBS=n), examples, IDE checks,
                                             # host tests; warning-free
 ctest --test-dir build/matrix/host    # host tests only
 tests/host/link_e2e.py build/matrix/host   # simulated devices: umcub link bus, smpmgr, host tools, lite upload
@@ -17,7 +17,7 @@ and stream paths (including two interleaved streams), swap → revert → confir
 (installed for good, an older image too, no revert), direct-xip (the newest valid slot runs, a damaged or misplaced
 image is erased, fallback to the other slot), downgrade prevention, unsigned images (`UMCUB_SIGN_NONE`), SMP
 upload into the secondary slot (`UMCUB_CFG_SMP_DIRECT_UPLOAD`) marked by `image state-write` for a test or for good, text
-commands, verify / hash / read, ISO-TP classic/FD, DHCP / ARP / ICMP, board-supplied drivers and transports, the
+commands, verify / hash / read, ISO-TP classic/FD, DHCP / ARP / ICMP, board-supplied drivers, transports and protocol frames (packets and stream lines), the
 status LED patterns (listening, data, a failed transport init), the
 board-type check, the umcub link in ADDRESSED mode and in SECURE mode with encryption (handshake, wrong admin key,
 replayed / tampered / reordered frames, session end, RDP level 0), encrypted images (SMP upload into the primary

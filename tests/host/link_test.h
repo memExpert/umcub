@@ -31,9 +31,12 @@ typedef struct {
 size_t stream_read(stream_t *s, uint8_t *b, size_t m);
 void stream_write(stream_t *s, const uint8_t *b, size_t l);
 void stream_reset(stream_t *s);
-/* Frame f as a link line "05 0B base64 \n" into the stream's input. */
+/* Frame f as a line "05 <kind> base64 \n" into the stream's input. */
+void stream_put_line(stream_t *s, uint8_t kind, const uint8_t *f, size_t n);
+/* The k-th line of that kind the device wrote, decoded into f; returns its length. */
+size_t stream_out_line(const stream_t *s, uint8_t kind, int k, uint8_t *f);
+/* The same for link lines (kind 0x0B). */
 void stream_put_frame(stream_t *s, const uint8_t *f, size_t n);
-/* The k-th link line the device wrote, decoded into f; returns its length. */
 size_t stream_out_frame(const stream_t *s, int k, uint8_t *f);
 
 /* A packet transport: the last packet sent. */

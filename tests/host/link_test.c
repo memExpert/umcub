@@ -35,15 +35,20 @@ void stream_reset(stream_t *s)
     s->in_len = s->in_pos = s->out_len = 0;
 }
 
-void stream_put_frame(stream_t *s, const uint8_t *f, size_t n)
+void stream_put_line(stream_t *s, uint8_t kind, const uint8_t *f, size_t n)
 {
     s->in[s->in_len++] = UMCUB_LINK_LINE_START1;
-    s->in[s->in_len++] = UMCUB_LINK_LINE_START2;
+    s->in[s->in_len++] = kind;
     s->in_len += (size_t)base64_encode(f, (int)n, (char *)&s->in[s->in_len], 1);
     s->in[s->in_len++] = '\n';
 }
 
-size_t stream_out_frame(const stream_t *s, int k, uint8_t *f)
+void stream_put_frame(stream_t *s, const uint8_t *f, size_t n)
+{
+    stream_put_line(s, UMCUB_LINK_LINE_START2, f, n);
+}
+
+size_t stream_out_line(const stream_t *s, uint8_t kind, int k, uint8_t *f)
 {
     const char *p = s->out, *end = s->out + s->out_len;
     while (p < end) {
@@ -51,7 +56,7 @@ size_t stream_out_frame(const stream_t *s, int k, uint8_t *f)
         if (!nl) {
             break;
         }
-        if (p[0] == UMCUB_LINK_LINE_START1 && p[1] == UMCUB_LINK_LINE_START2 && k-- == 0) {
+        if (p[0] == UMCUB_LINK_LINE_START1 && (uint8_t)p[1] == kind && k-- == 0) {
             char line[4096];
             size_t l = (size_t)(nl - p - 2);
             memcpy(line, p + 2, l);
@@ -62,6 +67,11 @@ size_t stream_out_frame(const stream_t *s, int k, uint8_t *f)
         p = nl + 1;
     }
     return 0;
+}
+
+size_t stream_out_frame(const stream_t *s, int k, uint8_t *f)
+{
+    return stream_out_line(s, UMCUB_LINK_LINE_START2, k, f);
 }
 
 uint8_t pkt_out[2048];

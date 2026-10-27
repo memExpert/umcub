@@ -338,7 +338,7 @@ static void pump_stream(unsigned i)
         {
             uint8_t first = l->len ? (uint8_t)l->buf[0] : c;
             bool nlip = first == NLIP_PKT_START1 || first == NLIP_DATA_START1 ||
-                        (FRAMES && first == 0x05);   /* 05 0C / 05 0D: lite upload / board frame line */
+                        (FRAMES && first == 0x05);   /* 05 0C / 05 0E: lite upload / board frame line */
             if (!nlip) {
                 /* Console text: a configured command or noise. */
 #if UMCUB_CFG_CMD_ENABLE

@@ -17,7 +17,7 @@
 
 #define UMCUB_FRAME_LINE_START  0x05
 #define UMCUB_FRAME_LITE        0x0C    /* line kind: lite upload frame */
-#define UMCUB_FRAME_USER        0x0D    /* line kind: board protocol frame */
+#define UMCUB_FRAME_USER        0x0E    /* line kind: board protocol frame (not 0x0D: CR is dropped from lines) */
 
 /* Lite upload frames (little endian; last two bytes: CRC-16/XMODEM of the
  * rest, big endian):

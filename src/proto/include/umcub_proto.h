@@ -13,11 +13,11 @@
 /* UMCUB_CFG_PROTO_USER: implemented by the board (boards/<b>/umcub_board.c).
  * A frame that is neither SMP, a lite upload frame nor a text command: a
  * packet of a packet transport, a umcub link DATA payload, or the decoded
- * line "0x05 0x0D <base64> \n" of a plain stream transport. Return true if
+ * line "0x05 0x0E <base64> \n" of a plain stream transport. Return true if
  * it was yours (the bootloader then stays in recovery during the entry
  * window). Write images with umcub_slot_* (umcub.h). */
 bool umcub_proto_user(const umcub_transport_t *t, const uint8_t *data, size_t len);
-/* Answer `t` with one frame (a packet, or a 0x05 0x0D line on a plain stream). */
+/* Answer `t` with one frame (a packet, or a 0x05 0x0E line on a plain stream). */
 void umcub_proto_reply(const umcub_transport_t *t, const uint8_t *data, size_t len);
 
 /* Before a reset from inside a request (SMP, text command, lite): ends the

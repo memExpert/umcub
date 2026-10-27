@@ -287,7 +287,7 @@ set(LINK_SECURE_SOURCES
   ${TINYCRYPT}/source/aes_encrypt.c
   ${TINYCRYPT}/source/ctr_mode.c
   ${CMAKE_BINARY_DIR}/umcub_link_keys.c)
-umcub_host_link(umcub_host_link test_link.c test_link_post.h link_test.c)
+umcub_host_link(umcub_host_link test_link.c test_link_proto_post.h link_test.c)
 umcub_host_link(umcub_host_link_secure test_link_secure.c test_link_secure_post.h link_test.c ${LINK_SECURE_SOURCES}
   ${CMAKE_BINARY_DIR}/umcub_link_host_keys.c)
 

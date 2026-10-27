@@ -95,9 +95,12 @@ UART bootloader is about 3 K smaller (F103: 16.4 K instead of 19.4 K, H7: 22.4 K
   3/4 of the MTU - 8 on serial and the MTU - 8 otherwise.
 - **the board's own protocol** (`UMCUB_CFG_PROTO_USER`, also next to SMP): every frame that is neither SMP, lite
   nor a text command goes to `umcub_proto_user(t, data, len)` in `boards/<b>/umcub_board.c` - a packet of a
-  packet transport, a umcub link DATA payload, or a line `0x05 0x0D <base64> \n` on a stream. Both are declared
+  packet transport, a umcub link DATA payload, or a line `0x05 0x0E <base64> \n` on a stream. Both are declared
   in `umcub_proto.h` (`#include "umcub_proto.h"`). Answer with `umcub_proto_reply()`; write images with `umcub_slot_*` (`umcub.h`), which is part of the bootloader then.
-  Experimental: exercised by the host test with the fixture in `tests/boards/custom_drivers` only, no board uses it yet.
+  Example: the Black Pill (`boards/blackpill_f411ce/umcub_board.c`, overlay `variants/proto_user.h`, SMP and lite off)
+  writes a signed image into the primary slot with four frames - `B image size` (begin), `W offset data`, `E` (finish),
+  `R` (reset) - answered by `cmd status taken`; host side `boards/blackpill_f411ce/proto_upload.py`
+  (`--port /dev/ttyUSB0 app.signed.bin --reset`). That bootloader is about 3 K smaller than the default one.
 - USB DFU and updates from the application, as with SMP.
 
 Text commands (`verify`, `hash`, `read`, `i`, ...), the umcub link (ADDRESSED and SECURE: DATA payloads are lite

@@ -16,6 +16,8 @@
 #include "umcub_link.h"
 #include "umcub_handoff.h"
 #include "umcub_cmd.h"
+#include "umcub_lite.h"
+#include "umcub_proto.h"
 #include "boot_serial/boot_serial.h"
 
 extern const struct boot_uart_funcs *boot_uf;
@@ -53,6 +55,19 @@ bool umcub_cmd_user(unsigned id, const char *text, umcub_cmd_reply_t reply)
     (void)text;
     (void)reply;
     return false;
+}
+
+/* Board protocol (UMCUB_CFG_PROTO_USER): frames starting with 'Z'. */
+static int proto_frames;
+bool umcub_proto_user(const umcub_transport_t *t, const uint8_t *data, size_t len)
+{
+    if (len == 0 || data[0] != 'Z') {
+        return false;
+    }
+    proto_frames++;
+    static const uint8_t ok[] = { 'Z', 'o', 'k' };
+    umcub_proto_reply(t, ok, sizeof(ok));
+    return true;
 }
 
 /* ---- frames -------------------------------------------------------------- */
@@ -183,6 +198,19 @@ static void test_plain_transport_unchanged(void)
     CHECK(memmem(s_plain.out, s_plain.out_len, "board type", 10) != NULL);
 }
 
+static void test_board_protocol_stream(void)
+{
+    printf("[proto] board protocol frames as 05 0E lines on a plain stream transport\n");
+    reset_io();
+    proto_frames = 0;
+    static const uint8_t z[] = { 'Z', 'd', 'a', 't', 'a' };
+    stream_put_line(&s_plain, UMCUB_FRAME_USER, z, sizeof(z));
+    run(10);
+    uint8_t f[64];
+    CHECK(proto_frames == 1);
+    CHECK(stream_out_line(&s_plain, UMCUB_FRAME_USER, 0, f) == 3 && memcmp(f, "Zok", 3) == 0);
+}
+
 static void test_discover(void)
 {
     printf("[link] DISCOVER: ANNOUNCE in a random slot, silent when already found\n");
@@ -259,6 +287,7 @@ int main(void)
     test_hello_and_addressing();
     test_data_smp_and_text();
     test_plain_transport_unchanged();
+    test_board_protocol_stream();
     test_discover();
     test_unassigned_uid_select();
     test_garbage();
