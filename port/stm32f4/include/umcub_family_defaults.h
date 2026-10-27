@@ -33,11 +33,13 @@
  * MCUBOOT_BOOT_MAX_ALIGN MCUboot supports. */
 #define UMCUB_FAMILY_WRITE_ALIGN        8
 
-/* SRAM size. Only parts checked against their datasheet are listed. */
+/* Parts the port is verified for, with their SRAM size (the handoff is at
+ * its end); the sector map above holds up to 1 MiB (not the dual-bank
+ * F42x/43x). */
 #if defined(STM32F411xE)
 #define UMCUB_FAMILY_RAM_SIZE           UMCUB_KB(128)  /* DS10314: F411xC/xE */
 #else
-#error "umcub: STM32F4 part not verified yet - add its SRAM size (datasheet) and flash layout (flash.c)"
+#error "umcub: this STM32F4 part is not verified with the port: check its SRAM size and flash sectors (datasheet, reference manual), then add it to the list in port/stm32f4/include/umcub_family_defaults.h (docs/porting.md, Adding a part)"
 #endif
 
 #ifndef UMCUB_CFG_BOOT_ADDR

@@ -22,12 +22,12 @@
  * MCUboot supports, so the driver takes multiples of 8 bytes. */
 #define UMCUB_FAMILY_WRITE_ALIGN        8
 
-/* SRAM size. Only parts checked against their datasheet are listed; add
- * others after checking theirs (sizes differ inside the F101/F102 lines). */
+/* Parts the port is verified for, with their SRAM size (the handoff is at
+ * its end; sizes differ inside the F101/F102 lines). */
 #if defined(STM32F103xB)
 #define UMCUB_FAMILY_RAM_SIZE           UMCUB_KB(20)   /* DS5319: F103x8/xB */
 #else
-#error "umcub: STM32F1 part not verified yet - add its SRAM size (datasheet) to umcub_family_defaults.h"
+#error "umcub: this STM32F1 part is not verified with the port: check its SRAM size and flash pages (datasheet, reference manual), then add it to the list in port/stm32f1/include/umcub_family_defaults.h (docs/porting.md, Adding a part)"
 #endif
 
 /* bxCAN: classic CAN only; on F101/F102/F103 it shares 512 bytes of SRAM

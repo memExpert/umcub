@@ -6,15 +6,13 @@ Goal: a user adds a board without reading the internals. Today, a board on a por
 ~40-line `umcub_config.h` (pins checked at build time, alternate functions filled in); a new series is a port on the shared drivers (clock,
 flash, sys, tables): the F411 took about 470 lines of C/H (2026-10-22).
 
-- [ ] **1. Rest of the F4 port.** Other F4 parts (sector map and SRAM per part).
-  G4 later: needs a branch in `fdcan.c` for its fixed message RAM layout.
-- [ ] **3. Build matrix on CTest.** `tools/build/build_matrix.sh` (bash) drives 47 bootloader build trees, presets,
+- [ ] **1. Build matrix on CTest.** `tools/build/build_matrix.sh` (bash) drives 50 bootloader build trees, presets,
   examples, the IDE compile, `check_layers`, the pin check cases, host tests (already CTest) and the link e2e. A
   `tests/CMakeLists.txt` with one test per configuration (`ctest --build-and-test` into its own tree) plus the checks
   as tests gives `ctest -j`, `-R`, `--rerun-failed`, `--output-junit` and IDE test lists; the warning / flash fill
   checks of one configuration move to a small wrapper script. After the open points of the simplification report.
 
-- [ ] **4. Production.** Keys, RDP / WRP, option bytes and the log are spread over a few sentences in four pages,
+- [ ] **2. Production.** Keys, RDP / WRP, option bytes and the log are spread over a few sentences in four pages,
   without commands for the F1 / F4, and the development keys only warn. A `docs/production.md` checklist (own
   keys, log off, board type, watchdog, WRP on the bootloader sectors, RDP 1, H755 option bytes, how to check;
   the `STM32_Programmer_CLI -ob` lines checked against the reference manuals) and `-DUMCUB_PRODUCTION=ON`, which

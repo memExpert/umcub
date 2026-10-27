@@ -41,6 +41,17 @@ survive a reset (handoff area) is written with 32-bit stores only (ECC SRAM lose
 Check pin mappings against the board manual, alternate functions against the datasheet, and the errata for every
 peripheral a driver touches.
 
+## Adding a part
+
+Each port lists the parts it is verified for in `port/stm32<fam>/include/umcub_family_defaults.h` (today: H742,
+H743, H753, H745, H747, H755, H757; F103x8/xB; F411xC/xE); any other `UMCUB_CFG_MCU` stops the build with
+"this ... part is not verified with the port". The values that differ between parts of one series decide where the
+bootloader writes: the SRAM size (the handoff area is its last 256 bytes; H7: SRAM4), the flash sectors or pages
+(size, map, banks) and, for a driver, the peripheral instances the part has. Check them in the datasheet and the
+reference manual, add the part to the list (with its SRAM size where the port needs one) and build its
+configuration in the matrix. A part whose flash map the port cannot describe (e.g. the dual-bank F42x/43x, the
+8 KiB sectors of the H7A3/B0/B3) needs a change in the port first.
+
 ## Layout
 
 Layers, bottom to top; a directory uses only its own and lower layers (checked by `tools/build/check_layers.py`
