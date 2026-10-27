@@ -8,7 +8,7 @@
 Checks:
   - the size tables in docs/size.md match a fresh build of every variant;
   - every board, family port, example, CMake preset and tool script is mentioned (README or docs/);
-  - the number of bootloader configurations in docs/testing.md matches tools/build/build_matrix.sh;
+  - the number of bootloader configurations in docs/testing.md matches tests/matrix/configs.txt;
   - every relative link points to a file that exists and, with #anchor, to a heading in it.
 It cannot judge prose: new options, transports or behaviour still need someone
 to update the matching section.
@@ -82,14 +82,12 @@ def main():
     need("source directory", [f"{d}/" for d in ("include", "config", "port", "src", "lib/umcub_app", "tests/configs")]
          + [f"  {d}/" for d in ("util", "image", "transport", "proto", "boot")])   # under src/ in the layout
 
-    matrix = (ROOT / "tools/build/build_matrix.sh").read_text()
-    block = matrix[matrix.index("configs=("):]
-    block = block[:block.index("\n)")]
-    n = len(re.findall(r'^\s*"[^"]+\|', block, re.M)) + matrix.count('dir="$OUT/custom-drivers"')
+    n = len([line for line in (ROOT / "tests/matrix/configs.txt").read_text().splitlines()
+             if line.strip() and not line.startswith("#")])
     m = re.search(r"# (\d+) bootloader configurations", texts[ROOT / "docs/testing.md"])
     if not m or int(m.group(1)) != n:
         problems.append(f"docs/testing.md says {m.group(1) if m else '?'} bootloader configurations, "
-                        f"tools/build/build_matrix.sh builds {n}")
+                        f"tests/matrix/configs.txt has {n}")
 
     for p, text in texts.items():
         for target in re.findall(r"\]\(([^)\s]+)\)", text):

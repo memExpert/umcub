@@ -1,17 +1,5 @@
 # TODO
 
-## Ease of use (next big step)
-
-Goal: a user adds a board without reading the internals. Today, a board on a ported family (H7, F1, F4) is one
-~40-line `umcub_config.h` (pins checked at build time, alternate functions filled in); a new series is a port on the shared drivers (clock,
-flash, sys, tables): the F411 took about 470 lines of C/H (2026-10-22).
-
-- [ ] **1. Build matrix on CTest.** `tools/build/build_matrix.sh` (bash) drives 50 bootloader build trees, presets,
-  examples, the IDE compile, `check_layers`, the pin check cases, host tests (already CTest) and the link e2e. A
-  `tests/CMakeLists.txt` with one test per configuration (`ctest --build-and-test` into its own tree) plus the checks
-  as tests gives `ctest -j`, `-R`, `--rerun-failed`, `--output-junit` and IDE test lists; the warning / flash fill
-  checks of one configuration move to a small wrapper script. After the open points of the simplification report.
-
 ## Hardware verification (NUCLEO-H755ZI-Q)
 
 - [ ] **CAN-FD on a bus** — 64-byte frames, data bit rate switch. Needs a CAN-FD transceiver on PD0/PD1 (classic CAN

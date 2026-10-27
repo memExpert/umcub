@@ -4,7 +4,7 @@
 what the host tools read on their own (tools/host/umcub/config.py): every
 numeric UMCUB_CFG_* value and every application slot window must agree.
 
-  check_config.py <build dir>...
+  check_config.py <build dir>...     (a directory without umcub_probe/: the build trees in it)
 """
 import sys
 from pathlib import Path
@@ -48,7 +48,10 @@ def check(build):
 
 
 def main():
-    dirs = [d for d in sys.argv[1:] if (Path(d) / "umcub_probe/config.txt").is_file()]
+    dirs = []
+    for d in map(Path, sys.argv[1:]):
+        dirs += [d] if (d / "umcub_probe/config.txt").is_file() else sorted(
+            p for p in d.iterdir() if (p / "umcub_probe/config.txt").is_file())
     failed = 0
     for d in dirs:
         bad = check(d)

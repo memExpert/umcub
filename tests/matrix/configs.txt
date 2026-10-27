@@ -1,0 +1,54 @@
+# Bootloader configurations of the build matrix (tests/CMakeLists.txt: one test each).
+# name | core | build type | pre overlay | post overlay | board
+# Overlays: tests/configs/<file>, or a path from the repository root (boards/<b>/variants/...).
+# Board: a name under boards/ (default nucleo_h755zi_q) or a directory from the repository root.
+all-swap-scratch|cm7|Release||
+all-overwrite|cm7|Release|mode/overwrite.h|
+all-swap-offset|cm7|Release|mode/swap_offset.h|
+all-direct-xip|cm7|Release|mode/direct_xip.h|
+all-direct-xip-revert|cm7|Release|mode/direct_xip_revert.h|
+uart-only|cm7|Release||transport/uart_only.h
+uart-tx-ring|cm7|Release||feature/uart_tx_ring.h
+uart-usb|cm7|Release||transport/uart_usb.h
+uart-canfd-loopback|cm7|Release||transport/uart_can.h
+usb-dfu-only|cm7|Release||transport/usb_dfu_only.h
+single-core|cm7|Release|feature/single_core.h|
+per-core-cm7|cm7|Release|boards/nucleo_h755zi_q/variants/per_core.h|
+per-core-cm4|cm4|Release|boards/nucleo_h755zi_q/variants/per_core.h|
+all-debug|cm7|Debug||
+bluepill-f103|cm3|Release|||bluepill_f103c8
+bluepill-f103-usb|cm3|Release||boards/bluepill_f103c8/variants/usb.h|bluepill_f103c8
+rs485-hw-de|cm7|Release||transport/rs485.h
+bluepill-rs485|cm3|Release||boards/bluepill_f103c8/variants/rs485.h|bluepill_f103c8
+link-addressed|cm7|Release||feature/link_addressed.h
+bluepill-rs485-link|cm3|Release||boards/bluepill_f103c8/variants/rs485_link.h|bluepill_f103c8
+bluepill-node-addr-flash|cm3|Release||boards/bluepill_f103c8/variants/node_addr_flash.h|bluepill_f103c8
+link-secure|cm7|Release||feature/link_secure.h
+bluepill-rs485-secure|cm3|Release||boards/bluepill_f103c8/variants/rs485_secure.h|bluepill_f103c8
+lite-upload|cm7|Release||feature/lite_upload.h
+minimal-h7|cm7|Release|||tests/boards/minimal_h7    # config/umcub_config_minimal_<family>.h as they ship
+minimal-f1|cm3|Release|||tests/boards/minimal_f1
+minimal-f4|cm4|Release|||tests/boards/minimal_f4
+bluepill-lite|cm3|Release||feature/lite_upload.h|bluepill_f103c8
+bluepill-sign-none|cm3|Release||feature/sign_none.h|bluepill_f103c8
+bluepill-tx-ring|cm3|Release||feature/uart_tx_ring.h|bluepill_f103c8
+bluepill-mcuboot-log-err|cm3|Release||feature/mcuboot_log_err.h|bluepill_f103c8
+bluepill-assert-trap|cm3|Release||feature/assert_trap.h|bluepill_f103c8
+bluepill-readback|cm3|Release||feature/readback.h|bluepill_f103c8
+bluepill-recovery-timeout|cm3|Release||feature/recovery_timeout.h|bluepill_f103c8
+blackpill-wait-window|cm4|Release||feature/wait_window.h|blackpill_f411ce
+watchdog|cm7|Release||feature/watchdog.h
+lto|cm7|Release||feature/lto.h
+bluepill-lto|cm3|Release||feature/lto.h|bluepill_f103c8
+bluepill-can|cm3|Release||boards/bluepill_f103c8/variants/can.h|bluepill_f103c8
+encrypt-images|cm7|Release||feature/encrypt_images.h
+bluepill-encrypt|cm3|Release||boards/bluepill_f103c8/variants/encrypt.h|bluepill_f103c8
+per-core-cm4-encrypt|cm4|Release|boards/nucleo_h755zi_q/variants/per_core.h|feature/encrypt_only.h
+blackpill-f411|cm4|Release|||blackpill_f411ce
+blackpill-f411-rs485|cm4|Release||boards/blackpill_f411ce/variants/rs485.h|blackpill_f411ce
+blackpill-f411-usart2|cm4|Release||boards/blackpill_f411ce/variants/usart2.h|blackpill_f411ce
+blackpill-f411-rs485-link|cm4|Release||boards/blackpill_f411ce/variants/rs485_link.h|blackpill_f411ce
+blackpill-f411-encrypt|cm4|Release||boards/blackpill_f411ce/variants/encrypt.h|blackpill_f411ce
+blackpill-f411-usb|cm4|Release||boards/blackpill_f411ce/variants/usb.h|blackpill_f411ce
+blackpill-f411-proto-user|cm4|Release||boards/blackpill_f411ce/variants/proto_user.h|blackpill_f411ce
+custom-drivers|cm7|Release|||tests/boards/custom_drivers    # board CAN / ETH drivers: the family ones left out

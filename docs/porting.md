@@ -32,8 +32,8 @@ Adding an STM32 series and the source tree.
    `port/stm32h7/usb.c`, the USB FS device (fsdev) `port/stm32f1/usb.c`. Big sectors: see `UMCUB_CFG_ERASE_PROGRESSIVELY` / `UMCUB_CFG_TRAILER_RESERVE`
    ([Your own board](board.md#adding-a-board), "Slots").
 3. `boards/<board>/umcub_config.h` (and optionally `umcub_board.c`).
-4. Add the new configuration to `tools/build/build_matrix.sh`; an example application goes into `examples/`, the
-   board's `umcub_examples.cmake` and the `examples` list of the build matrix (`examples/blackpill_app` on
+4. Add the new configuration to `tests/matrix/configs.txt` (the build matrix); an example application goes into `examples/`, the
+   board's `umcub_examples.cmake` and the example list in `tests/CMakeLists.txt` (build matrix) (`examples/blackpill_app` on
    `examples/common/umcub_example.c` is the one to start from, see [Your own board](board.md#adding-a-board), step 7).
 
 Rules: no `stm32*.h` / LL includes outside `port/<family>/`; all series differences stay in the port; RAM that must
