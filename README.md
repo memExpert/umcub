@@ -12,9 +12,9 @@ Ethernet. A board is one configuration file; what you do not enable is not compi
   - Ethernet — UDP with DHCP;
   - from the application itself (`umcub_slot_*`).
 - **Upload protocols** on these transports - SMP is not required:
-  - SMP, MCUboot's serial recovery: the standard tools (`smpmgr`, `mcumgr`; over CAN `tools/host/smp_can.py`);
+  - SMP, MCUboot's serial recovery: the standard tools (`smpmgr`, `mcumgr`) or [`umcub`](docs/host.md);
   - the **lite upload protocol**: begin / data / end frames with CRC, about 3 K smaller than SMP for small parts,
-    host side `tools/host/umcub_lite.py` ([without SMP](docs/recovery.md#recovery-without-smp-lite-upload-and-board-protocols));
+    host side `umcub upload --lite` ([without SMP](docs/recovery.md#recovery-without-smp-lite-upload-and-board-protocols));
   - text commands next to either (`i`, `b`, `verify`, ...), or a protocol of your own.
 - **MCUboot upgrade modes**: overwrite, swap-scratch, swap-offset, direct-xip (with or without revert).
 - **Images** signed with ECDSA-P256 (`imgtool`), optionally encrypted for the device.
@@ -38,8 +38,8 @@ Once:
 
 ```sh
 git submodule update --init
-tools/setup.sh                                 # .venv: imgtool, smpmgr, python-can, ...
-source .venv/bin/activate                      # smpmgr and the host tools on PATH
+tools/setup.sh                                 # .venv: imgtool, the umcub tool, smpmgr, python-can, ...
+source .venv/bin/activate                      # umcub and smpmgr on PATH
 ```
 
 Then for the board (`<preset>` from the table): build the bootloader and its example application, program both
@@ -48,8 +48,8 @@ over SWD, update the application over the bootloader's serial port.
 ```sh
 cmake --preset <preset> && cmake --build --preset <preset>
 cmake --build --preset <preset> --target flash      # bootloader + signed example(s), then reset
-smpmgr --port <port> image upload build/<preset>/examples/<app>/<app>.signed.bin
-smpmgr --port <port> os reset
+umcub -d <port> upload build/<preset>/examples/<app>/<app>.signed.bin --reset
+# the same with the standard SMP tool: smpmgr --port <port> image upload ...; smpmgr --port <port> os reset
 ```
 
 | Board | `<preset>` | `<app>` | `<port>`: SMP and log | Stay in the bootloader |
@@ -107,9 +107,9 @@ listens, fast flicker while data arrives, N blinks and a pause when transport N 
 
 | From | Tool | Slot |
 |---|---|---|
-| recovery, SMP (UART, USB CDC, UDP, CAN) | `smpmgr`, `mcumgr`, `tools/host/smp_can.py` | primary by default; secondary with `UMCUB_CFG_SMP_DIRECT_UPLOAD` |
+| recovery, SMP (UART, USB CDC, UDP, CAN) | [`umcub`](docs/host.md), `smpmgr`, `mcumgr` | primary by default; secondary with `UMCUB_CFG_SMP_DIRECT_UPLOAD` |
 | recovery, USB DFU | `dfu-util -a <image> -D app.signed.bin -R` | secondary, test boot |
-| recovery without SMP | `tools/host/umcub_lite.py` | either (`--slot`) |
+| recovery without SMP | `umcub upload --lite` | either (`--slot`) |
 | the running application | `umcub_slot_*` (your own protocol) | secondary (default) or any slot it does not run from |
 
 Two ways to install an image:
@@ -129,7 +129,8 @@ Using umcub:
 | [Your own board](docs/board.md) | board configuration, board type and node address, reference boards and their variants |
 | [The application side](docs/application.md) | `umcub::app`, `umcub_add_application()`, IDE projects (STM32CubeIDE, Keil MDK), CMake presets |
 | [Recovery mode](docs/recovery.md) | updating over SMP, text commands, lite upload and board protocols, verify / hash / read |
-| [umcub link](docs/link.md) | several devices on one bus: addressing, SECURE mode, `tools/host/umcub_link.py` |
+| [umcub link](docs/link.md) | several devices on one bus: addressing, SECURE mode |
+| [Host tool and library](docs/host.md) | `umcub`: upload, discover, verify on every transport; the Python library for your own tools and GUIs |
 | [Encrypted images and security](docs/security.md) | images encrypted for the device, what is and is not protected |
 | [Configuration](docs/configuration.md) | where the options live, advanced options, dual-core, upgrade mode notes |
 

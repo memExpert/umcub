@@ -67,10 +67,10 @@ development keys from the repository, the build warns about them.
 - Firmware confidentiality needs two things: `UMCUB_CFG_LINK_ENCRYPT` for the session and
   [encrypted images](security.md#encrypted-images) for what is stored and sent outside it.
 
-## Host side: `tools/host/umcub_link.py`
+## Host side: the `umcub` tool
 
-Standard SMP clients do not speak the link. The tool finds the devices, selects
-one and, as a proxy, serves `mcumgr` / `smpmgr` unchanged.
+Standard SMP clients do not speak the link. The [`umcub` tool](host.md) finds the devices, selects one, uploads to
+it and, as a proxy, serves `mcumgr` / `smpmgr` unchanged.
 
 `discover` broadcasts DISCOVER with a number of slots; every device answers ANNOUNCE in a random slot. Two devices
 in one slot collide and the host receives garbage; the next round lists the UIDs found so far (those stay silent)
@@ -78,15 +78,16 @@ and the rest draw new slots. Rounds end after a quiet one - nothing new and noth
 (default 8). Fewer `--slots` make discovery faster and collisions more likely.
 
 ```sh
-umcub_link.py --port /dev/ttyUSB0 discover                     # all devices on the bus (random back-off rounds)
-umcub_link.py --port /dev/ttyUSB0 --addr 5 info                # identity; SECURE: authenticates first
-umcub_link.py --port /dev/ttyUSB0 --uid 53ff7206... cmd i      # unassigned node, selected by UID
-umcub_link.py --port /dev/ttyUSB0 --addr 5 --admin-key admin.pem --device-key device.pem serve --pty-link /tmp/smp
+umcub -d /dev/ttyUSB0 discover                                # all devices on the bus (random back-off rounds)
+umcub -d /dev/ttyUSB0 --node 5 info                           # identity; SECURE: authenticates first
+umcub -d /dev/ttyUSB0 --uid 53ff7206... cmd i                 # unassigned node, selected by UID
+umcub -d /dev/ttyUSB0 --node 5 --admin-key admin.pem --device-key device.pem upload app.encrypted.bin
+umcub -d /dev/ttyUSB0 --node 5 --admin-key admin.pem --device-key device.pem serve --pty-link /tmp/smp
 smpmgr --port /tmp/smp --line-buffers 4 image upload app.encrypted.bin    # through the proxy
-umcub_link.py --udp 192.168.1.50 --addr 5 serve --udp-listen 127.0.0.1:1337   # mcumgr --conntype udp
-umcub_link.py --port /dev/ttyUSB1 sniff                        # listen only: every frame on the bus, decoded
+umcub -d 192.168.1.50 --node 5 serve --udp-listen 127.0.0.1:1337   # mcumgr --conntype udp
+umcub -d /dev/ttyUSB1 sniff                                   # listen only: every frame on the bus, decoded
 ```
 
 SECURE transports need `--admin-key` (private) and `--device-key` (the public half is enough). Your own host
-software can do the same: the frames and the handshake are in `umcub_link.h`, `tools/host/umcub_link.py` is a complete
+software can do the same: the frames and the handshake are in `umcub_link.h`, `tools/host/umcub/link.py` is a complete
 reference (Python `cryptography`).

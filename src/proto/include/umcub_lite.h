@@ -27,7 +27,7 @@
  *                                                      bit 1 permanent (secondary slot)
  *                   A6 'R'                             reset
  *   device -> host  A6 'k' rc:i8 off:u32               answer to each frame; off = bytes taken
- * rc is UMCUB_OK or a negative UMCUB_E* code. Host side: tools/host/umcub_lite.py. */
+ * rc is UMCUB_OK or a negative UMCUB_E* code. Host side: tools/host/umcub/lite.py. */
 #define UMCUB_LITE_MAGIC        0xA6
 
 /* A frame that starts with UMCUB_LITE_MAGIC: handled (answered) and true;

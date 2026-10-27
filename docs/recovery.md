@@ -15,7 +15,7 @@ smpmgr --port /dev/ttyACM0 os reset
 mcumgr --conntype udp --connstring=<ip>:1337 image upload build/h755-cm7/examples/h755_cm7_app/h755_cm7_app.signed.bin
 smpmgr --ip <ip> image upload build/h755-cm7/examples/h755_cm7_app/h755_cm7_app.signed.bin              # UDP (default --mtu 1500)
 dfu-util -a 0 -D build/h755-cm7/examples/h755_cm7_app/h755_cm7_app.signed.bin -R    # DFU: alt N = image N
-tools/host/smp_can.py --channel can0 upload build/h755-cm7/examples/h755_cm7_app/h755_cm7_app.signed.bin
+umcub -d can:socketcan:can0 upload build/h755-cm7/examples/h755_cm7_app/h755_cm7_app.signed.bin   # or any port / IP
 ```
 
 SMP serial recovery writes straight into the **primary** slot (this is how MCUboot works); the image number is the
@@ -46,7 +46,7 @@ a few lines of host code:
 ```
 
 `UMCUB_DEFAULT_CMD_INSPECT` adds `verify`, `hash` (and `read` with `UMCUB_CFG_READBACK`) only when SMP is off: with
-SMP, hosts check slots through the SMP inspect group (`tools/host/umcub_inspect.py`), about 0.9 K less.
+SMP, hosts check slots through the SMP inspect group (`umcub verify` / `hash` / `read`), about 0.9 K less.
 `UMCUB_CMD_INSPECT_DEFAULTS` adds them in any case.
 
 | Action | What it does |
@@ -79,14 +79,14 @@ UART bootloader is about 3 K smaller (F103: 16.4 K instead of 19.4 K, H7: 22.4 K
   Begin / data / end frames with a CRC, every frame answered, lost frames repeated; the image goes through the same
   slot writer as from the application (header check, test or permanent mark for the secondary slot, in-place
   decryption and validation of encrypted images in the primary slot). Frames are described in
-  [`src/proto/include/umcub_lite.h`](../src/proto/include/umcub_lite.h); the host side is `tools/host/umcub_lite.py`:
+  [`src/proto/include/umcub_lite.h`](../src/proto/include/umcub_lite.h); the host side is `umcub upload --lite` ([host tool](host.md)):
 
   ```sh
-  tools/host/umcub_lite.py --port /dev/ttyUSB0 upload app.signed.bin            # primary slot, like SMP recovery
-  tools/host/umcub_lite.py --port /dev/ttyUSB0 upload app.signed.bin --slot secondary --test --reset
-  tools/host/umcub_lite.py --udp 192.168.1.50 upload app.signed.bin
-  tools/host/umcub_lite.py --can --channel can0 upload app.signed.bin
-  tools/host/umcub_lite.py --port /dev/ttyUSB0 cmd "verify 0 0"                  # text commands work as before
+  umcub -d /dev/ttyUSB0 upload --lite app.signed.bin            # primary slot, like SMP recovery
+  umcub -d /dev/ttyUSB0 upload --lite app.signed.bin --slot secondary --test --reset
+  umcub -d 192.168.1.50 upload --lite app.signed.bin
+  umcub -d can:socketcan:can0 upload --lite app.signed.bin
+  umcub -d /dev/ttyUSB0 cmd "verify 0 0"                         # text commands work as before
   ```
 
   On stream transports a frame is a line `0x05 0x0C <base64> \n` in the line buffer (`UMCUB_CFG_SMP_MTU` bytes),
@@ -100,7 +100,7 @@ UART bootloader is about 3 K smaller (F103: 16.4 K instead of 19.4 K, H7: 22.4 K
   Example: the Black Pill (`boards/blackpill_f411ce/umcub_board.c`, overlay `variants/proto_user.h`, SMP and lite off)
   writes a signed image into the primary slot with four frames - `B image size` (begin), `W offset data`, `E` (finish),
   `R` (reset) - answered by `cmd status taken`; host side `boards/blackpill_f411ce/proto_upload.py`
-  (`--port /dev/ttyUSB0 app.signed.bin --reset`). That bootloader is about 3 K smaller than the default one.
+  (`-d /dev/ttyUSB0 app.signed.bin --reset`). That bootloader is about 3 K smaller than the default one.
 - USB DFU and updates from the application, as with SMP.
 
 Text commands (`verify`, `hash`, `read`, `i`, ...), the umcub link (ADDRESSED and SECURE: DATA payloads are lite
@@ -120,13 +120,13 @@ Slot 0 is primary, 1 is secondary. Addressing is only by (image, slot, offset): 
 reachable, whatever the configuration.
 
 The same operations are available in SMP group `UMCUB_CFG_SMP_INSPECT_GROUP` (default 100: id 0 verify, 1 hash,
-2 read) for your own host code. Ready-made tool:
+2 read) for your own host code (`umcub.Smp.verify()` / `hash()` / `read()` in the [host library](host.md)):
 
 ```sh
-tools/host/umcub_inspect.py --port /dev/ttyACM1 verify 0 1
-tools/host/umcub_inspect.py --port /dev/ttyACM1 hash 0 1 --file app.signed.bin     # MATCH / MISMATCH
-tools/host/umcub_inspect.py --udp 192.168.1.50 read 0 0 --out dump.bin              # needs UMCUB_CFG_READBACK
-tools/host/umcub_inspect.py --can --channel can0 --addr 5 verify 0 0                # CAN ISO-TP
+umcub -d /dev/ttyACM1 verify 0 1
+umcub -d /dev/ttyACM1 hash 0 1 --file app.signed.bin             # MATCH / MISMATCH
+umcub -d 192.168.1.50 read 0 0 --out dump.bin                    # needs UMCUB_CFG_READBACK
+umcub -d can:socketcan:can0 --node 5 verify 0 0                  # CAN ISO-TP
 ```
 
 Note: the `hash` shown by the standard `smpmgr image state-read` (with direct upload) is read from the TLV inside the

@@ -154,7 +154,7 @@ static size_t frame(uint8_t *f, uint8_t type, uint8_t flags, uint16_t dst, const
 }
 
 static bool on_pkt;                 /* host talks over t_pkt instead of t_sec */
-static uint8_t last_frame[1500];
+static uint8_t last_frame[UMCUB_LINK_FRAME_MAX];
 static size_t last_frame_len;
 
 static void send(uint8_t type, uint8_t flags, uint16_t dst, const void *p, size_t len, bool session)
@@ -380,6 +380,37 @@ static void test_session(void)
     CHECK(l > 8 && f[HDR] == 3 && f[HDR + 6] == 21 && memmem(f + HDR + 8, (size_t)l - 8, "hi", 2));
     /* On the wire the answer is not readable. */
     CHECK(memmem(s_sec.out, s_sec.out_len, "aGk", 3) == NULL);
+}
+
+/* A DATA frame with a payload of UMCUB_CFG_SMP_MTU bytes (MAC, encrypted) is
+ * the largest a stream line carries: an SMP request to an unknown group of
+ * that size is answered (rc ENOTSUP), not dropped as overlong. */
+static void test_full_mtu_frame(void)
+{
+    printf("[secure] DATA with a full SMP_MTU payload on a stream is accepted\n");
+    static uint8_t smp[UMCUB_CFG_SMP_MTU];
+    size_t pad = sizeof(smp) - 8 - 6;
+    memset(smp, 0, sizeof(smp));
+    smp[0] = 2;                                         /* write */
+    smp[2] = (uint8_t)((sizeof(smp) - 8) >> 8);
+    smp[3] = (uint8_t)(sizeof(smp) - 8);
+    smp[4] = 0x7F;                                      /* group 0x7F00: none */
+    smp[6] = 31;
+    uint8_t *c = smp + 8;
+    c[0] = 0xA1;                                        /* {"x": h'00..'} */
+    c[1] = 0x61;
+    c[2] = 'x';
+    c[3] = 0x59;
+    c[4] = (uint8_t)(pad >> 8);
+    c[5] = (uint8_t)pad;
+    reset_io();
+    send(UMCUB_LT_DATA, 0, NODE, smp, sizeof(smp), true);
+    CHECK(last_frame_len == UMCUB_LINK_FRAME_MAX);
+    run(10);
+    uint8_t f[2048];
+    size_t n = out_frame(0, f);
+    int l = open_dev(f, n);
+    CHECK(l >= 8 && f[HDR] == 3 && f[HDR + 6] == 31);
 }
 
 static void test_replay_tamper_order(void)
@@ -623,6 +654,7 @@ int main(void)
     test_challenge();
     test_wrong_admin_key();
     test_session();
+    test_full_mtu_frame();
     test_replay_tamper_order();
     test_readback_in_session();
     test_failed_auth_keeps_session();

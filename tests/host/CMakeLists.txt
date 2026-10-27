@@ -331,13 +331,13 @@ umcub_host_dual(dual_enc)
 umcub_host_dual(dual_enc_direct)
 
 # Device simulators for tests/host/link_e2e.py (several devices on one bus with
-# tools/host/umcub_link.py and smpmgr): ADDRESSED and SECURE (+ encryption); plain
-# SMP for tools/host/umcub_inspect.py; CAN (ISO-TP) for tools/host/smp_can.py.
+# the umcub tool and smpmgr): ADDRESSED and SECURE (+ encryption); plain SMP;
+# CAN (ISO-TP).
 set(UMCUB_SIM 1)
 umcub_host_link(umcub_sim_plain sim_device.c sim_plain_post.h)
 umcub_host_link(umcub_sim_can sim_can.c sim_can_post.h ${UMCUB_ROOT}/src/transport/registry.c
   ${UMCUB_ROOT}/src/transport/can/can_transport.c ${UMCUB_ROOT}/src/transport/can/isotp.c)
-# Without SMP: lite upload protocol (tools/host/umcub_lite.py) on a stream and on CAN.
+# Without SMP: lite upload protocol (umcub upload --lite) on a stream and on CAN.
 umcub_host_link(umcub_sim_lite sim_device.c sim_lite_post.h)
 umcub_host_link(umcub_sim_can_lite sim_can.c sim_can_lite_post.h ${UMCUB_ROOT}/src/transport/registry.c
   ${UMCUB_ROOT}/src/transport/can/can_transport.c ${UMCUB_ROOT}/src/transport/can/isotp.c)

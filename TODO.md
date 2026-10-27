@@ -8,13 +8,15 @@ flash, sys, tables): the F411 took about 470 lines of C/H (2026-10-22).
 
 - [ ] **1. Rest of the F4 port.** Other F4 parts (sector map and SRAM per part).
   G4 later: needs a branch in `fdcan.c` for its fixed message RAM layout.
-- [ ] **2. One host CLI.** `tools/host/` has six scripts a user may meet (`umcub_image.py`, `umcub_link.py`,
-  `umcub_lite.py`, `umcub_inspect.py`, `umcub_keys.py`, `smp_can.py`), sharing `--port/--udp/--can`
-  (`umcub_bus.py`, `umcub_smp.py`). One `tools/umcub.py` with subcommands (`image`, `link`, `lite`, `inspect`,
-  `keys`, `can`) and one library module; docs, tests and CMake move to it. With it: one reader of the
-  configuration - today `umcub_load_config` (cmake/umcub_config.cmake) and `Config` in `umcub_image.py` both
-  preprocess `umcub_config.h`, and the slot window is computed in `cmake/umcub_app.cmake` and `Config.window()`;
-  CMake would take the values from the Python one (Python is needed for signing and the pin check anyway).
+- [ ] **2. Host library, the rest** (`tools/host/umcub`, docs/host.md; base for a GUI flasher). Open:
+  - `upload` picks SMP / lite by itself; a "who are you" answer of the bootloader (board type, umcub version,
+    protocols, slots) - check what `info` / ANNOUNCE give, the rest costs bootloader bytes (decide separately);
+    the board type of the image (TLV) checked before an upload;
+  - SMP `image state-write` (test / confirm after a direct upload) in `Smp`;
+  - `umcub_image.py` and `umcub_keys.py` into the package (`umcub image`, `umcub keys`), CMake calls `umcub`;
+  - one reader of the configuration: `umcub_load_config` (cmake/umcub_config.cmake) and `Config` in
+    `umcub_image.py` both preprocess `umcub_config.h`, and the slot window is computed in `cmake/umcub_app.cmake`
+    and `Config.window()`; CMake would take the values from the Python one.
 
 - [ ] **3. Build matrix on CTest.** `tools/build/build_matrix.sh` (bash) drives 47 bootloader build trees, presets,
   examples, the IDE compile, `check_layers`, the pin check cases, host tests (already CTest) and the link e2e. A

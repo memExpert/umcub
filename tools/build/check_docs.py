@@ -74,8 +74,11 @@ def main():
     need("example", [p.name for p in (ROOT / "examples").iterdir() if (p / "CMakeLists.txt").is_file()])
     presets = json.loads((ROOT / "CMakePresets.json").read_text())["configurePresets"]
     need("CMake preset", [p["name"] for p in presets if not p.get("hidden")])
+    packages = [p.parent for p in (ROOT / "tools").rglob("__init__.py")]     # a Python package is one tool
     need("tool", [p.name for p in (ROOT / "tools").rglob("*")
-                  if p.suffix in (".py", ".sh") and "__pycache__" not in p.parts])
+                  if p.suffix in (".py", ".sh") and "__pycache__" not in p.parts
+                  and not any(k in p.parents for k in packages)]
+         + [str(k.relative_to(ROOT)) for k in packages])
     need("source directory", [f"{d}/" for d in ("include", "config", "port", "src", "lib/umcub_app", "tests/configs")]
          + [f"  {d}/" for d in ("util", "image", "transport", "proto", "boot")])   # under src/ in the layout
 

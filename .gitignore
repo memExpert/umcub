@@ -4,6 +4,7 @@
 examples/*/build/
 __pycache__/
 *.pyc
+*.egg-info/
 # STM32Cube for VS Code local tool cache
 .settings/
 # Local tooling (IDE settings)

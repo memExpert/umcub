@@ -66,10 +66,9 @@ boards/          board configurations (umcub_config.h, optional umcub_board.c, u
 lib/umcub_app/   application library (umcub::app); umcub_app_all.c = the whole library as one file for IDEs
 examples/        CM7 / CM4 applications for NUCLEO-H755ZI-Q, Blue Pill and Black Pill applications; common/ = the shared console
 tools/           setup.sh, requirements.txt, keys/ (development keys)
-tools/host/      host tools: umcub_image.py (slot addresses, signing for IDE projects), umcub_inspect.py,
-                 umcub_link.py, umcub_lite.py (lite upload), smp_can.py, umcub_keys.py
-                 (umcub link keys as C arrays), umcub_smp.py (SMP helpers of the host tools, on smp / smpclient),
-                 umcub_bus.py (their connections: --port / --udp / --can options, serial lines, UDP, ISO-TP)
+tools/host/      umcub/ (host library and the `umcub` tool, pyproject.toml: connections, SMP, lite, link),
+                 umcub_image.py (slot addresses, signing for IDE projects), umcub_keys.py (umcub link keys
+                 as C arrays)
 tools/ide/       umcub_cubeide.py (filters and build targets for an STM32CubeIDE CMake project)
 tools/build/     build_matrix.sh, size_table.py (size tables), check_docs.py (README / docs consistency),
                  check_layers.py (layering), check_pins.py (configured pins vs ST pin data, fills in AFs, run by CMake)

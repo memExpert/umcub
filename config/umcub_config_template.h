@@ -324,8 +324,8 @@
 
 /* Per transport: UMCUB_LINK_PLAIN (default; SMP and text as is, one device per
  * line), UMCUB_LINK_ADDRESSED (only umcub link frames: node address, discovery,
- * standard SMP inside; host side tools/host/umcub_link.py, which also serves
- * mcumgr/smpmgr), UMCUB_LINK_SECURE (additionally host authentication and a MAC
+ * standard SMP inside; host side the umcub tool (docs/host.md), which also
+ * serves mcumgr/smpmgr), UMCUB_LINK_SECURE (additionally host authentication and a MAC
  * on every frame). */
 /* #define UMCUB_CFG_UART_LINK            UMCUB_LINK_PLAIN */
 /* #define UMCUB_CFG_USB_CDC_LINK         UMCUB_LINK_PLAIN */

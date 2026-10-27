@@ -1,7 +1,7 @@
 /*
  * umcub CAN device simulator: the real CAN transport (ISO-TP) + mux +
  * boot_serial on emulated flash, recovery mode. The CAN bus is stdin/stdout in
- * the python-can "serial" interface format, so host tools (tools/host/smp_can.py)
+ * the python-can "serial" interface format, so host tools (tools/host/umcub)
  * reach it through a pty: 0xAA, timestamp u32 LE, DLC, id u32 LE, data, 0xBB.
  * Used by tests/host/link_e2e.py; exits when stdin is closed.
  */

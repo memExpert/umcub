@@ -1,5 +1,5 @@
 /* Overlay (POST): umcub link addressing on every transport (several devices
- * on one bus); the host side is tools/host/umcub_link.py. */
+ * on one bus); the host side is the umcub tool. */
 #undef UMCUB_CFG_UART_LINK
 #undef UMCUB_CFG_USB_CDC_LINK
 #undef UMCUB_CFG_CAN_LINK

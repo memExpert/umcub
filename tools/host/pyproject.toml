@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "umcub"
+version = "0.1.0"
+description = "Host library and command line tool for the umcub bootloader"
+requires-python = ">=3.10"
+dependencies = [
+  "pyserial>=3.5",
+  "smpclient>=7.3",
+  "python-can>=4.3",
+  "can-isotp>=2.0",
+  "cryptography",
+]
+
+[project.scripts]
+umcub = "umcub.cli:main"
+
+[tool.setuptools]
+packages = ["umcub"]

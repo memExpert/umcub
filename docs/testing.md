@@ -24,9 +24,9 @@ replayed / tampered / reordered frames, session end, RDP level 0), encrypted ima
 slot decrypted in place, swap upgrade / revert / confirm with re-encryption, verify of an encrypted secondary,
 readback only inside an encrypted session; with two images an encrypted upload into image 1's
 primary slot refused, through its secondary slot decrypted by the swap). `link_e2e.py` runs device simulators (the real mux, link, boot_serial and
-CAN transport on emulated flash) against the host tools: `umcub_link.py` with three nodes on one bus,
-`umcub_inspect.py` on plain SMP, `smp_can.py` on the CAN transport (python-can `serial` bus on a pty),
-`umcub_lite.py` on bootloaders without SMP (stream and CAN).
+CAN transport on emulated flash) against the host tools: the `umcub` tool with three link nodes on one bus (also SMP upload
+through a SECURE link), on plain SMP, on the CAN transport (python-can `serial` bus on a pty) and on
+bootloaders without SMP (lite upload, stream and CAN); `smpmgr` directly and through `umcub serve`.
 
 The bench tools reach the target through `tools/hw/probe.py` (a thin SWD layer): `--probe stm32cube` uses
 STM32_Programmer_CLI (`$STM32_PROGRAMMER_CLI` or PATH), `--probe pyocd` uses pyOCD (`--target`, `--pack` for the

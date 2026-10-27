@@ -14,7 +14,7 @@
 #error "umcub: image 0 secondary slot not defined (UMCUB_CFG_IMG0_SECONDARY_ADDR/SIZE)"
 #endif
 
-/* Host tools size their frames for at least this (tools/host/umcub_lite.py). */
+/* Host tools size their frames for at least this (tools/host/umcub). */
 #if UMCUB_CFG_SMP_MTU < 512
 #error "umcub: UMCUB_CFG_SMP_MTU must be at least 512"
 #endif

@@ -182,7 +182,7 @@ While a debugger holds the MCU in reset (`mode=UR`) D+ floats high again: flash 
 USB cable unplugged.
 
 CAN (bxCAN, classic CAN, ISO-TP like on the H7) on PB9 TX / PB8 RX with an external transceiver: overlay
-`boards/bluepill_f103c8/variants/can.h` (+2.4 K, still in the 32 KiB region), host side `tools/host/smp_can.py`. Not together with
+`boards/bluepill_f103c8/variants/can.h` (+2.4 K, still in the 32 KiB region), host side `umcub -d can:...` ([host tool](host.md)). Not together with
 USB: on the F103 both share the same 512 bytes of SRAM (the build refuses it).
 
 **Black Pill** ([`boards/blackpill_f411ce/umcub_config.h`](../boards/blackpill_f411ce/umcub_config.h), WeAct):
@@ -253,7 +253,7 @@ board driver and implement that interface:
 
 All CAN settings from the config (`UMCUB_CFG_CAN_BITRATE`, `_FD`, `_RX_ID`, `_TX_ID`, `_EXT_ID`, ...) reach the
 driver through `umcub_can_cfg_t`. Everything above the driver works as with the on-chip controller, including
-`tools/host/smp_can.py`, `mcumgr --conntype udp`, text commands and verify/hash.
+the `umcub` tool, `mcumgr --conntype udp`, text commands and verify/hash.
 
 ### 2. Board transport
 

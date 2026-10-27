@@ -41,7 +41,7 @@ are set the same way in `umcub_config.h`.
 | `UMCUB_CFG_USB_DFU_ALLOW_UNAUTH` | 0 | USB DFU cannot authenticate the host; with a SECURE transport it is refused at build time unless this is 1. |
 | `UMCUB_CFG_LINK_SESSION_MS` | 60000 | An umcub link session ends after this long without a valid frame. |
 | `UMCUB_CFG_USER_LINK` | `UMCUB_LINK_PLAIN` | umcub link mode of the board transport (`UMCUB_CFG_TRANSPORT_USER`), like `UMCUB_CFG_UART_LINK`. |
-| `UMCUB_CFG_LITE_UPLOAD` | 1 without SMP | Lite upload protocol (`tools/host/umcub_lite.py`): begin / data / end frames with CRC, written with `umcub_slot_*` (test or permanent mark, in-place decryption). |
+| `UMCUB_CFG_LITE_UPLOAD` | 1 without SMP | Lite upload protocol (`umcub upload --lite`): begin / data / end frames with CRC, written with `umcub_slot_*` (test or permanent mark, in-place decryption). |
 | `UMCUB_CFG_MCUBOOT_LOG_LEVEL` | `UMCUB_CFG_LOG_LEVEL` | Level of MCUboot's own messages (`Image index: 0, Swap type: none`, ...), at most the umcub level: 1 (errors only) saves about 0.9 K on the F1/F4 and 1.1 K on the H7 next to an info log, 0 about 1.2-1.6 K. Overlay `tests/configs/feature/mcuboot_log_err.h`. |
 | `UMCUB_CFG_ASSERT_TRAP` | 0 | A failed assertion in MCUboot becomes one `udf` (HardFault, the bootloader's handler resets; so does every other fault then) instead of logging `assert <file>:<line>` and resetting: about 0.1 K smaller without a log, 0.4-0.5 K with one, but silent. Overlay `tests/configs/feature/assert_trap.h`. |
 | `UMCUB_CFG_CMD_REPLY` | 1 | Text commands answer `ok <cmd>` / `? <text>`. |

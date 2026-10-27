@@ -1,7 +1,7 @@
 /*
  * CAN / CAN-FD transport: raw SMP packets over ISO-TP.
  *   host -> device: UMCUB_CFG_CAN_RX_ID, device -> host: UMCUB_CFG_CAN_TX_ID
- * Host side: tools/host/smp_can.py (python-can).
+ * Host side: the umcub tool (python-can).
  */
 #include "umcub_cfg.h"
 #include "umcub_log.h"

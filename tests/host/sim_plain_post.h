@@ -1,6 +1,6 @@
 /* UMCUB_CONFIG_POST for the plain simulator (umcub_sim_plain): standard SMP
  * serial on the bus, slot inspection with readback - for the host tools that
- * talk SMP directly (tools/host/umcub_inspect.py) in tests/host/link_e2e.py. */
+ * talk SMP directly (the umcub tool) in tests/host/link_e2e.py. */
 #undef UMCUB_CFG_LOG_LEVEL
 #define UMCUB_CFG_LOG_LEVEL 0
 #undef UMCUB_CFG_UART_LINK

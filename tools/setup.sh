@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Prepare a checkout: submodules + Python venv with imgtool, smpmgr, python-can.
+# Prepare a checkout: submodules + Python venv with imgtool, smpmgr, python-can, the umcub tool.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 git submodule update --init --depth 1 third_party/mcuboot third_party/tinyusb \
@@ -11,4 +11,5 @@ python3 -m venv .venv
 .venv/bin/pip install -q --upgrade pip
 .venv/bin/pip install -q -r tools/requirements.txt
 .venv/bin/pip install -q -e third_party/mcuboot/scripts
+.venv/bin/pip install -q -e tools/host                # umcub host library and tool
 echo "ok: .venv/bin/imgtool $(.venv/bin/imgtool version)"

@@ -3,7 +3,7 @@
  *   id 0 verify {image, slot}            -> {rc, valid: bool}
  *   id 1 hash   {image, slot, off?, len?} -> {rc, sha: bstr[32], len}
  *   id 2 read   {image, slot, off, len}   -> {rc, off, data: bstr}   (UMCUB_CFG_READBACK)
- * rc: 0 ok, 3 EINVAL, 5 ENOENT (no image), 8 ENOTSUP. Host: tools/host/umcub_inspect.py.
+ * rc: 0 ok, 3 EINVAL, 5 ENOENT (no image), 8 ENOTSUP. Host: tools/host/umcub/smp.py.
  */
 #include <string.h>
 #include "umcub_cfg.h"

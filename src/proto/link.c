@@ -40,7 +40,9 @@ struct link_state {
 };
 
 static struct link_state st[MAX_T];
-static uint8_t frame_buf[UMCUB_LINK_FRAME_MAX];
+/* +2: the length check below counts base64 padding as data, so a frame of
+ * UMCUB_LINK_FRAME_MAX bytes (a full SMP_MTU payload) must still pass it. */
+static uint8_t frame_buf[UMCUB_LINK_FRAME_MAX + 2];
 static char line_buf[UMCUB_LINK_LINE_MAX + 1];
 static bool wakeup;
 /* umcub_link_rx() result: the sender may become the transport's peer (answers
