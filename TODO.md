@@ -8,8 +8,8 @@ much (LTO, inspect, SMP_PARAMS, lite).
 
 - [ ] **Layout calculator**: e.g. `umcub layout --flash 128K --page 1K --app 52K --transport can` prints the
   `#define`s of a layout that fits and the option combinations that do (from measured builds, like size_table.py).
-- [ ] **LTO verified on hardware** (F1, F4, H7), then drop "experimental": the biggest saving on small parts
-  (about 4 K on the F1).
+- [ ] **LTO on the H7** (verified on the F1 and the F4): boot, SMP / DFU / Ethernet recovery, swap upgrade, both
+  cores, stack (`tests/hw/stack_usage.py`), then drop "experimental" for it.
 - [ ] **Size summary after the build**: bootloader size, free space in its region, the application window - today
   only the linker's memory report and `umcub image info`.
 - [ ] **Size table with minimal columns** per family in docs/size.md (LTO, without inspect, lite).
