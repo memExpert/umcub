@@ -51,4 +51,5 @@ blackpill-f411-rs485-link|cm4|Release||boards/blackpill_f411ce/variants/rs485_li
 blackpill-f411-encrypt|cm4|Release||boards/blackpill_f411ce/variants/encrypt.h|blackpill_f411ce
 blackpill-f411-usb|cm4|Release||boards/blackpill_f411ce/variants/usb.h|blackpill_f411ce
 blackpill-f411-proto-user|cm4|Release||boards/blackpill_f411ce/variants/proto_user.h|blackpill_f411ce
+blackpill-f411-enc28j60|cm4|Release||boards/blackpill_f411ce/variants/enc28j60.h|blackpill_f411ce
 custom-drivers|cm7|Release|||tests/boards/custom_drivers    # board CAN / ETH drivers: the family ones left out

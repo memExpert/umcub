@@ -9,7 +9,7 @@ Rules:
     L4 src/transport/, L5 src/proto/, L6 src/boot/, L7 boards/ lib/umcub_app/);
   - third-party headers from their lowest layer on (tinycrypt L2, MCUboot
     bootutil L3, tinyUSB L4, boot_serial / zcbor L5);
-  - ST device / LL / CMSIS-core headers only in port/ and boards/<b>/umcub_board.c;
+  - ST device / LL / CMSIS-core headers only in port/ and the board code boards/<b>/*.c;
   - no family checks (#if ... STM32...) outside port/ and boards/;
   - no local prototype / extern in a .c file of a symbol that is defined in a
     higher layer or not in the tree at all (generated data needs a header);
@@ -100,7 +100,7 @@ def main():
     for src in files:
         r = rel[src]
         lvl = layer_of(r)
-        st_ok = r.startswith("port/") or re.fullmatch(r"boards/[^/]+/umcub_board\.c", r)
+        st_ok = r.startswith("port/") or re.fullmatch(r"boards/[^/]+/[^/]+\.c", r)
         for n, line in enumerate(text[src], 1):
             m = INCLUDE.match(line)
             if m:

@@ -31,7 +31,7 @@ Adding an STM32 series and the source tree.
    in the CMake file (`UMCUB_FAMILY_TUSB_MCU`, `UMCUB_FAMILY_TUSB_SOURCES`): OTG FS (dwc2) see `port/stm32f4/usb.c`,
    `port/stm32h7/usb.c`, the USB FS device (fsdev) `port/stm32f1/usb.c`. Big sectors: see `UMCUB_CFG_ERASE_PROGRESSIVELY` / `UMCUB_CFG_TRAILER_RESERVE`
    ([Your own board](board.md#adding-a-board), "Slots").
-3. `boards/<board>/umcub_config.h` (and optionally `umcub_board.c`).
+3. `boards/<board>/umcub_config.h` (and optionally `umcub_board.c` and other board `.c` files).
 4. Add the new configuration to `tests/matrix/configs.txt` (the build matrix); an example application goes into `examples/`, the
    board's `umcub_examples.cmake` and the example list in `tests/CMakeLists.txt` (build matrix) (`examples/blackpill_app` on
    `examples/common/umcub_example.c` is the one to start from, see [Your own board](board.md#adding-a-board), step 7).
@@ -73,7 +73,7 @@ src/             the bootloader itself:
   proto/         L5  mux (SMP, lite upload, board frames, recovery loop), umcub link, lite upload, text commands,
                      SMP inspection group
   boot/          L6  main (entry decision, boot_go, jump), startup, info block
-boards/          board configurations (umcub_config.h, optional umcub_board.c, umcub_examples.cmake, variants/)
+boards/          board configurations (umcub_config.h, optional umcub_board.c and other .c, umcub_examples.cmake, variants/)
 lib/umcub_app/   application library (umcub::app); umcub_app_all.c = the whole library as one file for IDEs
 examples/        CM7 / CM4 applications for NUCLEO-H755ZI-Q, Blue Pill and Black Pill applications; common/ = the shared console
 tools/           setup.sh, requirements.txt, keys/ (development keys)

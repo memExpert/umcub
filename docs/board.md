@@ -50,7 +50,8 @@ project with `umcub image sign` (see [Using umcub from an IDE](application.md#us
 also program the option bytes (`tools/hw/h755_option_bytes.py`). For production, write-protect the bootloader sector
 (WRP) and enable RDP.
 
-**6. Optional: `boards/my_board/umcub_board.c`.** It is compiled automatically when present. Use it for your own text
+**6. Optional: `boards/my_board/umcub_board.c`.** It, and any other `.c` file next to it (e.g. a driver in its own
+file), is compiled automatically when present. Use it for your own text
 commands (`UMCUB_CMD_USER`), drivers for external controllers (`UMCUB_DRIVER_BOARD`) or a transport of your own
 (`UMCUB_CFG_TRANSPORT_USER`); see [External controllers and custom transports](#external-controllers-and-custom-transports).
 
@@ -206,6 +207,8 @@ The F411 has no RNG: nonces (umcub link) and the key unwrap of encrypted images 
 sensor, like the F1 (`port/stm32f4/entropy.c`). umcub link on RS485: `boards/blackpill_f411ce/variants/rs485_link.h`.
 An own upload protocol instead of SMP (`UMCUB_CFG_PROTO_USER`, see [Recovery mode](recovery.md)):
 `boards/blackpill_f411ce/variants/proto_user.h` with the host script `boards/blackpill_f411ce/proto_upload.py`.
+Ethernet through an ENC28J60 module on SPI1 (SCK PA5, SO PA6, SI PA7, CS PA4, RESET PB0; log on USART2):
+`boards/blackpill_f411ce/variants/enc28j60.h`, see [External controllers](#1-board-driver-under-a-built-in-transport).
 Encrypted images need a 48 KiB bootloader (`boards/blackpill_f411ce/variants/encrypt.h`, sectors 0-2) and go through the
 secondary slot: no in-place decryption on the F4 (it would buffer a 128 KiB sector in RAM).
 
@@ -227,11 +230,12 @@ dfu-util -a 0 -D build/blackpill/examples/blackpill_app/blackpill_app.signed.bin
 
 Interfaces are often attached through a separate chip: a CAN controller on SPI (MCP2515, MCP2518FD), an Ethernet
 MAC on SPI (ENC28J60, LAN9250), a W5500 with its own TCP/IP, an RS-485 line with its own framing, a BLE module.
-The bootloader supports this at two levels. Both live in `boards/<board>/umcub_board.c`, which is added to the
-build automatically. Board code may use LL / registers: it is tied to the MCU anyway.
+The bootloader supports this at two levels. Both live in the board code - `boards/<board>/umcub_board.c` and any
+other `.c` file in the board directory, all added to the build automatically. Board code may use LL / registers: it
+is tied to the MCU anyway.
 
-**Experimental:** both levels are exercised by the build matrix and the host test `umcub_host_board` with the
-fixture in `tests/boards/custom_drivers` only; neither has run with a real external controller yet.
+Verified on hardware: level 1 for Ethernet with an ENC28J60 on the Black Pill (below). The CAN board driver and the
+board transport (level 2) are exercised by the build matrix and the host test `umcub_host_board` only.
 
 ### 1. Board driver under a built-in transport
 
@@ -254,6 +258,12 @@ board driver and implement that interface:
 All CAN settings from the config (`UMCUB_CFG_CAN_BITRATE`, `_FD`, `_RX_ID`, `_TX_ID`, `_EXT_ID`, ...) reach the
 driver through `umcub_can_cfg_t`. Everything above the driver works as with the on-chip controller, including
 the `umcub` tool, `mcumgr --conntype udp`, text commands and verify/hash.
+
+Example: [`boards/blackpill_f411ce/enc28j60.c`](../boards/blackpill_f411ce/enc28j60.c), an ENC28J60 module on SPI1
+(overlay `boards/blackpill_f411ce/variants/enc28j60.h`: the pins as board macros next to the transport options).
+About 300 lines, polled, with the chip's errata handled in the driver; the bootloader with the IPv4 / DHCP / UDP stack
+is about 30 K and still fits the Black Pill's 32 KiB. On the bench: DHCP lease about 0.2 s after reset, a 110 K
+image over `umcub upload` in 1.6 s.
 
 ### 2. Board transport
 

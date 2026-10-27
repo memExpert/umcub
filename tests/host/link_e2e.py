@@ -248,6 +248,8 @@ def plain_tools(build, py, smpmgr):
             p = tool(py, port + ["list"])
             check(any("slot 1: 2.0.2" in l and "pending" in l and "permanent" not in l for l in p.stdout.splitlines()),
                   "umcub list: 2.0.2 pending for a test boot")
+            p = tool(py, port + ["reset"])          # last: the simulator exits on the reset
+            check(p.returncode == 0 and "reset" in p.stdout, "umcub reset (boot_serial answers rc 0)")
     finally:
         hub.stop = True
         sim.stdin.close()

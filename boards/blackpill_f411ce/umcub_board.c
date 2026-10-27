@@ -1,8 +1,13 @@
 /*
- * Black Pill board file (compiled when present). Here: an example of a
- * board's own upload protocol (UMCUB_CFG_PROTO_USER, variants/proto_user.h),
- * host side boards/blackpill_f411ce/proto_upload.py. Not compiled otherwise.
+ * Black Pill board file (compiled when present), two examples, each compiled
+ * only with its variant:
+ *  - an ENC28J60 Ethernet controller on SPI1 under the built-in IPv4 / UDP
+ *    transport (UMCUB_CFG_ETH_DRIVER = UMCUB_DRIVER_BOARD, variants/enc28j60.h),
+ *    in enc28j60.c next to this file;
+ *  - a board's own upload protocol (UMCUB_CFG_PROTO_USER, variants/proto_user.h),
+ *    host side boards/blackpill_f411ce/proto_upload.py.
  *
+ * The board protocol:
  * Frames (on a stream transport the lines "0x05 0x0E <base64> \n", one frame
  * per packet on packet transports); every request is answered with its
  * command letter and a status (0 or a negative UMCUB_E* code):

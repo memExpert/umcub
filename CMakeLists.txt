@@ -134,13 +134,15 @@ set(BOOT_INCLUDES
   ${MCUBOOT}/ext/mbedtls-asn1/include
 )
 
-# Optional board hooks: umcub_cmd_user() for UMCUB_CMD_USER commands, board
-# drivers (UMCUB_DRIVER_BOARD), the board transport (UMCUB_CFG_TRANSPORT_USER).
-if(EXISTS "${UMCUB_BOARD_DIR}/umcub_board.c")
-  list(APPEND BOOT_SOURCES "${UMCUB_BOARD_DIR}/umcub_board.c")
-elseif(UMCUB_CFG_TRANSPORT_USER OR (UMCUB_CFG_TRANSPORT_CAN AND UMCUB_CFG_CAN_DRIVER EQUAL 1)
-       OR (UMCUB_CFG_TRANSPORT_ETH AND UMCUB_CFG_ETH_DRIVER EQUAL 1))
-  message(FATAL_ERROR "umcub: the configuration needs ${UMCUB_BOARD_DIR}/umcub_board.c "
+# Optional board code: umcub_board.c and any other .c next to it (e.g. a
+# driver of an external controller in its own file): umcub_cmd_user() for
+# UMCUB_CMD_USER commands, board drivers (UMCUB_DRIVER_BOARD), the board
+# transport (UMCUB_CFG_TRANSPORT_USER), the board protocol.
+file(GLOB _board_sources CONFIGURE_DEPENDS "${UMCUB_BOARD_DIR}/*.c")
+list(APPEND BOOT_SOURCES ${_board_sources})
+if(NOT _board_sources AND (UMCUB_CFG_TRANSPORT_USER OR (UMCUB_CFG_TRANSPORT_CAN AND UMCUB_CFG_CAN_DRIVER EQUAL 1)
+                           OR (UMCUB_CFG_TRANSPORT_ETH AND UMCUB_CFG_ETH_DRIVER EQUAL 1)))
+  message(FATAL_ERROR "umcub: the configuration needs board code in ${UMCUB_BOARD_DIR} (umcub_board.c) "
                       "(UMCUB_CFG_TRANSPORT_USER or a UMCUB_DRIVER_BOARD driver)")
 endif()
 

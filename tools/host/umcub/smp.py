@@ -189,6 +189,8 @@ class Smp:
         r = self._run(self.client.request(req, timeout))
         if error(r):
             rc = int(r.rc) if hasattr(r, "rc") else int(r.err.rc)
+            if rc == 0:
+                return r                    # boot_serial answers e.g. reset with {"rc": 0}
             raise DeviceError(f"device: {ERRORS.get(rc, 'error')} (rc {rc})", rc)
         if success(r) and getattr(r, "rc", 0):
             raise DeviceError(f"device: {ERRORS.get(r.rc, 'error')} (rc {r.rc})", r.rc)
