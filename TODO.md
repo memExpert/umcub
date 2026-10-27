@@ -16,10 +16,6 @@
   matrix (`tests/boards/custom_drivers`) and host test `umcub_host_board`; the Ethernet board driver is verified
   (ENC28J60 on the Black Pill).
 
-## Hardware verification (Blue Pill, STM32F103C8T6)
-
-- [ ] F105/F107 (PREDIV1, 25 MHz HSE, USB OTG FS, CAN2); XL-density bank 2.
-
 ## Known limitations / ideas
 
 - [ ] Security review leftovers: one device key per product - per-device keys. Not derived on the device from
