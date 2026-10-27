@@ -1,5 +1,19 @@
 # TODO
 
+## Ease of use: small flash
+
+Seen with a user's F103CB (128 KiB, 52 K application): whether it fits took about 15 builds and knowing the 2 KiB
+F1 trailer reserve (mcu-tools/mcuboot#2920), the 256-byte info block and page rounding, and which options save how
+much (LTO, inspect, SMP_PARAMS, lite).
+
+- [ ] **Layout calculator**: e.g. `umcub layout --flash 128K --page 1K --app 52K --transport can` prints the
+  `#define`s of a layout that fits and the option combinations that do (from measured builds, like size_table.py).
+- [ ] **LTO verified on hardware** (F1, F4, H7), then drop "experimental": the biggest saving on small parts
+  (about 4 K on the F1).
+- [ ] **Size summary after the build**: bootloader size, free space in its region, the application window - today
+  only the linker's memory report and `umcub image info`.
+- [ ] **Size table with minimal columns** per family in docs/size.md (LTO, without inspect, lite).
+
 ## Hardware verification (NUCLEO-H755ZI-Q)
 
 - [ ] **CAN-FD on a bus** — 64-byte frames, data bit rate switch. Needs a CAN-FD transceiver on PD0/PD1 (classic CAN
