@@ -16,7 +16,8 @@ from . import lite
 from .connection import KIND_LINK, KIND_LITE, KIND_SMP, KIND_USER, open_connection
 from .device import Device, connect, discover
 from .errors import Cancelled, DeviceError, LinkError, NoAnswer, UmcubError
+from .image import Image
 from .smp import Smp
 
-__all__ = ["Cancelled", "Device", "DeviceError", "KIND_LINK", "KIND_LITE", "KIND_SMP", "KIND_USER", "LinkError",
+__all__ = ["Cancelled", "Device", "DeviceError", "Image", "KIND_LINK", "KIND_LITE", "KIND_SMP", "KIND_USER", "LinkError",
            "NoAnswer", "Smp", "UmcubError", "connect", "discover", "lite", "open_connection"]

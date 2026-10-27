@@ -22,7 +22,7 @@ SMP serial recovery writes straight into the **primary** slot (this is how MCUbo
 `image` field (`smpmgr --slot`, `mcumgr -n`; 1 = CM4). With `UMCUB_CFG_SMP_DIRECT_UPLOAD 1` (always in direct-xip)
 the field names a slot instead: 0/1 image 0 primary, 2 image 0 secondary, 3 image 1 primary, 4 image 1 secondary;
 `smpmgr image state-write <hash>` then marks an image in the secondary slot for a test boot (`--confirm <hash>`:
-for good), and the next reset installs it; MCUboot's slot info command (`image slot-info`) reports
+for good), and the next reset installs it (`umcub upload --slot secondary --test` does both, see [host tool](host.md)); MCUboot's slot info command (`image slot-info`) reports
 `upload_image_id`, the `image` value to upload each slot with. These commands, and the flags and image hash in
 `image state-read`, come only with direct upload (about 2.4 K); without it `state-read` lists the versions. The bootloader answers MCUMGR_PARAMETERS
 (`UMCUB_CFG_SMP_PARAMS`), so smpmgr sizes serial packets to `UMCUB_CFG_SMP_MTU` by itself (default 1472 with

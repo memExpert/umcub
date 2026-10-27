@@ -9,10 +9,6 @@ flash, sys, tables): the F411 took about 470 lines of C/H (2026-10-22).
 - [ ] **1. Rest of the F4 port.** Other F4 parts (sector map and SRAM per part).
   G4 later: needs a branch in `fdcan.c` for its fixed message RAM layout.
 - [ ] **2. Host library, the rest** (`tools/host/umcub`, docs/host.md; base for a GUI flasher). Open:
-  - `upload` picks SMP / lite by itself; a "who are you" answer of the bootloader (board type, umcub version,
-    protocols, slots) - check what `info` / ANNOUNCE give, the rest costs bootloader bytes (decide separately);
-    the board type of the image (TLV) checked before an upload;
-  - SMP `image state-write` (test / confirm after a direct upload) in `Smp`;
   - `umcub_image.py` and `umcub_keys.py` into the package (`umcub image`, `umcub keys`), CMake calls `umcub`;
   - one reader of the configuration: `umcub_load_config` (cmake/umcub_config.cmake) and `Config` in
     `umcub_image.py` both preprocess `umcub_config.h`, and the slot window is computed in `cmake/umcub_app.cmake`

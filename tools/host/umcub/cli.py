@@ -24,9 +24,10 @@ from . import lite
 from .connection import KIND_SMP
 from .device import connect, discover
 from .errors import UmcubError
+from .image import Image
 from .link import LINK_NAMES, describe_identity, sniff
 from .nlip import NlipDecoder, nlip_encode
-from .smp import Smp, file_hash
+from .smp import Smp, direct_slot, file_hash
 
 
 def _progress(done, total):
@@ -68,18 +69,26 @@ def cmd_cmd(dev, a):
 
 
 def cmd_upload(dev, a):
-    data = _read(a.file)
+    img = Image.load(a.file)
+    if dev.identity:
+        img.check_board(dev.identity["board_type"])     # the bootloader would refuse it after the transfer
+    if (a.test or a.permanent) and a.slot != "secondary":
+        raise UmcubError("--test / --permanent mark an image in the secondary slot (--slot secondary)")
     t0 = time.monotonic()
     if a.lite:
-        lite.upload(dev, data, a.image, 1 if a.slot == "secondary" else 0, a.test, a.permanent, a.chunk, _progress)
+        lite.upload(dev, img.data, a.image, 1 if a.slot == "secondary" else 0, a.test, a.permanent, a.chunk,
+                    _progress)
     else:
-        if a.slot != "primary" or a.test or a.permanent:
-            raise UmcubError("--slot / --test / --permanent are lite options; over SMP see docs/recovery.md "
-                             "(UMCUB_CFG_SMP_DIRECT_UPLOAD: the image field names the slot)")
+        # Without --slot SMP's image field is the image number (upload into its primary slot); with --slot
+        # it names the slot (UMCUB_CFG_SMP_DIRECT_UPLOAD).
+        field = direct_slot(a.image, 1 if a.slot == "secondary" else 0) if a.slot else a.image
         with Smp(dev) as smp:
-            smp.upload(data, a.image, _progress)
+            smp.upload(img.data, field, _progress)
+            if a.test or a.permanent:
+                smp.mark(img.hash, a.permanent)
     print(file=sys.stderr)
-    print(f"uploaded {len(data)} bytes in {time.monotonic() - t0:.1f} s")
+    print(f"uploaded {img.size} bytes ({img.version}) in {time.monotonic() - t0:.1f} s"
+          + (", marked " + ("permanent" if a.permanent else "for a test boot") if a.test or a.permanent else ""))
     if a.reset:
         cmd_reset(dev, a)
     return 0
@@ -92,6 +101,14 @@ def cmd_reset(dev, a):
         with Smp(dev) as smp:
             smp.reset()
     print("reset")
+    return 0
+
+
+def cmd_mark(dev, a):
+    h = Image.load(a.image_or_hash).hash if os.path.isfile(a.image_or_hash) else bytes.fromhex(a.image_or_hash)
+    with Smp(dev) as smp:
+        smp.mark(h, a.permanent)
+    print("marked " + ("permanent" if a.permanent else "for a test boot"))
     return 0
 
 
@@ -218,17 +235,21 @@ def parser():
     p.add_argument("--wait", type=float, default=1.0, help="seconds to collect the answer")
     p = sub.add_parser("upload", help="write a signed image")
     p.add_argument("file")
-    p.add_argument("--image", type=int, default=0, help="image number (SMP: the image field)")
+    p.add_argument("--image", type=int, default=0, help="image number")
     p.add_argument("--lite", action="store_true", help="lite upload (bootloaders without SMP)")
-    p.add_argument("--slot", choices=("primary", "secondary"), default="primary", help="lite: target slot")
-    p.add_argument("--test", action="store_true", help="lite, secondary: mark for a test boot")
-    p.add_argument("--permanent", action="store_true", help="lite, secondary: mark as permanent")
+    p.add_argument("--slot", choices=("primary", "secondary"),
+                   help="target slot (default primary; SMP: needs UMCUB_CFG_SMP_DIRECT_UPLOAD)")
+    p.add_argument("--test", action="store_true", help="secondary: mark for a test boot")
+    p.add_argument("--permanent", action="store_true", help="secondary: mark as permanent")
     p.add_argument("--chunk", type=int, help=f"lite: data bytes per frame (default {lite.CHUNK_SERIAL} on serial, "
                    f"{lite.CHUNK_PACKET} otherwise; up to 3/4 of UMCUB_CFG_SMP_MTU - 8 on serial, MTU - 8 otherwise)")
     p.add_argument("--reset", action="store_true", help="reset the device afterwards")
     p = sub.add_parser("reset", help="reset the device")
     p.add_argument("--lite", action="store_true", help="through the lite protocol")
     sub.add_parser("list", help="image slots (SMP image state-read)")
+    p = sub.add_parser("mark", help="SMP: mark an uploaded secondary image for a test boot (UMCUB_CFG_SMP_DIRECT_UPLOAD)")
+    p.add_argument("image_or_hash", help="the signed image file, or its hash (hex, as `list` shows it)")
+    p.add_argument("--permanent", action="store_true", help="for good instead of a test boot")
     p = sub.add_parser("echo", help="SMP echo")
     p.add_argument("text")
     for name, what in (("verify", "MCUboot validation of a slot"), ("hash", "SHA-256 of a slot"),
@@ -250,6 +271,7 @@ def parser():
 
 
 COMMANDS = {"info": cmd_info, "cmd": cmd_cmd, "upload": cmd_upload, "reset": cmd_reset, "list": cmd_list,
+            "mark": cmd_mark,
             "echo": cmd_echo, "verify": cmd_verify, "hash": cmd_hash, "read": cmd_read, "serve": cmd_serve}
 
 

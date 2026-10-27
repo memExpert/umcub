@@ -28,6 +28,8 @@ A device is one string (`-d`, or `$UMCUB_DEVICE`):
 umcub -d /dev/ttyUSB0 upload app.signed.bin --reset          # SMP: into the primary slot, then reset
 umcub -d /dev/ttyUSB0 upload app.signed.bin --lite           # bootloaders without SMP
 umcub -d /dev/ttyUSB0 upload app.signed.bin --lite --slot secondary --test --reset
+umcub -d /dev/ttyUSB0 upload app.signed.bin --slot secondary --test   # SMP, UMCUB_CFG_SMP_DIRECT_UPLOAD
+umcub -d /dev/ttyUSB0 mark app.signed.bin --permanent        # SMP: mark an uploaded secondary image
 umcub -d /dev/ttyUSB0 list                                   # image slots (SMP image state-read)
 umcub -d /dev/ttyUSB0 reset                                  # (--lite on bootloaders without SMP)
 umcub -d /dev/ttyUSB0 cmd i                                  # a text command
@@ -42,10 +44,15 @@ umcub -d /dev/ttyUSB1 --node 5 serve --pty-link /tmp/smp     # proxy: smpmgr --p
 umcub -d /dev/ttyUSB1 sniff                                  # listen only: every link frame on the bus
 ```
 
-`umcub <command> --help` lists the options. SMP uploads take the packet size from the bootloader
-(`UMCUB_CFG_SMP_PARAMS`), otherwise 512 bytes (`mtu=` raises it on UDP and CAN). `--image` is SMP's `image`
-field: the image number, or with `UMCUB_CFG_SMP_DIRECT_UPLOAD` the slot (see [Recovery mode](recovery.md)).
-The standard tools (`smpmgr`, `mcumgr`, `dfu-util`) keep working for SMP and DFU without it.
+`umcub <command> --help` lists the options. The protocol is the user's choice (`--lite` for bootloaders without
+SMP), the tool does not probe for it. SMP uploads take the packet size from the bootloader
+(`UMCUB_CFG_SMP_PARAMS`), otherwise 512 bytes (`mtu=` raises it on UDP and CAN). Over SMP, `--slot` needs
+`UMCUB_CFG_SMP_DIRECT_UPLOAD` (the image field then names the slot, see [Recovery mode](recovery.md)) and
+`--test` / `--permanent` (or `mark` later) set the image state by its hash, read from the file; MCUboot takes
+one mark per upload, so `mark` does not turn a test mark into a permanent one. On a link node the board type of
+the image (TLV `0xA0`) is checked against the node's before anything is sent; elsewhere the bootloader refuses a
+wrong image after the transfer. The standard tools (`smpmgr`, `mcumgr`, `dfu-util`) keep working for SMP and
+DFU without it.
 
 ## Library
 
@@ -61,12 +68,15 @@ cancel = threading.Event()
 with umcub.connect("/dev/ttyUSB1", node=5) as dev:           # same strings and options as the tool
     print(dev.identity)                                       # link nodes: uid, board type, version, mode
     print(dev.text("i"))                                      # a text command
-    data = open("app.signed.bin", "rb").read()
-    with umcub.Smp(dev) as smp:                               # SMP: upload, images, reset, verify, hash, read
-        smp.upload(data, progress=lambda done, total: print(done, total), cancel=cancel)
+    img = umcub.Image.load("app.signed.bin")                  # version, hash, board_type
+    if dev.identity:
+        img.check_board(dev.identity["board_type"])
+    with umcub.Smp(dev) as smp:                               # SMP: upload, images, mark, reset, verify, hash, read
+        smp.upload(img.data, progress=lambda done, total: print(done, total), cancel=cancel)
+        # direct upload: smp.upload(img.data, umcub.smp.direct_slot(0, 1)); smp.mark(img.hash)
         print(smp.images(), smp.verify(0, 0))
         smp.reset()
-    # without SMP: umcub.lite.upload(dev, data, slot=1, test=True); umcub.lite.reset(dev)
+    # without SMP: umcub.lite.upload(dev, img.data, slot=1, test=True); umcub.lite.reset(dev)
 
 for d in umcub.discover("/dev/ttyUSB1"):                     # umcub link devices
     print(d["addr"], d["uid"], hex(d["board_type"]))
@@ -81,5 +91,6 @@ A board protocol (`UMCUB_CFG_PROTO_USER`) uses the connection directly: `dev.sen
 | `device` | `connect()`, `discover()`, `Device` (directly, or as a link node) |
 | `smp` | `Smp` (smpclient on a `Device`), the inspection group requests |
 | `lite` | lite upload frames, `upload()`, `reset()` |
+| `image` | `Image`: a signed image file - version, hash, board type TLV |
 | `link` | link frames, DISCOVER, the SECURE handshake (mirrors `src/proto/link.c`), `sniff()` |
 | `cli` | the `umcub` tool |

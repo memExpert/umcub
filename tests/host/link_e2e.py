@@ -233,6 +233,21 @@ def plain_tools(build, py, smpmgr):
                 print(p.stdout[-500:], p.stderr[-1500:])
             p = tool(py, port + ["list"])
             check(p.returncode == 0 and "2.0.1" in p.stdout, "umcub list: 2.0.1")
+            subprocess.run([py, os.path.join(ROOT, "tools/host/umcub_image.py"), "sign", "--board", "nucleo_h755zi_q",
+                            "--core", "cm7", "--pre", os.path.join(ROOT, "tests/host/cfg_swap_scratch.h"),
+                            "--post", os.path.join(ROOT, "tests/host/sim_plain_post.h"), "--version", "2.0.2",
+                            os.path.join(build, "payload.bin"), "-o", os.path.join(d, "app2")],
+                           check=True, capture_output=True)
+            app2 = os.path.join(d, "app2.signed.bin")
+            p = tool(py, port + ["upload", "--slot", "secondary", app2], 300)
+            p = tool(py, port + ["list"])
+            check(any("slot 1: 2.0.2" in l and "pending" not in l for l in p.stdout.splitlines()),
+                  "umcub upload --slot secondary (SMP direct upload): 2.0.2 in slot 1, not marked")
+            p = tool(py, port + ["mark", app2])
+            check(p.returncode == 0, "umcub mark <image file>")
+            p = tool(py, port + ["list"])
+            check(any("slot 1: 2.0.2" in l and "pending" in l and "permanent" not in l for l in p.stdout.splitlines()),
+                  "umcub list: 2.0.2 pending for a test boot")
     finally:
         hub.stop = True
         sim.stdin.close()
@@ -273,6 +288,18 @@ def secure_tools(build, py, smpmgr):
         if uids:
             rc, out = run(py, port + ["--uid", uids[0]] + sec + ["cmd", "i"])
             check(rc == 0 and "node 0" in out, "cmd i --uid <unassigned>")
+
+        print("[e2e] an image for another board type is refused before the transfer", flush=True)
+        with tempfile.TemporaryDirectory() as d:
+            post = os.path.join(d, "other.h")
+            open(post, "w").write(f'#include "{ROOT}/tests/host/test_link_secure_post.h"\n'
+                                  "#undef UMCUB_CFG_BOARD_TYPE\n#define UMCUB_CFG_BOARD_TYPE 0x12345678\n")
+            subprocess.run([py, os.path.join(ROOT, "tools/host/umcub_image.py"), "sign", "--board", "nucleo_h755zi_q",
+                            "--core", "cm7", "--pre", os.path.join(ROOT, "tests/host/cfg_swap_scratch.h"),
+                            "--post", post, "--version", "1.0.0", os.path.join(build, "payload.bin"),
+                            "-o", os.path.join(d, "other")], check=True, capture_output=True)
+            rc, out = run(py, port + ["--node", "1"] + sec + ["upload", os.path.join(d, "other.signed.bin")])
+            check(rc != 0 and "is for board type" in out, "umcub upload of another board's image: refused")
 
         print("[e2e] wrong admin key is refused", flush=True)
         with tempfile.TemporaryDirectory() as d:

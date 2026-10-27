@@ -15,7 +15,7 @@ from smp import message as smpmsg
 from smpclient import SMPClient
 from smpclient.exceptions import SMPClientException
 from smpclient.generics import error, success
-from smpclient.requests.image_management import ImageStatesRead
+from smpclient.requests.image_management import ImageStatesRead, ImageStatesWrite
 from smpclient.requests.os_management import EchoWrite, ResetWrite
 
 from .connection import KIND_SMP
@@ -37,7 +37,9 @@ class InspectErr(IntEnum):
     EACCESSDENIED = 11
 
 
-ERRORS = {3: "invalid argument", 5: "no image in that slot", 8: "not supported (feature disabled?)",
+ERRORS = {3: "invalid argument", 5: "no image in that slot",
+          6: "bad state (an image is already marked for the next boot, or not the newest)",
+          8: "not supported (feature disabled?)",
           11: "refused outside an encrypted umcub link session"}
 
 
@@ -206,8 +208,9 @@ class Smp:
         return out
 
     def upload(self, data, image=0, progress=None, cancel=None):
-        """Image upload (into the primary slot, or the secondary one with
-        UMCUB_CFG_SMP_DIRECT_UPLOAD); progress(done, total), `cancel` event."""
+        """Image upload into the primary slot of `image` (SMP's image field; with
+        UMCUB_CFG_SMP_DIRECT_UPLOAD it names a slot, see direct_slot());
+        progress(done, total), `cancel` event."""
 
         async def run():
             gen = self.client.upload(data, slot=image, first_timeout_s=max(40.0, self.timeout),
@@ -224,6 +227,12 @@ class Smp:
             self._run(run())
         except SMPClientException as e:
             raise DeviceError(f"upload refused: {e}") from e
+
+    def mark(self, image_hash, permanent=False):
+        """Mark the image with this hash (Image.hash) in a secondary slot for a test
+        boot, or for good (`permanent`); the next reset installs it. Needs
+        UMCUB_CFG_SMP_DIRECT_UPLOAD (not in direct-xip)."""
+        self.request(ImageStatesWrite(hash=image_hash, confirm=permanent))
 
     def reset(self):
         self.request(ResetWrite())
@@ -250,6 +259,12 @@ class Smp:
             if progress:
                 progress(len(out), length)
         return bytes(out)
+
+
+def direct_slot(image, slot):
+    """SMP image field of a slot with UMCUB_CFG_SMP_DIRECT_UPLOAD (MCUboot's
+    numbering: 1 + 2 * image + slot; slot 0 primary, 1 secondary)."""
+    return 1 + 2 * image + slot
 
 
 def file_hash(data, off=0, length=0):
