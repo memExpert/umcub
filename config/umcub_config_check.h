@@ -128,6 +128,13 @@
 #if UMCUB_CFG_TRANSPORT_ETH && UMCUB_CFG_ETH_DRIVER == UMCUB_DRIVER_PORT && !defined(UMCUB_CFG_ETH_RMII_PINS)
 #error "umcub: UMCUB_CFG_ETH_RMII_PINS is required for the on-chip Ethernet MAC"
 #endif
+#if UMCUB_CFG_TRANSPORT_UART && (!defined(UMCUB_CFG_UART_TX_PIN) || !defined(UMCUB_CFG_UART_RX_PIN))
+#error "umcub: UMCUB_CFG_TRANSPORT_UART needs UMCUB_CFG_UART_TX_PIN and UMCUB_CFG_UART_RX_PIN, e.g. UMCUB_PIN('A', 9)"
+#endif
+#if UMCUB_CFG_TRANSPORT_CAN && UMCUB_CFG_CAN_DRIVER == UMCUB_DRIVER_PORT && \
+    (!defined(UMCUB_CFG_CAN_TX_PIN) || !defined(UMCUB_CFG_CAN_RX_PIN))
+#error "umcub: UMCUB_CFG_TRANSPORT_CAN needs UMCUB_CFG_CAN_TX_PIN and UMCUB_CFG_CAN_RX_PIN for the on-chip controller, e.g. UMCUB_PIN('B', 9)"
+#endif
 
 #if UMCUB_CFG_UART_TX_RING & (UMCUB_CFG_UART_TX_RING - 1)
 #error "umcub: UMCUB_CFG_UART_TX_RING must be 0 or a power of two"
