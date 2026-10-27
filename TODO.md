@@ -11,7 +11,7 @@
   bootloader builds (F1, H7) with only the GCC inside STM32CubeIDE 2.2 (`UMCUB_TOOLCHAIN_PREFIX`); in CubeIDE 2.2
   the "STM32 CMake Project" wizard + `tools/ide/umcub_cubeide.py` build every preset and the `custom` one (own
   board through *Other options*), single targets, Build Analyzer on the clicked ELF (Linux). Open: debugging from
-  that project, CubeIDE on Windows, VS Code (CMake Tools shows no targets / build analysis yet).
+  that project, CubeIDE on Windows. VS Code (CMake Tools, presets, the build matrix in the Testing view) works.
 - [ ] CAN board driver and board transport with a real external controller (e.g. MCP2518FD, W5500). So far: build
   matrix (`tests/boards/custom_drivers`) and host test `umcub_host_board`; the Ethernet board driver is verified
   (ENC28J60 on the Black Pill).
