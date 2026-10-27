@@ -181,4 +181,10 @@ function(umcub_sign_image target)
   endif()
   set_property(GLOBAL APPEND PROPERTY UMCUB_FLASH_IMAGES "${_hex}")
   set_property(GLOBAL APPEND PROPERTY UMCUB_FLASH_TARGETS ${target})
+  # For the tests of the tree (CMakeLists.txt): the signed image and its key.
+  set(_verify_key "${A_KEY}")
+  if(NOT UMCUB_CFG_SIGNATURE EQUAL 1)
+    set(_verify_key "")                 # no signature: imgtool checks the hash only
+  endif()
+  set_property(GLOBAL APPEND PROPERTY UMCUB_SIGNED_IMAGES "${target}|${_verify_key}")
 endfunction()

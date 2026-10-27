@@ -8,6 +8,7 @@ tools/build/build_matrix.sh                 # 51 bootloader configurations, pres
 tools/build/build_matrix.sh build/matrix -R bluepill   # some tests (any ctest option after the directory)
 ctest --test-dir build/matrix -j4 --rerun-failed --output-on-failure   # the same tests with ctest directly
 (cd tests && cmake --preset matrix && ctest --preset matrix)          # tests/CMakePresets.json, e.g. for an IDE
+ctest --test-dir build/<preset>             # one build tree: config check, every signed image verifies with its key
 ctest --test-dir build/matrix/host    # host tests only
 tests/host/link_e2e.py build/matrix/host   # simulated devices: umcub link bus, smpmgr, host tools, lite upload
 tests/tools/check_pins_test.py              # pin check: right / wrong pins and AF numbers, AF filled in, packages

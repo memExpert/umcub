@@ -341,6 +341,32 @@ if(UMCUB_BUILD_EXAMPLES)
 endif()
 
 # ----------------------------------------------------------------------------
+# ctest --test-dir <tree> (IDEs: "Run tests" on the preset): checks of what this
+# tree built - CMake and the host tools read the same configuration, and every
+# signed image of the tree verifies with its key. The whole build matrix is the
+# separate CTest project tests/ (tools/build/build_matrix.sh).
+# ----------------------------------------------------------------------------
+enable_testing()
+file(WRITE "${CMAKE_BINARY_DIR}/DartConfiguration.tcl" "")   # for `ctest -T test` (IDEs), no CTest targets
+umcub_python(_py)
+add_test(NAME config-check COMMAND "${_py}" "${UMCUB_ROOT}/tools/build/check_config.py" "${CMAKE_BINARY_DIR}")
+get_property(_signed GLOBAL PROPERTY UMCUB_SIGNED_IMAGES)
+foreach(_s IN LISTS _signed)
+  string(REPLACE "|" ";" _s "${_s}")
+  list(GET _s 0 _t)
+  list(LENGTH _s _n)
+  set(_k)
+  if(_n GREATER 1)
+    list(GET _s 1 _key)
+    if(_key)
+      set(_k -k "${_key}")
+    endif()
+  endif()
+  add_test(NAME verify-${_t} COMMAND "${UMCUB_IMGTOOL}" verify ${_k}
+           "$<TARGET_FILE_DIR:${_t}>/$<TARGET_FILE_BASE_NAME:${_t}>.signed.bin")
+endforeach()
+
+# ----------------------------------------------------------------------------
 # cmake --build <tree> --target flash: the bootloader and the signed example
 # images of this tree over SWD (tools/hw/probe.py), then a reset.
 # ----------------------------------------------------------------------------
@@ -348,7 +374,6 @@ set(UMCUB_PROBE "stm32cube" CACHE STRING "tools/hw/probe.py backend of the flash
 set(UMCUB_PROBE_ARGS "" CACHE STRING "More probe.py options, e.g. --connect;under-reset or --target;stm32f103c8")
 get_property(_flash_images GLOBAL PROPERTY UMCUB_FLASH_IMAGES)
 get_property(_flash_targets GLOBAL PROPERTY UMCUB_FLASH_TARGETS)
-umcub_python(_py)
 add_custom_target(flash
   COMMAND "${_py}" "${UMCUB_ROOT}/tools/hw/probe.py" --probe ${UMCUB_PROBE} ${UMCUB_PROBE_ARGS} flash
           "$<TARGET_FILE_DIR:${UMCUB_BOOT_TARGET}>/$<TARGET_FILE_BASE_NAME:${UMCUB_BOOT_TARGET}>.hex" ${_flash_images}
