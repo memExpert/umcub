@@ -9,6 +9,7 @@ ctest --test-dir build/matrix/host    # host tests only
 tests/host/link_e2e.py build/matrix/host   # simulated devices: umcub link bus, smpmgr, host tools, lite upload
 tests/tools/check_pins_test.py              # pin check: right / wrong pins and AF numbers, AF filled in, packages
 tools/build/check_docs.py                   # README and docs/ still match the repository (size tables, links, ...)
+tools/build/check_config.py build/matrix/*/ # CMake and umcub/config.py read the same values and slot windows
 ```
 
 Host tests (`tests/host`) run the real MCUboot (boot_go, boot_serial, ECDSA) on an emulated H7 flash (32-byte

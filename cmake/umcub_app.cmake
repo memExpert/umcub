@@ -2,6 +2,7 @@
 
 # Flash window of each slot, for applications that keep their own linker
 # script: UMCUB_APP_FLASH_ORIGIN_<image>_<slot> / UMCUB_APP_FLASH_LENGTH_<image>_<slot>
+set(_windows)
 if(NOT DEFINED UMCUB_CFG_TRAILER_RESERVE)
   set(UMCUB_CFG_TRAILER_RESERVE 8192)
 endif()
@@ -19,9 +20,11 @@ foreach(_img 0 1)
       math(EXPR _l "${_s} - ${UMCUB_CFG_IMAGE_HEADER_SIZE} - ${UMCUB_CFG_TRAILER_RESERVE}" OUTPUT_FORMAT HEXADECIMAL)
       set(UMCUB_APP_FLASH_ORIGIN_${_img}_${_slot} ${_o})
       set(UMCUB_APP_FLASH_LENGTH_${_img}_${_slot} ${_l})
+      string(APPEND _windows "@window_${_img}_${_slot}=${_o},${_l}\n")
     endif()
   endforeach()
 endforeach()
+file(WRITE "${CMAKE_BINARY_DIR}/umcub_probe/app_windows.txt" "${_windows}")   # tools/build/check_config.py
 
 # umcub_app_linker_script(<target> [IMAGE <n>] [SLOT <0|1>] [TEMPLATE <file.ld.in>])
 # Generates a linker script for the slot from the family template (or your

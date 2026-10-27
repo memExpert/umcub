@@ -148,6 +148,17 @@ macro(umcub_load_config board_dir core)
     endif()
   endforeach()
   set(UMCUB_CONFIG_DEFS ${UMCUB_CONFIG_DEFS})
+
+  # What CMake read, for tools/build/check_config.py: the host tools read the
+  # same configuration on their own (umcub/config.py) and must agree.
+  set(_dump "@board=${UMCUB_BOARD_DIR}\n@core=${UMCUB_CORE}\n@pre=${UMCUB_CONFIG_PRE_ABS}\n")
+  string(APPEND _dump "@post=${UMCUB_CONFIG_POST_ABS}\n@cc=${CMAKE_C_COMPILER}\n")
+  foreach(n IN LISTS _names ITEMS UMCUB_CFG_FAMILY_WRITE_ALIGN UMCUB_CFG_FAMILY_MIN_SECTOR)
+    if(DEFINED ${n} AND "${${n}}" MATCHES "^-?[0-9]+$")
+      string(APPEND _dump "${n}=${${n}}\n")
+    endif()
+  endforeach()
+  file(WRITE "${_probe_dir}/config.txt" "${_dump}")
 endmacro()
 
 function(umcub_preprocess template output)

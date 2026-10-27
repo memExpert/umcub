@@ -201,6 +201,14 @@ else
   echo "FAIL pin check (see $OUT/check_pins.log)"; cat "$OUT/check_pins.log"; fail=1
 fi
 
+# Configuration read by CMake and by the host tools (umcub/config.py): the same
+# values and slot windows in every build tree above (tools/build/check_config.py).
+if .venv/bin/python tools/build/check_config.py "$OUT"/*/ >"$OUT/check_config.log" 2>&1; then
+  summary+=("$(printf '%-24s %s' "config-check" "$(tail -1 "$OUT/check_config.log")")")
+else
+  echo "FAIL config check (see $OUT/check_config.log)"; cat "$OUT/check_config.log"; fail=1
+fi
+
 # Host tests: real MCUboot + umcub transports on emulated flash.
 if cmake -S tests/host -B "$OUT/host" -G Ninja >"$OUT/host.configure.log" 2>&1 &&
    cmake --build "$OUT/host" >"$OUT/host.build.log" 2>&1 &&

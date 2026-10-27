@@ -71,7 +71,8 @@ tools/host/      umcub/ (host library and the `umcub` tool, pyproject.toml: conn
                  as C arrays)
 tools/ide/       umcub_cubeide.py (filters and build targets for an STM32CubeIDE CMake project)
 tools/build/     build_matrix.sh, size_table.py (size tables), check_docs.py (README / docs consistency),
-                 check_layers.py (layering), check_pins.py (configured pins vs ST pin data, fills in AFs, run by CMake)
+                 check_layers.py (layering), check_pins.py (configured pins vs ST pin data, fills in AFs, run by CMake),
+                 check_config.py (CMake and the host tools read the same configuration and slot windows)
 tools/hw/        SWD through probe.py (STM32_Programmer_CLI or pyOCD): probe.py (flash / read / write / erase /
                  reset), h755_option_bytes.py, udev/
 tests/hw/        hardware tests on the bench: powerfail_test.py, stack_usage.py, entropy_test.py

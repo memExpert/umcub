@@ -8,11 +8,6 @@ flash, sys, tables): the F411 took about 470 lines of C/H (2026-10-22).
 
 - [ ] **1. Rest of the F4 port.** Other F4 parts (sector map and SRAM per part).
   G4 later: needs a branch in `fdcan.c` for its fixed message RAM layout.
-- [ ] **2. Host library, the rest** (`tools/host/umcub`, docs/host.md; base for a GUI flasher). Open:
-  - one reader of the configuration: `umcub_load_config` (cmake/umcub_config.cmake) and `Config` in
-    `umcub/config.py` both preprocess `umcub_config.h`, and the slot window is computed in `cmake/umcub_app.cmake`
-    and `Config.window()`; CMake would take the values from the Python one.
-
 - [ ] **3. Build matrix on CTest.** `tools/build/build_matrix.sh` (bash) drives 47 bootloader build trees, presets,
   examples, the IDE compile, `check_layers`, the pin check cases, host tests (already CTest) and the link e2e. A
   `tests/CMakeLists.txt` with one test per configuration (`ctest --build-and-test` into its own tree) plus the checks
