@@ -9,7 +9,7 @@
 # Logs: build/matrix/<name>.*.log; build trees: build/matrix/<name>/.
 cmake_minimum_required(VERSION 3.22)
 project(umcub_matrix NONE)
-enable_testing()
+include(CTest)      # DartConfiguration.tcl: IDEs run `ctest -T test`
 
 get_filename_component(UMCUB_ROOT "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
 find_program(UMCUB_PY NAMES python3 python HINTS "${UMCUB_ROOT}/.venv/bin" NO_DEFAULT_PATH)

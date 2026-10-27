@@ -7,6 +7,7 @@ tools/build/build_matrix.sh                 # 50 bootloader configurations, pres
                                             # tests, link e2e; warning-free; CTest underneath (JOBS=n), size summary
 tools/build/build_matrix.sh build/matrix -R bluepill   # some tests (any ctest option after the directory)
 ctest --test-dir build/matrix -j4 --rerun-failed --output-on-failure   # the same tests with ctest directly
+(cd tests && cmake --preset matrix && ctest --preset matrix)          # tests/CMakePresets.json, e.g. for an IDE
 ctest --test-dir build/matrix/host    # host tests only
 tests/host/link_e2e.py build/matrix/host   # simulated devices: umcub link bus, smpmgr, host tools, lite upload
 tests/tools/check_pins_test.py              # pin check: right / wrong pins and AF numbers, AF filled in, packages
@@ -19,7 +20,10 @@ The matrix is a CTest project (`tests/CMakeLists.txt`): one test per bootloader 
 application, plus the checks (layers, pin check, IDE library compile, CMake and host tools reading the same
 configuration), the host tests and the link e2e. `tests/matrix/run.py` runs one test; logs are
 `build/matrix/<name>.*.log`, build trees `build/matrix/<name>/`; `ctest -R`, `--rerun-failed` and `--output-junit`
-work as usual.
+work as usual. In VS Code (CMake Tools) the matrix is a second project next to the bootloader:
+`"cmake.sourceDirectory": ["${workspaceFolder}", "${workspaceFolder}/tests"]` and
+`"cmake.ctest.testExplorerIntegrationEnabled": true` in `.vscode/settings.json`, then the `matrix` preset of the
+`tests` project lists every test in the Testing view.
 
 Host tests (`tests/host`) run the real MCUboot (boot_go, boot_serial, ECDSA) on an emulated H7 flash (32-byte
 words, no double programming) through the umcub transport layer. Covered: SMP upload / echo / list over the packet

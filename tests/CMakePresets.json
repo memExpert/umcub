@@ -1,0 +1,23 @@
+{
+  "version": 3,
+  "configurePresets": [
+    {
+      "name": "matrix",
+      "displayName": "Build matrix (all configurations, presets, examples, checks, host tests)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/../build/matrix"
+    }
+  ],
+  "buildPresets": [
+    { "name": "matrix", "configurePreset": "matrix" }
+  ],
+  "testPresets": [
+    {
+      "name": "matrix",
+      "displayName": "Build matrix",
+      "configurePreset": "matrix",
+      "output": { "outputOnFailure": true },
+      "execution": { "jobs": 4 }
+    }
+  ]
+}
