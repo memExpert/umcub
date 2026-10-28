@@ -59,6 +59,11 @@ much (LTO, inspect, SMP_PARAMS, lite).
   ST covers these parts with OEMiRoT / STiRoT (also MCUboot); worth it if users want our transports and bus
   update (CAN, RS485 link, Ethernet) with hardware key isolation - start with one H5 or U5 board.
 - [ ] Bootloader build with Arm Compiler 6 / Keil (now GCC only: startup, linker templates, newlib overrides).
+- [ ] Idea: Kconfig (kconfiglib) as an optional front-end - menuconfig / guiconfig write `umcub_config.h`, which
+  stays the only source (IDE projects and Python-free builds unchanged); `depends on` / `range` / `choice` catch
+  part of `umcub_config_check.h` in the menu. Open: options described twice (Kconfig + template) unless the
+  template is generated; pins, `UMCUB_CMD()` tables and computed slot addresses stay C. A full migration
+  (defconfigs, fragments instead of overlays, `.config` read by CMake / `umcub.config`) is much more work.
 
 ## Code review leftovers (refactoring, size, speed)
 
