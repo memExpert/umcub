@@ -77,21 +77,6 @@
     !UMCUB_SECTORS_OK(UMCUB_CFG_SCRATCH_ADDR, UMCUB_CFG_SCRATCH_SIZE)
 #error "umcub: bootloader, slots and scratch must start and end on erase-sector boundaries"
 #endif
-/* Progressive erase: MCUboot up to v2.5.0 erases the last sector of a slot
- * again after an SMP upload (mcu-tools/mcuboot#2920), so no image may end in
- * it - the trailer reserve must cover it. */
-/* imgtool appends the TLVs (hash, signature, board type, encryption key) behind
- * the application, inside the reserve: the reserve covers them and the sector. */
-#define UMCUB_TLV_ROOM 0x400
-#define UMCUB_LAST_SECTOR_FREE(a, n) \
-    ((n) == 0 || UMCUB_CFG_TRAILER_RESERVE >= UMCUB_FAMILY_SECTOR_AT((a) + (n) - 1) + UMCUB_TLV_ROOM)
-#if UMCUB_CFG_ERASE_PROGRESSIVELY && \
-    (!UMCUB_LAST_SECTOR_FREE(UMCUB_CFG_IMG0_PRIMARY_ADDR, UMCUB_CFG_IMG0_PRIMARY_SIZE) || \
-     !UMCUB_LAST_SECTOR_FREE(UMCUB_CFG_IMG0_SECONDARY_ADDR, UMCUB_CFG_IMG0_SECONDARY_SIZE) || \
-     !UMCUB_LAST_SECTOR_FREE(UMCUB_CFG_IMG1_PRIMARY_ADDR, UMCUB_CFG_IMG1_PRIMARY_SIZE) || \
-     !UMCUB_LAST_SECTOR_FREE(UMCUB_CFG_IMG1_SECONDARY_ADDR, UMCUB_CFG_IMG1_SECONDARY_SIZE))
-#error "umcub: UMCUB_CFG_ERASE_PROGRESSIVELY: UMCUB_CFG_TRAILER_RESERVE must cover the last sector of every slot + 0x400 for the TLVs (mcu-tools/mcuboot#2920), or set UMCUB_CFG_ERASE_PROGRESSIVELY 0"
-#endif
 #define UMCUB_SLOT_ROOM(n) ((n) == 0 || UMCUB_CFG_TRAILER_RESERVE + UMCUB_CFG_IMAGE_HEADER_SIZE < (n))
 #if !UMCUB_SLOT_ROOM(UMCUB_CFG_IMG0_PRIMARY_SIZE) || !UMCUB_SLOT_ROOM(UMCUB_CFG_IMG0_SECONDARY_SIZE) || \
     !UMCUB_SLOT_ROOM(UMCUB_CFG_IMG1_PRIMARY_SIZE) || !UMCUB_SLOT_ROOM(UMCUB_CFG_IMG1_SECONDARY_SIZE)

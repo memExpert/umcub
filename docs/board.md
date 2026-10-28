@@ -71,12 +71,9 @@ Things that are easy to get wrong:
 - **Slots.** Slots start and end on sector boundaries (checked also where sectors differ in size, as on the F4).
   swap-offset needs a secondary slot one sector larger than the primary. Only swap-scratch needs a scratch
   sector. The last `UMCUB_CFG_TRAILER_RESERVE` bytes of a slot belong to MCUboot.
-  With `UMCUB_CFG_ERASE_PROGRESSIVELY` (default; SMP upload erases sector by sector) that reserve must cover the
-  last sector of every slot plus 1 KiB for the TLVs imgtool appends behind the application: MCUboot up to v2.5.0
-  erases that sector again after the upload (mcu-tools/mcuboot#2920) and an image ending in it would be lost. The
-  H7 and F1 ports set that reserve by default (H7 129 KiB, F1 one page + 1 KiB); the F4 port erases the whole slot
-  on the first chunk instead (`UMCUB_CFG_ERASE_PROGRESSIVELY 0`, slots of one 128 KiB sector). The build checks
-  both, and that a watchdog (`UMCUB_CFG_WATCHDOG_MS`) outlasts one sector erase.
+  The F1 port defaults it to 1 KiB (small slots), the others to 8 KiB; swap modes need more than overwrite
+  (imgtool `--slot-size` checks it). The build checks that a watchdog (`UMCUB_CFG_WATCHDOG_MS`) outlasts one
+  sector erase.
 - **Clocks and power.**
   - STM32H7: HSE must be a multiple of 2 MHz (8, 12, 16, 24 MHz; not 25 MHz). The application must select the same
     power supply (`UMCUB_CFG_PWR_SUPPLY`): it can be set only once per power-up.
@@ -191,8 +188,7 @@ STM32F411CEU6, 25 MHz crystal, SMP over USART1 (PA9 TX, PA10 RX), overwrite mode
 (32 KiB), slots in sectors 5 and 6 (128 KiB each; sectors 2-4 and 7 stay free, e.g. for application data). A
 slot may also span sectors of different sizes: sectors 3-5 (16 + 64 + 128 KiB) as primary and 6-7 as secondary
 work the same way in overwrite mode (a 155 KiB image, checked on the board). Recovery by KEY (PA0) held during
-reset, LED PC13. A slot is one sector, so SMP upload erases it on the first chunk (about 2 s,
-`UMCUB_CFG_ERASE_PROGRESSIVELY 0`); the CPU stalls meanwhile, so a watchdog (`UMCUB_CFG_WATCHDOG_MS`) needs at
+reset, LED PC13. A slot is one sector, so SMP upload erases it on the first chunk (about 2 s); the CPU stalls meanwhile, so a watchdog (`UMCUB_CFG_WATCHDOG_MS`) needs at
 least 3 s (LSI 17..47 kHz). RS485 through a MAX485 (RO PA10, DI PA9, DE and /RE on PA8): overlay
 `boards/blackpill_f411ce/variants/rs485.h`; SMP and log on USART2 instead (PA2 TX, PA3 RX, e.g. a USB-UART adapter, with
 USART1 left to the application): `boards/blackpill_f411ce/variants/usart2.h`. Example application: [`examples/blackpill_app`](../examples/blackpill_app)

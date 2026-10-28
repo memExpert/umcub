@@ -11,11 +11,6 @@
  * no UMCUB_FAMILY_UNIFORM_SECTOR, the driver reports each sector. */
 #define UMCUB_FAMILY_MIN_SECTOR         UMCUB_KB(16)
 #define UMCUB_FAMILY_SECTOR_AT(a)       ((a) < 0x08010000 ? UMCUB_KB(16) : (a) < 0x08020000 ? UMCUB_KB(64) : UMCUB_KB(128))
-/* Slots are usually 128 KiB sectors: erase the whole slot on the first SMP
- * chunk (2 s per sector), see UMCUB_CFG_ERASE_PROGRESSIVELY. */
-#ifndef UMCUB_CFG_ERASE_PROGRESSIVELY
-#define UMCUB_CFG_ERASE_PROGRESSIVELY   0
-#endif
 /* Image header = vector table alignment of the application: Cortex-M4 VTOR
  * needs 128 words for up to 128 vectors (PM0214 §4.4.4; the F411 has 102). */
 #ifndef UMCUB_CFG_IMAGE_HEADER_SIZE

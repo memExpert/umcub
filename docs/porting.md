@@ -29,7 +29,7 @@ Adding an STM32 series and the source tree.
    features that need it. USB: give `umcub_port_usb_init()` / `_deinit()` (48 MHz clock, pins, controller clock;
    returns the tinyUSB rhport) and the IRQ vector calling `umcub_usb_irq_handler()`, and name the tinyUSB driver
    in the CMake file (`UMCUB_FAMILY_TUSB_MCU`, `UMCUB_FAMILY_TUSB_SOURCES`): OTG FS (dwc2) see `port/stm32f4/usb.c`,
-   `port/stm32h7/usb.c`, the USB FS device (fsdev) `port/stm32f1/usb.c`. Big sectors: see `UMCUB_CFG_ERASE_PROGRESSIVELY` / `UMCUB_CFG_TRAILER_RESERVE`
+   `port/stm32h7/usb.c`, the USB FS device (fsdev) `port/stm32f1/usb.c`. Big sectors: see `UMCUB_CFG_TRAILER_RESERVE` and the watchdog
    ([Your own board](board.md#adding-a-board), "Slots").
 3. `boards/<board>/umcub_config.h` (and optionally `umcub_board.c` and other board `.c` files).
 4. Add the new configuration to `tests/matrix/configs.txt` (the build matrix); an example application goes into `examples/`, the

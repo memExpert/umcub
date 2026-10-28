@@ -21,11 +21,6 @@
 #define UMCUB_FAMILY_SECTOR_ERASE_MS    4000
 /* Flash program unit: one 256-bit flash word. */
 #define UMCUB_FAMILY_WRITE_ALIGN        32
-/* The last sector of a slot stays free of the image (and its TLVs): SMP upload erases it
- * again after the last chunk (mcu-tools/mcuboot#2920, UMCUB_CFG_ERASE_PROGRESSIVELY). */
-#ifndef UMCUB_CFG_TRAILER_RESERVE
-#define UMCUB_CFG_TRAILER_RESERVE       (UMCUB_FAMILY_UNIFORM_SECTOR + 0x400)   /* + the TLVs */
-#endif
 
 #if defined(STM32H745xx) || defined(STM32H755xx) || defined(STM32H747xx) || \
     defined(STM32H757xx) || defined(STM32H745xG) || defined(STM32H747xG)

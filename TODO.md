@@ -2,9 +2,9 @@
 
 ## Ease of use: small flash
 
-Seen with a user's F103CB (128 KiB, 52 K application): whether it fits took about 15 builds and knowing the 2 KiB
-F1 trailer reserve (mcu-tools/mcuboot#2920), the 256-byte info block and page rounding, and which options save how
-much (LTO, inspect, SMP_PARAMS, lite).
+Seen with a user's F103CB (128 KiB, 52 K application): whether it fits took about 15 builds and knowing the F1
+trailer reserve, the 256-byte info block and page rounding, and which options save how much (LTO, inspect,
+SMP_PARAMS, lite).
 
 - [ ] **Layout calculator**: e.g. `umcub layout --flash 128K --page 1K --app 52K --transport can` prints the
   `#define`s of a layout that fits and the option combinations that do (from measured builds, like size_table.py).
@@ -42,12 +42,6 @@ much (LTO, inspect, SMP_PARAMS, lite).
 - [ ] MCUboot in-place decryption: `src/image/mcuboot/enc_image.c` still replaces MCUboot's
   (`boot_serial_encryption.c`): a sector-sized VLA on the stack (rejected upstream in #2631; 128 KiB on the H7),
   uniform sectors assumed, no validation first ("expected" in #2770). #2913 fixed only its key data cleanup.
-- [ ] mcu-tools/mcuboot#2920 (sent 2026-10-22): SMP upload erases the last sector of a slot again after the upload
-  when the image reached it (regression of bcc17b45, #1862). Until a release has it: the H7 trailer reserve is
-  one sector + 1 KiB for the TLVs (`port/stm32h7` defaults), the Blue Pill's 2 KiB, the F4 has
-  `UMCUB_CFG_ERASE_PROGRESSIVELY 0` and `config/umcub_config_check.h` refuses layouts where an image can end in
-  the last sector. With the fix: back to 0x2000 on the H7 and 0x400 on the Blue Pill, progressive erase on the F4,
-  drop that check.
 - [ ] MCUboot v2.5.0 `boot_serial.c` includes `"../bootutil/src/bootutil_loader.h"` (direct-xip / RAM load), found
   only through the stopgap include directory `${MCUBOOT}/boot/boot_serial` in CMakeLists.txt. Fix prepared, not sent
   yet (branch boot-serial-loader-include: `"../src/bootutil_loader.h"`); drop the stopgap with the release that has it.

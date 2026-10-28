@@ -43,10 +43,10 @@
 #ifndef UMCUB_CFG_IMAGE_HEADER_SIZE
 #define UMCUB_CFG_IMAGE_HEADER_SIZE     0x200
 #endif
-/* The last page of every slot plus 1 KiB for the TLVs: MCUboot up to v2.5.0
- * erases that page again after a progressive SMP upload (mcu-tools/mcuboot#2920). */
+/* MCUboot trailer and the TLVs imgtool appends (small slots: the generic
+ * 0x2000 would take half of a 16 KiB slot). */
 #ifndef UMCUB_CFG_TRAILER_RESERVE
-#define UMCUB_CFG_TRAILER_RESERVE       (UMCUB_FAMILY_UNIFORM_SECTOR + 0x400)
+#define UMCUB_CFG_TRAILER_RESERVE       0x400
 #endif
 /* Last 256 bytes of SRAM (kept over reset; the application must not use them). */
 #ifndef UMCUB_CFG_SHARED_RAM_ADDR

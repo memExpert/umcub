@@ -47,7 +47,7 @@ are set the same way in `umcub_config.h`.
 | `UMCUB_CFG_CMD_REPLY` | 1 | Text commands answer `ok <cmd>` / `? <text>`. |
 | `UMCUB_CFG_SMP_INSPECT_GROUP` | 100 | SMP group id of verify (0) / hash (1) / read (2). |
 | `UMCUB_CFG_IMAGE_VECTOR_CHECK` | 1 | Refuse an image whose reset vector lies outside the slot it runs from (wrong image number, built for the other core), about 200 bytes. |
-| `UMCUB_CFG_ERASE_PROGRESSIVELY` | 1 (F4: 0) | SMP upload erases sector by sector (1) or the whole slot on the first chunk (0; seconds on big sectors). With 1, `UMCUB_CFG_TRAILER_RESERVE` must cover the last sector of every slot plus 1 KiB (mcu-tools/mcuboot#2920, see [Your own board](board.md#adding-a-board)). |
+| `UMCUB_CFG_ERASE_PROGRESSIVELY` | 1 | SMP upload erases sector by sector (1) or the whole slot on the first chunk (0; seconds on big sectors). |
 | `UMCUB_CFG_ENC_INPLACE` | 1 (H7 CM4, F4: 0) | In-place decryption of an encrypted SMP upload into the primary slot, buffering one sector in RAM. Without it encrypted images go through the secondary slot. |
 | `UMCUB_CFG_SWAP_SAVE_ENCTLV` | 1 | Swap modes with encrypted images: the slot trailers keep the encrypted key TLVs of both images until the swap is over (signing passes `--save-enctlv`). **0 stores the plain AES keys there**, readable with a debugger or readback, for a slightly smaller trailer. |
 | `UMCUB_CFG_UART_TX_RING` | 0 | Transmit through a RAM ring of this many bytes (power of two) drained by the UART interrupt, so the log does not stall the boot (drained before the jump); the last lines can be lost on a hang. Not with RS485. Overlay `tests/configs/feature/uart_tx_ring.h`, verified on the Black Pill (USART2). |
