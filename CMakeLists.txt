@@ -22,6 +22,7 @@ set(UMCUB_BOARD "nucleo_h755zi_q" CACHE STRING "Board directory name under board
 set(UMCUB_CORE "" CACHE STRING "Core to build for on dual-core parts (cm7|cm4)")
 set(UMCUB_CONFIG_PRE "" CACHE FILEPATH "Optional header included before the board config")
 set(UMCUB_CONFIG_POST "" CACHE FILEPATH "Optional header included after the board config")
+set(UMCUB_CONF "" CACHE STRING "Kconfig boards: configuration fragments (;-list), applied after the defconfig")
 set(UMCUB_SIGNING_KEY "${CMAKE_CURRENT_LIST_DIR}/tools/keys/dev-ecdsa-p256.pem" CACHE FILEPATH
     "ECDSA-P256 key whose public part is embedded in the bootloader")
 set(UMCUB_DEVICE_KEY "${CMAKE_CURRENT_LIST_DIR}/tools/keys/dev-device-p256.pem" CACHE FILEPATH

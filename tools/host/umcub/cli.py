@@ -79,7 +79,9 @@ def parser():
     p = sub.add_parser("sniff", help="listen only: decode every link frame on a serial bus")
     p.add_argument("--raw", action="store_true", help="also print lines that are not link frames")
 
-    from .cli_build import add_image_arguments, add_keys_arguments
+    from .cli_build import add_config_arguments, add_image_arguments, add_keys_arguments
+    p = sub.add_parser("config", help="Kconfig boards: generate, menuconfig, save a defconfig (no device)")
+    add_config_arguments(p.add_subparsers(dest="sub", required=True, metavar="action"))
     p = sub.add_parser("image", help="application images: where to link them, signing (no device)")
     add_image_arguments(p.add_subparsers(dest="sub", required=True, metavar="action"))
     p = sub.add_parser("keys", help="umcub link SECURE keys as C arrays (no device)")
@@ -90,7 +92,7 @@ def parser():
 def main(argv=None):
     a = parser().parse_args(argv)
     try:
-        if a.cmd in ("image", "keys"):
+        if a.cmd in ("image", "keys", "config"):
             from . import cli_build
             return cli_build.run(a)
         if not a.device:

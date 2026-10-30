@@ -1,0 +1,41 @@
+# WeAct "Black Pill" (STM32F411CEU6, 512 KiB flash, 128 KiB SRAM, 25 MHz
+# crystal, LED PC13, KEY button PA0). Minimal build: SMP over USART1
+# PA9/PA10 (the pins of the ROM bootloader), overwrite mode.
+UMCUB_CFG_MCU_STM32F411XE=y
+UMCUB_CFG_MCU_PART="STM32F411CEU6"
+# images must carry this (signed TLV)
+UMCUB_CFG_BOARD_TYPE=0x46411001
+UMCUB_CFG_BOARD_REV=1
+
+UMCUB_CFG_CLOCK_HSE=y
+UMCUB_CFG_HSE_HZ=25000000
+
+# Sectors 4 x 16, 64, 3 x 128 KiB: bootloader in sectors 0-1 (32 KiB), the
+# slots in sectors 5 and 6 (128 KiB each); sectors 2-4 and 7 stay free (e.g.
+# application data). Overwrite: the secondary slot is copied over the primary.
+UMCUB_CFG_BOOT_SIZE=0x8000
+UMCUB_CFG_IMG0_PRIMARY_ADDR=0x08020000
+UMCUB_CFG_IMG0_PRIMARY_SIZE=0x20000
+UMCUB_CFG_IMG0_SECONDARY_ADDR=0x08040000
+UMCUB_CFG_IMG0_SECONDARY_SIZE=0x20000
+
+# KEY (PA0 to GND) held at reset: stay in recovery.
+UMCUB_CFG_ENTRY_GPIO=y
+UMCUB_CFG_ENTRY_GPIO_PIN="PA0"
+# UMCUB_CFG_ENTRY_GPIO_ACTIVE is not set
+UMCUB_CFG_ENTRY_GPIO_PULL_UP=y
+
+# PC13, lit low: blinks while in the bootloader
+UMCUB_CFG_STATUS_LED=y
+UMCUB_CFG_STATUS_LED_PIN="PC13"
+# UMCUB_CFG_STATUS_LED_ACTIVE is not set
+
+UMCUB_CFG_CMD_ENABLE=y
+
+UMCUB_CFG_TRANSPORT_UART=y
+UMCUB_CFG_UART_INSTANCE=1
+UMCUB_CFG_UART_BAUD=115200
+UMCUB_CFG_UART_TX_PIN="PA9"
+UMCUB_CFG_UART_RX_PIN="PA10"
+
+UMCUB_CFG_LOG_LEVEL=3

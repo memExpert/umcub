@@ -145,7 +145,7 @@ function(umcub_sign_image target)
                     "Pass ENCRYPT_KEY or set UMCUB_DEVICE_KEY for production.")
   endif()
 
-  set(_args sign --board "${UMCUB_BOARD_DIR}" --cc "${CMAKE_C_COMPILER}" --imgtool "${UMCUB_IMGTOOL}" --quiet
+  set(_args sign --board "${UMCUB_CONFIG_DIR}" --cc "${CMAKE_C_COMPILER}" --imgtool "${UMCUB_IMGTOOL}" --quiet
             --image ${A_IMAGE} --slot ${A_SLOT} --version ${A_VERSION}
             --key "${A_KEY}" --encrypt-key "${A_ENCRYPT_KEY}")
   if(UMCUB_CORE MATCHES "^cm[47]$")     # dual-core parts (UMCUB_CORE_CM7 / _CM4)

@@ -74,6 +74,30 @@ backend, which reconnects for every register access: an option byte change must 
 the option bytes can end up corrupted (RDP level 1 and PCROP areas; undoing that needs an RDP regression, which erases
 the flash).
 
+## Kconfig boards
+
+Moving to Kconfig ([esp-idf-kconfig](https://github.com/espressif/esp-idf-kconfig)), board by board; so far the
+Black Pill. Such a board has a `defconfig` instead of `umcub_config.h`; the options are described in
+[`Kconfig`](../Kconfig), [`config/Kconfig`](../config/Kconfig), `port/Kconfig` and the board's own `Kconfig`, with
+the same names as above (`UMCUB_CFG_<NAME>` in `.config` and in the generated `umcub_config.h`).
+
+```sh
+cmake -S . -B build/bp -G Ninja -DUMCUB_BOARD=blackpill_f411ce \
+      -DUMCUB_CONF="boards/blackpill_f411ce/variants/usart2.conf;boards/blackpill_f411ce/variants/enc28j60.conf"
+cmake --build build/bp --target menuconfig       # change the build tree's .config, then build again
+cmake --build build/bp --target savedefconfig    # build/bp/defconfig: only what differs from the defaults
+```
+
+- Configure runs `umcub config generate`: the defconfig, then the fragments of `UMCUB_CONF` in order (a later
+  assignment wins) -> `build/<x>/umcub_kconfig/.config` and `umcub_config.h`. An assignment that does not take
+  effect (unknown option, dependency not met, out of range) stops the configuration.
+- The build tree keeps its `.config` (menuconfig changes) as long as the defconfig and the fragments stay the same;
+  when one of them changes, `.config` is made again from them.
+- Values: bools `=y` / `# UMCUB_CFG_X is not set`; pins as strings, `"PA9"` (the alternate function filled in from
+  ST's pin data) or `"PD12:7"`; IPv4 addresses as `"192.168.1.50"`; choices by their member
+  (`UMCUB_CFG_UPGRADE_MODE_SWAP_OFFSET=y`).
+- Signing for such a board: `umcub image sign --board blackpill_f411ce [--conf <fragment>]...`.
+
 ## Bootloader size
 
 What every transport and feature adds, the sectors the bootloader takes per family and the size levers:

@@ -1,0 +1,42 @@
+# STM32H7 options.
+
+choice PWR_SUPPLY_CHOICE
+	prompt "Power supply"
+	depends on FAMILY_STM32H7
+	default PWR_SUPPLY_LDO
+	help
+	  How the core domain is supplied (RM0399 "PWR_CR3"). MUST match the
+	  hardware and the application: the register can be written only once per
+	  power-up.
+
+config PWR_SUPPLY_LDO
+	bool "LDO"
+config PWR_SUPPLY_DIRECT_SMPS
+	bool "SMPS direct"
+config PWR_SUPPLY_SMPS_1V8_LDO
+	bool "SMPS 1.8 V -> LDO"
+config PWR_SUPPLY_SMPS_2V5_LDO
+	bool "SMPS 2.5 V -> LDO"
+config PWR_SUPPLY_SMPS_1V8_EXT_LDO
+	bool "SMPS 1.8 V -> external and LDO"
+config PWR_SUPPLY_SMPS_2V5_EXT_LDO
+	bool "SMPS 2.5 V -> external and LDO"
+config PWR_SUPPLY_SMPS_1V8_EXT
+	bool "SMPS 1.8 V -> external, LDO bypassed"
+config PWR_SUPPLY_SMPS_2V5_EXT
+	bool "SMPS 2.5 V -> external, LDO bypassed"
+config PWR_SUPPLY_EXTERNAL
+	bool "External supply (bypass)"
+endchoice
+
+config PWR_SUPPLY
+	int
+	default 1 if PWR_SUPPLY_LDO
+	default 2 if PWR_SUPPLY_DIRECT_SMPS
+	default 3 if PWR_SUPPLY_SMPS_1V8_LDO
+	default 4 if PWR_SUPPLY_SMPS_2V5_LDO
+	default 5 if PWR_SUPPLY_SMPS_1V8_EXT_LDO
+	default 6 if PWR_SUPPLY_SMPS_2V5_EXT_LDO
+	default 7 if PWR_SUPPLY_SMPS_1V8_EXT
+	default 8 if PWR_SUPPLY_SMPS_2V5_EXT
+	default 9 if PWR_SUPPLY_EXTERNAL

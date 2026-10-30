@@ -1,0 +1,22 @@
+# umcub configuration (esp-idf-kconfig). The build reads it with the board's
+# defconfig and the fragments of UMCUB_CONF: tools/host/umcub/kconfig.py.
+# Symbols become UMCUB_CFG_<NAME> in .config and in the generated umcub_config.h.
+mainmenu "umcub bootloader configuration"
+
+config BUILD_CORE
+	string
+	default "$(UMCUB_CORE)"
+	help
+	  Core being built on dual-core parts (CMake UMCUB_CORE: cm7, cm4).
+
+config CORE_CM4
+	bool
+	default y if BUILD_CORE = "cm4"
+
+menu "Target"
+source "$(UMCUB_ROOT)/port/Kconfig"
+endmenu
+
+osource "$(UMCUB_BOARD_DIR)/Kconfig"
+
+source "$(UMCUB_ROOT)/config/Kconfig"

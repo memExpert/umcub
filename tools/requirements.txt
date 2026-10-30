@@ -9,3 +9,4 @@ pyserial>=3.5
 
 # Optional: alternative SWD backend for tools/hw/probe.py (--probe pyocd).
 # pyocd>=0.37
+esp-idf-kconfig>=3.14    # Kconfig boards: umcub config, menuconfig

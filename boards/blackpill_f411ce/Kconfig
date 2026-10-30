@@ -1,0 +1,26 @@
+# Black Pill board options (boards/blackpill_f411ce/*.c).
+
+config ENC28J60
+	bool "ENC28J60 Ethernet module on SPI1"
+	depends on ETH_DRIVER_BOARD
+	help
+	  The board's Ethernet driver (enc28j60.c) for the built-in IPv4 / UDP
+	  transport.
+
+if ENC28J60
+config ENC28J60_SCK_PIN
+	string "SCK pin (SPI1)"
+	default "PA5:5"
+config ENC28J60_MISO_PIN
+	string "MISO pin (SPI1)"
+	default "PA6:5"
+config ENC28J60_MOSI_PIN
+	string "MOSI pin (SPI1)"
+	default "PA7:5"
+config ENC28J60_CS_PIN
+	string "CS pin"
+	default "PA4"
+config ENC28J60_RESET_PIN
+	string "RESET pin"
+	default "PB0"
+endif

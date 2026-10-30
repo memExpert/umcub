@@ -2,7 +2,7 @@
 They need no device and none of the transport libraries."""
 import sys
 
-from . import keys
+from . import kconfig, keys
 from .config import MODES, ROOT, Config
 from .sign import DEV_DEVICE_KEY, DEV_KEY, sign
 
@@ -46,10 +46,12 @@ def add_image_arguments(sub):
     for name, what in (("info", "where to link the application, what RAM to keep free, IDE settings"),
                        ("sign", "sign an ELF/AXF, Intel HEX or raw .bin -> <name>.signed.bin + .signed.hex")):
         p = sub.add_parser(name, help=what)
-        p.add_argument("--board", required=True, help="board name under boards/ or a directory with umcub_config.h")
+        p.add_argument("--board", required=True,
+                       help="board name under boards/ or a directory with umcub_config.h or a defconfig")
         p.add_argument("--core", choices=("cm7", "cm4"), help="dual-core parts: core the application runs on")
         p.add_argument("--pre", help="UMCUB_CONFIG_PRE overlay (same as the bootloader build)")
         p.add_argument("--post", help="UMCUB_CONFIG_POST overlay")
+        p.add_argument("--conf", action="append", help="Kconfig board: configuration fragment (repeatable)")
         p.add_argument("--cc", help="C compiler used as preprocessor (arm-none-eabi-gcc, armclang, gcc)")
         if name == "sign":
             p.add_argument("input", help="ELF/AXF, Intel HEX or raw .bin linked for the slot")
@@ -68,6 +70,30 @@ def add_image_arguments(sub):
                            help="no notes about development keys (CMake warns at configure time)")
 
 
+def cmd_config(a):
+    if a.sub == "generate":
+        kconfig.generate(a.board, a.core, a.conf or (), a.out)
+    elif a.sub == "menu":
+        kconfig.menuconfig(a.out)
+    else:
+        kconfig.savedefconfig(a.out, a.output)
+        print(f"{a.output}: minimal configuration (copy it to the board's defconfig or a fragment)")
+    return 0
+
+
+def add_config_arguments(sub):
+    p = sub.add_parser("generate", help=".config and umcub_config.h of a Kconfig board (CMake runs it)")
+    p.add_argument("--board", required=True, help="board name under boards/ or a directory with a defconfig")
+    p.add_argument("--core", default="", help="dual-core parts: cm7 or cm4")
+    p.add_argument("--conf", action="append", help="configuration fragment (repeatable, applied in order)")
+    p.add_argument("--out", required=True, help="output directory (the build tree's umcub_kconfig)")
+    p = sub.add_parser("menu", help="menuconfig on a build tree's configuration")
+    p.add_argument("--out", required=True, help="the build tree's umcub_kconfig directory")
+    p = sub.add_parser("save", help="a build tree's configuration as a minimal defconfig")
+    p.add_argument("--out", required=True, help="the build tree's umcub_kconfig directory")
+    p.add_argument("-o", "--output", required=True, help="file to write")
+
+
 def add_keys_arguments(sub):
     for name, what in (("c", "bootloader side: device private key, admin public key"),
                        ("host-c", "host side for C tools and tests: admin private key, device public key")):
@@ -81,8 +107,10 @@ def add_keys_arguments(sub):
 
 def run(a):
     if a.cmd == "image":
-        cfg = Config(a.board, a.core, a.pre, a.post, a.cc)
+        cfg = Config(a.board, a.core, a.pre, a.post, a.cc, a.conf or ())
         return (cmd_sign if a.sub == "sign" else cmd_info)(cfg, a)
+    if a.cmd == "config":
+        return cmd_config(a)
     if a.sub == "pub":
         print(keys.raw_pub(keys.load(a.key)).hex())
     else:

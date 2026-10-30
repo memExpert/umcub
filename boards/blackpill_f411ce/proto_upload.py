@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Host side of the example board protocol of boards/blackpill_f411ce/umcub_board.c
-(variants/proto_user.h): uploads a signed image into the primary slot.
+(variants/proto_user.conf): uploads a signed image into the primary slot.
 
   boards/blackpill_f411ce/proto_upload.py -d /dev/ttyUSB0 app.signed.bin [--reset]
 

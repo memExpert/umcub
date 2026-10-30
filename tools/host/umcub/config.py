@@ -1,5 +1,6 @@
 """The umcub configuration of a board as Python values: boards/<board>/umcub_config.h
-(+ overlays) read through a C preprocessor, like cmake/umcub_config.cmake does it.
+(+ overlays), or the one generated from a Kconfig board's defconfig (+ fragments,
+umcub.kconfig), read through a C preprocessor, like cmake/umcub_config.cmake does it.
 
 The preprocessor: `cc`, $UMCUB_CC, or the first one found of arm-none-eabi-gcc,
 armclang (Keil MDK, also in the default install folders), gcc, clang.
@@ -11,6 +12,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from . import kconfig
 from .errors import UmcubError
 
 # The umcub checkout (boards/, config/, port/); $UMCUB_ROOT for an installed copy of this package.
@@ -37,12 +39,21 @@ def find_cc(explicit):
 
 
 class Config:
-    def __init__(self, board, core, pre, post, cc):
+    def __init__(self, board, core, pre, post, cc, conf=()):
         bdir = Path(board)
         if not (bdir / "umcub_config.h").is_file():
             bdir = ROOT / "boards" / board
-        if not (bdir / "umcub_config.h").is_file():
-            die(f"{board}: no umcub_config.h (board name under boards/ or a directory)")
+        self._tmp = None
+        if not (bdir / "umcub_config.h").is_file() and kconfig.board_dir(board):
+            # Kconfig board: its umcub_config.h from the defconfig + fragments
+            self._tmp = tempfile.TemporaryDirectory()
+            kconfig.generate(board, core, conf, self._tmp.name)
+            bdir = kconfig.board_dir(board)
+            self.config_dir = Path(self._tmp.name)
+        elif not (bdir / "umcub_config.h").is_file():
+            die(f"{board}: no umcub_config.h or defconfig (board name under boards/ or a directory)")
+        else:
+            self.config_dir = bdir.resolve()
         self.board_dir = bdir.resolve()
         self.cc = find_cc(cc)
         self.defs = []
@@ -51,7 +62,7 @@ class Config:
         for name, f in (("UMCUB_CONFIG_PRE", pre), ("UMCUB_CONFIG_POST", post)):
             if f:
                 self.defs.append(f'{name}="{Path(f).resolve().as_posix()}"')
-        self.incs = [ROOT / "config", self.board_dir]
+        self.incs = [ROOT / "config", self.config_dir]
 
         out = self._cpp('#include "umcub_config_types.h"\n#ifdef UMCUB_CONFIG_PRE\n#include UMCUB_CONFIG_PRE\n'
                         '#endif\n#include "umcub_config.h"\n#ifdef UMCUB_CONFIG_POST\n#include UMCUB_CONFIG_POST\n'
@@ -69,7 +80,7 @@ class Config:
 
         names = set()
         for f in (ROOT / "config/umcub_config_template.h", ROOT / "config/umcub_config_defaults.h",
-                  fam_inc / "umcub_family_defaults.h", self.board_dir / "umcub_config.h"):
+                  fam_inc / "umcub_family_defaults.h", self.config_dir / "umcub_config.h"):
             names |= set(re.findall(r"#\s*define\s+(UMCUB_CFG_[A-Z0-9_]+)", f.read_text()))
         probe = '#include "umcub_cfg.h"\n' + "".join(f'@@ "{n}" {n}\n' for n in sorted(names))
         probe += '@@ "FAMILY_WRITE_ALIGN" UMCUB_FAMILY_WRITE_ALIGN\n@@ "FAMILY_MIN_SECTOR" UMCUB_FAMILY_MIN_SECTOR\n'

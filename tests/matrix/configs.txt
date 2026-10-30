@@ -1,6 +1,7 @@
 # Bootloader configurations of the build matrix (tests/CMakeLists.txt: one test each).
 # name | core | build type | pre overlay | post overlay | board
-# Overlays: tests/configs/<file>, or a path from the repository root (boards/<b>/variants/...).
+# Overlays: tests/configs/<file>, or a path from the repository root (boards/<b>/variants/...);
+# Kconfig boards: configuration fragments (.conf), several separated by commas.
 # Board: a name under boards/ (default nucleo_h755zi_q) or a directory from the repository root.
 all-swap-scratch|cm7|Release||
 all-overwrite|cm7|Release|mode/overwrite.h|
@@ -36,7 +37,7 @@ bluepill-mcuboot-log-err|cm3|Release||feature/mcuboot_log_err.h|bluepill_f103c8
 bluepill-assert-trap|cm3|Release||feature/assert_trap.h|bluepill_f103c8
 bluepill-readback|cm3|Release||feature/readback.h|bluepill_f103c8
 bluepill-recovery-timeout|cm3|Release||feature/recovery_timeout.h|bluepill_f103c8
-blackpill-wait-window|cm4|Release||feature/wait_window.h|blackpill_f411ce
+blackpill-wait-window|cm4|Release||feature/wait_window.conf|blackpill_f411ce
 watchdog|cm7|Release||feature/watchdog.h
 lto|cm7|Release||feature/lto.h
 bluepill-lto|cm3|Release||feature/lto.h|bluepill_f103c8
@@ -45,11 +46,11 @@ encrypt-images|cm7|Release||feature/encrypt_images.h
 bluepill-encrypt|cm3|Release||boards/bluepill_f103c8/variants/encrypt.h|bluepill_f103c8
 per-core-cm4-encrypt|cm4|Release|boards/nucleo_h755zi_q/variants/per_core.h|feature/encrypt_only.h
 blackpill-f411|cm4|Release|||blackpill_f411ce
-blackpill-f411-rs485|cm4|Release||boards/blackpill_f411ce/variants/rs485.h|blackpill_f411ce
-blackpill-f411-usart2|cm4|Release||boards/blackpill_f411ce/variants/usart2.h|blackpill_f411ce
-blackpill-f411-rs485-link|cm4|Release||boards/blackpill_f411ce/variants/rs485_link.h|blackpill_f411ce
-blackpill-f411-encrypt|cm4|Release||boards/blackpill_f411ce/variants/encrypt.h|blackpill_f411ce
-blackpill-f411-usb|cm4|Release||boards/blackpill_f411ce/variants/usb.h|blackpill_f411ce
-blackpill-f411-proto-user|cm4|Release||boards/blackpill_f411ce/variants/proto_user.h|blackpill_f411ce
-blackpill-f411-enc28j60|cm4|Release||boards/blackpill_f411ce/variants/enc28j60.h|blackpill_f411ce
+blackpill-f411-rs485|cm4|Release||boards/blackpill_f411ce/variants/rs485.conf|blackpill_f411ce
+blackpill-f411-usart2|cm4|Release||boards/blackpill_f411ce/variants/usart2.conf|blackpill_f411ce
+blackpill-f411-rs485-link|cm4|Release||boards/blackpill_f411ce/variants/rs485.conf,boards/blackpill_f411ce/variants/rs485_link.conf|blackpill_f411ce
+blackpill-f411-encrypt|cm4|Release||boards/blackpill_f411ce/variants/encrypt.conf|blackpill_f411ce
+blackpill-f411-usb|cm4|Release||boards/blackpill_f411ce/variants/usb.conf|blackpill_f411ce
+blackpill-f411-proto-user|cm4|Release||boards/blackpill_f411ce/variants/proto_user.conf|blackpill_f411ce
+blackpill-f411-enc28j60|cm4|Release||boards/blackpill_f411ce/variants/usart2.conf,boards/blackpill_f411ce/variants/enc28j60.conf|blackpill_f411ce
 custom-drivers|cm7|Release|||tests/boards/custom_drivers    # board CAN / ETH drivers: the family ones left out

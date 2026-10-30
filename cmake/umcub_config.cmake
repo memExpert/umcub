@@ -54,12 +54,18 @@ macro(umcub_load_config board_dir core)
                         "(preset 'custom': or the environment variable UMCUB_BOARD)")
   endif()
   get_filename_component(UMCUB_BOARD_DIR "${board_dir}" ABSOLUTE BASE_DIR "${UMCUB_ROOT}/boards")
-  if(NOT EXISTS "${UMCUB_BOARD_DIR}/umcub_config.h")
-    message(FATAL_ERROR "umcub: ${UMCUB_BOARD_DIR}/umcub_config.h not found")
-  endif()
   set(UMCUB_CORE "${core}")
   set(_probe_dir "${CMAKE_BINARY_DIR}/umcub_probe")
   file(MAKE_DIRECTORY "${_probe_dir}")
+  # UMCUB_CONFIG_DIR: where umcub_config.h is - the board directory, or for a
+  # Kconfig board (boards/<b>/defconfig) the build tree's umcub_kconfig.
+  if(EXISTS "${UMCUB_BOARD_DIR}/defconfig")
+    _umcub_kconfig()
+  elseif(EXISTS "${UMCUB_BOARD_DIR}/umcub_config.h")
+    set(UMCUB_CONFIG_DIR "${UMCUB_BOARD_DIR}")
+  else()
+    message(FATAL_ERROR "umcub: ${UMCUB_BOARD_DIR}: no defconfig or umcub_config.h")
+  endif()
 
   set(UMCUB_CONFIG_DEFS)
   if(UMCUB_CORE STREQUAL "cm7")
@@ -82,7 +88,7 @@ macro(umcub_load_config board_dir core)
   endif()
 
   # Step 1: which MCU? (board config + constants only)
-  set(UMCUB_CONFIG_INCLUDES "${UMCUB_ROOT}/config" "${UMCUB_BOARD_DIR}")
+  set(UMCUB_CONFIG_INCLUDES "${UMCUB_ROOT}/config" "${UMCUB_CONFIG_DIR}")
   file(WRITE "${_probe_dir}/mcu.c"
     "#include \"umcub_config_types.h\"\n#ifdef UMCUB_CONFIG_PRE\n#include UMCUB_CONFIG_PRE\n#endif\n#include \"umcub_config.h\"\n#ifdef UMCUB_CONFIG_POST\n#include UMCUB_CONFIG_POST\n#endif\n@@MCU@@ UMCUB_CFG_MCU\n")
   _umcub_cpp(_out "${_probe_dir}/mcu.c")
@@ -99,14 +105,14 @@ macro(umcub_load_config board_dir core)
   endif()
   include("${UMCUB_ROOT}/cmake/families/${_fam}.cmake")
   list(APPEND UMCUB_CONFIG_DEFS ${UMCUB_FAMILY_DEFS})
-  set(UMCUB_CONFIG_INCLUDES "${UMCUB_ROOT}/config" "${UMCUB_BOARD_DIR}" "${UMCUB_FAMILY_DIR}/include")
+  set(UMCUB_CONFIG_INCLUDES "${UMCUB_ROOT}/config" "${UMCUB_CONFIG_DIR}" "${UMCUB_FAMILY_DIR}/include")
 
   # Step 3: every UMCUB_CFG_* known anywhere
   set(_names)
   foreach(f "${UMCUB_ROOT}/config/umcub_config_template.h"
             "${UMCUB_ROOT}/config/umcub_config_defaults.h"
             "${UMCUB_FAMILY_DIR}/include/umcub_family_defaults.h"
-            "${UMCUB_BOARD_DIR}/umcub_config.h")
+            "${UMCUB_CONFIG_DIR}/umcub_config.h")
     # Whole-file regex, not file(STRINGS): a line ending in '\\' (macro
     # continuation) would escape the list separator and glue lines together.
     file(READ "${f}" _text)
@@ -151,7 +157,7 @@ macro(umcub_load_config board_dir core)
 
   # What CMake read, for tools/build/check_config.py: the host tools read the
   # same configuration on their own (umcub/config.py) and must agree.
-  set(_dump "@board=${UMCUB_BOARD_DIR}\n@core=${UMCUB_CORE}\n@pre=${UMCUB_CONFIG_PRE_ABS}\n")
+  set(_dump "@board=${UMCUB_CONFIG_DIR}\n@core=${UMCUB_CORE}\n@pre=${UMCUB_CONFIG_PRE_ABS}\n")
   string(APPEND _dump "@post=${UMCUB_CONFIG_POST_ABS}\n@cc=${CMAKE_C_COMPILER}\n")
   foreach(n IN LISTS _names ITEMS UMCUB_CFG_FAMILY_WRITE_ALIGN UMCUB_CFG_FAMILY_MIN_SECTOR)
     if(DEFINED ${n} AND "${${n}}" MATCHES "^-?[0-9]+$")
@@ -161,12 +167,44 @@ macro(umcub_load_config board_dir core)
   file(WRITE "${_probe_dir}/config.txt" "${_dump}")
 endmacro()
 
+# A Kconfig board: .config and umcub_config.h from boards/<b>/defconfig and the
+# fragments of UMCUB_CONF (umcub.kconfig, `umcub config generate`), made again
+# when a Kconfig file, the defconfig, a fragment or the .config (menuconfig)
+# changes. Targets: menuconfig, savedefconfig.
+macro(_umcub_kconfig)
+  set(UMCUB_CONFIG_DIR "${CMAKE_BINARY_DIR}/umcub_kconfig")
+  find_program(_umcub_py NAMES python3 python HINTS "${UMCUB_ROOT}/.venv/bin" NO_CACHE)
+  if(NOT _umcub_py)
+    message(FATAL_ERROR "umcub: Kconfig board ${UMCUB_BOARD_DIR}: Python with esp-idf-kconfig needed (tools/setup.sh)")
+  endif()
+  set(_conf_args)
+  foreach(f IN LISTS UMCUB_CONF)
+    get_filename_component(_f "${f}" ABSOLUTE)
+    list(APPEND _conf_args --conf "${_f}")
+  endforeach()
+  set(_umcub_config_cmd "${_umcub_py}" "${UMCUB_ROOT}/tools/host/umcub" config)
+  execute_process(COMMAND ${_umcub_config_cmd} generate --board "${UMCUB_BOARD_DIR}" --core "${UMCUB_CORE}"
+                          ${_conf_args} --out "${UMCUB_CONFIG_DIR}"
+                  OUTPUT_VARIABLE _out ERROR_VARIABLE _err RESULT_VARIABLE _rc)
+  if(NOT _rc EQUAL 0)
+    message(FATAL_ERROR "umcub: ${_err}${_out}")
+  endif()
+  file(STRINGS "${UMCUB_CONFIG_DIR}/kconfig.deps" _deps)
+  set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${_deps} "${UMCUB_CONFIG_DIR}/.config")
+  if(NOT TARGET menuconfig)
+    add_custom_target(menuconfig COMMAND ${_umcub_config_cmd} menu --out "${UMCUB_CONFIG_DIR}" USES_TERMINAL
+                      COMMENT "umcub: menuconfig (build again afterwards)")
+    add_custom_target(savedefconfig COMMAND ${_umcub_config_cmd} save --out "${UMCUB_CONFIG_DIR}"
+                                            -o "${CMAKE_BINARY_DIR}/defconfig" USES_TERMINAL)
+  endif()
+endmacro()
+
 function(umcub_preprocess template output)
   _umcub_cpp(_out "${template}")
   file(WRITE "${output}.tmp" "${_out}")
   configure_file("${output}.tmp" "${output}" COPYONLY)
   set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
-    "${template}" "${UMCUB_BOARD_DIR}/umcub_config.h")
+    "${template}" "${UMCUB_CONFIG_DIR}/umcub_config.h")
 endfunction()
 
 # Hex string helper: umcub_hex(<out_var> <decimal>)

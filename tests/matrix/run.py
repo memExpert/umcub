@@ -64,7 +64,9 @@ def t_config(out, line):
     args = [f"-DCMAKE_BUILD_TYPE={btype}", f"-DUMCUB_BOARD={board}", f"-DUMCUB_CORE={core}"]
     if pre:
         args.append(f"-DUMCUB_CONFIG_PRE={overlay(pre)}")
-    if post:
+    if post.endswith(".conf"):
+        args.append("-DUMCUB_CONF=" + ";".join(overlay(f) for f in post.split(",")))
+    elif post:
         args.append(f"-DUMCUB_CONFIG_POST={overlay(post)}")
     d = build(out, name, args)
     if name == "custom-drivers" and re.search(r"fdcan\.c|/eth\.c", (d / "build.ninja").read_text()):

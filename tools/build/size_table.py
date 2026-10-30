@@ -47,7 +47,7 @@ CHIPS = [
     ("STM32F103 (Blue Pill, overwrite)", "", None, f'#include "{ROOT}/boards/bluepill_f103c8/variants/usb.h"\n',
      "bluepill_f103c8", {"CAN_FD", "TRANSPORT_ETH"}, {"TRANSPORT_CAN"}),
     # Cortex-M4, in the 48 KiB region of the USB layout; no CAN and no Ethernet on the F411.
-    ("STM32F411 (Black Pill, overwrite)", "cm4", None, f'#include "{ROOT}/boards/blackpill_f411ce/variants/usb.h"\n',
+    ("STM32F411 (Black Pill, overwrite)", "cm4", None, "#undef UMCUB_CFG_BOOT_SIZE\n#define UMCUB_CFG_BOOT_SIZE UMCUB_KB(48)\n",
      "blackpill_f411ce", {"TRANSPORT_CAN", "CAN_FD", "TRANSPORT_ETH"}, set()),
 ]
 
@@ -69,7 +69,7 @@ VARIANTS = [
     ("Ethernet", {**U, "TRANSPORT_ETH": 1}),
     ("USB CDC only", {"TRANSPORT_USB_CDC": 1}),
     ("Ethernet only", {"TRANSPORT_ETH": 1}),
-    ("UART lite", {**U, "SMP_ENABLE": 0}),
+    ("UART lite", {**U, "SMP_ENABLE": 0, "LITE_UPLOAD": 1}),
     ("log", {**U, "LOG_LEVEL": 3}),
     ("commands", {**U, "CMD_ENABLE": 1}),
     ("status LED", {**U, "STATUS_LED": 1}),

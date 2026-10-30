@@ -1,7 +1,7 @@
 /*
  * ENC28J60 (Microchip, 10BASE-T MAC + PHY on SPI) as the board's Ethernet
  * driver under the built-in IPv4 / UDP transport: UMCUB_CFG_ETH_DRIVER =
- * UMCUB_DRIVER_BOARD (variants/enc28j60.h), the umcub_port_eth_* interface of
+ * UMCUB_DRIVER_BOARD (variants/enc28j60.conf), the umcub_port_eth_* interface of
  * umcub_port_eth.h. Polled, no interrupt pin; SPI1 on registers.
  *
  * Datasheet DS39662, errata DS80349 (rev. B7) - what this driver relies on:
@@ -15,7 +15,7 @@
  */
 #include "umcub_cfg.h"
 
-#if UMCUB_CFG_TRANSPORT_ETH && UMCUB_CFG_ETH_DRIVER == UMCUB_DRIVER_BOARD
+#if UMCUB_CFG_ENC28J60
 #include "umcub_port.h"
 #include "umcub_port_eth.h"
 #include "stm32f4xx.h"
@@ -102,7 +102,7 @@ static bool link_up;
 
 static void cs(bool active)
 {
-    umcub_port_gpio_write(ENC28J60_CS_PIN, !active);
+    umcub_port_gpio_write(UMCUB_CFG_ENC28J60_CS_PIN, !active);
 }
 
 static uint8_t xfer(uint8_t b)
@@ -233,15 +233,15 @@ int umcub_port_eth_init(const uint8_t mac[6], unsigned phy_addr, const uint32_t 
     (void)phy_addr;                         /* the PHY is inside the chip */
     (void)pins;
     (void)npins;
-    umcub_port_gpio_output(ENC28J60_CS_PIN, true);
-#ifdef ENC28J60_RESET_PIN
-    umcub_port_gpio_output(ENC28J60_RESET_PIN, false);
-    umcub_port_delay_ms(1);
-    umcub_port_gpio_write(ENC28J60_RESET_PIN, true);
-#endif
-    umcub_port_gpio_af(ENC28J60_SCK_PIN);
-    umcub_port_gpio_af(ENC28J60_MISO_PIN);
-    umcub_port_gpio_af(ENC28J60_MOSI_PIN);
+    umcub_port_gpio_output(UMCUB_CFG_ENC28J60_CS_PIN, true);
+    if (UMCUB_CFG_ENC28J60_RESET_PIN != UMCUB_PIN_NONE) {
+        umcub_port_gpio_output(UMCUB_CFG_ENC28J60_RESET_PIN, false);
+        umcub_port_delay_ms(1);
+        umcub_port_gpio_write(UMCUB_CFG_ENC28J60_RESET_PIN, true);
+    }
+    umcub_port_gpio_af(UMCUB_CFG_ENC28J60_SCK_PIN);
+    umcub_port_gpio_af(UMCUB_CFG_ENC28J60_MISO_PIN);
+    umcub_port_gpio_af(UMCUB_CFG_ENC28J60_MOSI_PIN);
     SET_BIT(RCC->APB2ENR, RCC_APB2ENR_SPI1EN);
     (void)READ_BIT(RCC->APB2ENR, RCC_APB2ENR_SPI1EN);
     SPI1->CR1 = SPI_CR1_MSTR | SPI_CR1_SSM | SPI_CR1_SSI | spi_br();    /* mode 0, 8 bit, MSB first */
@@ -301,13 +301,13 @@ void umcub_port_eth_deinit(void)
     SET_BIT(RCC->APB2RSTR, RCC_APB2RSTR_SPI1RST);
     CLEAR_BIT(RCC->APB2RSTR, RCC_APB2RSTR_SPI1RST);
     CLEAR_BIT(RCC->APB2ENR, RCC_APB2ENR_SPI1EN);
-    umcub_port_gpio_reset(ENC28J60_SCK_PIN);
-    umcub_port_gpio_reset(ENC28J60_MISO_PIN);
-    umcub_port_gpio_reset(ENC28J60_MOSI_PIN);
-    umcub_port_gpio_reset(ENC28J60_CS_PIN);
-#ifdef ENC28J60_RESET_PIN
-    umcub_port_gpio_reset(ENC28J60_RESET_PIN);
-#endif
+    umcub_port_gpio_reset(UMCUB_CFG_ENC28J60_SCK_PIN);
+    umcub_port_gpio_reset(UMCUB_CFG_ENC28J60_MISO_PIN);
+    umcub_port_gpio_reset(UMCUB_CFG_ENC28J60_MOSI_PIN);
+    umcub_port_gpio_reset(UMCUB_CFG_ENC28J60_CS_PIN);
+    if (UMCUB_CFG_ENC28J60_RESET_PIN != UMCUB_PIN_NONE) {
+        umcub_port_gpio_reset(UMCUB_CFG_ENC28J60_RESET_PIN);
+    }
 }
 
 bool umcub_port_eth_link(void)

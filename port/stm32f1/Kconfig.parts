@@ -1,0 +1,3 @@
+config MCU_STM32F103XB
+	bool "STM32F103x8 / STM32F103xB (64 / 128 KiB, medium density)"
+	select FAMILY_STM32F1
