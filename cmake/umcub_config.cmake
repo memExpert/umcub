@@ -50,17 +50,20 @@ endfunction()
 
 macro(umcub_load_config board_dir core)
   if("${board_dir}" STREQUAL "")
-    message(FATAL_ERROR "umcub: UMCUB_BOARD is empty: pass -DUMCUB_BOARD=<board directory> "
-                        "(preset 'custom': or the environment variable UMCUB_BOARD)")
+    # No board: Kconfig from its defaults and the UMCUB_CONF fragments (menuconfig);
+    # no board code. The binaries are named after the part.
+    set(UMCUB_BOARD_DIR "${CMAKE_BINARY_DIR}/umcub_kconfig/board")
+    file(MAKE_DIRECTORY "${UMCUB_BOARD_DIR}")
+  else()
+    get_filename_component(UMCUB_BOARD_DIR "${board_dir}" ABSOLUTE BASE_DIR "${UMCUB_ROOT}/boards")
   endif()
-  get_filename_component(UMCUB_BOARD_DIR "${board_dir}" ABSOLUTE BASE_DIR "${UMCUB_ROOT}/boards")
   set(UMCUB_CORE "${core}")
   set(_probe_dir "${CMAKE_BINARY_DIR}/umcub_probe")
   file(MAKE_DIRECTORY "${_probe_dir}")
   # UMCUB_CONFIG_DIR: where umcub_config.h is - the board directory, or for a
   # Kconfig board (boards/<b>/defconfig) the build tree's umcub_kconfig.
-  if(EXISTS "${UMCUB_BOARD_DIR}/defconfig")
-    _umcub_kconfig()
+  if("${board_dir}" STREQUAL "" OR EXISTS "${UMCUB_BOARD_DIR}/defconfig")
+    _umcub_kconfig("${board_dir}")
   elseif(EXISTS "${UMCUB_BOARD_DIR}/umcub_config.h")
     set(UMCUB_CONFIG_DIR "${UMCUB_BOARD_DIR}")
   else()
@@ -171,7 +174,7 @@ endmacro()
 # fragments of UMCUB_CONF (umcub.kconfig, `umcub config generate`), made again
 # when a Kconfig file, the defconfig, a fragment or the .config (menuconfig)
 # changes. Targets: menuconfig, savedefconfig.
-macro(_umcub_kconfig)
+macro(_umcub_kconfig board)
   set(UMCUB_CONFIG_DIR "${CMAKE_BINARY_DIR}/umcub_kconfig")
   find_program(_umcub_py NAMES python3 python HINTS "${UMCUB_ROOT}/.venv/bin" NO_CACHE)
   if(NOT _umcub_py)
@@ -183,11 +186,20 @@ macro(_umcub_kconfig)
     list(APPEND _conf_args --conf "${_f}")
   endforeach()
   set(_umcub_config_cmd "${_umcub_py}" "${UMCUB_ROOT}/tools/host/umcub" config)
-  execute_process(COMMAND ${_umcub_config_cmd} generate --board "${UMCUB_BOARD_DIR}" --core "${UMCUB_CORE}"
+  if("${board}" STREQUAL "")
+    set(_board "")
+  else()
+    set(_board "${UMCUB_BOARD_DIR}")
+  endif()
+  execute_process(COMMAND ${_umcub_config_cmd} generate --board "${_board}" --core "${UMCUB_CORE}"
                           ${_conf_args} --out "${UMCUB_CONFIG_DIR}"
                   OUTPUT_VARIABLE _out ERROR_VARIABLE _err RESULT_VARIABLE _rc)
   if(NOT _rc EQUAL 0)
     message(FATAL_ERROR "umcub: ${_err}${_out}")
+  endif()
+  string(STRIP "${_out}" _out)
+  if(_out)
+    message(STATUS "${_out}")
   endif()
   file(STRINGS "${UMCUB_CONFIG_DIR}/kconfig.deps" _deps)
   set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${_deps} "${UMCUB_CONFIG_DIR}/.config")

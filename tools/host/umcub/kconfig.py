@@ -18,6 +18,7 @@ import os
 import re
 from pathlib import Path
 
+from . import layout
 from .errors import UmcubError
 
 ROOT = Path(os.environ.get("UMCUB_ROOT") or Path(__file__).resolve().parents[3])
@@ -39,6 +40,8 @@ def die(msg):
 
 def board_dir(board):
     """A board name under boards/ or a board directory (with a defconfig)."""
+    if not board:
+        return None
     d = Path(board)
     if not (d / "defconfig").is_file():
         d = ROOT / "boards" / board
@@ -47,7 +50,8 @@ def board_dir(board):
 
 def _kconfig(bdir, core):
     os.environ.update({"CONFIG_": PREFIX, "UMCUB_ROOT": ROOT.as_posix(),
-                       "UMCUB_BOARD_DIR": Path(bdir).as_posix(), "UMCUB_CORE": core or ""})
+                       "UMCUB_BOARD_DIR": Path(bdir).as_posix() if bdir else (ROOT / "boards/.none").as_posix(),
+                       "UMCUB_CORE": core or ""})
     try:
         import esp_kconfiglib.core as k
     except ImportError:
@@ -109,9 +113,10 @@ def load(board, core="", fragments=(), out_dir=None):
     """The configuration of a board (+ fragments); with out_dir, the build tree's
     .config when it was made from the same inputs. Returns (kconf, bdir, inputs)."""
     bdir = board_dir(board)
-    if bdir is None:
+    if board and bdir is None:
         die(f"{board}: no defconfig (board name under boards/ or a board directory)")
-    inputs = [bdir / "defconfig"] + [Path(f).resolve() for f in fragments]
+    # no board: the defaults (part, transports, layout) + the fragments, then menuconfig
+    inputs = ([bdir / "defconfig"] if bdir else []) + [Path(f).resolve() for f in fragments]
     for f in inputs:
         if not f.is_file():
             die(f"{f}: not found")
@@ -128,7 +133,7 @@ def load(board, core="", fragments=(), out_dir=None):
     if out_dir:
         Path(out_dir).mkdir(parents=True, exist_ok=True)
         (Path(out_dir) / STATE).write_text(json.dumps(
-            {"board": str(bdir), "core": core or "", "fragments": [str(f) for f in inputs[1:]],
+            {"board": str(bdir) if bdir else "", "core": core or "", "fragments": [str(f) for f in inputs[1:]],
              "stamp": stamp}, indent=1))
     return kconf, bdir, inputs
 
@@ -187,7 +192,17 @@ def values(kconf):
     rmii = [out.pop(f"ETH_RMII_{s}_PIN") for s in RMII if f"ETH_RMII_{s}_PIN" in out]
     if rmii:
         out["ETH_RMII_PINS"] = ", ".join(rmii)
+    if out.get("LAYOUT_AUTO") == "1":
+        out.update({n: f"0x{v:X}" for n, v in auto_layout(kconf).items()})
     return out
+
+
+def auto_layout(kconf):
+    """UMCUB_CFG_LAYOUT_AUTO: the slots from the part's flash and the mode (umcub.layout)."""
+    val = lambda n: kconf.syms[n].str_value          # noqa: E731
+    family = next(f for f in ("STM32F1", "STM32F4", "STM32H7") if val(f"FAMILY_{f}") == "y")
+    return layout.auto(family, int(val("FLASH_KB")), int(val("BOOT_ADDR"), 16), int(val("BOOT_SIZE"), 16),
+                       int(val("UPGRADE_MODE")), int(val("IMAGE_NUMBER")))
 
 
 def write_header(kconf, path, inputs):
@@ -215,6 +230,8 @@ def generate(board, core, fragments, out_dir):
     kconf, bdir, inputs = load(board, core, fragments, out)
     kconf.write_config(str(out / ".config"))
     write_header(kconf, out / HEADER, inputs)
+    if kconf.syms["LAYOUT_AUTO"].str_value == "y":
+        print("umcub: automatic layout: " + "; ".join(layout.describe(auto_layout(kconf))))
     deps = sorted({str(Path(f).resolve()) for f in kconf.kconfig_filenames} | {str(f) for f in inputs})
     _write_if_changed(out / "kconfig.deps", "\n".join(deps) + "\n")
     return out / HEADER

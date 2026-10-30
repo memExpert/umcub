@@ -59,7 +59,9 @@ def build(out, name, args, src=ROOT):
 def t_config(out, line):
     name, core, btype, pre, post, board = (line.split("#")[0].strip().split("|") + [""] * 6)[:6]
     board = board or DEFAULT_BOARD
-    if "/" in board:
+    if board == "none":
+        board = ""
+    elif "/" in board:
         board = str(ROOT / board)
     args = [f"-DCMAKE_BUILD_TYPE={btype}", f"-DUMCUB_BOARD={board}", f"-DUMCUB_CORE={core}"]
     if pre:

@@ -77,7 +77,7 @@ the flash).
 ## Kconfig boards
 
 Moving to Kconfig ([esp-idf-kconfig](https://github.com/espressif/esp-idf-kconfig)), board by board; so far the
-Black Pill. Such a board has a `defconfig` instead of `umcub_config.h`; the options are described in
+Black Pill, and builds without a board. Such a board has a `defconfig` instead of `umcub_config.h`; the options are described in
 [`Kconfig`](../Kconfig), [`config/Kconfig`](../config/Kconfig), `port/Kconfig` and the board's own `Kconfig`, with
 the same names as above (`UMCUB_CFG_<NAME>` in `.config` and in the generated `umcub_config.h`).
 
@@ -88,6 +88,13 @@ cmake --build build/bp --target menuconfig       # change the build tree's .conf
 cmake --build build/bp --target savedefconfig    # build/bp/defconfig: only what differs from the defaults
 ```
 
+- Without a board (`UMCUB_BOARD` empty, the default) the configuration starts from the Kconfig defaults (an
+  STM32F103C8 with SMP on USART1 PA9/PA10) and the fragments; pick the part and everything else in menuconfig,
+  then keep `savedefconfig`'s output as your own defconfig or fragment. The binaries are named after the part. Board
+  code (drivers, hooks) needs a board directory: its `defconfig` and `.c` files.
+- `UMCUB_CFG_LAYOUT_AUTO` (default on) places the slots: all flash behind the bootloader, split at sector boundaries
+  so that the largest image fits (swap-offset: secondary one sector larger, swap-scratch: the last sector as scratch
+  area, two images: halved first); configure prints the result. Off: set the slot addresses and sizes yourself.
 - Configure runs `umcub config generate`: the defconfig, then the fragments of `UMCUB_CONF` in order (a later
   assignment wins) -> `build/<x>/umcub_kconfig/.config` and `umcub_config.h`. An assignment that does not take
   effect (unknown option, dependency not met, out of range) stops the configuration.

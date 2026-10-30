@@ -87,6 +87,18 @@ config IMAGE_NUMBER
 	default 2 if DUALCORE_SINGLE_BOOT
 	default 1
 
+config LAYOUT_AUTO
+	bool "Place the slots automatically"
+	default y
+	help
+	  The slots take all flash behind the bootloader, split at sector
+	  boundaries so that the largest image fits (per image a primary and a
+	  secondary slot; swap-offset: the secondary one sector larger;
+	  swap-scratch: the last sector as scratch area; two images: the flash
+	  halved first). Configure prints the result. Off: set the addresses
+	  and sizes below.
+
+if !LAYOUT_AUTO
 config IMG0_PRIMARY_ADDR
 	hex "Image 0 primary slot address"
 config IMG0_PRIMARY_SIZE
@@ -117,6 +129,7 @@ config SCRATCH_ADDR
 config SCRATCH_SIZE
 	hex "Scratch area size"
 	depends on UPGRADE_MODE_SWAP_SCRATCH
+endif
 
 config IMAGE_HEADER_SIZE
 	hex "Image header size"
@@ -391,6 +404,7 @@ menu "Transports"
 
 config TRANSPORT_UART
 	bool "UART"
+	default y
 if TRANSPORT_UART
 source "$(UMCUB_ROOT)/port/kconfig/uart_instance.kconfig"
 config UART_BAUD

@@ -3,8 +3,10 @@
 #   cmake --preset <preset>            (see CMakePresets.json)
 #   cmake -B build -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake \
 #         -DUMCUB_BOARD=nucleo_h755zi_q -DUMCUB_CORE=cm7
+#   cmake -B build -G Ninja && cmake --build build --target menuconfig    (no board: pick the part)
 #
-# Everything else is configured in boards/<board>/umcub_config.h.
+# Everything else is configured in boards/<board>/umcub_config.h, or for Kconfig
+# boards (and without a board) in the defconfig, fragments and menuconfig.
 
 cmake_minimum_required(VERSION 3.20)
 
@@ -18,7 +20,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_EXTENSIONS ON)
 
-set(UMCUB_BOARD "nucleo_h755zi_q" CACHE STRING "Board directory name under boards/ or absolute path")
+set(UMCUB_BOARD "" CACHE STRING "Board directory name under boards/ or a path; empty: none (Kconfig defaults, menuconfig)")
 set(UMCUB_CORE "" CACHE STRING "Core to build for on dual-core parts (cm7|cm4)")
 set(UMCUB_CONFIG_PRE "" CACHE FILEPATH "Optional header included before the board config")
 set(UMCUB_CONFIG_POST "" CACHE FILEPATH "Optional header included after the board config")
@@ -34,7 +36,12 @@ set(UMCUB_IMGTOOL "" CACHE FILEPATH "imgtool executable (default: .venv/bin/imgt
 include(cmake/umcub_config.cmake)
 umcub_load_config("${UMCUB_BOARD}" "${UMCUB_CORE}")
 umcub_check_pins()
-get_filename_component(UMCUB_BOARD_NAME "${UMCUB_BOARD_DIR}" NAME)
+if(UMCUB_BOARD)
+  get_filename_component(UMCUB_BOARD_NAME "${UMCUB_BOARD_DIR}" NAME)
+else()
+  string(TOLOWER "${UMCUB_CFG_MCU_PART_RAW}" UMCUB_BOARD_NAME)   # no board: named after the part
+  string(REPLACE "\"" "" UMCUB_BOARD_NAME "${UMCUB_BOARD_NAME}")
+endif()
 
 message(STATUS "umcub: board ${UMCUB_BOARD_NAME}, ${UMCUB_MCU} (${UMCUB_FAMILY}/${UMCUB_CORE}), "
                "mode ${UMCUB_CFG_UPGRADE_MODE}, images ${UMCUB_CFG_IMAGE_NUMBER}, "

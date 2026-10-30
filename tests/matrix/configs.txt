@@ -2,7 +2,8 @@
 # name | core | build type | pre overlay | post overlay | board
 # Overlays: tests/configs/<file>, or a path from the repository root (boards/<b>/variants/...);
 # Kconfig boards: configuration fragments (.conf), several separated by commas.
-# Board: a name under boards/ (default nucleo_h755zi_q) or a directory from the repository root.
+# Board: a name under boards/ (default nucleo_h755zi_q), a directory from the repository root, or none
+# (Kconfig defaults + fragments, no board code).
 all-swap-scratch|cm7|Release||
 all-overwrite|cm7|Release|mode/overwrite.h|
 all-swap-offset|cm7|Release|mode/swap_offset.h|
@@ -54,3 +55,6 @@ blackpill-f411-usb|cm4|Release||boards/blackpill_f411ce/variants/usb.conf|blackp
 blackpill-f411-proto-user|cm4|Release||boards/blackpill_f411ce/variants/proto_user.conf|blackpill_f411ce
 blackpill-f411-enc28j60|cm4|Release||boards/blackpill_f411ce/variants/usart2.conf,boards/blackpill_f411ce/variants/enc28j60.conf|blackpill_f411ce
 custom-drivers|cm7|Release|||tests/boards/custom_drivers    # board CAN / ETH drivers: the family ones left out
+noboard-default|cm3|Release|||none    # Kconfig defaults: STM32F103C8, UART, automatic layout
+noboard-h755|cm7|Release||part/h755.conf|none
+noboard-f411-usb|cm4|Release||part/f411_usb.conf|none
