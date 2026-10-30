@@ -109,6 +109,12 @@ cmake --build build/bp --target savedefconfig    # build/bp/defconfig: only what
   IPv4 addresses as `"192.168.1.50"`; pins of board options (`boards/<b>/Kconfig`) as strings, `"PA4"` or `"PA5:5"`
   with the alternate function.
 - Signing for such a board: `umcub image sign --board blackpill_f411ce [--conf <fragment>]...`.
+- Keys (menu *Keys*): the signing key, the device key (encrypted images, SECURE link) and the admin key (SECURE
+  link) each come from `..._KEY_GENERATE` (default), `..._KEY_FILE` + `..._KEY_PATH`, or `..._KEY_DEV` (the
+  public development key of `tools/keys/`, for tests). Generated keys are made at configure time in `keys/<board>/`
+  (no board: `keys/<part>/`; `UMCUB_CFG_KEYS_DIR` changes it; relative paths are taken from the umcub root), never
+  replaced, and git-ignored: keep them and a backup, the devices accept only what they sign. Both cores of a
+  dual-core board use the same keys. Such a build ignores `-DUMCUB_SIGNING_KEY` / `_DEVICE_KEY` / `_HOST_KEY`.
 
 ## Bootloader size
 

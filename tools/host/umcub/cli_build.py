@@ -58,7 +58,7 @@ def add_image_arguments(sub):
             p.add_argument("--image", type=int, default=0)
             p.add_argument("--slot", type=int, default=0, help="direct-xip: slot the image is linked for")
             p.add_argument("--version", default="0.0.0", help="x.y.z[+build]")
-            p.add_argument("--key", help=f"signing key (default {DEV_KEY.relative_to(ROOT)})")
+            p.add_argument("--key", help=f"signing key (default: the Kconfig board's, else {DEV_KEY.relative_to(ROOT)})")
             p.add_argument("--encrypt-key", help="UMCUB_CFG_ENCRYPT_IMAGES: device key for <out>.encrypted.bin "
                                                   f"(default {DEV_DEVICE_KEY.relative_to(ROOT)})")
             p.add_argument("--confirm", action="store_true", help="mark the image confirmed (image_ok)")
@@ -72,7 +72,8 @@ def add_image_arguments(sub):
 
 def cmd_config(a):
     if a.sub == "generate":
-        kconfig.generate(a.board, a.core, a.conf or (), a.out)
+        for note in kconfig.generate(a.board, a.core, a.conf or (), a.out):
+            print(f"umcub: {note}")
     elif a.sub == "menu":
         kconfig.menuconfig(a.out)
     else:
@@ -108,6 +109,9 @@ def add_keys_arguments(sub):
 def run(a):
     if a.cmd == "image":
         cfg = Config(a.board, a.core, a.pre, a.post, a.cc, a.conf or ())
+        for note in cfg.notes:
+            if note.startswith("new "):
+                _log(f"umcub: {note}")
         return (cmd_sign if a.sub == "sign" else cmd_info)(cfg, a)
     if a.cmd == "config":
         return cmd_config(a)

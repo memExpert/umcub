@@ -29,7 +29,12 @@ IP_NAMES = {"ETH_IP", "ETH_NETMASK"}
 RAW_NAMES = {"MCU"}             # C tokens, not strings
 # Kconfig helpers that stay out of the header: what the part has, pin sets,
 # lines and families (port/kconfig/*.kconfig, port/Kconfig, Kconfig).
-INTERNAL = re.compile(r"(PIN|PINSET|HAS|FAMILY)_\w+|MCU_STM32\w+|BUILD_CORE|CORE_CM4|MCU_DUALCORE|LINK_SECURE")
+INTERNAL = re.compile(r"(PIN|PINSET|HAS|FAMILY)_\w+|MCU_STM32\w+|BUILD_CORE|CORE_CM4|MCU_DUALCORE|LINK_SECURE"
+                      r"|KEYS_DIR|(SIGNING|DEVICE|ADMIN)_KEY_\w+")
+# The keys (config/Kconfig "Keys"): generated file name, development key of the repository.
+KEYS = {"SIGNING": ("signing.pem", "dev-ecdsa-p256.pem"),
+        "DEVICE": ("device.pem", "dev-device-p256.pem"),
+        "ADMIN": ("admin.pem", "dev-admin-p256.pem")}
 # The RMII pin menus (port/kconfig/eth_rmii.kconfig) -> UMCUB_CFG_ETH_RMII_PINS, in this order.
 RMII = ["REF_CLK", "MDIO", "CRS_DV", "MDC", "RXD0", "RXD1", "TX_EN", "TXD0", "TXD1"]
 
@@ -205,6 +210,56 @@ def auto_layout(kconf):
                        int(val("UPGRADE_MODE")), int(val("IMAGE_NUMBER")))
 
 
+def _root_path(text):
+    p = Path(text).expanduser()
+    return p if p.is_absolute() else ROOT / p
+
+
+def keys(kconf, bdir):
+    """{SIGNING|DEVICE|ADMIN: (path, how)} of the keys the configuration uses,
+    how = generate / file / dev. Generated keys are made when missing, never
+    replaced."""
+    val = lambda n: kconf.syms[n].str_value          # noqa: E731
+    out = {}
+    for name, (gen, dev) in KEYS.items():
+        if val(f"{name}_KEY_DEV") == "y":
+            out[name] = (ROOT / "tools/keys" / dev, "dev")
+        elif val(f"{name}_KEY_FILE") == "y":
+            if not val(f"{name}_KEY_PATH"):
+                die(f"{PREFIX}{name}_KEY_PATH: no key file given")
+            path = _root_path(val(f"{name}_KEY_PATH"))
+            if not path.is_file():
+                die(f"{PREFIX}{name}_KEY_PATH: {path} not found")
+            out[name] = (path, "file")
+        elif val(f"{name}_KEY_GENERATE") == "y":
+            d = val("KEYS_DIR") or f"keys/{bdir.name if bdir else val('MCU_PART').lower()}"
+            out[name] = (_root_path(d) / gen, "generate")
+    return out
+
+
+def _keygen(path):
+    """A new EC P-256 private key (PKCS#8 PEM, like imgtool keygen); an existing
+    file is kept (also when a parallel build made it first). True when made."""
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import ec
+    if path.exists():
+        return False
+    path.parent.mkdir(parents=True, exist_ok=True)
+    pem = ec.generate_private_key(ec.SECP256R1()).private_bytes(
+        serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption())
+    tmp = path.with_name(f".{path.name}.{os.getpid()}")
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, "wb") as f:
+        f.write(pem)
+    try:
+        os.link(tmp, path)              # fails when the key exists: never replaced
+    except FileExistsError:
+        return False
+    finally:
+        tmp.unlink()
+    return True
+
+
 def write_header(kconf, path, inputs):
     vals = values(kconf)
     w = max(len(n) for n in vals) + len(PREFIX) + 1
@@ -224,17 +279,25 @@ def _write_if_changed(path, text):
 
 
 def generate(board, core, fragments, out_dir):
-    """.config, umcub_config.h and kconfig.deps (the Kconfig files read, for
-    CMake's reconfigure) in out_dir."""
+    """.config, umcub_config.h, keys.cmake (the key files, made when they are to
+    be generated) and kconfig.deps (the Kconfig files read, for CMake's
+    reconfigure) in out_dir. Returns notes for the user (layout, new keys)."""
     out = Path(out_dir)
     kconf, bdir, inputs = load(board, core, fragments, out)
     kconf.write_config(str(out / ".config"))
     write_header(kconf, out / HEADER, inputs)
+    notes = []
     if kconf.syms["LAYOUT_AUTO"].str_value == "y":
-        print("umcub: automatic layout: " + "; ".join(layout.describe(auto_layout(kconf))))
+        notes.append("automatic layout: " + "; ".join(layout.describe(auto_layout(kconf))))
+    cmake = ["# Generated from Kconfig: the keys of the configuration (umcub.kconfig.keys)"]
+    for name, (path, how) in keys(kconf, bdir).items():
+        if how == "generate" and _keygen(path):
+            notes.append(f"new {name.lower()} key {path} - keep it (and a backup): the devices accept only its images")
+        cmake.append(f'set(UMCUB_{"HOST" if name == "ADMIN" else name}_KEY "{path.as_posix()}")')
+    _write_if_changed(out / "keys.cmake", "\n".join(cmake) + "\n")
     deps = sorted({str(Path(f).resolve()) for f in kconf.kconfig_filenames} | {str(f) for f in inputs})
     _write_if_changed(out / "kconfig.deps", "\n".join(deps) + "\n")
-    return out / HEADER
+    return notes
 
 
 def _reload(out_dir):

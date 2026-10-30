@@ -666,6 +666,89 @@ config BOARD_REV
 
 endmenu
 
+menu "Keys"
+
+config KEYS_DIR
+	string "Directory of the generated keys"
+	default ""
+	help
+	  Where "Generate" keys are made: empty is keys/<board> in the umcub
+	  root (without a board keys/<part>); a relative path is taken from the
+	  umcub root. A key that exists there is used, never replaced: keep the
+	  directory (and a backup), the devices only accept what its keys sign.
+
+choice SIGNING_KEY_SOURCE
+	prompt "Image signing key"
+	depends on SIGNATURE_EC256
+	default SIGNING_KEY_GENERATE
+	help
+	  ECDSA-P256 key that signs the images; its public half is embedded in
+	  the bootloader.
+config SIGNING_KEY_GENERATE
+	bool "Generate (signing.pem in the keys directory)"
+config SIGNING_KEY_FILE
+	bool "Existing key file"
+config SIGNING_KEY_DEV
+	bool "Development key of the repository (insecure)"
+	help
+	  tools/keys/dev-ecdsa-p256.pem: public, for tests and examples only.
+endchoice
+
+config SIGNING_KEY_PATH
+	string "Image signing key file (PEM)"
+	depends on SIGNING_KEY_FILE
+	help
+	  Absolute, or relative to the umcub root.
+
+choice DEVICE_KEY_SOURCE
+	prompt "Device key"
+	depends on ENCRYPT_IMAGES || LINK_SECURE
+	default DEVICE_KEY_GENERATE
+	help
+	  EC P-256 private key of the device: decrypts encrypted images and is
+	  the static key of the SECURE link (key agreement). Images are
+	  encrypted for its public half.
+config DEVICE_KEY_GENERATE
+	bool "Generate (device.pem in the keys directory)"
+config DEVICE_KEY_FILE
+	bool "Existing key file"
+config DEVICE_KEY_DEV
+	bool "Development key of the repository (insecure)"
+	help
+	  tools/keys/dev-device-p256.pem: public, for tests and examples only.
+endchoice
+
+config DEVICE_KEY_PATH
+	string "Device key file (PEM)"
+	depends on DEVICE_KEY_FILE
+	help
+	  Absolute, or relative to the umcub root.
+
+choice ADMIN_KEY_SOURCE
+	prompt "Admin (host) key"
+	depends on LINK_SECURE
+	default ADMIN_KEY_GENERATE
+	help
+	  EC P-256 key of the hosts that may open a SECURE link session; only
+	  its public half is embedded in the bootloader.
+config ADMIN_KEY_GENERATE
+	bool "Generate (admin.pem in the keys directory)"
+config ADMIN_KEY_FILE
+	bool "Existing key file"
+config ADMIN_KEY_DEV
+	bool "Development key of the repository (insecure)"
+	help
+	  tools/keys/dev-admin-p256.pem: public, for tests and examples only.
+endchoice
+
+config ADMIN_KEY_PATH
+	string "Admin (host) key file (PEM)"
+	depends on ADMIN_KEY_FILE
+	help
+	  Absolute, or relative to the umcub root.
+
+endmenu
+
 menu "Misc"
 
 config LOG_LEVEL

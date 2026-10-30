@@ -173,7 +173,8 @@ endmacro()
 # A Kconfig board: .config and umcub_config.h from boards/<b>/defconfig and the
 # fragments of UMCUB_CONF (umcub.kconfig, `umcub config generate`), made again
 # when a Kconfig file, the defconfig, a fragment or the .config (menuconfig)
-# changes. Targets: menuconfig, savedefconfig.
+# changes. The keys come from the configuration too (generated ones are made in
+# keys/<board>). Targets: menuconfig, savedefconfig.
 macro(_umcub_kconfig board)
   set(UMCUB_CONFIG_DIR "${CMAKE_BINARY_DIR}/umcub_kconfig")
   find_program(_umcub_py NAMES python3 python HINTS "${UMCUB_ROOT}/.venv/bin" NO_CACHE)
@@ -201,6 +202,7 @@ macro(_umcub_kconfig board)
   if(_out)
     message(STATUS "${_out}")
   endif()
+  include("${UMCUB_CONFIG_DIR}/keys.cmake")     # UMCUB_SIGNING_KEY etc.: Kconfig "Keys", over the cache
   file(STRINGS "${UMCUB_CONFIG_DIR}/kconfig.deps" _deps)
   set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${_deps} "${UMCUB_CONFIG_DIR}/.config")
   if(NOT TARGET menuconfig)

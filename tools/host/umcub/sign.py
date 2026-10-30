@@ -165,7 +165,7 @@ def sign(cfg, input, image=0, slot=0, version="0.0.0", key=None, encrypt_key=Non
     args = ["sign", "--version", version, "--header-size", str(cfg["IMAGE_HEADER_SIZE"]), "--pad-header",
             "--slot-size", str(slot_size), "--align", str(align), "--max-align", str(align)]
     if cfg["SIGNATURE"] == 1:
-        key = Path(key) if key else DEV_KEY
+        key = Path(key) if key else cfg.keys.get("SIGNING", DEV_KEY)
         if key.resolve() == DEV_KEY.resolve():
             log("warning: signing with the development key from the repository")
         args += ["-k", str(key)]
@@ -204,7 +204,7 @@ def sign(cfg, input, image=0, slot=0, version="0.0.0", key=None, encrypt_key=Non
             log(f"{out}.bin / .hex: image {image} slot {slot} version {version} at 0x{slot_addr:08X} "
                 f"({len(img)} bytes of code, {MODES.get(mode, mode)})")
         if cfg["ENCRYPT_IMAGES"]:                   # for updates; the plain .signed.* is for programmers
-            dkey = Path(encrypt_key) if encrypt_key else DEV_DEVICE_KEY
+            dkey = Path(encrypt_key) if encrypt_key else cfg.keys.get("DEVICE", DEV_DEVICE_KEY)
             if dkey.resolve() == DEV_DEVICE_KEY.resolve():
                 log("warning: encrypting with the development device key from the repository")
             out = base.with_name(base.name + ".encrypted.bin")

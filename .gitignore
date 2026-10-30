@@ -9,3 +9,5 @@ __pycache__/
 .settings/
 # Local tooling (IDE settings)
 .vscode/
+# Generated keys (Kconfig "Keys": keys/<board>) - keep them out of git, back them up
+/keys/

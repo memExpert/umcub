@@ -92,7 +92,11 @@ def t_example(out, line):
     name, board, core, image = line.split("|")
     d = build(out, name, [], ROOT / "examples" / name)
     log = f"{d}.verify.log"
-    run([ROOT / ".venv/bin/imgtool", "verify", "-k", "tools/keys/dev-ecdsa-p256.pem", d / f"{name}.signed.bin"], log)
+    key = "tools/keys/dev-ecdsa-p256.pem"
+    kc = d / "umcub_kconfig/keys.cmake"         # Kconfig board: the key of its configuration
+    if kc.is_file():
+        key = re.search(r'set\(UMCUB_SIGNING_KEY "([^"]*)"\)', kc.read_text()).group(1)
+    run([ROOT / ".venv/bin/imgtool", "verify", "-k", key, d / f"{name}.signed.bin"], log)
     version = re.search(r"Image version: ([0-9.]+)\+", Path(log).read_text()).group(1)
     # CMake signs the ELF with `umcub image sign`; its ELF loader must see what
     # objcopy sees: signing the objcopy binary gives the same image.

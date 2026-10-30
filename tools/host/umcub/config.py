@@ -44,10 +44,11 @@ class Config:
         if not (bdir / "umcub_config.h").is_file():
             bdir = ROOT / "boards" / board
         self._tmp = None
+        self.notes = []                 # Kconfig: for the user (layout, new keys)
         if not (bdir / "umcub_config.h").is_file() and kconfig.board_dir(board):
             # Kconfig board: its umcub_config.h from the defconfig + fragments
             self._tmp = tempfile.TemporaryDirectory()
-            kconfig.generate(board, core, conf, self._tmp.name)
+            self.notes = kconfig.generate(board, core, conf, self._tmp.name)
             bdir = kconfig.board_dir(board)
             self.config_dir = Path(self._tmp.name)
         elif not (bdir / "umcub_config.h").is_file():
@@ -55,6 +56,10 @@ class Config:
         else:
             self.config_dir = bdir.resolve()
         self.board_dir = bdir.resolve()
+        # Kconfig: the keys of the configuration (SIGNING, DEVICE, HOST), the defaults of signing
+        kc = self.config_dir / "keys.cmake"
+        self.keys = {m.group(1): Path(m.group(2)) for m in
+                     re.finditer(r'set\(UMCUB_(\w+)_KEY "([^"]*)"\)', kc.read_text())} if kc.is_file() else {}
         self.cc = find_cc(cc)
         self.defs = []
         if core:

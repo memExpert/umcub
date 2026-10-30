@@ -46,7 +46,8 @@ Protect the device key like the SECURE link: RDP on, see [umcub link](link.md#li
 
 `tools/keys/dev-ecdsa-p256.pem` is a **development key** stored in the repository — anybody can sign images with it.
 For a product generate your own (`imgtool keygen -t ecdsa-p256 -k prod.pem`) and pass `-DUMCUB_SIGNING_KEY=prod.pem`
-when building the bootloader and the applications. Also write-protect the bootloader sector (WRP) and enable RDP.
+when building the bootloader and the applications (Kconfig boards generate their own keys in `keys/<board>/`,
+see [Kconfig boards](configuration.md#kconfig-boards)). Also write-protect the bootloader sector (WRP) and enable RDP.
 For transports on a shared bus see the SECURE mode of the [umcub link](link.md)
 and its own keys.
 
