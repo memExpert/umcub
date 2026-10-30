@@ -174,7 +174,8 @@ endmacro()
 # fragments of UMCUB_CONF (umcub.kconfig, `umcub config generate`), made again
 # when a Kconfig file, the defconfig, a fragment or the .config (menuconfig)
 # changes. The keys come from the configuration too (generated ones are made in
-# keys/<board>). Targets: menuconfig, savedefconfig.
+# keys/<board>), and the slots' linker fragments (umcub_app_img<n>_slot<m>.ld)
+# are written next to umcub_config.h. Targets: menuconfig, savedefconfig.
 macro(_umcub_kconfig board)
   set(UMCUB_CONFIG_DIR "${CMAKE_BINARY_DIR}/umcub_kconfig")
   find_program(_umcub_py NAMES python3 python HINTS "${UMCUB_ROOT}/.venv/bin" NO_CACHE)
@@ -193,7 +194,7 @@ macro(_umcub_kconfig board)
     set(_board "${UMCUB_BOARD_DIR}")
   endif()
   execute_process(COMMAND ${_umcub_config_cmd} generate --board "${_board}" --core "${UMCUB_CORE}"
-                          ${_conf_args} --out "${UMCUB_CONFIG_DIR}"
+                          ${_conf_args} --out "${UMCUB_CONFIG_DIR}" --cc "${CMAKE_C_COMPILER}"
                   OUTPUT_VARIABLE _out ERROR_VARIABLE _err RESULT_VARIABLE _rc)
   if(NOT _rc EQUAL 0)
     message(FATAL_ERROR "umcub: ${_err}${_out}")

@@ -130,7 +130,7 @@ def load(board, core="", fragments=(), out_dir=None):
     stamp = _stamp(bdir, core, inputs)
     state = _state(out_dir)
     if dot and dot.is_file() and state.get("stamp") == stamp:
-        kconf.load_config(str(dot))
+        _load_dot(kconf, dot)
     else:
         for i, f in enumerate(inputs):
             kconf.load_config(str(f), replace=(i == 0))
@@ -141,6 +141,28 @@ def load(board, core="", fragments=(), out_dir=None):
             {"board": str(bdir) if bdir else "", "core": core or "", "fragments": [str(f) for f in inputs[1:]],
              "stamp": stamp}, indent=1))
     return kconf, bdir, inputs
+
+
+def _load_dot(kconf, dot):
+    """A full .config, without what does not need loading: values marked
+    "# default:" and the unselected members of choices. esp-kconfiglib takes
+    minutes for the full file (hundreds of part and pin choice members), seconds
+    for the rest - same result."""
+    keep, default = [], False
+    for line in Path(dot).read_text().splitlines():
+        if line.strip() == "# default:":
+            default = True
+            continue
+        m = re.fullmatch(rf"# {PREFIX}(\w+) is not set", line.strip())
+        if not default and not (m and m.group(1) in kconf.syms and kconf.syms[m.group(1)].choice is not None):
+            keep.append(line)
+        default = False
+    tmp = Path(dot).with_name(".config.load")
+    tmp.write_text("\n".join(keep) + "\n")
+    try:
+        kconf.load_config(str(tmp))
+    finally:
+        tmp.unlink()
 
 
 def _state(out_dir):
@@ -313,7 +335,7 @@ def menuconfig(out_dir):
     os.environ["KCONFIG_CONFIG"] = str(Path(out_dir) / ".config")
     from esp_menuconfig import menuconfig as run
     if run(kconf):
-        kconf.load_config(str(Path(out_dir) / ".config"))
+        _load_dot(kconf, Path(out_dir) / ".config")
         write_header(kconf, Path(out_dir) / HEADER, inputs)
 
 

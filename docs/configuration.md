@@ -109,6 +109,10 @@ cmake --build build/bp --target savedefconfig    # build/bp/defconfig: only what
   IPv4 addresses as `"192.168.1.50"`; pins of board options (`boards/<b>/Kconfig`) as strings, `"PA4"` or `"PA5:5"`
   with the alternate function.
 - Signing for such a board: `umcub image sign --board blackpill_f411ce [--conf <fragment>]...`.
+- Linker fragments: next to `umcub_config.h` the build tree has `umcub_app_img<n>_slot<m>.ld`, the MEMORY block of
+  every slot (`umcub image ld` writes the same for any board). Applications built with `umcub_app_linker_script()`
+  include it with the family's `port/<fam>/ld/app_<core>_sections.ld`; others `INCLUDE` it in their own script
+  ([application](application.md)).
 - Keys (menu *Keys*): the signing key, the device key (encrypted images, SECURE link) and the admin key (SECURE
   link) each come from `..._KEY_GENERATE` (default), `..._KEY_FILE` + `..._KEY_PATH`, or `..._KEY_DEV` (the
   public development key of `tools/keys/`, for tests). Generated keys are made at configure time in `keys/<board>/`

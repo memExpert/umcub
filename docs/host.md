@@ -63,6 +63,7 @@ CMake embeds the umcub link keys with it. These commands need neither a device n
 
 ```sh
 umcub image info --board nucleo_h755zi_q --core cm7          # where to link the application, IDE settings
+umcub image ld --board nucleo_h755zi_q --core cm7 -o ld/      # MEMORY blocks of the slots (INCLUDE in your .ld)
 umcub image sign --board nucleo_h755zi_q --core cm7 --version 1.2.3 app.elf   # -> app.signed.bin / .hex
 umcub keys c --device device.pem --admin admin.pem -o umcub_link_keys.c        # link SECURE keys (bootloader)
 umcub keys pub admin.pem                                     # public key as hex (X || Y)

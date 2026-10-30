@@ -2,7 +2,7 @@
 They need no device and none of the transport libraries."""
 import sys
 
-from . import kconfig, keys
+from . import kconfig, keys, linker
 from .config import MODES, ROOT, Config
 from .sign import DEV_DEVICE_KEY, DEV_KEY, sign
 
@@ -14,6 +14,12 @@ def _log(text):
 def cmd_sign(cfg, a):
     sign(cfg, a.input, a.image, a.slot, a.version, a.key, a.encrypt_key, a.confirm, a.pad, a.depends, a.output,
          a.imgtool, log=(lambda t: None if a.quiet and t.startswith("warning") else _log(t)))
+    return 0
+
+
+def cmd_ld(cfg, a):
+    for path in linker.write(cfg, a.out, a.core or ""):
+        print(path)
     return 0
 
 
@@ -44,6 +50,7 @@ def cmd_info(cfg, a):
 
 def add_image_arguments(sub):
     for name, what in (("info", "where to link the application, what RAM to keep free, IDE settings"),
+                       ("ld", "GNU ld MEMORY blocks of the slots (INCLUDE umcub_app_img<n>_slot<m>.ld)"),
                        ("sign", "sign an ELF/AXF, Intel HEX or raw .bin -> <name>.signed.bin + .signed.hex")):
         p = sub.add_parser(name, help=what)
         p.add_argument("--board", required=True,
@@ -53,6 +60,8 @@ def add_image_arguments(sub):
         p.add_argument("--post", help="UMCUB_CONFIG_POST overlay")
         p.add_argument("--conf", action="append", help="Kconfig board: configuration fragment (repeatable)")
         p.add_argument("--cc", help="C compiler used as preprocessor (arm-none-eabi-gcc, armclang, gcc)")
+        if name == "ld":
+            p.add_argument("-o", "--out", default=".", help="output directory (default: current)")
         if name == "sign":
             p.add_argument("input", help="ELF/AXF, Intel HEX or raw .bin linked for the slot")
             p.add_argument("--image", type=int, default=0)
@@ -74,6 +83,8 @@ def cmd_config(a):
     if a.sub == "generate":
         for note in kconfig.generate(a.board, a.core, a.conf or (), a.out):
             print(f"umcub: {note}")
+        if a.cc:                        # the slots' linker fragments (read through the preprocessor)
+            linker.write(Config(a.out, a.core, None, None, a.cc), a.out, a.core)
     elif a.sub == "menu":
         kconfig.menuconfig(a.out)
     else:
@@ -88,6 +99,7 @@ def add_config_arguments(sub):
     p.add_argument("--core", default="", help="dual-core parts: cm7 or cm4")
     p.add_argument("--conf", action="append", help="configuration fragment (repeatable, applied in order)")
     p.add_argument("--out", required=True, help="output directory (the build tree's umcub_kconfig)")
+    p.add_argument("--cc", help="C compiler as preprocessor: also the slots' linker fragments (umcub image ld)")
     p = sub.add_parser("menu", help="menuconfig on a build tree's configuration")
     p.add_argument("--out", required=True, help="the build tree's umcub_kconfig directory")
     p = sub.add_parser("save", help="a build tree's configuration as a minimal defconfig")
@@ -112,7 +124,7 @@ def run(a):
         for note in cfg.notes:
             if note.startswith("new "):
                 _log(f"umcub: {note}")
-        return (cmd_sign if a.sub == "sign" else cmd_info)(cfg, a)
+        return {"sign": cmd_sign, "ld": cmd_ld, "info": cmd_info}[a.sub](cfg, a)
     if a.cmd == "config":
         return cmd_config(a)
     if a.sub == "pub":

@@ -17,7 +17,7 @@ use the steps it is made of:
 
 ```cmake
 target_link_libraries(app PRIVATE umcub::app)
-umcub_app_linker_script(app IMAGE 0)        # or your own script with UMCUB_APP_FLASH_ORIGIN_0_0
+umcub_app_linker_script(app IMAGE 0)        # or your own script: INCLUDE umcub_app_img0_slot0.ld (Kconfig boards)
 umcub_sign_image(app VERSION 1.2.3)
 ```
 
@@ -91,7 +91,13 @@ image 0 (CM7 application): slot 0x08020000 size 0x60000
 keep free: 0x3800FF00..0x38010000 (bootloader handoff, kept over reset)
 ```
 
-- STM32CubeIDE: change the `FLASH` line in the project's `STM32xxxx_FLASH.ld`.
+- STM32CubeIDE: change the `FLASH` line in the project's `STM32xxxx_FLASH.ld`. Or, so that the script follows
+  the bootloader configuration, replace its whole `MEMORY { ... }` block with `INCLUDE umcub_app_img0_slot0.ld`
+  and add the fragment's directory to the library paths (`-L`): `umcub image ld --board <b> [--core c] -o <dir>`
+  writes one fragment per image and slot (slot 1 in direct-xip), with CubeMX's region names (H7 CM7: `FLASH`,
+  `DTCMRAM`, `RAM_D1`, `RAM_D2`, `RAM_D3`, `ITCMRAM`; otherwise `FLASH`, `RAM`), the handoff area left out. Kconfig
+  boards have them in the bootloader's build tree, `build/<x>/umcub_kconfig/`. Signing refuses an image whose
+  vector table is not at the slot's `ORIGIN`, so a stale script does not go unnoticed.
 - Keil: *Options for Target → Target*: IROM1 start/size as printed, IROM2 unchecked (or the same region in your
   scatter file).
 - Both: do not place variables in the handoff area. CubeMX projects do not use SRAM4 by default.
