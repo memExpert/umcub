@@ -26,6 +26,11 @@ STATE = "kconfig.json"          # how the build tree's .config was made
 HEADER = "umcub_config.h"
 IP_NAMES = {"ETH_IP", "ETH_NETMASK"}
 RAW_NAMES = {"MCU"}             # C tokens, not strings
+# Kconfig helpers that stay out of the header: what the part has, pin sets,
+# lines and families (port/kconfig/*.kconfig, port/Kconfig, Kconfig).
+INTERNAL = re.compile(r"(PIN|PINSET|HAS|FAMILY)_\w+|MCU_STM32\w+|BUILD_CORE|CORE_CM4|MCU_DUALCORE|LINK_SECURE")
+# The RMII pin menus (port/kconfig/eth_rmii.kconfig) -> UMCUB_CFG_ETH_RMII_PINS, in this order.
+RMII = ["REF_CLK", "MDIO", "CRS_DV", "MDC", "RXD0", "RXD1", "TX_EN", "TXD0", "TXD1"]
 
 
 def die(msg):
@@ -157,7 +162,7 @@ def values(kconf):
     import esp_kconfiglib.core as k
     out = {}
     for sym in kconf.unique_defined_syms:
-        if sym.choice is not None:
+        if sym.choice is not None or INTERNAL.fullmatch(sym.name):
             continue
         v = sym.str_value
         if k.expr_value(sym.direct_dep) == 0:
@@ -179,6 +184,9 @@ def values(kconf):
                 out[sym.name] = _ip(sym.name, v)
             else:
                 out[sym.name] = json.dumps(v)
+    rmii = [out.pop(f"ETH_RMII_{s}_PIN") for s in RMII if f"ETH_RMII_{s}_PIN" in out]
+    if rmii:
+        out["ETH_RMII_PINS"] = ", ".join(rmii)
     return out
 
 

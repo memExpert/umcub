@@ -93,9 +93,14 @@ cmake --build build/bp --target savedefconfig    # build/bp/defconfig: only what
   effect (unknown option, dependency not met, out of range) stops the configuration.
 - The build tree keeps its `.config` (menuconfig changes) as long as the defconfig and the fragments stay the same;
   when one of them changes, `.config` is made again from them.
-- Values: bools `=y` / `# UMCUB_CFG_X is not set`; pins as strings, `"PA9"` (the alternate function filled in from
-  ST's pin data) or `"PD12:7"`; IPv4 addresses as `"192.168.1.50"`; choices by their member
-  (`UMCUB_CFG_UPGRADE_MODE_SWAP_OFFSET=y`).
+- The part is chosen by its part number (`UMCUB_CFG_PART_STM32F411CEUX=y`: package, flash and RAM follow). The
+  menus then offer only what that part has: its USART instances, USB / CAN / Ethernet where the port drives them,
+  and for every pin option only the pins that carry the signal on that package (`UMCUB_CFG_UART_TX_PA9=y`; the
+  alternate function is filled in). The part list and the pin menus are generated from ST's pin data into
+  `port/kconfig/` by `tools/build/gen_kconfig.py`.
+- Values: bools `=y` / `# UMCUB_CFG_X is not set`; choices by their member (`UMCUB_CFG_UPGRADE_MODE_SWAP_OFFSET=y`);
+  IPv4 addresses as `"192.168.1.50"`; pins of board options (`boards/<b>/Kconfig`) as strings, `"PA4"` or `"PA5:5"`
+  with the alternate function.
 - Signing for such a board: `umcub image sign --board blackpill_f411ce [--conf <fragment>]...`.
 
 ## Bootloader size

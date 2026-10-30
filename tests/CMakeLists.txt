@@ -26,6 +26,7 @@ macro(_umcub_test name)
 endmacro()
 
 _umcub_test(layers ${RUN} check layers -- "${UMCUB_PY}" tools/build/check_layers.py)
+_umcub_test(kconfig-generated ${RUN} check kconfig-generated -- "${UMCUB_PY}" tools/build/gen_kconfig.py --check)
 
 # Bootloader configurations: configure, build, no warnings.
 file(STRINGS matrix/configs.txt _lines REGEX "^[^#]")

@@ -256,10 +256,9 @@ config ENTRY_ON_NO_IMAGE
 
 config ENTRY_GPIO
 	bool "Button / strap pin held at reset"
-config ENTRY_GPIO_PIN
-	string "Entry pin"
-	depends on ENTRY_GPIO
-	default "PA0"
+if ENTRY_GPIO
+source "$(UMCUB_ROOT)/port/kconfig/entry_gpio.kconfig"
+endif
 config ENTRY_GPIO_ACTIVE
 	bool "Entry pin active high"
 	depends on ENTRY_GPIO
@@ -301,10 +300,9 @@ config STATUS_LED
 	help
 	  Slow blink: in the bootloader; fast flicker: data; N blinks + pause:
 	  transport N did not come up. About 200 bytes.
-config STATUS_LED_PIN
-	string "LED pin"
-	depends on STATUS_LED
-	default "PC13"
+if STATUS_LED
+source "$(UMCUB_ROOT)/port/kconfig/status_led.kconfig"
+endif
 config STATUS_LED_ACTIVE
 	bool "LED lit high"
 	depends on STATUS_LED
@@ -394,24 +392,13 @@ menu "Transports"
 config TRANSPORT_UART
 	bool "UART"
 if TRANSPORT_UART
-config UART_INSTANCE
-	int "USART number"
-	range 1 10
-	default 1
+source "$(UMCUB_ROOT)/port/kconfig/uart_instance.kconfig"
 config UART_BAUD
 	int "Baud rate"
 	default 115200
-config UART_TX_PIN
-	string "TX pin"
-config UART_RX_PIN
-	string "RX pin"
-config UART_DE_PIN
-	string "RS485 driver-enable pin"
-	default ""
-	help
-	  DE (with /RE) of the transceiver, empty = plain UART. STM32H7: the
-	  USART's DE pin with its AF (PD12:7) for hardware DE timing; otherwise
-	  switched by software.
+source "$(UMCUB_ROOT)/port/kconfig/uart_tx.kconfig"
+source "$(UMCUB_ROOT)/port/kconfig/uart_rx.kconfig"
+source "$(UMCUB_ROOT)/port/kconfig/uart_de.kconfig"
 config UART_DE_ACTIVE
 	bool "DE active high"
 	default y
@@ -425,8 +412,10 @@ endif
 
 config TRANSPORT_USB_CDC
 	bool "USB CDC (SMP)"
+	depends on HAS_USB
 config TRANSPORT_USB_DFU
 	bool "USB DFU"
+	depends on HAS_USB
 if TRANSPORT_USB_CDC || TRANSPORT_USB_DFU
 config USB_VID
 	hex "USB vendor id"
@@ -453,6 +442,7 @@ choice CAN_DRIVER_CHOICE
 	default CAN_DRIVER_PORT
 config CAN_DRIVER_PORT
 	bool "On-chip (FDCAN / bxCAN)"
+	depends on HAS_CAN
 config CAN_DRIVER_BOARD
 	bool "External, driver in the board code"
 endchoice
@@ -461,7 +451,7 @@ config CAN_DRIVER
 	default 1 if CAN_DRIVER_BOARD
 	default 0
 config CAN_INSTANCE
-	int "CAN instance"
+	int
 	default 1
 config CAN_BITRATE
 	int "Bit rate"
@@ -480,12 +470,10 @@ config CAN_TX_ID
 	default 0x7C8
 config CAN_EXT_ID
 	bool "29-bit ids"
-config CAN_TX_PIN
-	string "TX pin"
-	depends on CAN_DRIVER_PORT
-config CAN_RX_PIN
-	string "RX pin"
-	depends on CAN_DRIVER_PORT
+if CAN_DRIVER_PORT
+source "$(UMCUB_ROOT)/port/kconfig/can_tx.kconfig"
+source "$(UMCUB_ROOT)/port/kconfig/can_rx.kconfig"
+endif
 config CAN_LOOPBACK
 	bool "Internal loopback (self-test)"
 endif
@@ -498,6 +486,7 @@ choice ETH_DRIVER_CHOICE
 	default ETH_DRIVER_PORT
 config ETH_DRIVER_PORT
 	bool "On-chip MAC + RMII PHY"
+	depends on HAS_ETH
 config ETH_DRIVER_BOARD
 	bool "External, driver in the board code"
 endchoice
@@ -528,11 +517,11 @@ config ETH_PHY_ADDR
 	int "PHY address"
 	depends on ETH_DRIVER_PORT
 	default 0
-config ETH_RMII_PINS
-	string "RMII pins"
-	depends on ETH_DRIVER_PORT
-	help
-	  Space separated: "PA1 PA2 PA7 PC1 PC4 PC5 PG11 PG13 PB13".
+if ETH_DRIVER_PORT
+menu "RMII pins"
+source "$(UMCUB_ROOT)/port/kconfig/eth_rmii.kconfig"
+endmenu
+endif
 endif
 
 config TRANSPORT_USER

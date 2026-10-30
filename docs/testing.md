@@ -14,6 +14,7 @@ tests/host/link_e2e.py build/matrix/host   # simulated devices: umcub link bus, 
 tests/tools/check_pins_test.py              # pin check: right / wrong pins and AF numbers, AF filled in, packages
 tools/build/check_docs.py                   # README and docs/ still match the repository (size tables, links, ...)
 tools/build/check_config.py build/matrix/*/ # CMake and umcub/config.py read the same values and slot windows
+tools/build/gen_kconfig.py --check            # port/kconfig/ (part and pin menus) matches ST's pin data
 ```
 
 The matrix is a CTest project (`tests/CMakeLists.txt`): one test per bootloader configuration in
