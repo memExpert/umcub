@@ -18,7 +18,8 @@ tools/build/gen_kconfig.py --check            # port/kconfig/ (part and pin menu
 ```
 
 The matrix is a CTest project (`tests/CMakeLists.txt`): one test per bootloader configuration in
-`tests/matrix/configs.txt` (`name|core|build type|pre overlay|post overlay|board`), per CMake preset and per example
+`tests/matrix/configs.txt` (`name|core|build type|pre overlay|post overlay|board`; for Kconfig boards the post
+column holds `.conf` fragments, comma-separated), per CMake preset and per example
 application, plus the checks (layers, pin check, IDE library compile, CMake and host tools reading the same
 configuration), the host tests and the link e2e. `tests/matrix/run.py` runs one test; logs are
 `build/matrix/<name>.*.log`, build trees `build/matrix/<name>/`; `ctest -R`, `--rerun-failed` and `--output-junit`
@@ -58,7 +59,7 @@ SysTick adds, and whether the first block after start-up repeats. Blue Pill at r
 block, SysTick nothing.
 
 Hardware tests: `tests/hw/powerfail_test.py` resets the MCU in the middle of the K-th flash operation (build with
-`tests/configs/feature/fault_inject.h`: `UMCUB_CFG_TEST_FAULT_INJECT 1`, test only) and checks that an interrupted upgrade or revert (swap modes) or an
+`tests/configs/feature/fault_inject.h`, Kconfig boards `fault_inject.conf`: `UMCUB_CFG_TEST_FAULT_INJECT`, test only) and checks that an interrupted upgrade or revert (swap modes) or an
 interrupted overwrite copy always completes. The images are signed with `umcub image sign` for the
 bootloader's board and overlays; the fault record (`UMCUB_CFG_TEST_FAULT_ADDR`, a RAM word that survives a reset) and
 the handoff area come from that configuration too. A run ends when the bootloader publishes the handoff (right before

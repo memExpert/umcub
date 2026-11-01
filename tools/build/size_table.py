@@ -26,7 +26,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 BOARD = "nucleo_h755zi_q"
 
-# name, core, PRE overlay, extra POST lines, board
+# name, core, PRE overlay, extra POST lines (Kconfig boards: fragment lines), board
 CHIPS = [
     ("STM32H755 CM7 (2 images, SINGLE_BOOT)", "cm7", None, ""),
     # The board gives the CM4 instance only CAN; borrow the CM7 pins to size the rest
@@ -44,10 +44,10 @@ CHIPS = [
     # Cortex-M3, sized in the 44 KiB bootloader region of the USB layout; no
     # CAN FD and no Ethernet on this part; "all on" without CAN (shares its
     # SRAM with USB on the F103).
-    ("STM32F103 (Blue Pill, overwrite)", "", None, f'#include "{ROOT}/boards/bluepill_f103c8/variants/usb.h"\n',
+    ("STM32F103 (Blue Pill, overwrite)", "", None, (ROOT / "boards/bluepill_f103c8/variants/usb.conf").read_text(),
      "bluepill_f103c8", {"CAN_FD", "TRANSPORT_ETH"}, {"TRANSPORT_CAN"}),
     # Cortex-M4, in the 48 KiB region of the USB layout; no CAN and no Ethernet on the F411.
-    ("STM32F411 (Black Pill, overwrite)", "cm4", None, "#undef UMCUB_CFG_BOOT_SIZE\n#define UMCUB_CFG_BOOT_SIZE UMCUB_KB(48)\n",
+    ("STM32F411 (Black Pill, overwrite)", "cm4", None, "UMCUB_CFG_BOOT_SIZE=0xC000\n",
      "blackpill_f411ce", {"TRANSPORT_CAN", "CAN_FD", "TRANSPORT_ETH"}, set()),
 ]
 
@@ -128,6 +128,15 @@ DOC = ROOT / "docs/size.md"
 BEGIN, END = "<!-- size-table:begin -->", "<!-- size-table:end -->"
 
 
+def _conf(name, value):
+    """A setting of OFF / VARIANTS as Kconfig fragment lines."""
+    if name == "UART_LINK":                     # a choice: plain is its default
+        return f"UMCUB_CFG_UART_LINK_{('PLAIN', 'ADDRESSED', 'SECURE')[value]}=y\n" if value else ""
+    if name == "LOG_LEVEL":
+        return f"UMCUB_CFG_LOG_LEVEL={value}\n"
+    return f"UMCUB_CFG_{name}=y\n" if value else f"# UMCUB_CFG_{name} is not set\n"
+
+
 def build(out, ci, chip, vi, variant):
     _, core, pre, extra = chip[:4]
     board = chip[4] if len(chip) > 4 else BOARD
@@ -141,16 +150,22 @@ def build(out, ci, chip, vi, variant):
         return None, None                       # not available on this family
     d = out / f"c{ci}_v{vi}"
     d.mkdir(parents=True, exist_ok=True)
-    post = d / "post.h"
-    lines = [extra]
-    for k, v in {**OFF, **settings}.items():
-        lines.append(f"#undef UMCUB_CFG_{k}\n#define UMCUB_CFG_{k} {v}")
-    post.write_text("\n".join(lines) + "\n")
     args = ["cmake", "-S", str(ROOT), "-B", str(d / "b"), "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Release",
-            f"-DUMCUB_BOARD={board}", f"-DUMCUB_CORE={core}", f"-DUMCUB_CONFIG_POST={post}",
-            f"-DUMCUB_LTO={'ON' if lto else 'OFF'}"]
-    if pre:
-        args.append(f"-DUMCUB_CONFIG_PRE={ROOT / pre}")
+            f"-DUMCUB_BOARD={board}", f"-DUMCUB_CORE={core}", f"-DUMCUB_LTO={'ON' if lto else 'OFF'}"]
+    if (ROOT / "boards" / board / "defconfig").is_file():
+        conf = d / "size.conf"                  # Kconfig board: a fragment (derived values follow)
+        conf.write_text(extra + "".join(_conf(k, v) for k, v in {**OFF, **settings}.items()))
+        args += [f"-DUMCUB_CONF={conf}", "-DUMCUB_CONFIG_POST="]
+        (d / "b/umcub_kconfig/.config").unlink(missing_ok=True)    # from the inputs every time
+    else:
+        post = d / "post.h"
+        lines = [extra]
+        for k, v in {**OFF, **settings}.items():
+            lines.append(f"#undef UMCUB_CFG_{k}\n#define UMCUB_CFG_{k} {v}")
+        post.write_text("\n".join(lines) + "\n")
+        args += [f"-DUMCUB_CONFIG_POST={post}", "-DUMCUB_CONF="]
+    # every overlay variable given, also empty: a reused build tree keeps its cache
+    args.append(f"-DUMCUB_CONFIG_PRE={ROOT / pre if pre else ''}")
     log = d / "build.log"
     with open(log, "w") as f:
         ok = subprocess.run(args, stdout=f, stderr=subprocess.STDOUT).returncode == 0 and \

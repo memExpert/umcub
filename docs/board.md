@@ -153,16 +153,17 @@ bootloader for both cores (CM7 and CM4 images), all transports, log on the ST-LI
 115200), recovery by B1 held during reset. Before the first start the option bytes must let the CM4 wait in the
 bootloader: `tools/hw/h755_option_bytes.py single` (see [Configuration](configuration.md#dual-core-h745h755h747h757)).
 
-**Blue Pill** ([`boards/bluepill_f103c8/umcub_config.h`](../boards/bluepill_f103c8/umcub_config.h)): STM32F103C8T6,
-SMP over USART1 (PA9 TX, PA10 RX, the pins of the ROM bootloader), overwrite mode, bootloader 32 KiB + two 16 KiB
-slots.
+**Blue Pill** ([`boards/bluepill_f103c8/defconfig`](../boards/bluepill_f103c8/defconfig); configured with Kconfig,
+see [Kconfig boards](configuration.md#kconfig-boards)): STM32F103C8T6, SMP over USART1 (PA9 TX, PA10 RX, the pins of
+the ROM bootloader), overwrite mode, bootloader 32 KiB + two 16 KiB slots (automatic layout: a fragment that changes
+`UMCUB_CFG_BOOT_SIZE` moves the slots with it).
 
 There is no user button. Recovery mode starts on a request from the application (key `b` in the example), when there
 is no valid image, or when `b` arrives within 300 ms after reset (`UMCUB_CFG_ENTRY_WAIT_MS`).
 `--line-buffers 4` matches `UMCUB_CFG_SMP_MTU` = 512 (20 KiB SRAM).
 
-USB (CDC with SMP and DFU, micro-USB connector) needs more room: preset `bluepill-usb` (overlay
-`boards/bluepill_f103c8/variants/usb.h`: bootloader 44 KiB, two 10 KiB slots; the example in the same tree uses the same
+USB (CDC with SMP and DFU, micro-USB connector) needs more room: preset `bluepill-usb` (fragment
+`boards/bluepill_f103c8/variants/usb.conf`: bootloader 44 KiB, two 10 KiB slots; the example in the same tree uses the same
 layout):
 
 ```sh
@@ -175,12 +176,12 @@ The F1 has no switchable D+ pull-up and the Blue Pill ties D+ to 3.3 V, so the b
 powered, and a host would try to enumerate a device that does not answer. The STM32F1 port therefore drives D+ low
 (detached) from reset on, and whenever its USB is not running. That includes the application: an application that
 uses USB itself must make PA12 an input before enabling its USB peripheral. The USB preset has no wait window
-(`UMCUB_CFG_ENTRY_WAIT_MS 0`): USB would attach and vanish again on every boot (see the option in the template).
+(`UMCUB_CFG_ENTRY_WAIT_MS=0`): USB would attach and vanish again on every boot (see the option in the template).
 While a debugger holds the MCU in reset (`mode=UR`) D+ floats high again: flash with `mode=HOTPLUG`, or with the
 USB cable unplugged.
 
-CAN (bxCAN, classic CAN, ISO-TP like on the H7) on PB9 TX / PB8 RX with an external transceiver: overlay
-`boards/bluepill_f103c8/variants/can.h` (+2.4 K, still in the 32 KiB region), host side `umcub -d can:...` ([host tool](host.md)). Not together with
+CAN (bxCAN, classic CAN, ISO-TP like on the H7) on PB9 TX / PB8 RX with an external transceiver: fragment
+`boards/bluepill_f103c8/variants/can.conf` (+2.4 K, still in the 32 KiB region), host side `umcub -d can:...` ([host tool](host.md)). Not together with
 USB: on the F103 both share the same 512 bytes of SRAM (the build refuses it).
 
 **Black Pill** ([`boards/blackpill_f411ce/defconfig`](../boards/blackpill_f411ce/defconfig), WeAct; configured

@@ -334,8 +334,7 @@ config SMP_ENABLE
 	  (about 6 K).
 
 config SMP_MTU
-	int "Largest SMP packet"
-	depends on SMP_ENABLE
+	int "Largest packet (SMP, lite upload, link, CAN)"
 	range 512 4096
 	default 1472 if TRANSPORT_ETH
 	default 1024

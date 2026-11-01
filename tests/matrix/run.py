@@ -50,6 +50,9 @@ def overlay(v):
 
 def build(out, name, args, src=ROOT):
     d = out / name
+    # Kconfig: from the defconfig + fragments every time (a reused tree keeps its
+    # .config otherwise, also across changes of the Kconfig files)
+    (d / "umcub_kconfig/.config").unlink(missing_ok=True)
     run(["cmake", "-S", src, "-B", d, "-G", "Ninja"] + args, f"{d}.configure.log")
     run(["cmake", "--build", d], f"{d}.build.log")
     no_warnings(f"{d}.build.log")
@@ -63,13 +66,11 @@ def t_config(out, line):
         board = ""
     elif "/" in board:
         board = str(ROOT / board)
-    args = [f"-DCMAKE_BUILD_TYPE={btype}", f"-DUMCUB_BOARD={board}", f"-DUMCUB_CORE={core}"]
-    if pre:
-        args.append(f"-DUMCUB_CONFIG_PRE={overlay(pre)}")
-    if post.endswith(".conf"):
-        args.append("-DUMCUB_CONF=" + ";".join(overlay(f) for f in post.split(",")))
-    elif post:
-        args.append(f"-DUMCUB_CONFIG_POST={overlay(post)}")
+    # every overlay variable given, also empty: a reused build tree keeps its cache
+    conf = ";".join(overlay(f) for f in post.split(",")) if post.endswith(".conf") else ""
+    args = [f"-DCMAKE_BUILD_TYPE={btype}", f"-DUMCUB_BOARD={board}", f"-DUMCUB_CORE={core}",
+            f"-DUMCUB_CONFIG_PRE={overlay(pre) if pre else ''}", f"-DUMCUB_CONF={conf}",
+            f"-DUMCUB_CONFIG_POST={overlay(post) if post and not conf else ''}"]
     d = build(out, name, args)
     if name == "custom-drivers" and re.search(r"fdcan\.c|/eth\.c", (d / "build.ninja").read_text()):
         raise Failed("the family FDCAN / ETH driver is built next to the board's")
@@ -78,6 +79,7 @@ def t_config(out, line):
 
 def t_preset(out, preset):
     d = out / f"preset-{preset}"
+    (d / "umcub_kconfig/.config").unlink(missing_ok=True)       # as in build()
     run(["cmake", "--preset", preset, "-B", d], f"{d}.configure.log")
     run(["cmake", "--build", d], f"{d}.build.log")
     no_warnings(f"{d}.build.log")

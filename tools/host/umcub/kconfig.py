@@ -88,20 +88,39 @@ def _assignments(path):
 def _check_applied(kconf, inputs):
     """Every assignment must have taken effect: a symbol that does not exist or a
     value its dependencies or range do not allow is an error, not a silent default.
-    A later assignment overrides an earlier one, of the symbol or of its choice."""
-    last, errs = {}, []
-    for f in inputs:
+    A later assignment overrides an earlier one, of the symbol or of its choice,
+    also by switching off what it depends on (a fragment that turns SMP off
+    drops the defconfig's SMP_MTU)."""
+    import esp_kconfiglib.core as k
+    last, later, errs = {}, {}, []
+    for i, f in enumerate(inputs):
         for n, name, v in _assignments(f):
             sym = kconf.syms.get(name)
             if sym is None or not sym.nodes:
                 errs.append(f"{f}:{n}: {PREFIX}{name}: no such option")
                 continue
             key = sym.choice if sym.choice is not None and v == "y" else sym
-            last[key] = (f, n, sym, v)
-    for f, n, sym, v in last.values():
+            last[key] = (i, f, n, sym, v)
+            later[sym] = i                      # the last input that assigns sym
+
+    def overridden(sym, i, seen):
+        """A dependency of sym (transitively) assigned by an input after i."""
+        for d in k.expr_items(sym.direct_dep):     # symbols and choices (with their own dependencies)
+            if d in seen or not hasattr(d, "direct_dep"):
+                continue
+            seen.add(d)
+            choice = getattr(d, "choice", None)
+            if later.get(d, -1) > i or any(later.get(m, -1) > i for m in getattr(choice, "syms", ())) \
+                    or overridden(d, i, seen):
+                return True
+        return False
+
+    for i, f, n, sym, v in last.values():
         got = sym.str_value
         if got != v and not (v.lower().startswith("0x") and got.lower() == v.lower()):
-            dep = " (depends on " + kconf.expr_str(sym.direct_dep) + ")" if got in ("", "n") else ""
+            if got in ("", "n") and k.expr_value(sym.direct_dep) == 0 and overridden(sym, i, set()):
+                continue
+            dep = " (depends on " + k.expr_str(sym.direct_dep) + ")" if got in ("", "n") else ""
             errs.append(f"{f}:{n}: {PREFIX}{sym.name}={v} not applied, it is {got or 'unset'}{dep}")
     if errs:
         die("configuration:\n  " + "\n  ".join(errs))
@@ -314,7 +333,7 @@ def generate(board, core, fragments, out_dir):
     cmake = ["# Generated from Kconfig: the keys of the configuration (umcub.kconfig.keys)"]
     for name, (path, how) in keys(kconf, bdir).items():
         if how == "generate" and _keygen(path):
-            notes.append(f"new {name.lower()} key {path} - keep it (and a backup): the devices accept only its images")
+            notes.append(f"new {name.lower()} key {path} - keep it and a backup: the devices are built for it")
         cmake.append(f'set(UMCUB_{"HOST" if name == "ADMIN" else name}_KEY "{path.as_posix()}")')
     _write_if_changed(out / "keys.cmake", "\n".join(cmake) + "\n")
     deps = sorted({str(Path(f).resolve()) for f in kconf.kconfig_filenames} | {str(f) for f in inputs})

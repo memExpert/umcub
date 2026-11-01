@@ -1,0 +1,35 @@
+# "Blue Pill" (STM32F103C8T6, 64 KiB flash, 20 KiB SRAM, 8 MHz crystal, LED
+# PC13). Minimal build: SMP over USART1 PA9/PA10 (the pins of the ROM
+# bootloader, so one USB-UART adapter serves both), overwrite mode.
+UMCUB_CFG_PART_STM32F103C8TX=y
+# images must carry this (signed TLV)
+UMCUB_CFG_BOARD_TYPE=0x46103001
+UMCUB_CFG_BOARD_REV=1
+
+UMCUB_CFG_CLOCK_HSE=y
+UMCUB_CFG_HSE_HZ=8000000
+
+# 64 KiB = bootloader 32 KiB + two 16 KiB slots (1 KiB pages, automatic
+# layout). Overwrite: the secondary slot is copied over the primary.
+UMCUB_CFG_BOOT_SIZE=0x8000
+
+# No user button: recovery on request from the application, without a valid
+# image, or by sending "b" during the first 300 ms.
+UMCUB_CFG_ENTRY_WAIT_MS=300
+
+# PC13, lit low: blinks while in the bootloader
+UMCUB_CFG_STATUS_LED=y
+UMCUB_CFG_STATUS_LED_PC13=y
+# UMCUB_CFG_STATUS_LED_ACTIVE is not set
+
+UMCUB_CFG_CMD_ENABLE=y
+# 20 KiB SRAM
+UMCUB_CFG_SMP_MTU=512
+
+UMCUB_CFG_TRANSPORT_UART=y
+UMCUB_CFG_UART_INSTANCE_1=y
+UMCUB_CFG_UART_BAUD=115200
+UMCUB_CFG_UART_TX_PA9=y
+UMCUB_CFG_UART_RX_PA10=y
+
+UMCUB_CFG_LOG_LEVEL=3

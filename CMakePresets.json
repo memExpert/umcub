@@ -7,7 +7,8 @@
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/${presetName}",
       "toolchainFile": "${sourceDir}/cmake/arm-none-eabi.cmake",
-      "cacheVariables": { "UMCUB_BOARD": "nucleo_h755zi_q", "UMCUB_BUILD_EXAMPLES": "ON" }
+      "cacheVariables": { "UMCUB_BOARD": "nucleo_h755zi_q", "UMCUB_BUILD_EXAMPLES": "ON",
+                          "UMCUB_CONFIG_PRE": "", "UMCUB_CONFIG_POST": "", "UMCUB_CONF": "" }
     },
     {
       "name": "h755-cm7",
@@ -54,7 +55,7 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "UMCUB_BOARD": "bluepill_f103c8",
-        "UMCUB_CONFIG_POST": "${sourceDir}/boards/bluepill_f103c8/variants/usb.h"
+        "UMCUB_CONF": "${sourceDir}/boards/bluepill_f103c8/variants/usb.conf"
       }
     },
     {
