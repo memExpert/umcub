@@ -6,7 +6,7 @@ Adding an STM32 series and the source tree.
 
 1. `cmake/families/stm32<fam>.cmake`: CPU flags, sources (with `port/arch/cortexm/cortexm_sys.c` and
    `cortexm_common.c`), the `cmsis_device_<fam>` and LL driver submodules.
-2. `port/stm32<fam>/`: `include/umcub_family_defaults.h` (flash write unit, sector size - `UMCUB_FAMILY_UNIFORM_SECTOR`,
+2. `port/stm32<fam>/`: `include/umcub_family_facts.h` (flash write unit, sector size - `UMCUB_FAMILY_UNIFORM_SECTOR`,
    or `UMCUB_FAMILY_SECTOR_AT(addr)` where sectors differ in size, see `port/stm32f4` - erased value if not 0xFF),
    `include/umcub_family_cmsis.h` (the device header), `include/umcub_family_app.inc` (port sources of the
    application library), register-level flash driver (LL has none), clocks (including restoring the reset state
@@ -31,7 +31,7 @@ Adding an STM32 series and the source tree.
    in the CMake file (`UMCUB_FAMILY_TUSB_MCU`, `UMCUB_FAMILY_TUSB_SOURCES`): OTG FS (dwc2) see `port/stm32f4/usb.c`,
    `port/stm32h7/usb.c`, the USB FS device (fsdev) `port/stm32f1/usb.c`. Big sectors: see `UMCUB_CFG_TRAILER_RESERVE` and the watchdog
    ([Your own board](board.md#adding-a-board), "Slots").
-3. `boards/<board>/umcub_config.h` (and optionally `umcub_board.c` and other board `.c` files).
+3. `boards/<board>/defconfig` (and optionally `Kconfig`, `umcub_board.c` and other board `.c` files).
 4. Add the new configuration to `tests/matrix/configs.txt` (the build matrix); an example application goes into `examples/`, the
    board's `umcub_examples.cmake` and the example list in `tests/CMakeLists.txt` (build matrix) (`examples/blackpill_app` on
    `examples/common/umcub_example.c` is the one to start from, see [Your own board](board.md#adding-a-board), step 7).
@@ -43,13 +43,13 @@ peripheral a driver touches.
 
 ## Adding a part
 
-Each port lists the parts it is verified for in `port/stm32<fam>/include/umcub_family_defaults.h` (today: H742,
+Each port lists the parts it is verified for in `port/stm32<fam>/include/umcub_family_facts.h` (today: H742,
 H743, H753, H745, H747, H755, H757; F103x8/xB; F411xC/xE); any other `UMCUB_CFG_MCU` stops the build with
 "this ... part is not verified with the port". The values that differ between parts of one series decide where the
 bootloader writes: the SRAM size (the handoff area is its last 256 bytes; H7: SRAM4), the flash sectors or pages
 (size, map, banks) and, for a driver, the peripheral instances the part has. Check them in the datasheet and the
 reference manual, add the part to the list (with its SRAM size where the port needs one) and build its
-configuration in the matrix. For Kconfig boards also add the line to `LINES` in `tools/build/gen_kconfig.py` (and
+configuration in the matrix. Also add the line to `LINES` in `tools/build/gen_kconfig.py` (and
 what the port drives to `PORT_UARTS` / `PORT_CAN` / ...) and run it: it writes the part numbers of the line and
 their pin menus to `port/kconfig/` from ST's pin data. A part whose flash map the port cannot describe (e.g. the dual-bank F42x/43x, the
 8 KiB sectors of the H7A3/B0/B3) needs a change in the port first.
@@ -61,7 +61,7 @@ in the build matrix):
 
 ```
 include/         L0  ABI shared with the application: umcub.h (app API), umcub_handoff.h
-config/          L0  template, defaults, types, compile-time checks
+config/          L0  Kconfig (the options), types, what C derives, compile-time checks
 port/            L1  hardware: include/ (port API umcub_port*.h), arch/cortexm/ (SysTick, deinit, jump, waits,
                      common linker sections), arch/stm32/ (drivers of ST peripherals that several series share: USART v1
                      and v2, bxCAN, FDCAN, RNG; IWDG, UART rings),
@@ -75,17 +75,16 @@ src/             the bootloader itself:
   proto/         L5  mux (SMP, lite upload, board frames, recovery loop), umcub link, lite upload, text commands,
                      SMP inspection group
   boot/          L6  main (entry decision, boot_go, jump), startup, info block
-boards/          board configurations (umcub_config.h, optional umcub_board.c and other .c, umcub_examples.cmake, variants/)
-lib/umcub_app/   application library (umcub::app); umcub_app_all.c = the whole library as one file for IDEs
+boards/          board configurations (defconfig, optional Kconfig, umcub_board.c and other .c, umcub_examples.cmake, variants/*.conf)
+lib/umcub_app/   application library (umcub::app); umcub_app_all.c = the whole library as one file
 examples/        CM7 / CM4 applications for NUCLEO-H755ZI-Q, Blue Pill and Black Pill applications; common/ = the shared console
 tools/           setup.sh, requirements.txt, keys/ (development keys)
 tools/host/      umcub/ (host library and the `umcub` tool, pyproject.toml: connections, SMP, lite, link;
-                 config, sign: slot addresses and signing for CMake and IDE projects; keys: umcub link keys
-                 as C arrays)
-tools/ide/       umcub_cubeide.py (filters and build targets for an STM32CubeIDE CMake project)
+                 kconfig, layout, config, linker, sign: the configuration, slot addresses and signing; keys:
+                 umcub link keys as C arrays)
 tools/build/     build_matrix.sh, size_table.py (size tables), check_docs.py (README / docs consistency),
                  check_layers.py (layering), check_pins.py (configured pins vs ST pin data, fills in AFs, run by CMake),
-                 check_config.py (CMake and the host tools read the same configuration and slot windows)
+                 gen_kconfig.py (part and pin menus from ST's pin data)
 tools/hw/        SWD through probe.py (STM32_Programmer_CLI or pyOCD): probe.py (flash / read / write / erase /
                  reset), h755_option_bytes.py, udev/
 tests/hw/        hardware tests on the bench: powerfail_test.py, stack_usage.py, entropy_test.py
@@ -99,7 +98,7 @@ tests/boards/    build-matrix boards (custom_drivers: board drivers + board tran
 
 Moved since (code written against an older tree): `boot/`, `image/`, `proto/`, `transport/`, `util/` -> `src/...`;
 by the layer restructure: `lib/umcub_app/include` -> `include`,
-`mcuboot_port/include` -> `src/image/mcuboot/include` (IDE include list above); in board files `umcub_boot.h` ->
+`mcuboot_port/include` -> `src/image/mcuboot/include`; in board files `umcub_boot.h` ->
 `umcub_state.h`, and `umcub_proto_user()` / `umcub_proto_reply()` are declared in `umcub_proto.h` instead of
-`umcub_transport.h`; config overlays `tools/config/<x>.h` -> `tests/configs/<group>/<x>.h`; host tools
+`umcub_transport.h`; config overlays `tools/config/<x>.h` -> fragments `tests/configs/<group>/<x>.conf`; host tools
 `tools/<x>.py` -> `tools/host/<x>.py`.

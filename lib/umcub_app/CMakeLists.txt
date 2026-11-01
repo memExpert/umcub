@@ -10,12 +10,11 @@
 #
 # which is short for
 #   target_link_libraries(app PRIVATE umcub::app)
-#   umcub_app_linker_script(app IMAGE 0)      # or use your own script with
-#                                             # UMCUB_APP_FLASH_ORIGIN/LENGTH
+#   umcub_app_linker_script(app IMAGE 0)      # or your own script: INCLUDE umcub_app_img0_slot0.ld
 #   umcub_sign_image(app VERSION 1.0.0)
 #
 # Optional: UMCUB_APP_CPU_FLAGS (defaults to the family's hard-float flags),
-#           UMCUB_SIGNING_KEY, UMCUB_IMGTOOL, UMCUB_CONFIG_PRE/POST.
+#           UMCUB_CONF (the bootloader's fragments), UMCUB_IMGTOOL.
 
 cmake_minimum_required(VERSION 3.20)
 
@@ -24,9 +23,6 @@ include(${_umcub_root}/cmake/umcub_config.cmake)
 
 if(NOT UMCUB_BOARD)
   message(FATAL_ERROR "umcub::app: set UMCUB_BOARD before add_subdirectory()")
-endif()
-if(NOT DEFINED UMCUB_SIGNING_KEY)
-  set(UMCUB_SIGNING_KEY "${UMCUB_ROOT}/tools/keys/dev-ecdsa-p256.pem")
 endif()
 umcub_load_config("${UMCUB_BOARD}" "${UMCUB_CORE}")
 include(${UMCUB_ROOT}/cmake/umcub_imgtool.cmake)

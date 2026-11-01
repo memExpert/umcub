@@ -7,43 +7,42 @@ Adding a board to umcub: its configuration, its identity on a bus, external cont
 Ported families: STM32H7 (H743/H753 and the dual-core H745/H755/H747/H757; not H7A3/B0/H72x/H73x yet),
 STM32F1 (F103x8/xB) and STM32F4 (F411xC/xE). For another series the port comes first, see [Porting](porting.md).
 
-**1. Describe the board.** The board directory can live in your own repository (umcub as a submodule):
-`boards/my_board/umcub_config.h`. Copy the minimal configuration of your family,
-[`umcub_config_minimal_f1.h`](../config/umcub_config_minimal_f1.h),
-[`_f4.h`](../config/umcub_config_minimal_f4.h) or [`_h7.h`](../config/umcub_config_minimal_h7.h) in `config/` (the part,
-the clock, the flash layout, a way into the bootloader and one transport - each builds as it is, the build matrix
-checks that) and change the lines marked "yours". Every other option takes its default from
-`config/umcub_config_defaults.h`; [`config/umcub_config_template.h`](../config/umcub_config_template.h) lists all of
-them with their meaning, [Configuration](configuration.md) explains the groups.
-
-**2. Make your own signing key.** The repository key is public and for development only:
+**1. Describe the board.** Configure without a board, pick the part in menuconfig (the menus then offer only what it
+has: its USARTs, USB / CAN / Ethernet, for every pin the pins that carry the signal on that package), set the clock, a
+way into the bootloader and one transport, and keep the result:
 
 ```sh
-imgtool keygen -t ecdsa-p256 -k keys/prod.pem      # keep it out of the repository
+cmake -S umcub -B build/boot -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build/boot --target menuconfig
+cmake --build build/boot --target savedefconfig     # build/boot/defconfig -> boards/my_board/defconfig
 ```
+
+The board directory can live in your own repository (umcub as a submodule): `boards/my_board/defconfig`, optional
+`Kconfig` (board options, defaults per core or mode), `umcub_board.c` and other `.c` files, `variants/*.conf`,
+`umcub_examples.cmake`. [Configuration](configuration.md) explains the groups; every option has its help text in
+menuconfig.
+
+**2. Keys.** Configure generates the signing key in `keys/my_board/` (git-ignored, never replaced; keep it and a
+backup). Your own file or the public development key: menu *Keys*, see [Keys](configuration.md#kconfig).
 
 **3. Build the bootloader.**
 
 ```sh
-cmake -S umcub -B build/boot -G Ninja -DCMAKE_BUILD_TYPE=Release \
-      -DUMCUB_BOARD=$PWD/boards/my_board -DUMCUB_SIGNING_KEY=$PWD/keys/prod.pem
+cmake -S umcub -B build/boot -G Ninja -DCMAKE_BUILD_TYPE=Release -DUMCUB_BOARD=$PWD/boards/my_board
 cmake --build build/boot                # build/boot/umcub_my_board_cm7.{elf,hex,bin}
 ```
 
-The same with the preset `custom` (what IDEs use, builds in `build/custom`):
-`cmake --preset custom -DUMCUB_BOARD=$PWD/boards/my_board -DUMCUB_SIGNING_KEY=$PWD/keys/prod.pem`, or the board in
-the environment variable `UMCUB_BOARD`. In STM32CubeIDE see
-[Bootloader inside STM32CubeIDE](application.md#using-umcub-from-an-ide-stm32cubeide-keil-mdk).
+The same with the preset `custom` (builds in `build/custom`): `cmake --preset custom -DUMCUB_BOARD=$PWD/boards/my_board`,
+or the board in the environment variable `UMCUB_BOARD`.
 
-`arm-none-eabi-gcc` is taken from `PATH`. A toolchain that is not there, e.g. the one inside STM32CubeIDE when
-building from a terminal, is set with `-DUMCUB_TOOLCHAIN_PREFIX=<path>/arm-none-eabi-`.
+`arm-none-eabi-gcc` is taken from `PATH`. A toolchain that is not there is set with `-DUMCUB_TOOLCHAIN_PREFIX=<path>/arm-none-eabi-`.
 
 Configuration mistakes stop the build with a message: slots overlapping or off sector boundaries, the wrong slot
 sizes for the mode, a missing scratch area, an HSE the port cannot use, and so on.
 
 **4. Adapt the application.** Use the same board directory and key: CMake with `umcub::app`,
-`umcub_add_application()` (see [Application library](application.md#application-library)), or an IDE
-project with `umcub image sign` (see [Using umcub from an IDE](application.md#using-umcub-from-an-ide-stm32cubeide-keil-mdk)).
+`umcub_add_application()` (see [Application library](application.md#application-library)), or any other
+build with `umcub image sign` (see [Applications built without CMake](application.md#applications-built-without-cmake)).
 `tools/host/umcub image info --board boards/my_board` prints where to link it.
 
 **5. Program and protect.** Program the bootloader `.hex` and the signed application `.hex`. On dual-core H7 parts,
@@ -101,7 +100,7 @@ Things that are easy to get wrong:
   stopped.
 - **Log.** The boot log is off by default. For bring-up set `UMCUB_CFG_LOG_LEVEL 3` (info, about 3.5 K) and watch
   the UART; switch it off again for production (it also never shares a UART with a umcub link). Without a log, the
-  status LED (`UMCUB_CFG_STATUS_LED`) still shows a transport that did not come up (N blinks, see the template).
+  status LED (`UMCUB_CFG_STATUS_LED`) still shows a transport that did not come up (N blinks).
 
 ## Board identity: board type and node address
 
@@ -149,13 +148,13 @@ not compiled). 0 means unassigned: the node is then reachable by its UID only. T
 ## Reference boards
 
 **NUCLEO-H755ZI-Q** ([`boards/nucleo_h755zi_q/defconfig`](../boards/nucleo_h755zi_q/defconfig), what depends on the core and
-the dual-core mode in [`Kconfig`](../boards/nucleo_h755zi_q/Kconfig); [Kconfig boards](configuration.md#kconfig-boards)): one
+the dual-core mode in [`Kconfig`](../boards/nucleo_h755zi_q/Kconfig); [Kconfig](configuration.md#kconfig)): one
 bootloader for both cores (CM7 and CM4 images), all transports, log on the ST-LINK virtual COM port (USART3,
 115200), recovery by B1 held during reset. Before the first start the option bytes must let the CM4 wait in the
 bootloader: `tools/hw/h755_option_bytes.py single` (see [Configuration](configuration.md#dual-core-h745h755h747h757)).
 
 **Blue Pill** ([`boards/bluepill_f103c8/defconfig`](../boards/bluepill_f103c8/defconfig); configured with Kconfig,
-see [Kconfig boards](configuration.md#kconfig-boards)): STM32F103C8T6, SMP over USART1 (PA9 TX, PA10 RX, the pins of
+see [Kconfig](configuration.md#kconfig)): STM32F103C8T6, SMP over USART1 (PA9 TX, PA10 RX, the pins of
 the ROM bootloader), overwrite mode, bootloader 32 KiB + two 16 KiB slots (automatic layout: a fragment that changes
 `UMCUB_CFG_BOOT_SIZE` moves the slots with it).
 
@@ -177,7 +176,7 @@ The F1 has no switchable D+ pull-up and the Blue Pill ties D+ to 3.3 V, so the b
 powered, and a host would try to enumerate a device that does not answer. The STM32F1 port therefore drives D+ low
 (detached) from reset on, and whenever its USB is not running. That includes the application: an application that
 uses USB itself must make PA12 an input before enabling its USB peripheral. The USB preset has no wait window
-(`UMCUB_CFG_ENTRY_WAIT_MS=0`): USB would attach and vanish again on every boot (see the option in the template).
+(`UMCUB_CFG_ENTRY_WAIT_MS=0`): USB would attach and vanish again on every boot (see the option's help).
 While a debugger holds the MCU in reset (`mode=UR`) D+ floats high again: flash with `mode=HOTPLUG`, or with the
 USB cable unplugged.
 
@@ -186,7 +185,7 @@ CAN (bxCAN, classic CAN, ISO-TP like on the H7) on PB9 TX / PB8 RX with an exter
 USB: on the F103 both share the same 512 bytes of SRAM (the build refuses it).
 
 **Black Pill** ([`boards/blackpill_f411ce/defconfig`](../boards/blackpill_f411ce/defconfig), WeAct; configured
-with Kconfig, see [Kconfig boards](configuration.md#kconfig-boards)):
+with Kconfig, see [Kconfig](configuration.md#kconfig)):
 STM32F411CEU6, 25 MHz crystal, SMP over USART1 (PA9 TX, PA10 RX), overwrite mode, bootloader in sectors 0-1
 (32 KiB), slots in sectors 5 and 6 (128 KiB each; sectors 2-4 and 7 stay free, e.g. for application data). A
 slot may also span sectors of different sizes: sectors 3-5 (16 + 64 + 128 KiB) as primary and 6-7 as secondary
@@ -241,12 +240,11 @@ board transport (level 2) are exercised by the build matrix and the host test `u
 ISO-TP + SMP (CAN) and the IPv4/ARP/DHCP/UDP stack + SMP (Ethernet) sit on a small driver interface. Select the
 board driver and implement that interface:
 
-```c
-/* umcub_config.h */
-#define UMCUB_CFG_TRANSPORT_CAN   1
-#define UMCUB_CFG_CAN_DRIVER      UMCUB_DRIVER_BOARD   /* the on-chip FDCAN driver is not compiled */
-#define UMCUB_CFG_TRANSPORT_ETH   1
-#define UMCUB_CFG_ETH_DRIVER      UMCUB_DRIVER_BOARD   /* the on-chip MAC driver is not compiled */
+```
+UMCUB_CFG_TRANSPORT_CAN=y
+UMCUB_CFG_CAN_DRIVER_BOARD=y     # the on-chip FDCAN driver is not compiled
+UMCUB_CFG_TRANSPORT_ETH=y
+UMCUB_CFG_ETH_DRIVER_BOARD=y     # the on-chip MAC driver is not compiled
 ```
 
 | Transport | Functions to implement (`port/include/...`) | Contract |
@@ -270,10 +268,9 @@ image over `umcub upload` in 1.6 s.
 For anything that is not CAN or raw Ethernet, write a whole transport. It is polled together with the built-in
 ones; responses go back to the transport the request came from.
 
-```c
-/* umcub_config.h */
-#define UMCUB_CFG_TRANSPORT_USER  1
+Set `UMCUB_CFG_TRANSPORT_USER=y` and:
 
+```c
 /* umcub_board.c - a packet transport, e.g. a W5500 UDP socket */
 #include "umcub_transport.h"      /* also declares umcub_transport_user */
 #include "umcub_handoff.h"

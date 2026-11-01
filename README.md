@@ -66,19 +66,19 @@ RS485 and the other variants of each board: [Reference boards](docs/board.md#ref
 
 ## Your own board in five steps
 
-1. **Describe the board**: copy the minimal configuration of your family -
-   [F1](config/umcub_config_minimal_f1.h), [F4](config/umcub_config_minimal_f4.h) or
-   [H7](config/umcub_config_minimal_h7.h) - to `boards/<your_board>/umcub_config.h` (the board directory can live in your own repository) and change the lines
-   marked "yours": the part, the clock, the flash layout, how to get into the bootloader, one transport with its
-   pins. Pins and slots are checked when CMake configures; a mistake stops it with a hint. SMP is on by default;
-   `#define UMCUB_CFG_SMP_ENABLE 0` switches the transports to the lite upload protocol (smaller bootloader).
-2. **Make your own signing key**: `imgtool keygen -t ecdsa-p256 -k keys/prod.pem` (the key in the repository is
-   public, for development only).
-3. **Build the bootloader**: `cmake -S umcub -B build/boot -DUMCUB_BOARD=$PWD/boards/<your_board>
-   -DUMCUB_SIGNING_KEY=$PWD/keys/prod.pem && cmake --build build/boot`.
-4. **Adapt the application**: link it for the primary slot (`tools/host/umcub image info --board ...` prints
-   where) and sign it with the same key - with CMake (`umcub::app`) or from an IDE
-   ([application](docs/application.md)).
+1. **Pick the part and configure**: `cmake -S umcub -B build/boot -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build
+   build/boot --target menuconfig`. Choose the part by its number; the menus then offer only what it has: its
+   USARTs, USB / CAN / Ethernet, and for every pin only the pins that carry the signal on that package. Set the clock,
+   a way into the bootloader and one transport. The slots are placed automatically. `--target savedefconfig` writes
+   the result as a `defconfig`: keep it in `boards/<your_board>/` (the board directory can live in your own
+   repository) and pass `-DUMCUB_BOARD=$PWD/boards/<your_board>` from then on. SMP is on by default; off, the transports
+   use the lite upload protocol (smaller bootloader).
+2. **Keys**: the first configure generates your signing key in `keys/<your_board>/` (git-ignored, never replaced);
+   keep it and a backup. Your own file or the public development key: menu *Keys*.
+3. **Build the bootloader**: `cmake --build build/boot`.
+4. **Adapt the application**: link it for the primary slot (`INCLUDE umcub_app_img0_slot0.ld` from the build tree in
+   your linker script) and sign it with the configuration's key - with CMake (`umcub::app`) or a post-build
+   `umcub image sign` ([application](docs/application.md)).
 5. **Program both** `.hex` files; for production protect the bootloader sector (WRP) and enable readout protection.
 
 Everything about boards, including external controllers and transports of your own: [Your own board](docs/board.md).
@@ -127,7 +127,7 @@ Using umcub:
 | Page | What is in it |
 |---|---|
 | [Your own board](docs/board.md) | board configuration, board type and node address, reference boards and their variants |
-| [The application side](docs/application.md) | `umcub::app`, `umcub_add_application()`, IDE projects (STM32CubeIDE, Keil MDK), CMake presets |
+| [The application side](docs/application.md) | `umcub::app`, `umcub_add_application()`, applications built without CMake, CMake presets |
 | [Recovery mode](docs/recovery.md) | updating over SMP, text commands, lite upload and board protocols, verify / hash / read |
 | [umcub link](docs/link.md) | several devices on one bus: addressing, SECURE mode |
 | [Host tool and library](docs/host.md) | `umcub`: upload, discover, verify on every transport; the Python library for your own tools and GUIs |

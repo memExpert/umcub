@@ -56,21 +56,21 @@ DFU without it.
 
 ## Images and keys (no device)
 
-The build side lives in the same tool: CMake's `umcub_sign_image()` and IDE post-build steps sign with it, and
+The build side lives in the same tool: CMake's `umcub_sign_image()` and post-build steps of other builds sign with it, and
 CMake embeds the umcub link keys with it. These commands need neither a device nor the transport libraries
 (smpclient, python-can), only imgtool's dependencies, and run straight from a checkout as
 `python <umcub>/tools/host/umcub ...` - no install needed.
 
 ```sh
-umcub image info --board nucleo_h755zi_q --core cm7          # where to link the application, IDE settings
+umcub image info --board nucleo_h755zi_q --core cm7          # where to link the application
 umcub image ld --board nucleo_h755zi_q --core cm7 -o ld/      # MEMORY blocks of the slots (INCLUDE in your .ld)
 umcub image sign --board nucleo_h755zi_q --core cm7 --version 1.2.3 app.elf   # -> app.signed.bin / .hex
 umcub keys c --device device.pem --admin admin.pem -o umcub_link_keys.c        # link SECURE keys (bootloader)
 umcub keys pub admin.pem                                     # public key as hex (X || Y)
 ```
 
-See [The application side](application.md#using-umcub-from-an-ide-stm32cubeide-keil-mdk) for the signing options;
-the board and its overlays (`--board`, `--core`, `--pre`, `--post`) are the ones the bootloader was built with.
+See [The application side](application.md#applications-built-without-cmake) for the signing options;
+the board and its fragments (`--board`, `--core`, `--conf`) are the ones the bootloader was built with.
 Outside the checkout (an installed copy of the package) `$UMCUB_ROOT` points to it.
 
 ## Library
@@ -112,7 +112,9 @@ A board protocol (`UMCUB_CFG_PROTO_USER`) uses the connection directly: `dev.sen
 | `lite` | lite upload frames, `upload()`, `reset()` |
 | `image` | `Image`: a signed image file - version, hash, board type TLV |
 | `link` | link frames, DISCOVER, the SECURE handshake (mirrors `src/proto/link.c`), `sniff()` |
-| `config` | a board's configuration (`umcub_config.h` + overlays) as values, slot windows |
-| `sign` | `sign()`: signing for CMake and IDE projects (imgtool) |
+| `kconfig`, `layout` | the configuration from Kconfig (defconfig + fragments), the generated files, keys, automatic slot layout |
+| `config` | a board's generated configuration as values, slot windows |
+| `linker` | GNU ld MEMORY blocks of the slots |
+| `sign` | `sign()`: signing, for CMake and other builds (imgtool) |
 | `keys` | umcub link keys as C arrays |
 | `cli` | the `umcub` tool |

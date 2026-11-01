@@ -5,7 +5,7 @@ Images encrypted for one device key, and what the bootloader does and does not p
 ## Encrypted images
 
 `UMCUB_CFG_ENCRYPT_IMAGES` makes MCUboot accept images encrypted for the **device key** (ECIES-P256, AES-128-CTR;
-the same `UMCUB_DEVICE_KEY` as the SECURE link). An image file then does not show the firmware, wherever it is
+the same device key as the SECURE link). An image file then does not show the firmware, wherever it is
 stored or sent. The signature still covers the plain image, so encryption adds confidentiality, not trust.
 
 `umcub_sign_image()` and `tools/host/umcub image sign` then write two files:
@@ -45,9 +45,8 @@ Protect the device key like the SECURE link: RDP on, see [umcub link](link.md#li
 ## Security
 
 `tools/keys/dev-ecdsa-p256.pem` is a **development key** stored in the repository — anybody can sign images with it.
-For a product generate your own (`imgtool keygen -t ecdsa-p256 -k prod.pem`) and pass `-DUMCUB_SIGNING_KEY=prod.pem`
-when building the bootloader and the applications (Kconfig boards generate their own keys in `keys/<board>/`,
-see [Kconfig boards](configuration.md#kconfig-boards)). Also write-protect the bootloader sector (WRP) and enable RDP.
+Builds use it only when the configuration asks for it (`UMCUB_CFG_SIGNING_KEY_DEV`): by default the first configure
+generates a key in `keys/<board>/`, or takes your own file, see [Kconfig](configuration.md#kconfig). Also write-protect the bootloader sector (WRP) and enable RDP.
 For transports on a shared bus see the SECURE mode of the [umcub link](link.md)
 and its own keys.
 

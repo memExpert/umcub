@@ -31,23 +31,16 @@ lines of 128 bytes within it. DFU and `umcub_slot_*` write into the **secondary*
 
 ## Text commands
 
-Besides SMP the bootloader understands simple text commands defined in `umcub_config.h` — handy from a terminal or
-a few lines of host code:
+Besides SMP the bootloader understands simple text commands — handy from a terminal or a few lines of host code:
 
-```c
-#define UMCUB_CFG_CMD_ENABLE     1
-#define UMCUB_CFG_CMD_IMMEDIATE  1      /* run as soon as the input matches, no Enter needed */
-#define UMCUB_CFG_CMD_TABLE      UMCUB_CMD("a",     UMCUB_CMD_BOOT_APP)  \
-                                 UMCUB_CMD("b",     UMCUB_CMD_STAY)      \
-                                 UMCUB_CMD("r",     UMCUB_CMD_RESET)     \
-                                 UMCUB_CMD("i",     UMCUB_CMD_INFO)      \
-                                 UMCUB_CMD("hello", UMCUB_CMD_USER(1))   \
-                                 UMCUB_DEFAULT_CMD_INSPECT      /* verify, hash (+ read) without SMP */
+```
+UMCUB_CFG_CMD_ENABLE=y
+UMCUB_CFG_CMD_IMMEDIATE=y      # run as soon as the input matches, no Enter needed
+UMCUB_CFG_CMD_TABLE="a=BOOT_APP b=STAY r=RESET i=INFO hello=USER1 +inspect"
 ```
 
-Kconfig boards write the same table as one option:
-`UMCUB_CFG_CMD_TABLE="a=BOOT_APP b=STAY r=RESET i=INFO hello=USER1 +inspect"` (`+inspect` is `UMCUB_DEFAULT_CMD_INSPECT`,
-`+inspect_read` is `UMCUB_CMD_INSPECT_DEFAULTS`; empty: the default table).
+Actions: `BOOT_APP`, `STAY`, `RESET`, `INFO`, `VERIFY`, `HASH`, `READ`, `USER<n>`. `+inspect_read` always adds the
+inspection commands, for `+inspect` see below.
 
 `UMCUB_DEFAULT_CMD_INSPECT` adds `verify`, `hash` (and `read` with `UMCUB_CFG_READBACK`) only when SMP is off: with
 SMP, hosts check slots through the SMP inspect group (`umcub verify` / `hash` / `read`), about 0.9 K less.

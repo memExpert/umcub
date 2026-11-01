@@ -4,8 +4,11 @@ Where the options live and the notes on the upgrade modes; how big the bootloade
 
 ## Options
 
-The options are documented in [`config/umcub_config_template.h`](../config/umcub_config_template.h), the rarely
-changed ones in [Advanced options](#advanced-options) below; defaults are in `config/umcub_config_defaults.h`. Example: [`boards/nucleo_h755zi_q/defconfig`](../boards/nucleo_h755zi_q/defconfig) and its [`Kconfig`](../boards/nucleo_h755zi_q/Kconfig).
+Everything is configured with Kconfig ([esp-idf-kconfig](https://github.com/espressif/esp-idf-kconfig)): a board's
+`defconfig`, fragments (`UMCUB_CONF`) and menuconfig, see [Kconfig](#kconfig) below. The options with their help texts
+are in [`config/Kconfig`](../config/Kconfig) and menuconfig, the rarely changed ones also in
+[Advanced options](#advanced-options). Example: [`boards/nucleo_h755zi_q/defconfig`](../boards/nucleo_h755zi_q/defconfig)
+and its [`Kconfig`](../boards/nucleo_h755zi_q/Kconfig).
 
 | Group | Main options |
 |---|---|
@@ -21,17 +24,14 @@ changed ones in [Advanced options](#advanced-options) below; defaults are in `co
 | Recovery protocols | `UMCUB_CFG_SMP_ENABLE`, `UMCUB_CFG_SMP_MTU`, `UMCUB_CFG_SMP_PARAMS`, `UMCUB_CFG_LITE_UPLOAD`, `UMCUB_CFG_PROTO_USER` |
 | Misc | `UMCUB_CFG_LTO` (experimental on the H7), `UMCUB_CFG_LOG_LEVEL`, `UMCUB_CFG_WATCHDOG_MS`, `UMCUB_CFG_SHARED_RAM_ADDR`, `UMCUB_CFG_APP_WRITE_SLOT` |
 
-The configuration can be extended without editing the board file through overlay headers:
-`-DUMCUB_CONFIG_PRE=<file>` is included before the board config (for `#ifndef`-guarded options),
-`-DUMCUB_CONFIG_POST=<file>` after it (`#undef`/`#define`). Ready-made variants of a board are in `boards/<board>/variants/` (USB, RS485, CAN, umcub link, encryption, ...); the overlays the build matrix uses for modes, transports and features are in `tests/configs/` (`mode/`, `transport/`, `feature/`; `.conf` fragments next to them for the Kconfig boards).
+Ready-made variants of a board are fragments in `boards/<board>/variants/` (USB, RS485, CAN, umcub link, encryption, ...); those the build matrix uses for modes, transports and features are in `tests/configs/` (`mode/`, `transport/`, `feature/`, `part/`).
 
 Configuration errors (overlapping slots, slots not on sector boundaries, missing scratch area, conflicting modes) are
 caught at compile time (`config/umcub_config_check.h`).
 
 ### Advanced options
 
-Not in the template: their defaults fit almost every board, and some of them weaken the bootloader when changed. They
-are set the same way in `umcub_config.h`.
+Their defaults fit almost every board, and some of them weaken the bootloader when changed.
 
 | Option | Default | What it does |
 |---|---|---|
@@ -74,12 +74,11 @@ backend, which reconnects for every register access: an option byte change must 
 the option bytes can end up corrupted (RDP level 1 and PCROP areas; undoing that needs an RDP regression, which erases
 the flash).
 
-## Kconfig boards
+## Kconfig
 
-The boards of this repository and builds without a board are configured with Kconfig
-([esp-idf-kconfig](https://github.com/espressif/esp-idf-kconfig)). Such a board has a `defconfig` instead of `umcub_config.h`; the options are described in
-[`Kconfig`](../Kconfig), [`config/Kconfig`](../config/Kconfig), `port/Kconfig` and the board's own `Kconfig`, with
-the same names as above (`UMCUB_CFG_<NAME>` in `.config` and in the generated `umcub_config.h`).
+The options are described in [`Kconfig`](../Kconfig), [`config/Kconfig`](../config/Kconfig), `port/Kconfig` and the
+board's own `Kconfig`, with the same names as above (`UMCUB_CFG_<NAME>` in `.config` and in the generated
+`umcub_config.h`). The fragments of a build are also what `umcub image sign --conf` takes.
 
 ```sh
 cmake -S . -B build/bp -G Ninja -DUMCUB_BOARD=blackpill_f411ce \
@@ -96,8 +95,10 @@ cmake --build build/bp --target savedefconfig    # build/bp/defconfig: only what
   so that the largest image fits (swap-offset: secondary one sector larger, swap-scratch: the last sector as scratch
   area, two images: halved first); configure prints the result. Off: set the slot addresses and sizes yourself.
 - Configure runs `umcub config generate`: the defconfig, then the fragments of `UMCUB_CONF` in order (a later
-  assignment wins) -> `build/<x>/umcub_kconfig/.config` and `umcub_config.h`. An assignment that does not take
-  effect (unknown option, dependency not met, out of range) stops the configuration.
+  assignment wins) -> in `build/<x>/umcub_kconfig/`: `.config`, `umcub_config.h` (C; do not edit), `umcub_config.cmake`
+  and `umcub_config.json` (CMake, the host tools), the linker fragments. An assignment that does not take effect
+  (unknown option, dependency not met, out of range) stops the configuration, unless a later fragment switched off
+  what it depends on.
 - The build tree keeps its `.config` (menuconfig changes) as long as the defconfig and the fragments stay the same;
   when one of them changes, `.config` is made again from them.
 - The part is chosen by its part number (`UMCUB_CFG_PART_STM32F411CEUX=y`: package, flash and RAM follow). The
@@ -108,9 +109,9 @@ cmake --build build/bp --target savedefconfig    # build/bp/defconfig: only what
 - Values: bools `=y` / `# UMCUB_CFG_X is not set`; choices by their member (`UMCUB_CFG_UPGRADE_MODE_SWAP_OFFSET=y`);
   IPv4 addresses as `"192.168.1.50"`; pins of board options (`boards/<b>/Kconfig`) as strings, `"PA4"` or `"PA5:5"`
   with the alternate function.
-- Signing for such a board: `umcub image sign --board blackpill_f411ce [--conf <fragment>]...`.
+- Signing: `umcub image sign --board blackpill_f411ce [--conf <fragment>]...`, or `--board build/<x>/umcub_kconfig`.
 - Linker fragments: next to `umcub_config.h` the build tree has `umcub_app_img<n>_slot<m>.ld`, the MEMORY block of
-  every slot (`umcub image ld` writes the same for any board). Applications built with `umcub_app_linker_script()`
+  every slot (`umcub image ld` writes the same without a build tree). Applications built with `umcub_app_linker_script()`
   include it with the family's `port/<fam>/ld/app_<core>_sections.ld`; others `INCLUDE` it in their own script
   ([application](application.md)).
 - Defaults of a board: its own `Kconfig` can define an option again with `default` lines (and a `choice` by its
@@ -123,7 +124,7 @@ cmake --build build/bp --target savedefconfig    # build/bp/defconfig: only what
   public development key of `tools/keys/`, for tests). Generated keys are made at configure time in `keys/<board>/`
   (no board: `keys/<part>/`; `UMCUB_CFG_KEYS_DIR` changes it; relative paths are taken from the umcub root), never
   replaced, and git-ignored: keep them and a backup, the devices accept only what they sign. Both cores of a
-  dual-core board use the same keys. Such a build ignores `-DUMCUB_SIGNING_KEY` / `_DEVICE_KEY` / `_HOST_KEY`.
+  dual-core board use the same keys.
 
 ## Bootloader size
 

@@ -1,7 +1,7 @@
 # The application side
 
-What the application links (umcub::app), how it confirms, updates and enters the bootloader, and how to use umcub
-from an IDE.
+What the application links (umcub::app), how it confirms, updates and enters the bootloader, and how to build an
+application without CMake.
 
 ## Application library
 
@@ -17,7 +17,7 @@ use the steps it is made of:
 
 ```cmake
 target_link_libraries(app PRIVATE umcub::app)
-umcub_app_linker_script(app IMAGE 0)        # or your own script: INCLUDE umcub_app_img0_slot0.ld (Kconfig boards)
+umcub_app_linker_script(app IMAGE 0)        # or your own script: INCLUDE umcub_app_img0_slot0.ld
 umcub_sign_image(app VERSION 1.2.3)
 ```
 
@@ -58,30 +58,26 @@ Writing from the application:
 - if the slot is in the same flash bank as the running code, the CPU stalls during a sector erase (up to ~2 s on the
   H7). Applications that write their own updates should keep the secondary slot in the other bank.
 
-## Using umcub from an IDE (STM32CubeIDE, Keil MDK)
+## Applications built without CMake
 
-|  | Bootloader | Application with `umcub::app` |
-|---|---|---|
-| CMake (command line, VS Code, CLion) | build, flash, debug | yes |
-| STM32CubeIDE (GCC) | build with CMake; CubeIDE can drive the build and debug the ELF | yes |
-| Keil MDK (Arm Compiler 6) | build with CMake (GCC); Keil can flash the .hex and debug the ELF | yes |
+The bootloader builds with CMake and GCC only (it depends on GCC startup code and its own newlib stdio overrides); the
+application can be a normal CubeMX / Makefile / Keil project. It needs four things from the bootloader's build tree
+(`build/<x>/umcub_kconfig/`, or the same files from `python tools/host/umcub config generate --board <b> [--core c]
+[--conf <fragment>]... --out <dir>`): the flash address, the library with the generated configuration, a signing step
+after the build and flashing the signed image.
 
-The Keil MDK steps below are not verified in a real Keil project yet (only `umcub_app_all.c` compiles with clang, as
-armclang is clang based); the STM32CubeIDE steps are (CubeIDE 2.2 on Linux, build and Build Analyzer).
+**1. Where to link the application.** The directory has `umcub_app_img<n>_slot<m>.ld`, the slot's `MEMORY` block with
+CubeMX's region names (H7 CM7: `FLASH`, `DTCMRAM`, `RAM_D1`, `RAM_D2`, `RAM_D3`, `ITCMRAM`; otherwise `FLASH`, `RAM`),
+the handoff area left out. Replace the `MEMORY { ... }` block of the project's linker script (`STM32xxxx_FLASH.ld`) with
 
-The bootloader is written once and rarely changes, so it does not have to live in the IDE. Build it with CMake (see the
-[quick start](../README.md#quick-start)) and program the `.hex` with STM32CubeProgrammer or the IDE. Building the bootloader with Arm Compiler 6
-is not supported: it depends on GCC startup code, GCC linker script templates and its own newlib stdio overrides.
-
-The application is a normal CubeMX / IDE project. It needs four things: the right flash address, the library, a
-signing step after the build and a debug setup that flashes the signed image.
-
-**1. Where to link the application.** Ask the tool, with the same board configuration (and overlays) as the
-bootloader:
-
-```sh
-python tools/host/umcub image info --board nucleo_h755zi_q --core cm7
 ```
+INCLUDE umcub_app_img0_slot0.ld
+```
+
+and add the directory to the library paths (`-L`): the script then follows the bootloader's configuration. Signing
+refuses an image whose vector table is not at the slot's `ORIGIN`, so a stale script does not go unnoticed. For other
+linkers `umcub image info --board <b>` prints the values:
+
 ```
 image 0 (CM7 application): slot 0x08020000 size 0x60000
   link at   ORIGIN 0x08020400  LENGTH 0x5DC00   (vector table = ORIGIN)
@@ -91,16 +87,9 @@ image 0 (CM7 application): slot 0x08020000 size 0x60000
 keep free: 0x3800FF00..0x38010000 (bootloader handoff, kept over reset)
 ```
 
-- STM32CubeIDE: change the `FLASH` line in the project's `STM32xxxx_FLASH.ld`. Or, so that the script follows
-  the bootloader configuration, replace its whole `MEMORY { ... }` block with `INCLUDE umcub_app_img0_slot0.ld`
-  and add the fragment's directory to the library paths (`-L`): `umcub image ld --board <b> [--core c] -o <dir>`
-  writes one fragment per image and slot (slot 1 in direct-xip), with CubeMX's region names (H7 CM7: `FLASH`,
-  `DTCMRAM`, `RAM_D1`, `RAM_D2`, `RAM_D3`, `ITCMRAM`; otherwise `FLASH`, `RAM`), the handoff area left out. Kconfig
-  boards have them in the bootloader's build tree, `build/<x>/umcub_kconfig/`. Signing refuses an image whose
-  vector table is not at the slot's `ORIGIN`, so a stale script does not go unnoticed.
 - Keil: *Options for Target → Target*: IROM1 start/size as printed, IROM2 unchecked (or the same region in your
   scatter file).
-- Both: do not place variables in the handoff area. CubeMX projects do not use SRAM4 by default.
+- In any case: do not place variables in the handoff area. CubeMX projects do not use SRAM4 by default.
 - VTOR is set by the bootloader. Leave `USER_VECT_TAB_ADDRESS` undefined in `system_stm32*.c` (the CubeMX default).
 - Also needed:
   - the application must select the same power supply as `UMCUB_CFG_PWR_SUPPLY` (on the H7 it can only be set
@@ -118,7 +107,7 @@ and these include paths (relative to the umcub checkout):
 ```
 include
 config
-boards/<board>                         # the bootloader's umcub_config.h
+<build tree>/umcub_kconfig             # the generated umcub_config.h
 port/<family>/include                  # e.g. port/stm32h7/include
 port/include
 src/image/mcuboot/include
@@ -127,56 +116,33 @@ third_party/mcuboot/boot/bootutil/include
 
 CMSIS and LL headers come from the project (`Drivers/CMSIS/...`, `Drivers/STM32H7xx_HAL_Driver/Inc`); umcub's copies
 in `third_party/` work as well. Defines: the device define (`STM32H755xx`) and, on dual-core parts,
-`CORE_CM7` / `CORE_CM4`. CubeMX projects already have them. If the bootloader was built with
-`UMCUB_CONFIG_PRE/POST` overlays, define the same macros, e.g. `UMCUB_CONFIG_POST="path/to/overlay.h"`. The
+`CORE_CM7` / `CORE_CM4`. CubeMX projects already have them. The
 matrix build compiles this file with exactly this include list, using GCC and clang (Arm Compiler 6 is clang-based).
 
 **3. Signing after the build.** `umcub image sign` takes the ELF / AXF (or an Intel HEX / raw `.bin`). It
 checks that the image is linked at the slot origin and fits the slot, and writes `<name>.signed.bin` and
-`<name>.signed.hex` next to it (and `<name>.bin`, the unsigned flat image, e.g. for `tests/hw/powerfail_test.py`). `umcub_sign_image()` in CMake runs the same tool on the ELF, so an IDE project and a
-CMake build sign identically.
+`<name>.signed.hex` next to it (and `<name>.bin`, the unsigned flat image, e.g. for `tests/hw/powerfail_test.py`). `umcub_sign_image()` in CMake runs the same tool on the ELF, so every build signs identically; the key is the configuration's.
 
-It reads `umcub_config.h` through a C preprocessor. The search order is `--cc`, then `$UMCUB_CC`, then
-`arm-none-eabi-gcc`, then `armclang` (also in the default Keil folders), then `gcc` / `clang`. It needs Python 3
-with imgtool's dependencies: `pip install -r tools/requirements.txt` (on Windows `py -m pip install ...`). The tool
+It needs Python 3 with imgtool's dependencies and esp-idf-kconfig: `pip install -r tools/requirements.txt` (on Windows `py -m pip install ...`). The tool
 runs straight from the checkout as `python <umcub>/tools/host/umcub ...` (installed: `umcub ...`); Intel HEX
 input and output need nothing more.
 
-- **STM32CubeIDE**: *Project → Properties → C/C++ Build → Settings → Build Steps → Post-build steps*. The command
-  runs in the build folder, with the CubeIDE toolchain in `PATH`:
-  ```
-  python <umcub>/tools/host/umcub image sign --board nucleo_h755zi_q --core cm7 --image 0 --version 1.2.3 ${ProjName}.elf
-  ```
-- **Keil MDK**: *Options for Target → User → After Build/Rebuild → Run #1*:
-  ```
-  python <umcub>\tools\host\umcub image sign --board nucleo_h755zi_q --core cm7 --image 0 --version 1.2.3 "#L"
-  ```
-  `#L` is the `.axf` with its full path. If armclang is not found automatically, add
-  `--cc "$KARM\ARMCLANG\bin\armclang.exe"`.
+```
+python <umcub>/tools/host/umcub image sign --board <build tree>/umcub_kconfig --core cm7 --image 0 --version 1.2.3 app.elf
+```
 
 Other `sign` options:
-- `--key prod.pem`;
+- `--key other.pem` (default: the configuration's);
 - `--slot 1` (direct-xip: the slot the image is linked for);
 - `--confirm` and `--pad`;
 - `--depends "(1,1.0.0)"`.
 
 In direct-xip-revert mode it also writes `<name>.confirmed.{bin,hex}`.
 
-**4. Flashing and debugging.** The IDE downloads the unsigned ELF by default. The bootloader rejects it (no image
-header) and stays in recovery mode. Download the signed `.hex` instead and take only the symbols from the ELF:
-
-- **STM32CubeIDE**: *Debug Configurations → Startup → Load Image and Symbols*. Add `<name>.signed.hex` with
-  *Download* on and *Load symbols* off, and keep `<name>.elf` with *Download* off and *Load symbols* on. If the session
-  does not start from reset, add `monitor reset` to *Run Commands*. Execution then goes reset → bootloader →
-  application, and breakpoints in the application work as usual.
-- **Keil MDK**: *Options for Target → Utilities → Use External Tool for Flash Programming*:
-  - Command: `<CubeProgrammer>\bin\STM32_Programmer_CLI.exe`
-  - Arguments: `-c port=SWD mode=UR -d "$L@L.signed.hex" -v -rst`
-
-  *Update Target before Debugging* then programs the signed image. On the *Debug* tab, *Load Application at Startup*
-  only loads the `.axf` symbols.
-
-Updates through the bootloader (`smpmgr`, `mcumgr`, `dfu-util`, CAN, UDP) use `<name>.signed.bin` from any IDE.
+**4. Flashing and debugging.** Debuggers download the unsigned ELF by default. The bootloader rejects it (no image
+header) and stays in recovery mode. Download the signed `.hex` instead and take only the symbols from the ELF; execution
+then goes reset → bootloader → application, and breakpoints in the application work as usual. Updates through the
+bootloader (`smpmgr`, `mcumgr`, `dfu-util`, CAN, UDP) use `<name>.signed.bin`.
 
 **Dual-core H745/H755 with CubeMX dual-core projects.** Each core's project signs its own image. With `SINGLE_BOOT`
 that is `--core cm7 --image 0` for the CM7 and `--core cm4 --image 1` for the CM4. Program the option bytes with
@@ -188,45 +154,17 @@ NUCLEO-H755ZI-Q with ST's `BootCM4_CM7` template (STM32CubeH7, NUCLEO-H745ZI-Q) 
 (there: `--core cm4 --image 0` with the fragment `variants/per_core.conf`). Without a valid CM4 image, the CM4 stays parked in the bootloader. In that case the CubeMX CM7 code that
 waits for `RCC_FLAG_D2CKRDY` times out into `Error_Handler()`; make that wait non-fatal if the CM7 must run alone.
 
-**Bootloader inside STM32CubeIDE (optional).** CubeIDE 2.x builds the bootloader from the CMake presets with the GCC,
-CMake and Ninja it ships. Needed besides CubeIDE: Python with the `.venv` (`tools/setup.sh`; Windows: see
-[below](#build-trees-cmake-presets-and-windows); imgtool embeds the keys into the bootloader) and the submodules.
-
-1. *File → New → STM32 CMake Project* → *Project with existing CMake sources*. Untick *Use default location* and
-   put the project **outside** the umcub folder (e.g. next to it), *Source directory* = the umcub folder; the build
-   directory does not matter (the presets set it). On the next page pick the MCU of the board: one project per
-   board, it is what the debugger uses.
-2. Every preset of `CMakePresets.json` becomes a build configuration (*Project → Build Configurations → Set
-   Active*). For your own board use the preset `custom`: *Properties → C/C++ Build → CMake Settings*, *CMake
-   Preset* `custom`, *Other options* `-DUMCUB_BOARD=/path/to/boards/my_board -DUMCUB_SIGNING_KEY=/path/to/keys/prod.pem`
-   (it builds in `build/custom`). CubeIDE reads only `CMakePresets.json`, not `CMakeUserPresets.json`.
-3. Build each configuration you use once, close the project and run
-   ```sh
-   python tools/ide/umcub_cubeide.py <project folder>
-   ```
-   then open the project again. The wizard shows the whole source tree and every build tree; the script adds
-   resource filters (no `.venv`, `.git` or build trees other than those of the configurations, and in those only
-   `.elf .map .hex .bin .ld`), which keeps refreshing fast, and one *Build Targets* entry per executable
-   ("bluepill: bluepill_app" builds only that application). Run it again after adding a configuration; it
-   replaces only what it added before.
-
-The *Build Analyzer* shows the ELF selected in the project tree (under `umcub/build/<preset>`), so click the
-bootloader or the application to see its memory use. Debug that ELF with an *STM32 C/C++ Application*
-configuration.
-
 ## Build trees (CMake presets) and Windows
 
 Every preset in `CMakePresets.json` builds the bootloader target `umcub_<board>_<core>` and, with
 `UMCUB_BUILD_EXAMPLES=ON` (set in the presets), the example applications of that board in the same tree:
-`build/<preset>/examples/<app>/<app>.{elf,map,signed.bin,signed.hex}`. An IDE using CMake presets (VS Code with
-CMake Tools, CLion, ...) therefore lists the bootloader and the applications as targets, and every `.elf` has its
-`.map` next to it for memory analysis tools. The examples remain standalone projects (`cmake -S examples/<app>`).
+`build/<preset>/examples/<app>/<app>.{elf,map,signed.bin,signed.hex}`. Every `.elf` has its `.map` next to it. The examples remain standalone projects (`cmake -S examples/<app>`).
 
 Presets: `h755-cm7` (one bootloader for both cores; `h755-cm7-debug`: the same at -Og), `h755-per-core-cm7` +
 `h755-per-core-cm4` (a bootloader per core), `bluepill` (UART), `bluepill-usb` (USB CDC + DFU, larger bootloader), `custom` (your board:
 `-DUMCUB_BOARD=<board directory>` or the environment variable `UMCUB_BOARD`; no examples). Presets of your own go
-into `CMakeUserPresets.json` (not in git); CMake, VS Code and CLion read it, STM32CubeIDE does not.
+into `CMakeUserPresets.json` (not in git).
 
 On Windows (no `setup.sh`): `git submodule update --init`, `py -m venv .venv`,
 `.venv\Scripts\pip install -r tools\requirements.txt -e third_party\mcuboot\scripts`; CMake finds imgtool in
-`.venv\Scripts`. The IDE workflow is described in [Using umcub from an IDE](#using-umcub-from-an-ide-stm32cubeide-keil-mdk).
+`.venv\Scripts`.

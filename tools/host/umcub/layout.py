@@ -12,6 +12,8 @@ from .errors import UmcubError
 FLASH_BASE = 0x08000000
 KB = 1024
 MODE_SWAP_SCRATCH, MODE_SWAP_OFFSET = 2, 4
+# Program unit of the flash driver (UMCUB_FAMILY_WRITE_ALIGN, config/umcub_config_check.h compares them).
+WRITE_ALIGN = {"STM32F1": 8, "STM32F4": 8, "STM32H7": 32}
 
 
 def sectors(family, flash_kb):

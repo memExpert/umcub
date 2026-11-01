@@ -25,7 +25,7 @@ def cmd_ld(cfg, a):
 
 def cmd_info(cfg, a):
     mode = cfg["UPGRADE_MODE"]
-    print(f"{cfg.board_dir.name}{' / ' + a.core if a.core else ''}: {cfg.mcu}, {MODES.get(mode, mode)}, "
+    print(f"{cfg.board_name}{' / ' + a.core if a.core else ''}: {cfg.mcu}, {MODES.get(mode, mode)}, "
           f"header 0x{cfg['IMAGE_HEADER_SIZE']:X}, write align {cfg['FAMILY_WRITE_ALIGN']}")
     single_boot = cfg["DUALCORE_MODE"] == 1
     for img in cfg.images():
@@ -53,13 +53,10 @@ def add_image_arguments(sub):
                        ("ld", "GNU ld MEMORY blocks of the slots (INCLUDE umcub_app_img<n>_slot<m>.ld)"),
                        ("sign", "sign an ELF/AXF, Intel HEX or raw .bin -> <name>.signed.bin + .signed.hex")):
         p = sub.add_parser(name, help=what)
-        p.add_argument("--board", required=True,
-                       help="board name under boards/ or a directory with umcub_config.h or a defconfig")
+        p.add_argument("--board", required=True, help="board name under boards/, a directory with a defconfig, "
+                       "or a build tree's umcub_kconfig directory; \"\": no board (--conf)")
         p.add_argument("--core", choices=("cm7", "cm4"), help="dual-core parts: core the application runs on")
-        p.add_argument("--pre", help="UMCUB_CONFIG_PRE overlay (same as the bootloader build)")
-        p.add_argument("--post", help="UMCUB_CONFIG_POST overlay")
-        p.add_argument("--conf", action="append", help="Kconfig board: configuration fragment (repeatable)")
-        p.add_argument("--cc", help="C compiler used as preprocessor (arm-none-eabi-gcc, armclang, gcc)")
+        p.add_argument("--conf", action="append", help="configuration fragment (repeatable, as for the build)")
         if name == "ld":
             p.add_argument("-o", "--out", default=".", help="output directory (default: current)")
         if name == "sign":
@@ -67,7 +64,7 @@ def add_image_arguments(sub):
             p.add_argument("--image", type=int, default=0)
             p.add_argument("--slot", type=int, default=0, help="direct-xip: slot the image is linked for")
             p.add_argument("--version", default="0.0.0", help="x.y.z[+build]")
-            p.add_argument("--key", help=f"signing key (default: the Kconfig board's, else {DEV_KEY.relative_to(ROOT)})")
+            p.add_argument("--key", help="signing key (default: the configuration's)")
             p.add_argument("--encrypt-key", help="UMCUB_CFG_ENCRYPT_IMAGES: device key for <out>.encrypted.bin "
                                                   f"(default {DEV_DEVICE_KEY.relative_to(ROOT)})")
             p.add_argument("--confirm", action="store_true", help="mark the image confirmed (image_ok)")
@@ -83,8 +80,7 @@ def cmd_config(a):
     if a.sub == "generate":
         for note in kconfig.generate(a.board, a.core, a.conf or (), a.out):
             print(f"umcub: {note}")
-        if a.cc:                        # the slots' linker fragments (read through the preprocessor)
-            linker.write(Config(a.out, a.core, None, None, a.cc), a.out, a.core)
+        linker.write(Config(a.out, a.core), a.out, a.core)
     elif a.sub == "menu":
         kconfig.menuconfig(a.out)
     else:
@@ -99,7 +95,6 @@ def add_config_arguments(sub):
     p.add_argument("--core", default="", help="dual-core parts: cm7 or cm4")
     p.add_argument("--conf", action="append", help="configuration fragment (repeatable, applied in order)")
     p.add_argument("--out", required=True, help="output directory (the build tree's umcub_kconfig)")
-    p.add_argument("--cc", help="C compiler as preprocessor: also the slots' linker fragments (umcub image ld)")
     p = sub.add_parser("menu", help="menuconfig on a build tree's configuration")
     p.add_argument("--out", required=True, help="the build tree's umcub_kconfig directory")
     p = sub.add_parser("save", help="a build tree's configuration as a minimal defconfig")
@@ -120,7 +115,7 @@ def add_keys_arguments(sub):
 
 def run(a):
     if a.cmd == "image":
-        cfg = Config(a.board, a.core, a.pre, a.post, a.cc, a.conf or ())
+        cfg = Config(a.board, a.core, a.conf or ())
         for note in cfg.notes:
             if note.startswith("new "):
                 _log(f"umcub: {note}")

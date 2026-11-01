@@ -26,20 +26,20 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 BOARD = "nucleo_h755zi_q"
 
-# name, core, PRE overlay (old boards), fragment lines, board
+# name, core, fragment lines, board
 CHIPS = [
-    ("STM32H755 CM7 (2 images, SINGLE_BOOT)", "cm7", None, ""),
+    ("STM32H755 CM7 (2 images, SINGLE_BOOT)", "cm7", ""),
     # The board gives the CM4 instance only CAN; the variants turn the rest on with
     # the board's pins (status LED: LD2, the default PC13 is the B1 button there).
-    ("STM32H755 CM4 (PER_CORE)", "cm4", None, "UMCUB_CFG_DUALCORE_PER_CORE=y\nUMCUB_CFG_STATUS_LED_PE1=y\n"),
-    ("STM32H743 / H753 (single core)", "cm7", None, "UMCUB_CFG_PART_STM32H743ZITX=y\nUMCUB_CFG_PWR_SUPPLY_LDO=y\n"),
+    ("STM32H755 CM4 (PER_CORE)", "cm4", "UMCUB_CFG_DUALCORE_PER_CORE=y\nUMCUB_CFG_STATUS_LED_PE1=y\n"),
+    ("STM32H743 / H753 (single core)", "cm7", "UMCUB_CFG_PART_STM32H743ZITX=y\nUMCUB_CFG_PWR_SUPPLY_LDO=y\n"),
     # Cortex-M3, sized in the 44 KiB bootloader region of the USB layout; no
     # CAN FD and no Ethernet on this part; "all on" without CAN (shares its
     # SRAM with USB on the F103).
-    ("STM32F103 (Blue Pill, overwrite)", "", None, (ROOT / "boards/bluepill_f103c8/variants/usb.conf").read_text(),
+    ("STM32F103 (Blue Pill, overwrite)", "", (ROOT / "boards/bluepill_f103c8/variants/usb.conf").read_text(),
      "bluepill_f103c8", {"CAN_FD", "TRANSPORT_ETH"}, {"TRANSPORT_CAN"}),
     # Cortex-M4, in the 48 KiB region of the USB layout; no CAN and no Ethernet on the F411.
-    ("STM32F411 (Black Pill, overwrite)", "cm4", None, "UMCUB_CFG_BOOT_SIZE=0xC000\n",
+    ("STM32F411 (Black Pill, overwrite)", "cm4", "UMCUB_CFG_BOOT_SIZE=0xC000\n",
      "blackpill_f411ce", {"TRANSPORT_CAN", "CAN_FD", "TRANSPORT_ETH"}, set()),
 ]
 
@@ -130,10 +130,10 @@ def _conf(name, value):
 
 
 def build(out, ci, chip, vi, variant):
-    _, core, pre, extra = chip[:4]
-    board = chip[4] if len(chip) > 4 else BOARD
-    unsupported = chip[5] if len(chip) > 5 else set()
-    not_in_all = chip[6] if len(chip) > 6 else set()
+    _, core, extra = chip[:3]
+    board = chip[3] if len(chip) > 3 else BOARD
+    unsupported = chip[4] if len(chip) > 4 else set()
+    not_in_all = chip[5] if len(chip) > 5 else set()
     name, settings = variant[0], variant[1]
     lto = len(variant) > 2 and variant[2]
     if name.startswith("everything"):
@@ -142,24 +142,14 @@ def build(out, ci, chip, vi, variant):
         return None, None                       # not available on this family
     d = out / f"c{ci}_v{vi}"
     d.mkdir(parents=True, exist_ok=True)
+    conf = d / "size.conf"
+    conf.write_text("".join(_conf(k, v) for k, v in {**OFF, **settings}.items()))
+    base = d / "base.conf"                      # before it: it can switch off what these lines depend on
+    base.write_text(extra)
+    (d / "b/umcub_kconfig/.config").unlink(missing_ok=True)    # from the inputs every time
     args = ["cmake", "-S", str(ROOT), "-B", str(d / "b"), "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Release",
-            f"-DUMCUB_BOARD={board}", f"-DUMCUB_CORE={core}", f"-DUMCUB_LTO={'ON' if lto else 'OFF'}"]
-    if (ROOT / "boards" / board / "defconfig").is_file():
-        conf = d / "size.conf"                  # Kconfig board: a fragment (derived values follow)
-        conf.write_text("".join(_conf(k, v) for k, v in {**OFF, **settings}.items()))
-        base = d / "base.conf"                  # before it: it can switch off what these lines depend on
-        base.write_text(extra)
-        args += [f"-DUMCUB_CONF={base};{conf}", "-DUMCUB_CONFIG_POST="]
-        (d / "b/umcub_kconfig/.config").unlink(missing_ok=True)    # from the inputs every time
-    else:
-        post = d / "post.h"
-        lines = [extra]
-        for k, v in {**OFF, **settings}.items():
-            lines.append(f"#undef UMCUB_CFG_{k}\n#define UMCUB_CFG_{k} {v}")
-        post.write_text("\n".join(lines) + "\n")
-        args += [f"-DUMCUB_CONFIG_POST={post}", "-DUMCUB_CONF="]
-    # every overlay variable given, also empty: a reused build tree keeps its cache
-    args.append(f"-DUMCUB_CONFIG_PRE={ROOT / pre if pre else ''}")
+            f"-DUMCUB_BOARD={board}", f"-DUMCUB_CORE={core}", f"-DUMCUB_LTO={'ON' if lto else 'OFF'}",
+            f"-DUMCUB_CONF={base};{conf}"]
     log = d / "build.log"
     with open(log, "w") as f:
         ok = subprocess.run(args, stdout=f, stderr=subprocess.STDOUT).returncode == 0 and \

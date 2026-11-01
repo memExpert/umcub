@@ -90,7 +90,7 @@ def main():
     e_addr, _, e_size = a.erase.partition("+")
     e_addr, e_size = int(e_addr, 0), int(e_size, 0)
     a.conf = a.conf or [os.path.join(ROOT, "tests/configs/feature/fault_inject.conf")]
-    cfg = Config(a.board, a.core, None, None, None, a.conf)
+    cfg = Config(a.board, a.core, a.conf)
     fault_addr = a.fault_addr if a.fault_addr is not None else cfg["TEST_FAULT_ADDR"]
     handoff_magic = cfg["SHARED_RAM_ADDR"] + 16  # umcub_handoff_t.magic (UMCUB_HANDOFF_INFO_OFFSET)
 

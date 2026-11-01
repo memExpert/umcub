@@ -5,8 +5,8 @@
 #         -DUMCUB_BOARD=nucleo_h755zi_q -DUMCUB_CORE=cm7
 #   cmake -B build -G Ninja && cmake --build build --target menuconfig    (no board: pick the part)
 #
-# Everything else is configured in boards/<board>/umcub_config.h, or for Kconfig
-# boards (and without a board) in the defconfig, fragments and menuconfig.
+# Everything else is configured with Kconfig: the board's defconfig, the fragments
+# of UMCUB_CONF and menuconfig (docs/configuration.md).
 
 cmake_minimum_required(VERSION 3.20)
 
@@ -22,15 +22,7 @@ set(CMAKE_C_EXTENSIONS ON)
 
 set(UMCUB_BOARD "" CACHE STRING "Board directory name under boards/ or a path; empty: none (Kconfig defaults, menuconfig)")
 set(UMCUB_CORE "" CACHE STRING "Core to build for on dual-core parts (cm7|cm4)")
-set(UMCUB_CONFIG_PRE "" CACHE FILEPATH "Optional header included before the board config")
-set(UMCUB_CONFIG_POST "" CACHE FILEPATH "Optional header included after the board config")
-set(UMCUB_CONF "" CACHE STRING "Kconfig boards: configuration fragments (;-list), applied after the defconfig")
-set(UMCUB_SIGNING_KEY "${CMAKE_CURRENT_LIST_DIR}/tools/keys/dev-ecdsa-p256.pem" CACHE FILEPATH
-    "ECDSA-P256 key whose public part is embedded in the bootloader")
-set(UMCUB_DEVICE_KEY "${CMAKE_CURRENT_LIST_DIR}/tools/keys/dev-device-p256.pem" CACHE FILEPATH
-    "EC P-256 private device key of the umcub link SECURE mode (session key agreement)")
-set(UMCUB_HOST_KEY "${CMAKE_CURRENT_LIST_DIR}/tools/keys/dev-admin-p256.pem" CACHE FILEPATH
-    "EC P-256 admin key of the umcub link SECURE mode; only its public half is embedded")
+set(UMCUB_CONF "" CACHE STRING "Configuration fragments (;-list), applied after the board's defconfig")
 set(UMCUB_IMGTOOL "" CACHE FILEPATH "imgtool executable (default: .venv/bin/imgtool or PATH)")
 
 include(cmake/umcub_config.cmake)
@@ -39,8 +31,7 @@ umcub_check_pins()
 if(UMCUB_BOARD)
   get_filename_component(UMCUB_BOARD_NAME "${UMCUB_BOARD_DIR}" NAME)
 else()
-  string(TOLOWER "${UMCUB_CFG_MCU_PART_RAW}" UMCUB_BOARD_NAME)   # no board: named after the part
-  string(REPLACE "\"" "" UMCUB_BOARD_NAME "${UMCUB_BOARD_NAME}")
+  string(TOLOWER "${UMCUB_CFG_MCU_PART}" UMCUB_BOARD_NAME)        # no board: named after the part
 endif()
 
 message(STATUS "umcub: board ${UMCUB_BOARD_NAME}, ${UMCUB_MCU} (${UMCUB_FAMILY}/${UMCUB_CORE}), "
@@ -292,7 +283,7 @@ endif()
 umcub_preprocess("${UMCUB_FAMILY_BOOT_LD}" "${CMAKE_BINARY_DIR}/umcub_boot.ld")
 set_target_properties(${UMCUB_BOOT_TARGET} PROPERTIES LINK_DEPENDS "${CMAKE_BINARY_DIR}/umcub_boot.ld")
 
-# Link-time optimisation: UMCUB_CFG_LTO in umcub_config.h, or -DUMCUB_LTO=ON/OFF
+# Link-time optimisation: UMCUB_CFG_LTO, or -DUMCUB_LTO=ON/OFF
 # for one build tree. Verified on the F1 / F4, experimental on the H7 (see the template).
 set(UMCUB_LTO "" CACHE STRING "Link-time optimisation of the bootloader: ON / OFF / empty = UMCUB_CFG_LTO")
 if(UMCUB_LTO STREQUAL "")
@@ -353,15 +344,13 @@ if(UMCUB_BUILD_EXAMPLES)
 endif()
 
 # ----------------------------------------------------------------------------
-# ctest --test-dir <tree> (IDEs: "Run tests" on the preset): checks of what this
-# tree built - CMake and the host tools read the same configuration, and every
-# signed image of the tree verifies with its key. The whole build matrix is the
+# ctest --test-dir <tree> (IDEs: "Run tests" on the preset): every signed image
+# of the tree verifies with its key. The whole build matrix is the
 # separate CTest project tests/ (tools/build/build_matrix.sh).
 # ----------------------------------------------------------------------------
 enable_testing()
 file(WRITE "${CMAKE_BINARY_DIR}/DartConfiguration.tcl" "")   # for `ctest -T test` (IDEs), no CTest targets
 umcub_python(_py)
-add_test(NAME config-check COMMAND "${_py}" "${UMCUB_ROOT}/tools/build/check_config.py" "${CMAKE_BINARY_DIR}")
 get_property(_signed GLOBAL PROPERTY UMCUB_SIGNED_IMAGES)
 foreach(_s IN LISTS _signed)
   string(REPLACE "|" ";" _s "${_s}")

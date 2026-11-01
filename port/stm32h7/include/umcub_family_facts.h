@@ -1,9 +1,8 @@
 /*
- * STM32H7 family defaults (applied after the board config, before the
- * generic defaults).
+ * STM32H7 family facts (behind the generated umcub_config.h). Option defaults: port/Kconfig.
  */
-#ifndef UMCUB_FAMILY_DEFAULTS_H
-#define UMCUB_FAMILY_DEFAULTS_H
+#ifndef UMCUB_FAMILY_FACTS_H
+#define UMCUB_FAMILY_FACTS_H
 
 #define UMCUB_FAMILY_STM32H7            1
 
@@ -13,7 +12,7 @@
 #if !(defined(STM32H742xx) || defined(STM32H743xx) || defined(STM32H753xx) || defined(STM32H745xx) || \
       defined(STM32H745xG) || defined(STM32H747xx) || defined(STM32H747xG) || defined(STM32H755xx) || \
       defined(STM32H757xx))
-#error "umcub: this STM32H7 part is not verified with the port: check its flash sectors and SRAM4 (datasheet, reference manual), then add it to the list in port/stm32h7/include/umcub_family_defaults.h (docs/porting.md, Adding a part)"
+#error "umcub: this STM32H7 part is not verified with the port: check its flash sectors and SRAM4 (datasheet, reference manual), then add it to the list in port/stm32h7/include/umcub_family_facts.h (docs/porting.md, Adding a part)"
 #endif
 #define UMCUB_FAMILY_UNIFORM_SECTOR     UMCUB_KB(128)
 #define UMCUB_FAMILY_MIN_SECTOR         UMCUB_KB(128)
@@ -28,18 +27,5 @@
 #define UMCUB_FAMILY_CORE2_PARTNO       0xC24   /* Cortex-M4 (SCB->CPUID PARTNO) */
 #endif
 
-#ifndef UMCUB_CFG_BOOT_ADDR
-#define UMCUB_CFG_BOOT_ADDR             0x08000000
-#endif
-#ifndef UMCUB_CFG_BOOT_SIZE
-#define UMCUB_CFG_BOOT_SIZE             UMCUB_KB(128)
-#endif
-#ifndef UMCUB_CFG_PWR_SUPPLY
-#define UMCUB_CFG_PWR_SUPPLY            UMCUB_H7_SUPPLY_LDO
-#endif
-/* Last 256 bytes of SRAM4 (D3 domain, reachable by both cores, kept over reset). */
-#ifndef UMCUB_CFG_SHARED_RAM_ADDR
-#define UMCUB_CFG_SHARED_RAM_ADDR       0x3800FF00
-#endif
 
-#endif /* UMCUB_FAMILY_DEFAULTS_H */
+#endif /* UMCUB_FAMILY_FACTS_H */

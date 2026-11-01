@@ -52,7 +52,7 @@ DECLARATION = re.compile(_TYPE + r"(extern\b.*\b(umcub_\w+)\s*(?:\[[^\]]*\])?\s*
 
 
 # Configuration data: assembled by config/umcub_cfg.h, so part of L0.
-CONFIG_FILES = re.compile(r"^(boards/[^/]+/umcub_config\.h|port/stm32[^/]+/include/umcub_family_defaults\.h)$")
+CONFIG_FILES = re.compile(r"^(boards/[^/]+/umcub_config\.h|port/stm32[^/]+/include/umcub_family_facts\.h)$")
 
 
 def layer_of(rel):

@@ -7,8 +7,7 @@
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/${presetName}",
       "toolchainFile": "${sourceDir}/cmake/arm-none-eabi.cmake",
-      "cacheVariables": { "UMCUB_BOARD": "nucleo_h755zi_q", "UMCUB_BUILD_EXAMPLES": "ON",
-                          "UMCUB_CONFIG_PRE": "", "UMCUB_CONFIG_POST": "", "UMCUB_CONF": "" }
+      "cacheVariables": { "UMCUB_BOARD": "nucleo_h755zi_q", "UMCUB_BUILD_EXAMPLES": "ON", "UMCUB_CONF": "" }
     },
     {
       "name": "h755-cm7",

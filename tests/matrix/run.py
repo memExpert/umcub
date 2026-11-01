@@ -5,7 +5,7 @@ the line for the summary of tools/build/build_matrix.sh to <out>/summary/<name>.
   run.py --out DIR config "name|core|type|pre|post|board"   bootloader: configure, build, no warnings
   run.py --out DIR preset NAME                              CMake preset: every target, a .map per .elf
   run.py --out DIR example "name|board|core|image"          example application: signed, ELF = objcopy
-  run.py --out DIR ide                                      umcub_app_all.c as an IDE project compiles it
+  run.py --out DIR app-library                              umcub_app_all.c compiled by itself (no CMake)
   run.py --out DIR check NAME [--grep RE] -- COMMAND...     a check script: its last line (matching RE) is the summary
 """
 import argparse
@@ -60,17 +60,15 @@ def build(out, name, args, src=ROOT):
 
 
 def t_config(out, line):
-    name, core, btype, pre, post, board = (line.split("#")[0].strip().split("|") + [""] * 6)[:6]
+    name, core, btype, conf, board = (line.split("#")[0].strip().split("|") + [""] * 5)[:5]
     board = board or DEFAULT_BOARD
     if board == "none":
         board = ""
     elif "/" in board:
         board = str(ROOT / board)
-    # every overlay variable given, also empty: a reused build tree keeps its cache
-    conf = ";".join(overlay(f) for f in post.split(",")) if post.endswith(".conf") else ""
+    # always given, also empty: a reused build tree keeps its cache
     args = [f"-DCMAKE_BUILD_TYPE={btype}", f"-DUMCUB_BOARD={board}", f"-DUMCUB_CORE={core}",
-            f"-DUMCUB_CONFIG_PRE={overlay(pre) if pre else ''}", f"-DUMCUB_CONF={conf}",
-            f"-DUMCUB_CONFIG_POST={overlay(post) if post and not conf else ''}"]
+            "-DUMCUB_CONF=" + ";".join(overlay(f) for f in conf.split(",") if f)]
     d = build(out, name, args)
     if name == "custom-drivers" and re.search(r"fdcan\.c|/eth\.c", (d / "build.ninja").read_text()):
         raise Failed("the family FDCAN / ETH driver is built next to the board's")
@@ -109,16 +107,16 @@ def t_example(out, line):
     return name, f"signed, Image version: {version}, ELF = objcopy"
 
 
-def t_ide(out):
+def t_app_library(out):
     """umcub_app_all.c with only the documented include paths, the generated
-    configuration and the CMSIS CORE_CMx define (docs/application.md, "Using umcub
-    from an IDE"), also with clang (armclang in Keil MDK is clang based), and in
+    configuration and the CMSIS CORE_CMx define (docs/application.md, "Applications
+    built without CMake"), also with clang (armclang in Keil MDK is clang based), and in
     every upgrade mode (static names are shared by all library sources there)."""
     def config(name, *conf):
-        d = out / f"ide_config_{name}"
+        d = out / f"lib_config_{name}"
         args = [a for f in conf for a in ("--conf", f"tests/configs/mode/{f}.conf")]
         run([PY, "tools/host/umcub", "config", "generate", "--board", DEFAULT_BOARD, "--core", "cm7", "--out", d] + args,
-            out / "ide.log", True)
+            out / "app-library.log", True)
         return d
 
     incs = ["include", "config", "port/stm32h7/include", "port/include",
@@ -128,10 +126,10 @@ def t_ide(out):
     flags = ["-Os", "-Wall", "-Wextra", "-Werror", "-Wno-unused-parameter", "-DSTM32H755xx", "-DCORE_CM7"] + \
         [f"-I{i}" for i in incs] + ["-c", "lib/umcub_app/umcub_app_all.c"]
     cpu = ["-mcpu=cortex-m7", "-mfpu=fpv5-d16", "-mfloat-abi=hard"]
-    log = out / "ide.log"
+    log = out / "app-library.log"
     log.write_text("")
     default = f"-I{config('default')}"
-    run(["arm-none-eabi-gcc", "-mthumb"] + cpu + [default] + flags + ["-o", out / "ide_gcc.o"], log, True)
+    run(["arm-none-eabi-gcc", "-mthumb"] + cpu + [default] + flags + ["-o", out / "lib_gcc.o"], log, True)
     done = ["gcc"]
     if shutil.which("clang"):
         # newlib headers: <sysroot>/include; distribution toolchains print no
@@ -141,11 +139,11 @@ def t_ide(out):
             libc = subprocess.check_output(["arm-none-eabi-gcc", "-print-file-name=libc.a"], text=True).strip()
             inc = Path(libc).parent.parent / "include"
         run(["clang", "--target=arm-none-eabi", "-Wno-unknown-attributes", "-isystem", inc] + cpu + [default] + flags +
-            ["-o", out / "ide_clang.o"], log, True)
+            ["-o", out / "lib_clang.o"], log, True)
         done.append("clang")
     for m in ("overwrite", "swap_offset", "direct_xip", "direct_xip_revert"):
-        run(["arm-none-eabi-gcc", "-mthumb"] + cpu + [f"-I{config(m, m)}"] + flags + ["-o", out / f"ide_{m}.o"], log, True)
-    return "ide-library", f"umcub_app_all.c: {' '.join(done)}, all upgrade modes"
+        run(["arm-none-eabi-gcc", "-mthumb"] + cpu + [f"-I{config(m, m)}"] + flags + ["-o", out / f"lib_{m}.o"], log, True)
+    return "app-library", f"umcub_app_all.c: {' '.join(done)}, all upgrade modes"
 
 
 def t_check(out, name, cmd, grep=None):
@@ -158,7 +156,7 @@ def t_check(out, name, cmd, grep=None):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--out", required=True, type=Path)
-    ap.add_argument("kind", choices=("config", "preset", "example", "ide", "check"))
+    ap.add_argument("kind", choices=("config", "preset", "example", "app-library", "check"))
     ap.add_argument("args", nargs=argparse.REMAINDER)
     a = ap.parse_args()
     out = a.out.resolve()
@@ -171,7 +169,7 @@ def main():
                 grep, rest = rest[1], rest[2:]
             label, text = t_check(out, name, rest[1:] if rest[:1] == ["--"] else rest, grep)
         else:
-            label, text = {"config": t_config, "preset": t_preset, "example": t_example, "ide": t_ide}[a.kind](out, *args)
+            label, text = {"config": t_config, "preset": t_preset, "example": t_example, "app-library": t_app_library}[a.kind](out, *args)
     except Failed as e:
         print(f"FAIL: {e}")
         sys.exit(1)

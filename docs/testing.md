@@ -3,25 +3,22 @@
 The build matrix, host tests, simulated devices and the hardware tests.
 
 ```sh
-tools/build/build_matrix.sh                 # 54 bootloader configurations, presets, examples, IDE checks, host
+tools/build/build_matrix.sh                 # 54 bootloader configurations, presets, examples, library check, host
                                             # tests, link e2e; warning-free; CTest underneath (JOBS=n), size summary
 tools/build/build_matrix.sh build/matrix -R bluepill   # some tests (any ctest option after the directory)
 ctest --test-dir build/matrix -j4 --rerun-failed --output-on-failure   # the same tests with ctest directly
 (cd tests && cmake --preset matrix && ctest --preset matrix)          # tests/CMakePresets.json, e.g. for an IDE
-ctest --test-dir build/<preset>             # one build tree: config check, every signed image verifies with its key
+ctest --test-dir build/<preset>             # one build tree: every signed image verifies with its key
 ctest --test-dir build/matrix/host    # host tests only
 tests/host/link_e2e.py build/matrix/host   # simulated devices: umcub link bus, smpmgr, host tools, lite upload
 tests/tools/check_pins_test.py              # pin check: right / wrong pins and AF numbers, AF filled in, packages
 tools/build/check_docs.py                   # README and docs/ still match the repository (size tables, links, ...)
-tools/build/check_config.py build/matrix/*/ # CMake and umcub/config.py read the same values and slot windows
 tools/build/gen_kconfig.py --check            # port/kconfig/ (part and pin menus) matches ST's pin data
 ```
 
 The matrix is a CTest project (`tests/CMakeLists.txt`): one test per bootloader configuration in
-`tests/matrix/configs.txt` (`name|core|build type|pre overlay|post overlay|board`; for Kconfig boards the post
-column holds `.conf` fragments, comma-separated), per CMake preset and per example
-application, plus the checks (layers, pin check, IDE library compile, CMake and host tools reading the same
-configuration), the host tests and the link e2e. `tests/matrix/run.py` runs one test; logs are
+`tests/matrix/configs.txt` (`name|core|build type|fragments|board`, fragments comma-separated), per CMake preset and per example
+application, plus the checks (layers, pin check, compile of the application library by itself), the host tests and the link e2e. `tests/matrix/run.py` runs one test; logs are
 `build/matrix/<name>.*.log`, build trees `build/matrix/<name>/`; `ctest -R`, `--rerun-failed` and `--output-junit`
 work as usual. In VS Code (CMake Tools) the matrix is a second project next to the bootloader:
 `"cmake.sourceDirectory": ["${workspaceFolder}", "${workspaceFolder}/tests"]` and
@@ -61,7 +58,7 @@ block, SysTick nothing.
 Hardware tests: `tests/hw/powerfail_test.py` resets the MCU in the middle of the K-th flash operation (build with
 `tests/configs/feature/fault_inject.conf`: `UMCUB_CFG_TEST_FAULT_INJECT`, test only) and checks that an interrupted upgrade or revert (swap modes) or an
 interrupted overwrite copy always completes. The images are signed with `umcub image sign` for the
-bootloader's board and overlays; the fault record (`UMCUB_CFG_TEST_FAULT_ADDR`, a RAM word that survives a reset) and
+bootloader's board and fragments; the fault record (`UMCUB_CFG_TEST_FAULT_ADDR`, a RAM word that survives a reset) and
 the handoff area come from that configuration too. A run ends when the bootloader publishes the handoff (right before
 the jump); with `--sector-size` only the sectors that programming does not rewrite are erased explicitly.
 `--encrypted` (bootloader with encrypted images) installs an encrypted update, so every resumed swap has to recover

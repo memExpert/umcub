@@ -379,13 +379,12 @@ config CMD_ENABLE
 config CMD_TABLE
 	string "Command table"
 	depends on CMD_ENABLE
-	default ""
+	default "a=BOOT_APP b=STAY r=RESET i=INFO +inspect"
 	help
 	  The text commands as name=ACTION, separated by spaces. ACTION:
 	  BOOT_APP, STAY, RESET, INFO, VERIFY, HASH, READ, USER<n> (the board's
 	  umcub_cmd_user(n, ...)). +inspect adds verify, hash and read where
-	  they are on and SMP is off, +inspect_read also with SMP. Empty:
-	  "a=BOOT_APP b=STAY r=RESET i=INFO +inspect".
+	  they are on and SMP is off, +inspect_read also with SMP.
 
 config CMD_IMMEDIATE
 	bool "Run a command as soon as the input equals it"
@@ -760,6 +759,25 @@ config ADMIN_KEY_PATH
 endmenu
 
 menu "Misc"
+
+choice APP_WRITE_SLOT_CHOICE
+	prompt "Slot the application writes (umcub_slot_begin)"
+	default APP_WRITE_SLOT_INACTIVE if UPGRADE_MODE_DIRECT_XIP || UPGRADE_MODE_DIRECT_XIP_REVERT
+	default APP_WRITE_SLOT_SECONDARY
+config APP_WRITE_SLOT_SECONDARY
+	bool "Secondary"
+config APP_WRITE_SLOT_INACTIVE
+	bool "The one not in use (direct-xip)"
+config APP_WRITE_SLOT_PRIMARY
+	bool "Primary"
+endchoice
+
+config APP_WRITE_SLOT
+	int
+	default 0 if APP_WRITE_SLOT_PRIMARY
+	default 2 if APP_WRITE_SLOT_INACTIVE
+	default 1
+
 
 config LOG_LEVEL
 	int "Boot log level"

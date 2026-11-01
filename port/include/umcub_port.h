@@ -104,7 +104,7 @@ int umcub_port_rdp_level(void);
 /* ------------------------------------------------------------------------ */
 
 /* Program unit: UMCUB_FAMILY_WRITE_ALIGN bytes (writes aligned and a multiple
- * of it); erased flash reads UMCUB_FAMILY_ERASED_VAL (umcub_family_defaults.h). */
+ * of it); erased flash reads UMCUB_FAMILY_ERASED_VAL (umcub_family_facts.h). */
 
 /* Sector containing `addr`. Returns UMCUB_EINVAL if outside flash. */
 int umcub_flash_sector_info(uint32_t addr, uint32_t *start, uint32_t *size);

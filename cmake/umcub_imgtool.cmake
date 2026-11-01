@@ -113,8 +113,8 @@ endfunction()
 # set) is produced for programmers and serial recovery: an image without a
 # confirmed trailer is erased by MCUboot on the next boot in that mode.
 # DEPENDS example (multi-image): "(1,1.0.0)" = needs image 1 >= 1.0.0.
-# Signing itself is `umcub image sign` (tools/host/umcub, the tool IDE projects use),
-# on the same board configuration and overlays: one implementation.
+# Signing itself is `umcub image sign` (tools/host/umcub, what projects without
+# CMake run too), on the build tree's configuration: one implementation.
 function(umcub_sign_image target)
   cmake_parse_arguments(A "CONFIRM;PAD" "IMAGE;SLOT;VERSION;KEY;ENCRYPT_KEY" "DEPENDS" ${ARGN})
   if(NOT DEFINED A_IMAGE)
@@ -145,18 +145,12 @@ function(umcub_sign_image target)
                     "Pass ENCRYPT_KEY or set UMCUB_DEVICE_KEY for production.")
   endif()
 
-  set(_args sign --board "${UMCUB_CONFIG_DIR}" --cc "${CMAKE_C_COMPILER}" --imgtool "${UMCUB_IMGTOOL}" --quiet
+  set(_args sign --board "${UMCUB_CONFIG_DIR}" --imgtool "${UMCUB_IMGTOOL}" --quiet
             --image ${A_IMAGE} --slot ${A_SLOT} --version ${A_VERSION}
             --key "${A_KEY}" --encrypt-key "${A_ENCRYPT_KEY}")
   if(UMCUB_CORE MATCHES "^cm[47]$")     # dual-core parts (UMCUB_CORE_CM7 / _CM4)
     list(APPEND _args --core ${UMCUB_CORE})
   endif()
-  foreach(_o PRE POST)                  # as resolved by umcub_load_config()
-    if(UMCUB_CONFIG_${_o}_ABS)
-      string(TOLOWER ${_o} _l)
-      list(APPEND _args --${_l} "${UMCUB_CONFIG_${_o}_ABS}")
-    endif()
-  endforeach()
   if(A_CONFIRM)
     list(APPEND _args --confirm)
   endif()

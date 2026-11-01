@@ -1,13 +1,13 @@
 # umcub configuration loader shared by the bootloader build and umcub::app.
 #
 # umcub_load_config(<board_dir> <core>)
-#   Runs the C preprocessor over the board's umcub_config.h (plus family and
-#   generic defaults) and exports every UMCUB_CFG_* macro as a CMake variable
-#   in the caller's scope. Numeric expressions are evaluated; the raw text is
-#   kept in UMCUB_CFG_<NAME>_RAW. Also loads the family description
-#   (cmake/families/<family>.cmake) and sets:
+#   The configuration of a board (its defconfig + the fragments of UMCUB_CONF, or
+#   without a board the Kconfig defaults + fragments): `umcub config generate`
+#   writes it to the build tree (.config, umcub_config.h, the slots' linker
+#   fragments, ...), every UMCUB_CFG_* becomes a CMake variable in the caller's
+#   scope. Also loads the family description (cmake/families/<family>.cmake) and sets:
 #     UMCUB_MCU, UMCUB_CORE, UMCUB_FAMILY*, UMCUB_CPU_FLAGS_SOFT/HARD,
-#     UMCUB_CONFIG_INCLUDES, UMCUB_CONFIG_DEFS
+#     UMCUB_CONFIG_DIR, UMCUB_CONFIG_INCLUDES, UMCUB_CONFIG_DEFS
 #
 # umcub_preprocess(<template> <output>)
 #   Preprocesses a linker script template with the same configuration.
@@ -56,19 +56,14 @@ macro(umcub_load_config board_dir core)
     file(MAKE_DIRECTORY "${UMCUB_BOARD_DIR}")
   else()
     get_filename_component(UMCUB_BOARD_DIR "${board_dir}" ABSOLUTE BASE_DIR "${UMCUB_ROOT}/boards")
+    if(NOT EXISTS "${UMCUB_BOARD_DIR}/defconfig")
+      message(FATAL_ERROR "umcub: ${UMCUB_BOARD_DIR}: no defconfig (docs/board.md)")
+    endif()
   endif()
   set(UMCUB_CORE "${core}")
-  set(_probe_dir "${CMAKE_BINARY_DIR}/umcub_probe")
-  file(MAKE_DIRECTORY "${_probe_dir}")
-  # UMCUB_CONFIG_DIR: where umcub_config.h is - the board directory, or for a
-  # Kconfig board (boards/<b>/defconfig) the build tree's umcub_kconfig.
-  if("${board_dir}" STREQUAL "" OR EXISTS "${UMCUB_BOARD_DIR}/defconfig")
-    _umcub_kconfig("${board_dir}")
-  elseif(EXISTS "${UMCUB_BOARD_DIR}/umcub_config.h")
-    set(UMCUB_CONFIG_DIR "${UMCUB_BOARD_DIR}")
-  else()
-    message(FATAL_ERROR "umcub: ${UMCUB_BOARD_DIR}: no defconfig or umcub_config.h")
-  endif()
+  file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/umcub_probe")
+  _umcub_kconfig("${board_dir}")
+  set(UMCUB_MCU "${UMCUB_CFG_MCU}")
 
   set(UMCUB_CONFIG_DEFS)
   if(UMCUB_CORE STREQUAL "cm7")
@@ -77,30 +72,7 @@ macro(umcub_load_config board_dir core)
     list(APPEND UMCUB_CONFIG_DEFS UMCUB_CORE_CM4=1)
   endif()
 
-  # Overlays resolved here once; UMCUB_CONFIG_{PRE,POST}_ABS let later users
-  # (umcub_sign_image) take the same files from another directory.
-  set(UMCUB_CONFIG_PRE_ABS)
-  set(UMCUB_CONFIG_POST_ABS)
-  if(UMCUB_CONFIG_PRE)
-    get_filename_component(UMCUB_CONFIG_PRE_ABS "${UMCUB_CONFIG_PRE}" ABSOLUTE)
-    list(APPEND UMCUB_CONFIG_DEFS "UMCUB_CONFIG_PRE=\"${UMCUB_CONFIG_PRE_ABS}\"")
-  endif()
-  if(UMCUB_CONFIG_POST)
-    get_filename_component(UMCUB_CONFIG_POST_ABS "${UMCUB_CONFIG_POST}" ABSOLUTE)
-    list(APPEND UMCUB_CONFIG_DEFS "UMCUB_CONFIG_POST=\"${UMCUB_CONFIG_POST_ABS}\"")
-  endif()
-
-  # Step 1: which MCU? (board config + constants only)
-  set(UMCUB_CONFIG_INCLUDES "${UMCUB_ROOT}/config" "${UMCUB_CONFIG_DIR}")
-  file(WRITE "${_probe_dir}/mcu.c"
-    "#include \"umcub_config_types.h\"\n#ifdef UMCUB_CONFIG_PRE\n#include UMCUB_CONFIG_PRE\n#endif\n#include \"umcub_config.h\"\n#ifdef UMCUB_CONFIG_POST\n#include UMCUB_CONFIG_POST\n#endif\n@@MCU@@ UMCUB_CFG_MCU\n")
-  _umcub_cpp(_out "${_probe_dir}/mcu.c")
-  if(NOT _out MATCHES "@@MCU@@ (STM32[A-Za-z0-9_]+)")
-    message(FATAL_ERROR "umcub: UMCUB_CFG_MCU must be set to a CMSIS device define (e.g. STM32H755xx)")
-  endif()
-  set(UMCUB_MCU "${CMAKE_MATCH_1}")
-
-  # Step 2: family description
+  # The family description
   string(SUBSTRING "${UMCUB_MCU}" 5 2 _fam)
   string(TOLOWER "stm32${_fam}" _fam)
   if(NOT EXISTS "${UMCUB_ROOT}/cmake/families/${_fam}.cmake")
@@ -109,68 +81,9 @@ macro(umcub_load_config board_dir core)
   include("${UMCUB_ROOT}/cmake/families/${_fam}.cmake")
   list(APPEND UMCUB_CONFIG_DEFS ${UMCUB_FAMILY_DEFS})
   set(UMCUB_CONFIG_INCLUDES "${UMCUB_ROOT}/config" "${UMCUB_CONFIG_DIR}" "${UMCUB_FAMILY_DIR}/include")
-
-  # Step 3: every UMCUB_CFG_* known anywhere
-  set(_names)
-  foreach(f "${UMCUB_ROOT}/config/umcub_config_template.h"
-            "${UMCUB_ROOT}/config/umcub_config_defaults.h"
-            "${UMCUB_FAMILY_DIR}/include/umcub_family_defaults.h"
-            "${UMCUB_CONFIG_DIR}/umcub_config.h")
-    # Whole-file regex, not file(STRINGS): a line ending in '\\' (macro
-    # continuation) would escape the list separator and glue lines together.
-    file(READ "${f}" _text)
-    string(REGEX MATCHALL "#[ \t]*define[ \t]+UMCUB_CFG_[A-Z0-9_]+" _defs "${_text}")
-    foreach(d IN LISTS _defs)
-      string(REGEX MATCH "UMCUB_CFG_[A-Z0-9_]+" _n "${d}")
-      list(APPEND _names ${_n})
-    endforeach()
-  endforeach()
-  list(REMOVE_DUPLICATES _names)
-
-  set(_probe "#include \"umcub_cfg.h\"\n")
-  foreach(n IN LISTS _names)
-    string(APPEND _probe "@@ \"${n}\" ${n}\n")
-  endforeach()
-  # Family facts needed by CMake (imgtool arguments).
-  string(APPEND _probe "@@ \"UMCUB_CFG_FAMILY_WRITE_ALIGN\" UMCUB_FAMILY_WRITE_ALIGN\n")
-  string(APPEND _probe "@@ \"UMCUB_CFG_FAMILY_MIN_SECTOR\" UMCUB_FAMILY_MIN_SECTOR\n")
-  file(WRITE "${_probe_dir}/cfg.c" "${_probe}")
-  _umcub_cpp(_out "${_probe_dir}/cfg.c")
-  string(REPLACE ";" "\\;" _out "${_out}")
-  string(REPLACE "\n" ";" _out_lines "${_out}")
-  foreach(l IN LISTS _out_lines)
-    if(l MATCHES "^@@ \"(UMCUB_CFG_[A-Z0-9_]+)\" (.*)$")
-      set(_n "${CMAKE_MATCH_1}")
-      string(STRIP "${CMAKE_MATCH_2}" _v)
-      if(_v STREQUAL _n)
-        continue()   # not defined
-      endif()
-      set(${_n}_RAW "${_v}")
-      # Evaluate integer expressions (strip C integer suffixes first).
-      string(REGEX REPLACE "([0-9a-fA-F])[uUlL]+" "\\1" _e "${_v}")
-      if(_e MATCHES "^[-+*/%()<>&|^~ \t0-9a-fA-Fx]+$" AND NOT _e MATCHES "\\|\\||&&")
-        math(EXPR _num "${_e}" OUTPUT_FORMAT DECIMAL)
-        set(${_n} "${_num}")
-      else()
-        set(${_n} "${_v}")
-      endif()
-    endif()
-  endforeach()
-  set(UMCUB_CONFIG_DEFS ${UMCUB_CONFIG_DEFS})
-
-  # What CMake read, for tools/build/check_config.py: the host tools read the
-  # same configuration on their own (umcub/config.py) and must agree.
-  set(_dump "@board=${UMCUB_CONFIG_DIR}\n@core=${UMCUB_CORE}\n@pre=${UMCUB_CONFIG_PRE_ABS}\n")
-  string(APPEND _dump "@post=${UMCUB_CONFIG_POST_ABS}\n@cc=${CMAKE_C_COMPILER}\n")
-  foreach(n IN LISTS _names ITEMS UMCUB_CFG_FAMILY_WRITE_ALIGN UMCUB_CFG_FAMILY_MIN_SECTOR)
-    if(DEFINED ${n} AND "${${n}}" MATCHES "^-?[0-9]+$")
-      string(APPEND _dump "${n}=${${n}}\n")
-    endif()
-  endforeach()
-  file(WRITE "${_probe_dir}/config.txt" "${_dump}")
 endmacro()
 
-# A Kconfig board: .config and umcub_config.h from boards/<b>/defconfig and the
+# .config, umcub_config.h and the rest from boards/<b>/defconfig and the
 # fragments of UMCUB_CONF (umcub.kconfig, `umcub config generate`), made again
 # when a Kconfig file, the defconfig, a fragment or the .config (menuconfig)
 # changes. The keys come from the configuration too (generated ones are made in
@@ -192,7 +105,7 @@ macro(_umcub_kconfig board)
   endif()
   find_program(_umcub_py NAMES python3 python HINTS "${UMCUB_ROOT}/.venv/bin" NO_CACHE)
   if(NOT _umcub_py)
-    message(FATAL_ERROR "umcub: Kconfig board ${UMCUB_BOARD_DIR}: Python with esp-idf-kconfig needed (tools/setup.sh)")
+    message(FATAL_ERROR "umcub: Python with esp-idf-kconfig needed (tools/setup.sh)")
   endif()
   set(_conf_args)
   foreach(f IN LISTS UMCUB_CONF)
@@ -206,7 +119,7 @@ macro(_umcub_kconfig board)
     set(_board "${UMCUB_BOARD_DIR}")
   endif()
   execute_process(COMMAND ${_umcub_config_cmd} generate --board "${_board}" --core "${UMCUB_CORE}"
-                          ${_conf_args} --out "${UMCUB_CONFIG_DIR}" --cc "${CMAKE_C_COMPILER}"
+                          ${_conf_args} --out "${UMCUB_CONFIG_DIR}"
                   OUTPUT_VARIABLE _out ERROR_VARIABLE _err RESULT_VARIABLE _rc)
   if(NOT _rc EQUAL 0)
     message(FATAL_ERROR "umcub: ${_err}${_out}")
@@ -215,6 +128,7 @@ macro(_umcub_kconfig board)
   if(_out)
     message(STATUS "${_out}")
   endif()
+  include("${UMCUB_CONFIG_DIR}/umcub_config.cmake")
   include("${UMCUB_CONFIG_DIR}/keys.cmake")     # UMCUB_SIGNING_KEY etc.: Kconfig "Keys", over the cache
   file(STRINGS "${UMCUB_CONFIG_DIR}/kconfig.deps" _deps)
   set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${_deps} "${UMCUB_CONFIG_DIR}/.config")

@@ -1,12 +1,14 @@
 """The umcub configuration from Kconfig (esp-idf-kconfig): a board's defconfig
-plus configuration fragments -> .config and the C header umcub_config.h.
+plus configuration fragments -> .config and what the rest of the tree reads:
+umcub_config.h (C), umcub_config.cmake (CMake), umcub_config.json (host tools).
 
-Symbols are written as UMCUB_CFG_<NAME> in both (.config lines, #defines).
+Every option is in them, also one whose dependencies are not met (with its
+default, or off), plus the values derived from the options (derived()).
+Symbols are written as UMCUB_CFG_<NAME> (.config lines, #defines, CMake variables).
 In the header: bool -> 0 / 1, int and hex as numbers, pins ("PA9", "PD12:7"
 with the alternate function) -> UMCUB_PIN(), IPv4 addresses -> UMCUB_IP4(),
 the MCU as the CMSIS device define, other strings as C strings. Choice members
-are left out (a hidden int carries the choice), as are symbols whose
-dependencies are not met.
+are left out (a hidden int carries the choice).
 
 A build tree keeps its .config while the defconfig and the fragments stay the
 same (menuconfig changes survive a reconfigure); when they change, .config is
@@ -25,17 +27,21 @@ ROOT = Path(os.environ.get("UMCUB_ROOT") or Path(__file__).resolve().parents[3])
 PREFIX = "UMCUB_CFG_"
 STATE = "kconfig.json"          # how the build tree's .config was made
 HEADER = "umcub_config.h"
+JSON = "umcub_config.json"
+CMAKE = "umcub_config.cmake"
 DONE = "kconfig.done"           # written last by generate()
 IP_NAMES = {"ETH_IP", "ETH_NETMASK"}
 RAW_NAMES = {"MCU"}             # C tokens, not strings
 # Kconfig helpers that stay out of the header: what the part has, pin sets,
 # lines and families (port/kconfig/*.kconfig, port/Kconfig, Kconfig).
-INTERNAL = re.compile(r"(PIN|PINSET|HAS|FAMILY)_\w+|MCU_STM32\w+|BUILD_CORE|CORE_CM4|MCU_DUALCORE|LINK_SECURE"
+INTERNAL = re.compile(r"(PIN|PINSET|HAS)_\w+|FAMILY_STM32\w+|MCU_STM32\w+|BUILD_CORE|CORE_CM4|MCU_DUALCORE|LINK_SECURE"
                       r"|KEYS_DIR|(SIGNING|DEVICE|ADMIN)_KEY_\w+")
 # The keys (config/Kconfig "Keys"): generated file name, development key of the repository.
 KEYS = {"SIGNING": ("signing.pem", "dev-ecdsa-p256.pem"),
         "DEVICE": ("device.pem", "dev-device-p256.pem"),
         "ADMIN": ("admin.pem", "dev-admin-p256.pem")}
+# Slots: 0 when their options are off (the board's defaults hold for the slots in use).
+SLOT = re.compile(r"(IMG\d_(PRIMARY|SECONDARY)|SCRATCH)_(ADDR|SIZE)")
 # UMCUB_CFG_CMD_TABLE: its actions and the groups of inspection commands.
 CMD_ACTIONS = {"BOOT_APP", "STAY", "RESET", "INFO", "VERIFY", "HASH", "READ"}
 CMD_GROUPS = {"+inspect": "UMCUB_DEFAULT_CMD_INSPECT", "+inspect_read": "UMCUB_CMD_INSPECT_DEFAULTS"}
@@ -57,6 +63,20 @@ def board_dir(board):
     return d.resolve() if (d / "defconfig").is_file() else None
 
 
+def _rec_invalidate(item):
+    """In place of esp-kconfiglib's: that one walks every path through the
+    dependencies, seconds per assignment with the part and pin menus (minutes to
+    load a .config, also in menuconfig). Every item once does the same."""
+    seen, todo = {id(item)}, [item]
+    while todo:
+        cur = todo.pop()
+        cur._invalidate()
+        for dep in cur._dependents:
+            if id(dep) not in seen:
+                seen.add(id(dep))
+                todo.append(dep)
+
+
 def _kconfig(bdir, core):
     os.environ.update({"CONFIG_": PREFIX, "UMCUB_ROOT": ROOT.as_posix(),
                        "UMCUB_BOARD_DIR": Path(bdir).as_posix() if bdir else (ROOT / "boards/.none").as_posix(),
@@ -65,6 +85,7 @@ def _kconfig(bdir, core):
         import esp_kconfiglib.core as k
     except ImportError:
         die("esp-idf-kconfig is not installed (pip install esp-idf-kconfig; tools/setup.sh does it)")
+    k.Symbol._rec_invalidate = k.Choice._rec_invalidate = _rec_invalidate
     try:
         return k, k.Kconfig(str(ROOT / "Kconfig"), warn_to_stderr=False, info=False)
     except k.KconfigError as e:
@@ -153,7 +174,7 @@ def load(board, core="", fragments=(), out_dir=None):
     stamp = _stamp(bdir, core, inputs)
     state = _state(out_dir)
     if dot and dot.is_file() and state.get("stamp") == stamp:
-        _load_dot(kconf, dot)
+        kconf.load_config(str(dot))
     else:
         for i, f in enumerate(inputs):
             kconf.load_config(str(f), replace=(i == 0))
@@ -164,28 +185,6 @@ def load(board, core="", fragments=(), out_dir=None):
             {"board": str(bdir) if bdir else "", "core": core or "", "fragments": [str(f) for f in inputs[1:]],
              "stamp": stamp}, indent=1))
     return kconf, bdir, inputs
-
-
-def _load_dot(kconf, dot):
-    """A full .config, without what does not need loading: values marked
-    "# default:" and the unselected members of choices. esp-kconfiglib takes
-    minutes for the full file (hundreds of part and pin choice members), seconds
-    for the rest - same result."""
-    keep, default = [], False
-    for line in Path(dot).read_text().splitlines():
-        if line.strip() == "# default:":
-            default = True
-            continue
-        m = re.fullmatch(rf"# {PREFIX}(\w+) is not set", line.strip())
-        if not default and not (m and m.group(1) in kconf.syms and kconf.syms[m.group(1)].choice is not None):
-            keep.append(line)
-        default = False
-    tmp = Path(dot).with_name(".config.load")
-    tmp.write_text("\n".join(keep) + "\n")
-    try:
-        kconf.load_config(str(tmp))
-    finally:
-        tmp.unlink()
 
 
 def _state(out_dir):
@@ -230,48 +229,77 @@ def _cmd_table(text):
     return " ".join(out)
 
 
+def _off_value(k, sym):
+    """The value of an option whose dependencies are not met: its first default
+    that holds, nothing for what has none."""
+    if SLOT.fullmatch(sym.name):
+        return "0"
+    for node in sym.nodes:
+        for val, cond in node.orig_defaults:    # as written: .defaults also carry the dependencies
+            if k.expr_value(cond):
+                return val.str_value if not isinstance(val, tuple) else ""
+    return "n" if sym.type == k.BOOL else "0" if sym.type in (k.INT, k.HEX) else ""
+
+
+def _c_text(k, sym, v):
+    """A value as C text, None: no value."""
+    if sym.type == k.BOOL:
+        return "1" if v == "y" else "0"
+    if sym.type in (k.INT, k.HEX):
+        return v if v != "" else None
+    if sym.name in RAW_NAMES:
+        return v or None
+    if sym.name.endswith("_PINS"):
+        return ", ".join(_pin(sym.name, p) for p in v.split())
+    if sym.name.endswith("_PIN"):
+        return _pin(sym.name, v)
+    if sym.name in IP_NAMES:
+        return _ip(sym.name, v)
+    return json.dumps(v)
+
+
 def values(kconf):
-    """{NAME: C text} of the symbols that go into the header."""
+    """{NAME: C text} of the header."""
     import esp_kconfiglib.core as k
     out = {}
     for sym in kconf.unique_defined_syms:
         if sym.choice is not None or INTERNAL.fullmatch(sym.name):
             continue
-        v = sym.str_value
-        if k.expr_value(sym.direct_dep) == 0:
-            continue                    # dependencies not met: no value
-        if sym.type == k.BOOL:
-            out[sym.name] = "1" if v == "y" else "0"
-        elif sym.type in (k.INT, k.HEX):
-            if v != "":
-                out[sym.name] = v
-        elif sym.type == k.STRING:
-            if sym.name in RAW_NAMES:
-                if v:
-                    out[sym.name] = v
-            elif sym.name.endswith("_PINS"):
-                out[sym.name] = ", ".join(_pin(sym.name, p) for p in v.split())
-            elif sym.name.endswith("_PIN"):
-                out[sym.name] = _pin(sym.name, v)
-            elif sym.name in IP_NAMES:
-                out[sym.name] = _ip(sym.name, v)
-            else:
-                out[sym.name] = json.dumps(v)
+        v = sym.str_value if k.expr_value(sym.direct_dep) else _off_value(k, sym)
+        text = _c_text(k, sym, v)
+        if text is not None:
+            out[sym.name] = text
     rmii = [out.pop(f"ETH_RMII_{s}_PIN") for s in RMII if f"ETH_RMII_{s}_PIN" in out]
-    if rmii:
+    if out.get("ETH_DRIVER") == "0" and out.get("TRANSPORT_ETH") == "1":
         out["ETH_RMII_PINS"] = ", ".join(rmii)
-    if out.get("TRANSPORT_CAN") == "1":         # a board driver has its own pins, src/transport/can passes these on
-        for pin in ("CAN_TX_PIN", "CAN_RX_PIN"):
-            out.setdefault(pin, "UMCUB_PIN_NONE")
-    if "CMD_TABLE" in out:
-        table = _cmd_table(kconf.syms["CMD_TABLE"].str_value)
-        if table:
-            out["CMD_TABLE"] = table
-        else:
-            del out["CMD_TABLE"]        # the default table of the C headers
+    out["CMD_TABLE"] = _cmd_table(kconf.syms["CMD_TABLE"].str_value or _off_value(k, kconf.syms["CMD_TABLE"]))
     if out.get("LAYOUT_AUTO") == "1":
         out.update({n: f"0x{v:X}" for n, v in auto_layout(kconf).items()})
+    out.update(derived(kconf, out))
     return out
+
+
+def derived(kconf, c):
+    """The values that follow from the options ({NAME: C text})."""
+    n = lambda name: int(c.get(name, "0"), 0)           # noqa: E731
+    family = next(f for f in ("STM32F1", "STM32F4", "STM32H7") if kconf.syms[f"FAMILY_{f}"].str_value == "y")
+    links = [("TRANSPORT_UART", "UART_LINK"), ("TRANSPORT_USB_CDC", "USB_CDC_LINK"), ("TRANSPORT_CAN", "CAN_LINK"),
+             ("TRANSPORT_ETH", "ETH_LINK"), ("TRANSPORT_USER", "USER_LINK")]
+    shared = n("SHARED_RAM_ADDR") if family == "STM32H7" else 0x20000000 + int(kconf.syms["RAM_KB"].str_value) * 1024 - 256
+    smp_transports = n("TRANSPORT_UART") | n("TRANSPORT_USB_CDC") | n("TRANSPORT_CAN") | n("TRANSPORT_ETH") | n("TRANSPORT_USER")
+    d = {"BOOT_INFO_ADDR": n("BOOT_ADDR") + n("BOOT_SIZE") - 256,       # last 256 bytes of the bootloader
+         "SHARED_RAM_ADDR": shared,
+         # TEST ONLY (power-loss emulation): kept over reset, used by nobody else
+         "TEST_FAULT_ADDR": 0x3800F000 if family == "STM32H7" else shared + 240,
+         "FAMILY_WRITE_ALIGN": layout.WRITE_ALIGN[family],
+         "FAMILY_MIN_SECTOR": min(s for _, s in layout.sectors(family, int(kconf.syms["FLASH_KB"].str_value))),
+         "INSPECT": n("INSPECT_VERIFY") | n("INSPECT_HASH") | n("READBACK"),
+         "USB": n("TRANSPORT_USB_CDC") | n("TRANSPORT_USB_DFU"),
+         "LINK_ANY": sum(n(a) * n(b) for a, b in links),                # non-zero: umcub link on some transport
+         "LINK_SECURE_ANY": sum(n(a) * (n(b) // 2) for a, b in links),  # non-zero: SECURE on some transport
+         "SMP": smp_transports * n("SMP_ENABLE"),                       # boot_serial, zcbor, inspect group compiled
+         "SLOT_WRITER_BOOT": n("TRANSPORT_USB_DFU") + n("LITE_UPLOAD") + n("PROTO_USER")}   # umcub_slot_* in the bootloader
+    return {name: (f"0x{v:X}" if name.endswith("_ADDR") else str(v)) for name, v in d.items()}
 
 
 def auto_layout(kconf):
@@ -332,8 +360,7 @@ def _keygen(path):
     return True
 
 
-def write_header(kconf, path, inputs):
-    vals = values(kconf)
+def write_header(vals, path, inputs):
     w = max(len(n) for n in vals) + len(PREFIX) + 1
     lines = ["/* Generated from Kconfig - do not edit: change the configuration with",
              " * menuconfig or in these files and build again:"]
@@ -342,6 +369,33 @@ def write_header(kconf, path, inputs):
     lines += [f"#define {PREFIX + n:<{w}} {v}" for n, v in vals.items()]
     lines += ["", "#endif /* UMCUB_CONFIG_H */", ""]
     _write_if_changed(path, "\n".join(lines))
+
+
+def plain_values(vals):
+    """The header's values as numbers and plain strings ({NAME: int | str})."""
+    out = {}
+    for name, v in vals.items():
+        if v.startswith('"'):
+            out[name] = json.loads(v)
+        else:
+            try:
+                out[name] = int(v, 0)
+            except ValueError:
+                out[name] = v
+    return out
+
+
+def write_tool_files(vals, out_dir, bdir, core):
+    """umcub_config.json (umcub.config) and umcub_config.cmake (cmake/umcub_config.cmake)."""
+    plain = plain_values(vals)
+    board = bdir.name if bdir else plain["MCU_PART"].lower()
+    _write_if_changed(Path(out_dir) / JSON, json.dumps(
+        {"board": board, "board_dir": str(bdir) if bdir else "", "core": core or "", "values": plain}, indent=1) + "\n")
+    lines = ["# Generated from Kconfig - do not edit"]
+    for name, v in plain.items():
+        text = str(v).replace("\\", "\\\\").replace('"', '\\"').replace("$", "\\$").replace(";", "\\;")
+        lines.append(f'set({PREFIX}{name} "{text}")')
+    _write_if_changed(Path(out_dir) / CMAKE, "\n".join(lines) + "\n")
 
 
 def _write_if_changed(path, text):
@@ -360,7 +414,9 @@ def generate(board, core, fragments, out_dir):
         return notes
     kconf, bdir, inputs = load(board, core, fragments, out)
     kconf.write_config(str(out / ".config"))
-    write_header(kconf, out / HEADER, inputs)
+    vals = values(kconf)
+    write_header(vals, out / HEADER, inputs)
+    write_tool_files(vals, out, bdir, core)
     notes = []
     if kconf.syms["LAYOUT_AUTO"].str_value == "y":
         notes.append("automatic layout: " + "; ".join(layout.describe(auto_layout(kconf))))
@@ -387,7 +443,7 @@ def _unchanged(board, core, fragments, out):
         inputs = ([bdir / "defconfig"] if bdir else []) + [Path(f).resolve() for f in fragments]
         if _state(out).get("stamp") != _stamp(bdir, core, inputs):
             return None
-        files = [out / ".config", out / HEADER, out / "keys.cmake"] + \
+        files = [out / ".config", out / HEADER, out / JSON, out / CMAKE, out / "keys.cmake"] + \
             [Path(f) for f in (out / "kconfig.deps").read_text().splitlines()]
         files += [Path(p) for p in re.findall(r'set\(UMCUB_\w+_KEY "([^"]*)"\)', (out / "keys.cmake").read_text())]
         return json.loads(done.read_text()) if all(f.stat().st_mtime <= when for f in files) else None
@@ -404,12 +460,13 @@ def _reload(out_dir):
 
 def menuconfig(out_dir):
     """Interactive editing of the build tree's .config."""
-    kconf, _, inputs = _reload(out_dir)
+    kconf, bdir, inputs = _reload(out_dir)
     os.environ["KCONFIG_CONFIG"] = str(Path(out_dir) / ".config")
     from esp_menuconfig import menuconfig as run
-    if run(kconf):
-        _load_dot(kconf, Path(out_dir) / ".config")
-        write_header(kconf, Path(out_dir) / HEADER, inputs)
+    if run(kconf):                      # CMake generates again: .config is newer than kconfig.done
+        vals = values(kconf)
+        write_header(vals, Path(out_dir) / HEADER, inputs)
+        write_tool_files(vals, out_dir, bdir, _state(out_dir).get("core"))
 
 
 def savedefconfig(out_dir, path):

@@ -68,4 +68,4 @@ set(UMCUB_FAMILY_TUSB_SOURCES ${UMCUB_ROOT}/third_party/tinyusb/src/portable/syn
 
 # Linker script templates (C preprocessed with umcub_cfg.h).
 set(UMCUB_FAMILY_BOOT_LD ${UMCUB_FAMILY_DIR}/ld/boot_${UMCUB_CORE}.ld.in)
-set(UMCUB_FAMILY_APP_LD  ${UMCUB_FAMILY_DIR}/ld/app_${UMCUB_CORE}.ld.in)
+set(UMCUB_FAMILY_APP_LD  ${UMCUB_FAMILY_DIR}/ld/app_${UMCUB_CORE}_sections.ld)

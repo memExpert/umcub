@@ -48,4 +48,4 @@ set(UMCUB_FAMILY_UNSUPPORTED_ETH 1)
 
 # Linker script templates (C preprocessed with umcub_cfg.h).
 set(UMCUB_FAMILY_BOOT_LD ${UMCUB_FAMILY_DIR}/ld/boot_cm4.ld.in)
-set(UMCUB_FAMILY_APP_LD  ${UMCUB_FAMILY_DIR}/ld/app_cm4.ld.in)
+set(UMCUB_FAMILY_APP_LD  ${UMCUB_FAMILY_DIR}/ld/app_cm4_sections.ld)
