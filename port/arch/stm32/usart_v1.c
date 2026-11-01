@@ -30,7 +30,8 @@ void stm32_usart_isr(void)
     uint32_t sr = uart->SR;
     if (sr & (USART_SR_RXNE | USART_SR_ORE | USART_SR_FE | USART_SR_NE | USART_SR_PE)) {
         uint8_t c = (uint8_t)uart->DR;  /* SR then DR read clears the error flags too */
-        if (sr & USART_SR_RXNE) {
+        /* A byte with an error is noise (e.g. an unconnected RX line), not a command. */
+        if ((sr & USART_SR_RXNE) && !(sr & (USART_SR_FE | USART_SR_NE | USART_SR_PE))) {
             (void)stm32_ring_put(&rx, rx_buf, RX_RING, c);
         }
     }

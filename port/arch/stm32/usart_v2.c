@@ -31,7 +31,11 @@ void stm32_usart_isr(void)
         uart->ICR = USART_ICR_ORECF | USART_ICR_FECF | USART_ICR_NECF | USART_ICR_PECF;
     }
     if (isr & USART_ISR_RXNE_RXFNE) {
-        (void)stm32_ring_put(&rx, rx_buf, RX_RING, (uint8_t)uart->RDR);
+        uint8_t c = (uint8_t)uart->RDR;
+        /* A byte with an error is noise (e.g. an unconnected RX line), not a command. */
+        if (!(isr & (USART_ISR_FE | USART_ISR_NE | USART_ISR_PE))) {
+            (void)stm32_ring_put(&rx, rx_buf, RX_RING, c);
+        }
     }
 #if UMCUB_CFG_UART_TX_RING
     if ((isr & USART_ISR_TXE_TXFNF) && (uart->CR1 & USART_CR1_TXEIE_TXFNFIE)) {

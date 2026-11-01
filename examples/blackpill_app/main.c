@@ -27,9 +27,9 @@ void ex_putc(char c)
 bool ex_getc(uint8_t *c)
 {
     uint32_t sr = USART1->SR;
-    if (sr & (USART_SR_RXNE | USART_SR_ORE)) {
-        *c = (uint8_t)USART1->DR;
-        return (sr & USART_SR_RXNE) != 0;
+    if (sr & (USART_SR_RXNE | USART_SR_ORE | USART_SR_FE | USART_SR_NE)) {
+        *c = (uint8_t)USART1->DR;       /* SR then DR read clears the error flags too */
+        return (sr & USART_SR_RXNE) && !(sr & (USART_SR_FE | USART_SR_NE));     /* an error: noise, not a key */
     }
     return false;
 }

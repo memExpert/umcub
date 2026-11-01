@@ -23,9 +23,9 @@ void ex_putc(char c)
 bool ex_getc(uint8_t *c)
 {
     uint32_t sr = USART1->SR;
-    if (sr & (USART_SR_RXNE | USART_SR_ORE)) {
-        *c = (uint8_t)USART1->DR;
-        return (sr & USART_SR_RXNE) != 0;
+    if (sr & (USART_SR_RXNE | USART_SR_ORE | USART_SR_FE | USART_SR_NE)) {
+        *c = (uint8_t)USART1->DR;       /* SR then DR read clears the error flags too */
+        return (sr & USART_SR_RXNE) && !(sr & (USART_SR_FE | USART_SR_NE));     /* an error: noise, not a key */
     }
     return false;
 }
@@ -53,7 +53,8 @@ int main(void)
     RCC->APB2ENR |= RCC_APB2ENR_IOPAEN | RCC_APB2ENR_IOPCEN | RCC_APB2ENR_USART1EN;
     (void)RCC->APB2ENR;
     GPIOC->CRH = (GPIOC->CRH & ~(0xFu << 20)) | (0x2u << 20);      /* PC13 push-pull 2 MHz */
-    GPIOA->CRH = (GPIOA->CRH & ~(0xFFu << 4)) | (0x4Bu << 4);      /* PA9 AF PP 50 MHz, PA10 input */
+    GPIOA->BSRR = 1u << 10;                                         /* PA10 pull-up: unconnected it reads noise */
+    GPIOA->CRH = (GPIOA->CRH & ~(0xFFu << 4)) | (0x8Bu << 4);      /* PA9 AF PP 50 MHz, PA10 input with pull */
     USART1->BRR = (SystemCoreClock + 115200u / 2u) / 115200u;
     USART1->CR1 = USART_CR1_TE | USART_CR1_RE | USART_CR1_UE;
 

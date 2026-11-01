@@ -65,19 +65,3 @@ Larger changes:
 - [ ] Zero-copy receive paths: ISO-TP reassembles straight into the mux packet buffer (saves an MTU of RAM:
   ~0.5 K on the F1, ~1.5 K on the H7); Ethernet RX parses in the DMA buffer and TX builds in it (~3.3 K RAM on
   the H7, two frame copies per packet); link DATA frames decrypt into the mux buffer (~0.5 K on SECURE builds).
-
-## Encrypted upload: the answer to the last chunk gets lost
-
-Blue Pill, RS485 link, `UMCUB_CFG_ENC_INPLACE`: for about half of the signed images (deterministic per file, 4 of 8 each on
-`main` and on this tree, not a matter of the keys or of the size) `umcub upload` ends with "no SMP answer" on the last
-chunk. The image is complete and decrypted in the primary slot, `verify` says valid, it boots, and the board does not
-reset (uptime goes on, `RCC_CSR` clear). `boot_serial_output()` runs before `boot_handle_enc_fw()`; next: is the frame sent
-at all, on another transport as well (not seen with the F411, which has no in-place decryption).
-
-## Blue Pill: back in the bootloader after a DFU update
-
-Blue Pill, `bluepill-usb` configuration, nothing on USART1: after `dfu-util -D ... -R` the new image is installed and the
-application starts (`VTOR` in the slot), then within seconds the board is back in recovery with USB up. Same on `main`.
-Started with the `a` command the application stays (12 s watched); the F411 stays after DFU as well. To check with a
-console on USART1: the example goes to recovery only on its `b` key, PA10 floats on that bench.
-

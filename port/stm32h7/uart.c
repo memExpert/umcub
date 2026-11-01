@@ -21,6 +21,7 @@ const stm32_usart_t *stm32_usart_get(const umcub_uart_cfg_t *cfg)
     }
     umcub_port_gpio_af(cfg->tx_pin);
     umcub_port_gpio_af(cfg->rx_pin);
+    LL_GPIO_SetPinPull(h7_gpio_port(cfg->rx_pin), 1u << UMCUB_PIN_NUM(cfg->rx_pin), LL_GPIO_PULL_UP);   /* idle high if unconnected */
     return &usarts[cfg->instance - 1u];
 }
 

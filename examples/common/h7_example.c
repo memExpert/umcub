@@ -38,6 +38,7 @@ void h7_uart_init(void)
 {
     GPIO_TypeDef *d = port_of('D');
     /* PD8 TX, PD9 RX, AF7 */
+    d->PUPDR = (d->PUPDR & ~(3u << 18)) | (1u << 18);       /* PD9 pull-up: unconnected it reads noise */
     d->MODER = (d->MODER & ~(0xFu << 16)) | (0xAu << 16);
     d->AFR[1] = (d->AFR[1] & ~0xFFu) | 0x77u;
     RCC->APB1LENR |= RCC_APB1LENR_USART3EN;
@@ -50,12 +51,13 @@ void h7_uart_init(void)
 
 bool ex_getc(uint8_t *c)
 {
-    if (USART3->ISR & (USART_ISR_ORE | USART_ISR_FE | USART_ISR_NE)) {
+    uint32_t isr = USART3->ISR;
+    if (isr & (USART_ISR_ORE | USART_ISR_FE | USART_ISR_NE)) {
         USART3->ICR = USART_ICR_ORECF | USART_ICR_FECF | USART_ICR_NECF;
     }
-    if (USART3->ISR & USART_ISR_RXNE_RXFNE) {
+    if (isr & USART_ISR_RXNE_RXFNE) {
         *c = (uint8_t)USART3->RDR;
-        return true;
+        return !(isr & (USART_ISR_FE | USART_ISR_NE));      /* an error: noise, not a key */
     }
     return false;
 }
