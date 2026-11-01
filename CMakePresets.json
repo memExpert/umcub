@@ -29,7 +29,7 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "UMCUB_CORE": "cm7",
-        "UMCUB_CONFIG_PRE": "${sourceDir}/boards/nucleo_h755zi_q/variants/per_core.h"
+        "UMCUB_CONF": "${sourceDir}/boards/nucleo_h755zi_q/variants/per_core.conf"
       }
     },
     {
@@ -39,7 +39,7 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "UMCUB_CORE": "cm4",
-        "UMCUB_CONFIG_PRE": "${sourceDir}/boards/nucleo_h755zi_q/variants/per_core.h"
+        "UMCUB_CONF": "${sourceDir}/boards/nucleo_h755zi_q/variants/per_core.conf"
       }
     },
     {

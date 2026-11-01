@@ -73,7 +73,7 @@ Notes:
 - USB is mostly tinyUSB. Ethernet is the own IPv4/ARP/ICMP/UDP/DHCP stack plus the MAC driver. CAN FD only changes
   configuration, not code size.
 - Debug builds (`-Og`) are about 18 % larger.
-- **Link-time optimisation** (`UMCUB_CFG_LTO 1` or `-DUMCUB_LTO=ON`, overlay `tests/configs/feature/lto.h`, third
+- **Link-time optimisation** (`UMCUB_CFG_LTO 1` or `-DUMCUB_LTO=ON`, fragment `tests/configs/feature/lto.conf`, third
   table): 3-4 K less on the Cortex-M3 / M4, 6-7 K on the H7. Verified on the F1 and the F4, experimental on the H7
   (not run there yet). Inlining makes single stack frames larger (MCUboot's image validation 248 -> 848 bytes), the
   peak grows little: Blue Pill about 1.5-2.9 KiB of the 4 KiB reserve (the deepest path is an SMP upload of an

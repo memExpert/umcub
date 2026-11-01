@@ -6,10 +6,16 @@ enable_testing()
 
 set(UMCUB_BOARD nucleo_h755zi_q)
 set(UMCUB_CORE cm7)
-set(UMCUB_CONFIG_POST ${CMAKE_CURRENT_LIST_DIR}/test_post.h)
 include(${CMAKE_CURRENT_LIST_DIR}/../../cmake/umcub_config.cmake)
-set(UMCUB_SIGNING_KEY ${UMCUB_ROOT}/tools/keys/dev-ecdsa-p256.pem)
-set(UMCUB_CONFIG_PRE ${CMAKE_CURRENT_LIST_DIR}/cfg_swap_scratch.h)
+# A configuration of its own: the fragments tests/host/<name>.conf, on top of the board.
+macro(umcub_host_conf tag)
+  set(UMCUB_KCONFIG_TAG ${tag})
+  set(UMCUB_CONF)
+  foreach(_f base ${ARGN})
+    list(APPEND UMCUB_CONF ${CMAKE_CURRENT_LIST_DIR}/${_f}.conf)
+  endforeach()
+endmacro()
+umcub_host_conf(main test_post cfg_swap_scratch)
 umcub_load_config("${UMCUB_BOARD}" "${UMCUB_CORE}")
 umcub_check_pins()
 include(${UMCUB_ROOT}/cmake/umcub_imgtool.cmake)
@@ -129,7 +135,7 @@ endfunction()
 
 # One test executable per upgrade mode, each with its own probed config.
 function(umcub_host_variant name)
-  set(UMCUB_CONFIG_PRE ${CMAKE_CURRENT_LIST_DIR}/cfg_${name}.h)
+  umcub_host_conf(${name} test_post cfg_${name})
   umcub_load_config("${UMCUB_BOARD}" "${UMCUB_CORE}")
   umcub_check_pins(_${name})
   set(t umcub_host_${name})
@@ -237,8 +243,7 @@ umcub_host_variant(swap_scratch_enc_direct)
 # Board-supplied drivers (UMCUB_DRIVER_BOARD) and board transport
 # (UMCUB_CFG_TRANSPORT_USER) through the real registry, CAN/ETH transports, mux.
 function(umcub_host_board)
-  set(UMCUB_CONFIG_PRE ${CMAKE_CURRENT_LIST_DIR}/cfg_swap_scratch.h)
-  set(UMCUB_CONFIG_POST ${CMAKE_CURRENT_LIST_DIR}/test_board_post.h)
+  umcub_host_conf(board cfg_swap_scratch test_board_post)
   umcub_load_config("${UMCUB_BOARD}" "${UMCUB_CORE}")
   umcub_check_pins(_board)
   set(t umcub_host_board)
@@ -260,8 +265,7 @@ umcub_host_board()
 # umcub link through the mux on stream and packet transports: ADDRESSED
 # (test_link.c) and SECURE with encryption (test_link_secure.c, extra sources).
 function(umcub_host_link t src post)
-  set(UMCUB_CONFIG_PRE ${CMAKE_CURRENT_LIST_DIR}/cfg_swap_scratch.h)
-  set(UMCUB_CONFIG_POST ${CMAKE_CURRENT_LIST_DIR}/${post})
+  umcub_host_conf(${t} cfg_swap_scratch ${post})
   umcub_load_config("${UMCUB_BOARD}" "${UMCUB_CORE}")
   umcub_check_pins(_${t})
   add_executable(${t}
@@ -287,15 +291,15 @@ set(LINK_SECURE_SOURCES
   ${TINYCRYPT}/source/aes_encrypt.c
   ${TINYCRYPT}/source/ctr_mode.c
   ${CMAKE_BINARY_DIR}/umcub_link_keys.c)
-umcub_host_link(umcub_host_link test_link.c test_link_proto_post.h link_test.c)
-umcub_host_link(umcub_host_link_secure test_link_secure.c test_link_secure_post.h link_test.c ${LINK_SECURE_SOURCES}
+umcub_host_link(umcub_host_link test_link.c test_link_proto_post link_test.c)
+umcub_host_link(umcub_host_link_secure test_link_secure.c test_link_secure_post link_test.c ${LINK_SECURE_SOURCES}
   ${CMAKE_BINARY_DIR}/umcub_link_host_keys.c)
 
 # Two images with encrypted uploads (test_dual_enc.c); images signed like an IDE
 # project does it, with `umcub image sign` on the variant's configuration.
 umcub_python(_py)
 function(umcub_host_dual name)
-  set(UMCUB_CONFIG_PRE ${CMAKE_CURRENT_LIST_DIR}/cfg_${name}.h)
+  umcub_host_conf(${name} test_post cfg_${name})
   umcub_load_config("${UMCUB_BOARD}" "${UMCUB_CORE}")
   umcub_check_pins(_${name})
   set(t umcub_host_${name})
@@ -316,8 +320,8 @@ function(umcub_host_dual name)
     add_custom_command(OUTPUT ${_b}.signed.bin ${_b}.encrypted.bin
       DEPENDS ${CMAKE_CURRENT_LIST_DIR}/gen_payload.py ${UMCUB_ROOT}/tools/host/umcub/sign.py
       COMMAND ${_py} ${CMAKE_CURRENT_LIST_DIR}/gen_payload.py ${_b}.payload.bin 150000 ${_reset}
-      COMMAND ${_py} ${UMCUB_ROOT}/tools/host/umcub image sign --board ${UMCUB_BOARD} --core ${UMCUB_CORE} --quiet
-              --pre ${UMCUB_CONFIG_PRE_ABS} --post ${UMCUB_CONFIG_POST_ABS} --imgtool ${UMCUB_IMGTOOL}
+      COMMAND ${_py} ${UMCUB_ROOT}/tools/host/umcub image sign --board ${UMCUB_CONFIG_DIR} --core ${UMCUB_CORE} --quiet
+              --imgtool ${UMCUB_IMGTOOL}
               --image ${_img} --version ${_ver} ${_b}.payload.bin -o ${_b})
     list(APPEND _imgs ${_b}.signed.bin ${_b}.encrypted.bin)
   endforeach()
@@ -334,13 +338,13 @@ umcub_host_dual(dual_enc_direct)
 # the umcub tool and smpmgr): ADDRESSED and SECURE (+ encryption); plain SMP;
 # CAN (ISO-TP).
 set(UMCUB_SIM 1)
-umcub_host_link(umcub_sim_plain sim_device.c sim_plain_post.h)
-umcub_host_link(umcub_sim_can sim_can.c sim_can_post.h ${UMCUB_ROOT}/src/transport/registry.c
+umcub_host_link(umcub_sim_plain sim_device.c sim_plain_post)
+umcub_host_link(umcub_sim_can sim_can.c sim_can_post ${UMCUB_ROOT}/src/transport/registry.c
   ${UMCUB_ROOT}/src/transport/can/can_transport.c ${UMCUB_ROOT}/src/transport/can/isotp.c)
 # Without SMP: lite upload protocol (umcub upload --lite) on a stream and on CAN.
-umcub_host_link(umcub_sim_lite sim_device.c sim_lite_post.h)
-umcub_host_link(umcub_sim_can_lite sim_can.c sim_can_lite_post.h ${UMCUB_ROOT}/src/transport/registry.c
+umcub_host_link(umcub_sim_lite sim_device.c sim_lite_post)
+umcub_host_link(umcub_sim_can_lite sim_can.c sim_can_lite_post ${UMCUB_ROOT}/src/transport/registry.c
   ${UMCUB_ROOT}/src/transport/can/can_transport.c ${UMCUB_ROOT}/src/transport/can/isotp.c)
-umcub_host_link(umcub_sim_addressed sim_device.c test_link_post.h)
-umcub_host_link(umcub_sim_secure sim_device.c test_link_secure_post.h ${LINK_SECURE_SOURCES})
+umcub_host_link(umcub_sim_addressed sim_device.c test_link_post)
+umcub_host_link(umcub_sim_secure sim_device.c test_link_secure_post ${LINK_SECURE_SOURCES})
 unset(UMCUB_SIM)

@@ -1,0 +1,3 @@
+# Build-matrix board: NUCLEO-H755ZI-Q with board-supplied CAN and Ethernet drivers and a
+# board transport. Compile / link check only: the drivers in umcub_board.c are stubs.
+source "$(UMCUB_ROOT)/boards/nucleo_h755zi_q/Kconfig"

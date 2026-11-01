@@ -45,6 +45,10 @@ a few lines of host code:
                                  UMCUB_DEFAULT_CMD_INSPECT      /* verify, hash (+ read) without SMP */
 ```
 
+Kconfig boards write the same table as one option:
+`UMCUB_CFG_CMD_TABLE="a=BOOT_APP b=STAY r=RESET i=INFO hello=USER1 +inspect"` (`+inspect` is `UMCUB_DEFAULT_CMD_INSPECT`,
+`+inspect_read` is `UMCUB_CMD_INSPECT_DEFAULTS`; empty: the default table).
+
 `UMCUB_DEFAULT_CMD_INSPECT` adds `verify`, `hash` (and `read` with `UMCUB_CFG_READBACK`) only when SMP is off: with
 SMP, hosts check slots through the SMP inspect group (`umcub verify` / `hash` / `read`), about 0.9 K less.
 `UMCUB_CMD_INSPECT_DEFAULTS` adds them in any case.

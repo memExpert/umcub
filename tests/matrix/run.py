@@ -110,11 +110,18 @@ def t_example(out, line):
 
 
 def t_ide(out):
-    """umcub_app_all.c with only the documented include paths and the CMSIS
-    CORE_CMx define (docs/application.md, "Using umcub from an IDE"), also with
-    clang (armclang in Keil MDK is clang based), and in every upgrade mode
-    (static names are shared by all library sources there)."""
-    incs = ["include", "config", f"boards/{DEFAULT_BOARD}", "port/stm32h7/include", "port/include",
+    """umcub_app_all.c with only the documented include paths, the generated
+    configuration and the CMSIS CORE_CMx define (docs/application.md, "Using umcub
+    from an IDE"), also with clang (armclang in Keil MDK is clang based), and in
+    every upgrade mode (static names are shared by all library sources there)."""
+    def config(name, *conf):
+        d = out / f"ide_config_{name}"
+        args = [a for f in conf for a in ("--conf", f"tests/configs/mode/{f}.conf")]
+        run([PY, "tools/host/umcub", "config", "generate", "--board", DEFAULT_BOARD, "--core", "cm7", "--out", d] + args,
+            out / "ide.log", True)
+        return d
+
+    incs = ["include", "config", "port/stm32h7/include", "port/include",
             "src/image/mcuboot/include", "third_party/mcuboot/boot/bootutil/include",
             "third_party/st/cmsis_device_h7/Include", "third_party/st/stm32h7xx_hal_driver/Inc",
             "third_party/cmsis_core/Include"]
@@ -122,7 +129,9 @@ def t_ide(out):
         [f"-I{i}" for i in incs] + ["-c", "lib/umcub_app/umcub_app_all.c"]
     cpu = ["-mcpu=cortex-m7", "-mfpu=fpv5-d16", "-mfloat-abi=hard"]
     log = out / "ide.log"
-    run(["arm-none-eabi-gcc", "-mthumb"] + cpu + flags + ["-o", out / "ide_gcc.o"], log)
+    log.write_text("")
+    default = f"-I{config('default')}"
+    run(["arm-none-eabi-gcc", "-mthumb"] + cpu + [default] + flags + ["-o", out / "ide_gcc.o"], log, True)
     done = ["gcc"]
     if shutil.which("clang"):
         # newlib headers: <sysroot>/include; distribution toolchains print no
@@ -131,12 +140,11 @@ def t_ide(out):
         if not (inc / "string.h").is_file():
             libc = subprocess.check_output(["arm-none-eabi-gcc", "-print-file-name=libc.a"], text=True).strip()
             inc = Path(libc).parent.parent / "include"
-        run(["clang", "--target=arm-none-eabi", "-Wno-unknown-attributes", "-isystem", inc] + cpu + flags +
+        run(["clang", "--target=arm-none-eabi", "-Wno-unknown-attributes", "-isystem", inc] + cpu + [default] + flags +
             ["-o", out / "ide_clang.o"], log, True)
         done.append("clang")
     for m in ("overwrite", "swap_offset", "direct_xip", "direct_xip_revert"):
-        run(["arm-none-eabi-gcc", "-mthumb"] + cpu + [f'-DUMCUB_CONFIG_PRE="{ROOT}/tests/configs/mode/{m}.h"'] +
-            flags + ["-o", out / f"ide_{m}.o"], log, True)
+        run(["arm-none-eabi-gcc", "-mthumb"] + cpu + [f"-I{config(m, m)}"] + flags + ["-o", out / f"ide_{m}.o"], log, True)
     return "ide-library", f"umcub_app_all.c: {' '.join(done)}, all upgrade modes"
 
 

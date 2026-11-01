@@ -1,0 +1,142 @@
+# NUCLEO-H755ZI-Q: defaults by core and dual-core mode (read before config/Kconfig,
+# so these win over its defaults; the menus, defconfig and fragments can still change them).
+#
+# Flash: 2 banks x 8 sectors x 128 KiB.
+#
+# DUALCORE_SINGLE_BOOT (default):
+#   bank1: S0 boot | S1-S3 img0 (CM7) primary | S4-S6 img0 secondary | S7 scratch
+#   bank2: S0-S2 img1 (CM4) primary | S3-S5 img1 secondary | S6-S7 free
+#   Option bytes: BCM7=1, BCM4=1, BOOT_CM7_ADD0=0x0800, BOOT_CM4_ADD0=0x0800
+#   (tools/hw/h755_option_bytes.py single)
+#
+# DUALCORE_PER_CORE:
+#   bank1: S0 CM7 boot | S1-S3 CM7 primary | S4-S6 CM7 secondary | S7 scratch
+#   bank2: S0 CM4 boot | S1-S3 CM4 primary | S4-S6 CM4 secondary | S7 scratch
+#   Option bytes: BOOT_CM4_ADD0=0x0810 (tools/hw/h755_option_bytes.py per-core)
+#
+# swap-offset: the secondary slots are one sector larger (no scratch).
+
+choice DUALCORE_MODE_CHOICE
+	default DUALCORE_SINGLE_BOOT
+endchoice
+
+choice UPGRADE_MODE_CHOICE
+	default UPGRADE_MODE_SWAP_SCRATCH
+endchoice
+
+config BOOT_ADDR
+	hex
+	default 0x08100000 if DUALCORE_PER_CORE && CORE_CM4
+
+if !LAYOUT_AUTO
+config IMG0_PRIMARY_ADDR
+	hex
+	default 0x08120000 if DUALCORE_PER_CORE && CORE_CM4
+	default 0x08020000
+config IMG0_PRIMARY_SIZE
+	hex
+	default 0x60000
+config IMG0_SECONDARY_ADDR
+	hex
+	default 0x08180000 if DUALCORE_PER_CORE && CORE_CM4
+	default 0x08080000
+config IMG0_SECONDARY_SIZE
+	hex
+	default 0x80000 if UPGRADE_MODE_SWAP_OFFSET
+	default 0x60000
+config IMG1_PRIMARY_ADDR
+	hex
+	depends on IMAGE_NUMBER = 2
+	default 0x08100000
+config IMG1_PRIMARY_SIZE
+	hex
+	depends on IMAGE_NUMBER = 2
+	default 0x60000
+config IMG1_SECONDARY_ADDR
+	hex
+	depends on IMAGE_NUMBER = 2
+	default 0x08160000
+config IMG1_SECONDARY_SIZE
+	hex
+	depends on IMAGE_NUMBER = 2
+	default 0x80000 if UPGRADE_MODE_SWAP_OFFSET
+	default 0x60000
+config SCRATCH_ADDR
+	hex
+	depends on UPGRADE_MODE_SWAP_SCRATCH
+	default 0x081E0000 if DUALCORE_PER_CORE && CORE_CM4
+	default 0x080E0000
+config SCRATCH_SIZE
+	hex
+	depends on UPGRADE_MODE_SWAP_SCRATCH
+	default 0x20000
+endif
+
+# PER_CORE: the CM4 instance uses CAN only (peripherals must not overlap), CAN
+# is then not the CM7's. No transceiver on the board.
+config TRANSPORT_UART
+	bool
+	default n if CORE_CM4
+config TRANSPORT_USB_CDC
+	bool
+	depends on HAS_USB
+	default y if !CORE_CM4
+config TRANSPORT_USB_DFU
+	bool
+	depends on HAS_USB
+	default y if !CORE_CM4
+config TRANSPORT_ETH
+	bool
+	default y if !CORE_CM4
+config TRANSPORT_CAN
+	bool
+	default y if CORE_CM4 || !DUALCORE_PER_CORE
+
+# The log on the ST-LINK virtual COM port, LD1 green.
+config LOG_LEVEL
+	int
+	default 3 if !CORE_CM4
+config STATUS_LED
+	bool
+	default y if !CORE_CM4
+if STATUS_LED
+choice STATUS_LED_CHOICE
+	default STATUS_LED_PB0
+endchoice
+endif
+
+# USART3 PD8 / PD9: the ST-LINK virtual COM port.
+if TRANSPORT_UART
+choice UART_INSTANCE_CHOICE
+	default UART_INSTANCE_3
+endchoice
+choice UART_TX_CHOICE
+	default UART_TX_PD8
+endchoice
+choice UART_RX_CHOICE
+	default UART_RX_PD9
+endchoice
+endif
+
+# FDCAN1 PD1 / PD0.
+if CAN_DRIVER_PORT
+choice CAN_TX_CHOICE
+	default CAN_TX_PD1
+endchoice
+choice CAN_RX_CHOICE
+	default CAN_RX_PD0
+endchoice
+endif
+
+# LAN8742A.
+if ETH_DRIVER_PORT
+choice ETH_RMII_TX_EN_CHOICE
+	default ETH_RMII_TX_EN_PG11
+endchoice
+choice ETH_RMII_TXD0_CHOICE
+	default ETH_RMII_TXD0_PG13
+endchoice
+choice ETH_RMII_TXD1_CHOICE
+	default ETH_RMII_TXD1_PB13
+endchoice
+endif

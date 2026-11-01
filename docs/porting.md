@@ -92,7 +92,7 @@ tests/hw/        hardware tests on the bench: powerfail_test.py, stack_usage.py,
                  (+ entropy_sampler_f1.c / _f4.c: ADC entropy measured from SRAM), dhcp_server.py (DHCP server
                  for one direct link)
 tests/host/      host tests
-tests/configs/   overlays of the build matrix: mode/, transport/, feature/ (board variants: boards/<b>/variants/)
+tests/configs/   fragments of the build matrix: mode/, transport/, feature/, part/ (board variants: boards/<b>/variants/)
 tests/tools/     helpers for the build matrix (image comparison, check_pins_test.py: pin check cases)
 tests/boards/    build-matrix boards (custom_drivers: board drivers + board transport)
 ```

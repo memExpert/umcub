@@ -1,0 +1,24 @@
+# NUCLEO-H755ZI-Q (STM32H755ZIT6, CM7 + CM4). What depends on the core and the
+# dual-core mode (layout, transports, pins) is in this board's Kconfig.
+UMCUB_CFG_PART_STM32H755ZITX=y
+# images must carry this (signed TLV)
+UMCUB_CFG_BOARD_TYPE=0x48755001
+UMCUB_CFG_BOARD_REV=1
+
+# 8 MHz HSE from the ST-LINK MCO, SMPS direct
+UMCUB_CFG_CLOCK_HSE=y
+UMCUB_CFG_HSE_HZ=8000000
+UMCUB_CFG_HSE_BYPASS=y
+UMCUB_CFG_PWR_SUPPLY_DIRECT_SMPS=y
+
+# UMCUB_CFG_LAYOUT_AUTO is not set
+
+# B1 USER held at reset: stay in recovery
+UMCUB_CFG_ENTRY_GPIO=y
+UMCUB_CFG_ENTRY_GPIO_PC13=y
+
+# Text commands (UART / USB CDC typed text, non-SMP UDP / CAN packets): single
+# key, no Enter needed; "hello" is in umcub_board.c
+UMCUB_CFG_CMD_ENABLE=y
+UMCUB_CFG_CMD_IMMEDIATE=y
+UMCUB_CFG_CMD_TABLE="a=BOOT_APP b=STAY r=RESET i=INFO hello=USER1 +inspect"

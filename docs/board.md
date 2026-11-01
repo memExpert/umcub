@@ -148,7 +148,8 @@ not compiled). 0 means unassigned: the node is then reachable by its UID only. T
 
 ## Reference boards
 
-**NUCLEO-H755ZI-Q** ([`boards/nucleo_h755zi_q/umcub_config.h`](../boards/nucleo_h755zi_q/umcub_config.h)): one
+**NUCLEO-H755ZI-Q** ([`boards/nucleo_h755zi_q/defconfig`](../boards/nucleo_h755zi_q/defconfig), what depends on the core and
+the dual-core mode in [`Kconfig`](../boards/nucleo_h755zi_q/Kconfig); [Kconfig boards](configuration.md#kconfig-boards)): one
 bootloader for both cores (CM7 and CM4 images), all transports, log on the ST-LINK virtual COM port (USART3,
 115200), recovery by B1 held during reset. Before the first start the option bytes must let the CM4 wait in the
 bootloader: `tools/hw/h755_option_bytes.py single` (see [Configuration](configuration.md#dual-core-h745h755h747h757)).

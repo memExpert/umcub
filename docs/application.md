@@ -185,7 +185,7 @@ to the CM7 one, so the CubeMX start-up handshake finds the CM4 in STOP as it exp
 waits for `RCC_FLAG_D2CKRDY` to drop, configures the clocks and wakes the CM4 through HSEM 0). Verified on the
 NUCLEO-H755ZI-Q with ST's `BootCM4_CM7` template (STM32CubeH7, NUCLEO-H745ZI-Q) and the CubeMX system file
 `system_stm32h7xx_dualcore_boot_cm4_cm7.c`, signed with `umcub image sign`, in `SINGLE_BOOT` and in `PER_CORE`
-(there: `--core cm4 --image 0` with the per-core overlay). Without a valid CM4 image, the CM4 stays parked in the bootloader. In that case the CubeMX CM7 code that
+(there: `--core cm4 --image 0` with the fragment `variants/per_core.conf`). Without a valid CM4 image, the CM4 stays parked in the bootloader. In that case the CubeMX CM7 code that
 waits for `RCC_FLAG_D2CKRDY` times out into `Error_Handler()`; make that wait non-fatal if the CM7 must run alone.
 
 **Bootloader inside STM32CubeIDE (optional).** CubeIDE 2.x builds the bootloader from the CMake presets with the GCC,

@@ -25,6 +25,7 @@ ROOT = Path(os.environ.get("UMCUB_ROOT") or Path(__file__).resolve().parents[3])
 PREFIX = "UMCUB_CFG_"
 STATE = "kconfig.json"          # how the build tree's .config was made
 HEADER = "umcub_config.h"
+DONE = "kconfig.done"           # written last by generate()
 IP_NAMES = {"ETH_IP", "ETH_NETMASK"}
 RAW_NAMES = {"MCU"}             # C tokens, not strings
 # Kconfig helpers that stay out of the header: what the part has, pin sets,
@@ -35,6 +36,9 @@ INTERNAL = re.compile(r"(PIN|PINSET|HAS|FAMILY)_\w+|MCU_STM32\w+|BUILD_CORE|CORE
 KEYS = {"SIGNING": ("signing.pem", "dev-ecdsa-p256.pem"),
         "DEVICE": ("device.pem", "dev-device-p256.pem"),
         "ADMIN": ("admin.pem", "dev-admin-p256.pem")}
+# UMCUB_CFG_CMD_TABLE: its actions and the groups of inspection commands.
+CMD_ACTIONS = {"BOOT_APP", "STAY", "RESET", "INFO", "VERIFY", "HASH", "READ"}
+CMD_GROUPS = {"+inspect": "UMCUB_DEFAULT_CMD_INSPECT", "+inspect_read": "UMCUB_CMD_INSPECT_DEFAULTS"}
 # The RMII pin menus (port/kconfig/eth_rmii.kconfig) -> UMCUB_CFG_ETH_RMII_PINS, in this order.
 RMII = ["REF_CLK", "MDIO", "CRS_DV", "MDC", "RXD0", "RXD1", "TX_EN", "TXD0", "TXD1"]
 
@@ -208,6 +212,24 @@ def _ip(name, text):
     return f"UMCUB_IP4({', '.join(str(int(p)) for p in parts)})"
 
 
+def _cmd_table(text):
+    """'a=BOOT_APP hello=USER1 +inspect' -> the C table."""
+    out = []
+    for item in text.split():
+        name, _, action = item.partition("=")
+        user = re.fullmatch(r"USER(\d+)", action)
+        if item in CMD_GROUPS:
+            out.append(CMD_GROUPS[item])
+        elif name and user:
+            out.append(f'UMCUB_CMD("{name}", UMCUB_CMD_USER({user.group(1)}))')
+        elif name and action in CMD_ACTIONS:
+            out.append(f'UMCUB_CMD("{name}", UMCUB_CMD_{action})')
+        else:
+            die(f"{PREFIX}CMD_TABLE: \"{item}\": name=ACTION expected ({', '.join(sorted(CMD_ACTIONS))}, USER<n>)"
+                f" or {' / '.join(CMD_GROUPS)}")
+    return " ".join(out)
+
+
 def values(kconf):
     """{NAME: C text} of the symbols that go into the header."""
     import esp_kconfiglib.core as k
@@ -238,6 +260,15 @@ def values(kconf):
     rmii = [out.pop(f"ETH_RMII_{s}_PIN") for s in RMII if f"ETH_RMII_{s}_PIN" in out]
     if rmii:
         out["ETH_RMII_PINS"] = ", ".join(rmii)
+    if out.get("TRANSPORT_CAN") == "1":         # a board driver has its own pins, src/transport/can passes these on
+        for pin in ("CAN_TX_PIN", "CAN_RX_PIN"):
+            out.setdefault(pin, "UMCUB_PIN_NONE")
+    if "CMD_TABLE" in out:
+        table = _cmd_table(kconf.syms["CMD_TABLE"].str_value)
+        if table:
+            out["CMD_TABLE"] = table
+        else:
+            del out["CMD_TABLE"]        # the default table of the C headers
     if out.get("LAYOUT_AUTO") == "1":
         out.update({n: f"0x{v:X}" for n, v in auto_layout(kconf).items()})
     return out
@@ -324,6 +355,9 @@ def generate(board, core, fragments, out_dir):
     be generated) and kconfig.deps (the Kconfig files read, for CMake's
     reconfigure) in out_dir. Returns notes for the user (layout, new keys)."""
     out = Path(out_dir)
+    notes = _unchanged(board, core, fragments, out)
+    if notes is not None:
+        return notes
     kconf, bdir, inputs = load(board, core, fragments, out)
     kconf.write_config(str(out / ".config"))
     write_header(kconf, out / HEADER, inputs)
@@ -336,9 +370,29 @@ def generate(board, core, fragments, out_dir):
             notes.append(f"new {name.lower()} key {path} - keep it and a backup: the devices are built for it")
         cmake.append(f'set(UMCUB_{"HOST" if name == "ADMIN" else name}_KEY "{path.as_posix()}")')
     _write_if_changed(out / "keys.cmake", "\n".join(cmake) + "\n")
-    deps = sorted({str(Path(f).resolve()) for f in kconf.kconfig_filenames} | {str(f) for f in inputs})
+    deps = sorted({str(Path(f).resolve()) for f in kconf.kconfig_filenames} | {str(f) for f in inputs} |
+                  {__file__, layout.__file__})
     _write_if_changed(out / "kconfig.deps", "\n".join(deps) + "\n")
+    (out / DONE).write_text(json.dumps([n for n in notes if not n.startswith("new ")]))
     return notes
+
+
+def _unchanged(board, core, fragments, out):
+    """The notes of the last run when nothing it read or wrote has changed since
+    (reading the Kconfig files takes seconds and CMake configures often), else None."""
+    bdir = board_dir(board)
+    done = out / DONE
+    try:
+        when = done.stat().st_mtime
+        inputs = ([bdir / "defconfig"] if bdir else []) + [Path(f).resolve() for f in fragments]
+        if _state(out).get("stamp") != _stamp(bdir, core, inputs):
+            return None
+        files = [out / ".config", out / HEADER, out / "keys.cmake"] + \
+            [Path(f) for f in (out / "kconfig.deps").read_text().splitlines()]
+        files += [Path(p) for p in re.findall(r'set\(UMCUB_\w+_KEY "([^"]*)"\)', (out / "keys.cmake").read_text())]
+        return json.loads(done.read_text()) if all(f.stat().st_mtime <= when for f in files) else None
+    except (OSError, ValueError, TypeError):
+        return None
 
 
 def _reload(out_dir):

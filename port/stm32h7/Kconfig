@@ -40,3 +40,12 @@ config PWR_SUPPLY
 	default 7 if PWR_SUPPLY_SMPS_1V8_EXT
 	default 8 if PWR_SUPPLY_SMPS_2V5_EXT
 	default 9 if PWR_SUPPLY_EXTERNAL
+
+config SHARED_RAM_ADDR
+	hex
+	depends on FAMILY_STM32H7
+	default 0x3800FE00 if DUALCORE_PER_CORE && CORE_CM4
+	default 0x3800FF00
+	help
+	  The handoff area, end of SRAM4 (D3 domain, reachable by both cores, kept
+	  over reset); each bootloader of PER_CORE has its own.

@@ -26,21 +26,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 BOARD = "nucleo_h755zi_q"
 
-# name, core, PRE overlay, extra POST lines (Kconfig boards: fragment lines), board
+# name, core, PRE overlay (old boards), fragment lines, board
 CHIPS = [
     ("STM32H755 CM7 (2 images, SINGLE_BOOT)", "cm7", None, ""),
-    # The board gives the CM4 instance only CAN; borrow the CM7 pins to size the rest
-    # (status LED: LD2, the default PC13 is the B1 button there).
-    ("STM32H755 CM4 (PER_CORE)", "cm4", "boards/nucleo_h755zi_q/variants/per_core.h",
-     "#define UMCUB_CFG_STATUS_LED_PIN UMCUB_PIN('E', 1, 0)\n#define UMCUB_CFG_UART_INSTANCE 3\n#define UMCUB_CFG_UART_BAUD 115200\n"
-     "#define UMCUB_CFG_UART_TX_PIN UMCUB_PIN('D', 8, 7)\n#define UMCUB_CFG_UART_RX_PIN UMCUB_PIN('D', 9, 7)\n"
-     "#define UMCUB_CFG_ETH_PHY_ADDR 0\n#define UMCUB_CFG_ETH_RMII_PINS UMCUB_PIN('A', 1, 11), UMCUB_PIN('A', 2, 11), "
-     "UMCUB_PIN('A', 7, 11), UMCUB_PIN('C', 1, 11), UMCUB_PIN('C', 4, 11), UMCUB_PIN('C', 5, 11), "
-     "UMCUB_PIN('G', 11, 11), UMCUB_PIN('G', 13, 11), UMCUB_PIN('B', 13, 11)\n"),
-    ("STM32H743 / H753 (single core)", "cm7", "tests/configs/feature/single_core.h",
-     "#undef UMCUB_CFG_MCU\n#define UMCUB_CFG_MCU STM32H743xx\n"
-     "#undef UMCUB_CFG_MCU_PART\n#define UMCUB_CFG_MCU_PART \"STM32H743ZIT6\"\n"
-     "#undef UMCUB_CFG_PWR_SUPPLY\n#define UMCUB_CFG_PWR_SUPPLY UMCUB_H7_SUPPLY_LDO\n"),
+    # The board gives the CM4 instance only CAN; the variants turn the rest on with
+    # the board's pins (status LED: LD2, the default PC13 is the B1 button there).
+    ("STM32H755 CM4 (PER_CORE)", "cm4", None, "UMCUB_CFG_DUALCORE_PER_CORE=y\nUMCUB_CFG_STATUS_LED_PE1=y\n"),
+    ("STM32H743 / H753 (single core)", "cm7", None, "UMCUB_CFG_PART_STM32H743ZITX=y\nUMCUB_CFG_PWR_SUPPLY_LDO=y\n"),
     # Cortex-M3, sized in the 44 KiB bootloader region of the USB layout; no
     # CAN FD and no Ethernet on this part; "all on" without CAN (shares its
     # SRAM with USB on the F103).
@@ -154,8 +146,10 @@ def build(out, ci, chip, vi, variant):
             f"-DUMCUB_BOARD={board}", f"-DUMCUB_CORE={core}", f"-DUMCUB_LTO={'ON' if lto else 'OFF'}"]
     if (ROOT / "boards" / board / "defconfig").is_file():
         conf = d / "size.conf"                  # Kconfig board: a fragment (derived values follow)
-        conf.write_text(extra + "".join(_conf(k, v) for k, v in {**OFF, **settings}.items()))
-        args += [f"-DUMCUB_CONF={conf}", "-DUMCUB_CONFIG_POST="]
+        conf.write_text("".join(_conf(k, v) for k, v in {**OFF, **settings}.items()))
+        base = d / "base.conf"                  # before it: it can switch off what these lines depend on
+        base.write_text(extra)
+        args += [f"-DUMCUB_CONF={base};{conf}", "-DUMCUB_CONFIG_POST="]
         (d / "b/umcub_kconfig/.config").unlink(missing_ok=True)    # from the inputs every time
     else:
         post = d / "post.h"

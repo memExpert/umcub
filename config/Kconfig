@@ -376,6 +376,17 @@ config CMD_ENABLE
 	help
 	  a / b / r / i (start the application, stay, reset, info) and
 	  verify / hash / read on a terminal; the table: UMCUB_CFG_CMD_TABLE.
+config CMD_TABLE
+	string "Command table"
+	depends on CMD_ENABLE
+	default ""
+	help
+	  The text commands as name=ACTION, separated by spaces. ACTION:
+	  BOOT_APP, STAY, RESET, INFO, VERIFY, HASH, READ, USER<n> (the board's
+	  umcub_cmd_user(n, ...)). +inspect adds verify, hash and read where
+	  they are on and SMP is off, +inspect_read also with SMP. Empty:
+	  "a=BOOT_APP b=STAY r=RESET i=INFO +inspect".
+
 config CMD_IMMEDIATE
 	bool "Run a command as soon as the input equals it"
 	depends on CMD_ENABLE

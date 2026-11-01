@@ -5,7 +5,7 @@ Where the options live and the notes on the upgrade modes; how big the bootloade
 ## Options
 
 The options are documented in [`config/umcub_config_template.h`](../config/umcub_config_template.h), the rarely
-changed ones in [Advanced options](#advanced-options) below; defaults are in `config/umcub_config_defaults.h`. Example: [`boards/nucleo_h755zi_q/umcub_config.h`](../boards/nucleo_h755zi_q/umcub_config.h).
+changed ones in [Advanced options](#advanced-options) below; defaults are in `config/umcub_config_defaults.h`. Example: [`boards/nucleo_h755zi_q/defconfig`](../boards/nucleo_h755zi_q/defconfig) and its [`Kconfig`](../boards/nucleo_h755zi_q/Kconfig).
 
 | Group | Main options |
 |---|---|
@@ -42,7 +42,7 @@ are set the same way in `umcub_config.h`.
 | `UMCUB_CFG_LINK_SESSION_MS` | 60000 | An umcub link session ends after this long without a valid frame. |
 | `UMCUB_CFG_USER_LINK` | `UMCUB_LINK_PLAIN` | umcub link mode of the board transport (`UMCUB_CFG_TRANSPORT_USER`), like `UMCUB_CFG_UART_LINK`. |
 | `UMCUB_CFG_LITE_UPLOAD` | 1 without SMP | Lite upload protocol (`umcub upload --lite`): begin / data / end frames with CRC, written with `umcub_slot_*` (test or permanent mark, in-place decryption). |
-| `UMCUB_CFG_MCUBOOT_LOG_LEVEL` | `UMCUB_CFG_LOG_LEVEL` | Level of MCUboot's own messages (`Image index: 0, Swap type: none`, ...), at most the umcub level: 1 (errors only) saves about 0.9 K on the F1/F4 and 1.1 K on the H7 next to an info log, 0 about 1.2-1.6 K. Overlay `tests/configs/feature/mcuboot_log_err.h`. |
+| `UMCUB_CFG_MCUBOOT_LOG_LEVEL` | `UMCUB_CFG_LOG_LEVEL` | Level of MCUboot's own messages (`Image index: 0, Swap type: none`, ...), at most the umcub level: 1 (errors only) saves about 0.9 K on the F1/F4 and 1.1 K on the H7 next to an info log, 0 about 1.2-1.6 K. Overlay `tests/configs/feature/mcuboot_log_err.conf`. |
 | `UMCUB_CFG_ASSERT_TRAP` | 0 | A failed assertion in MCUboot becomes one `udf` (HardFault, the bootloader's handler resets; so does every other fault then) instead of logging `assert <file>:<line>` and resetting: about 0.1 K smaller without a log, 0.4-0.5 K with one, but silent. Overlay `tests/configs/feature/assert_trap.h`. |
 | `UMCUB_CFG_CMD_REPLY` | 1 | Text commands answer `ok <cmd>` / `? <text>`. |
 | `UMCUB_CFG_SMP_INSPECT_GROUP` | 100 | SMP group id of verify (0) / hash (1) / read (2). |
@@ -50,7 +50,7 @@ are set the same way in `umcub_config.h`.
 | `UMCUB_CFG_ERASE_PROGRESSIVELY` | 1 | SMP upload erases sector by sector (1) or the whole slot on the first chunk (0; seconds on big sectors). |
 | `UMCUB_CFG_ENC_INPLACE` | 1 (H7 CM4, F4: 0) | In-place decryption of an encrypted SMP upload into the primary slot, buffering one sector in RAM. Without it encrypted images go through the secondary slot. |
 | `UMCUB_CFG_SWAP_SAVE_ENCTLV` | 1 | Swap modes with encrypted images: the slot trailers keep the encrypted key TLVs of both images until the swap is over (signing passes `--save-enctlv`). **0 stores the plain AES keys there**, readable with a debugger or readback, for a slightly smaller trailer. |
-| `UMCUB_CFG_UART_TX_RING` | 0 | Transmit through a RAM ring of this many bytes (power of two) drained by the UART interrupt, so the log does not stall the boot (drained before the jump); the last lines can be lost on a hang. Not with RS485. Overlay `tests/configs/feature/uart_tx_ring.h`, verified on the Black Pill (USART2). |
+| `UMCUB_CFG_UART_TX_RING` | 0 | Transmit through a RAM ring of this many bytes (power of two) drained by the UART interrupt, so the log does not stall the boot (drained before the jump); the last lines can be lost on a hang. Not with RS485. Fragment `tests/configs/feature/uart_tx_ring.conf`, verified on the Black Pill (USART2). |
 | `UMCUB_CFG_ETH_DHCP_TIMEOUT_MS` | 10000 | Fall back to `UMCUB_CFG_ETH_IP` when no DHCP lease comes in this time. |
 | `UMCUB_CFG_ETH_SMP_PORT` | 1337 | UDP port of SMP. |
 | `UMCUB_CFG_CORE2_DONE_TIMEOUT_MS` | 3000 | `UMCUB_DUALCORE_PER_CORE`, main core: how long to wait for the second core's bootloader before handing the clocks to the application. |
@@ -76,8 +76,8 @@ the flash).
 
 ## Kconfig boards
 
-Moving to Kconfig ([esp-idf-kconfig](https://github.com/espressif/esp-idf-kconfig)), board by board; so far the
-Black Pill, and builds without a board. Such a board has a `defconfig` instead of `umcub_config.h`; the options are described in
+The boards of this repository and builds without a board are configured with Kconfig
+([esp-idf-kconfig](https://github.com/espressif/esp-idf-kconfig)). Such a board has a `defconfig` instead of `umcub_config.h`; the options are described in
 [`Kconfig`](../Kconfig), [`config/Kconfig`](../config/Kconfig), `port/Kconfig` and the board's own `Kconfig`, with
 the same names as above (`UMCUB_CFG_<NAME>` in `.config` and in the generated `umcub_config.h`).
 
@@ -113,6 +113,11 @@ cmake --build build/bp --target savedefconfig    # build/bp/defconfig: only what
   every slot (`umcub image ld` writes the same for any board). Applications built with `umcub_app_linker_script()`
   include it with the family's `port/<fam>/ld/app_<core>_sections.ld`; others `INCLUDE` it in their own script
   ([application](application.md)).
+- Defaults of a board: its own `Kconfig` can define an option again with `default` lines (and a `choice` by its
+  name), read before `config/Kconfig`, so they win over the generic defaults and can depend on the core and the mode:
+  [`boards/nucleo_h755zi_q/Kconfig`](../boards/nucleo_h755zi_q/Kconfig) has the layout and the transports per core and
+  dual-core mode. Variants stay plain fragments (`variants/per_core.conf`, `mode/swap_offset.conf`, ...).
+- Text commands: `UMCUB_CFG_CMD_TABLE="a=BOOT_APP i=INFO hello=USER1 +inspect"` ([recovery](recovery.md)).
 - Keys (menu *Keys*): the signing key, the device key (encrypted images, SECURE link) and the admin key (SECURE
   link) each come from `..._KEY_GENERATE` (default), `..._KEY_FILE` + `..._KEY_PATH`, or `..._KEY_DEV` (the
   public development key of `tools/keys/`, for tests). Generated keys are made at configure time in `keys/<board>/`

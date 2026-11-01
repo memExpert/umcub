@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """Power-loss test of MCUboot upgrade/revert on real hardware (SWD through probe.py).
 
-Needs a bootloader built with -DUMCUB_CONFIG_POST=tests/configs/feature/fault_inject.h
-(Kconfig boards: -DUMCUB_CONF=tests/configs/feature/fault_inject.conf)
+Needs a bootloader built with -DUMCUB_CONF=tests/configs/feature/fault_inject.conf
 (UMCUB_CFG_TEST_FAULT_INJECT): it resets the MCU in the middle of the K-th
 flash operation (sector erase or flash-word program already started), which
 leaves half-erased sectors / half-programmed words like a power cut.
@@ -16,7 +15,7 @@ Swap modes (--mode swap), for every K:
 Overwrite (--mode overwrite): steps 1-3, check primary == v2 only.
 
 Images are signed with `umcub image sign` for the bootloader's configuration
-(--board / --core / --pre / --post / --conf, as for the build), so header size, alignment
+(--board / --core / --conf, as for the build), so header size, alignment
 and the board-type TLV match.
 
   NUCLEO-H755ZI-Q (swap-scratch):
@@ -24,14 +23,14 @@ and the board-type TLV match.
       --app build/hw/sb_app_cm7/h755_cm7_app.bin --board nucleo_h755zi_q --core cm7 \\
       --erase 0x08020000+0xE0000 --sector-size 0x20000 --points 40
   swap-offset (the update sits one sector into the secondary slot, the revert copy at its start):
-  ... --pre tests/configs/mode/swap_offset.h --secondary 0x080A0000 --revert-copy 0x08080000
+  ... --conf tests/configs/feature/fault_inject.conf --conf tests/configs/mode/swap_offset.conf --secondary 0x080A0000 --revert-copy 0x08080000
   Blue Pill (overwrite, 16 KiB slots, 1 KiB pages, no NRST on the SWD header):
   tests/hw/powerfail_test.py --boot build/bp_fault/umcub_bluepill_f103c8_cm3.hex \\
       --app build/bluepill/examples/bluepill_app/bluepill_app.bin --board bluepill_f103c8 \\
       --mode overwrite --primary 0x08008000 --secondary 0x0800C000 --erase 0x08008000+0x8000 \\
       --size 12288 --sector-size 0x400 --connect under-reset --reset rst --points 40
-  Encrypted update (--encrypted; bootloader built with tests/configs/feature/encrypt_only.h as PRE and the
-  same --pre here): v2 goes into the secondary slot encrypted, so resuming an interrupted swap needs the key
+  Encrypted update (--encrypted; bootloader built with tests/configs/feature/encrypt_only.conf as well and the
+  same --conf here): v2 goes into the secondary slot encrypted, so resuming an interrupted swap needs the key
   MCUboot kept in the trailer (the AES key, or the key TLV with UMCUB_CFG_SWAP_SAVE_ENCTLV). Upgrade: primary
   == v2 decrypted; revert: secondary == the encrypted v2 file again.
 """
@@ -48,7 +47,6 @@ import probe  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(ROOT, "tools/host"))
-from umcub import kconfig  # noqa: E402
 from umcub.config import Config  # noqa: E402
 
 PY = os.path.join(ROOT, ".venv/bin/python")
@@ -62,11 +60,8 @@ def main():
     ap.add_argument("--app", required=True, help="raw application .bin (unsigned) used as payload start")
     ap.add_argument("--board", required=True, help="board of the bootloader (umcub image --board)")
     ap.add_argument("--core", help="dual-core parts: cm7 / cm4")
-    ap.add_argument("--pre", help="UMCUB_CONFIG_PRE of the bootloader build")
-    ap.add_argument("--post", default=os.path.join(ROOT, "tests/configs/feature/fault_inject.h"),
-                    help="UMCUB_CONFIG_POST of the bootloader build")
     ap.add_argument("--conf", action="append",
-                    help="Kconfig boards: fragments of the bootloader build (default the fault_inject.conf)")
+                    help="configuration fragments of the bootloader build (default: fault_inject.conf)")
     ap.add_argument("--mode", choices=("swap", "overwrite"), default="swap")
     ap.add_argument("--encrypted", action="store_true", help="v2 encrypted (bootloader with UMCUB_CFG_ENCRYPT_IMAGES)")
     ap.add_argument("--primary", type=lambda s: int(s, 0), default=0x08020000)
@@ -94,19 +89,16 @@ def main():
     read_mem = p.read_mem
     e_addr, _, e_size = a.erase.partition("+")
     e_addr, e_size = int(e_addr, 0), int(e_size, 0)
-    if kconfig.board_dir(a.board):          # Kconfig board: fragments instead of the C overlays
-        a.post = None
-        a.conf = a.conf or [os.path.join(ROOT, "tests/configs/feature/fault_inject.conf")]
-    cfg = Config(a.board, a.core, a.pre, a.post, None, a.conf or ())
+    a.conf = a.conf or [os.path.join(ROOT, "tests/configs/feature/fault_inject.conf")]
+    cfg = Config(a.board, a.core, None, None, None, a.conf)
     fault_addr = a.fault_addr if a.fault_addr is not None else cfg["TEST_FAULT_ADDR"]
     handoff_magic = cfg["SHARED_RAM_ADDR"] + 16  # umcub_handoff_t.magic (UMCUB_HANDOFF_INFO_OFFSET)
 
     def sign(payload, version, out, pad):
         args = [PY, os.path.join(ROOT, "tools/host/umcub"), "image", "sign", "--board", a.board, "--version", version]
-        for opt in ("core", "pre", "post"):
-            if getattr(a, opt):
-                args += [f"--{opt}", getattr(a, opt)]
-        for f in a.conf or ():
+        if a.core:
+            args += ["--core", a.core]
+        for f in a.conf:
             args += ["--conf", f]
         if pad:
             args.append("--pad")                # trailer with magic: pending test upgrade

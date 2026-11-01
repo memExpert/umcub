@@ -25,6 +25,17 @@ import time
 import tty
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+def host_conf(*fragments):
+    """`umcub image` arguments of a simulator's configuration (tests/host/CMakeLists.txt, umcub_host_link):
+    fragment names under tests/host, or paths."""
+    names = ("base", "cfg_swap_scratch") + fragments
+    args = []
+    for f in names:
+        args += ["--conf", f if os.path.isabs(f) else os.path.join(ROOT, "tests/host", f + ".conf")]
+    return args
+
 sys.path.insert(0, os.path.join(ROOT, "tools/host"))
 from umcub import link as ulink  # noqa: E402  (frame format)
 LINK_LINE = bytes([0x05, 0x0B])
@@ -129,8 +140,7 @@ def can_tools(build, py):
         check(p.returncode == 0 and "hello-can" in p.stdout, "umcub echo over CAN")
         with tempfile.TemporaryDirectory() as d:
             subprocess.run([py, os.path.join(ROOT, "tools/host/umcub"), "image", "sign", "--board", "nucleo_h755zi_q",
-                            "--core", "cm7", "--pre", os.path.join(ROOT, "tests/host/cfg_swap_scratch.h"),
-                            "--post", os.path.join(ROOT, "tests/host/sim_can_post.h"), "--version", "3.1.4",
+                            "--core", "cm7", *host_conf("sim_can_post"), "--version", "3.1.4",
                             os.path.join(build, "payload.bin"), "-o", os.path.join(d, "app")],
                            check=True, capture_output=True)
             p = tool(py, can + ["upload", os.path.join(d, "app.signed.bin")], timeout=300)
@@ -152,8 +162,7 @@ def lite_tools(build, py):
     print("[e2e] without SMP: umcub upload --lite over a stream and over CAN, verify", flush=True)
     with tempfile.TemporaryDirectory() as d:
         subprocess.run([py, os.path.join(ROOT, "tools/host/umcub"), "image", "sign", "--board", "nucleo_h755zi_q",
-                        "--core", "cm7", "--pre", os.path.join(ROOT, "tests/host/cfg_swap_scratch.h"),
-                        "--post", os.path.join(ROOT, "tests/host/sim_lite_post.h"), "--version", "4.0.1",
+                        "--core", "cm7", *host_conf("sim_lite_post"), "--version", "4.0.1",
                         os.path.join(build, "payload.bin"), "-o", os.path.join(d, "app")],
                        check=True, capture_output=True)
         img = os.path.join(d, "app.signed.bin")
@@ -209,8 +218,7 @@ def plain_tools(build, py, smpmgr):
     try:
         with tempfile.TemporaryDirectory() as d:
             subprocess.run([py, os.path.join(ROOT, "tools/host/umcub"), "image", "sign", "--board", "nucleo_h755zi_q",
-                            "--core", "cm7", "--pre", os.path.join(ROOT, "tests/host/cfg_swap_scratch.h"),
-                            "--post", os.path.join(ROOT, "tests/host/sim_plain_post.h"), "--version", "2.0.1",
+                            "--core", "cm7", *host_conf("sim_plain_post"), "--version", "2.0.1",
                             os.path.join(build, "payload.bin"), "-o", os.path.join(d, "app")],
                            check=True, capture_output=True)
             img = os.path.join(d, "app.signed.bin")
@@ -234,8 +242,7 @@ def plain_tools(build, py, smpmgr):
             p = tool(py, port + ["list"])
             check(p.returncode == 0 and "2.0.1" in p.stdout, "umcub list: 2.0.1")
             subprocess.run([py, os.path.join(ROOT, "tools/host/umcub"), "image", "sign", "--board", "nucleo_h755zi_q",
-                            "--core", "cm7", "--pre", os.path.join(ROOT, "tests/host/cfg_swap_scratch.h"),
-                            "--post", os.path.join(ROOT, "tests/host/sim_plain_post.h"), "--version", "2.0.2",
+                            "--core", "cm7", *host_conf("sim_plain_post"), "--version", "2.0.2",
                             os.path.join(build, "payload.bin"), "-o", os.path.join(d, "app2")],
                            check=True, capture_output=True)
             app2 = os.path.join(d, "app2.signed.bin")
@@ -293,12 +300,10 @@ def secure_tools(build, py, smpmgr):
 
         print("[e2e] an image for another board type is refused before the transfer", flush=True)
         with tempfile.TemporaryDirectory() as d:
-            post = os.path.join(d, "other.h")
-            open(post, "w").write(f'#include "{ROOT}/tests/host/test_link_secure_post.h"\n'
-                                  "#undef UMCUB_CFG_BOARD_TYPE\n#define UMCUB_CFG_BOARD_TYPE 0x12345678\n")
+            other = os.path.join(d, "other.conf")
+            open(other, "w").write("UMCUB_CFG_BOARD_TYPE=0x12345678\n")
             subprocess.run([py, os.path.join(ROOT, "tools/host/umcub"), "image", "sign", "--board", "nucleo_h755zi_q",
-                            "--core", "cm7", "--pre", os.path.join(ROOT, "tests/host/cfg_swap_scratch.h"),
-                            "--post", post, "--version", "1.0.0", os.path.join(build, "payload.bin"),
+                            "--core", "cm7", *host_conf("test_link_secure_post", other), "--version", "1.0.0", os.path.join(build, "payload.bin"),
                             "-o", os.path.join(d, "other")], check=True, capture_output=True)
             rc, out = run(py, port + ["--node", "1"] + sec + ["upload", os.path.join(d, "other.signed.bin")])
             check(rc != 0 and "is for board type" in out, "umcub upload of another board's image: refused")
@@ -326,8 +331,7 @@ def secure_tools(build, py, smpmgr):
             # Image for the simulator's configuration (board type TLV, encrypted with the device key),
             # signed the way an IDE project would do it.
             subprocess.run([py, os.path.join(ROOT, "tools/host/umcub"), "image", "sign", "--board", "nucleo_h755zi_q",
-                            "--core", "cm7", "--pre", os.path.join(ROOT, "tests/host/cfg_swap_scratch.h"),
-                            "--post", os.path.join(ROOT, "tests/host/test_link_secure_post.h"), "--version",
+                            "--core", "cm7", *host_conf("test_link_secure_post"), "--version",
                             "1.2.3", os.path.join(build, "payload.bin"), "-o", os.path.join(d, "app")],
                            check=True, capture_output=True)
             img = os.path.join(d, "app.encrypted.bin")
@@ -340,8 +344,7 @@ def secure_tools(build, py, smpmgr):
             srv.terminate()
             srv.wait(5)
             subprocess.run([py, os.path.join(ROOT, "tools/host/umcub"), "image", "sign", "--board", "nucleo_h755zi_q",
-                            "--core", "cm7", "--pre", os.path.join(ROOT, "tests/host/cfg_swap_scratch.h"),
-                            "--post", os.path.join(ROOT, "tests/host/test_link_secure_post.h"), "--version",
+                            "--core", "cm7", *host_conf("test_link_secure_post"), "--version",
                             "1.2.4", os.path.join(build, "payload.bin"), "-o", os.path.join(d, "app2")],
                            check=True, capture_output=True)
             p = tool(py, port + ["--node", "2"] + sec + ["upload", os.path.join(d, "app2.encrypted.bin")], 300)
