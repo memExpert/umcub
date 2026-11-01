@@ -92,7 +92,7 @@ tests/hw/        hardware tests on the bench: powerfail_test.py, stack_usage.py,
                  for one direct link)
 tests/host/      host tests
 tests/configs/   fragments of the build matrix: mode/, transport/, feature/, part/ (board variants: boards/<b>/variants/)
-tests/tools/     helpers for the build matrix (image comparison, check_pins_test.py: pin check cases)
+tests/tools/     helpers for the build matrix (image comparison, check_pins_test.py: pin check cases, layout_test.py: slots)
 tests/boards/    build-matrix boards (custom_drivers: board drivers + board transport)
 ```
 

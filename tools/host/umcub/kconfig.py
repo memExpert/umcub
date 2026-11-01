@@ -275,14 +275,24 @@ def values(kconf):
     out["CMD_TABLE"] = _cmd_table(kconf.syms["CMD_TABLE"].str_value or _off_value(k, kconf.syms["CMD_TABLE"]))
     if out.get("LAYOUT_AUTO") == "1":
         out.update({n: f"0x{v:X}" for n, v in auto_layout(kconf).items()})
+    else:
+        why = layout.check(_family(kconf), int(kconf.syms["FLASH_KB"].str_value),
+                           {name: int(v, 0) for name, v in out.items() if SLOT.fullmatch(name)},
+                           int(out["UPGRADE_MODE"]), int(out["IMAGE_NUMBER"]))
+        if why and out.get("LAYOUT_NO_UPGRADE") != "1":
+            die(why + " - or UMCUB_CFG_LAYOUT_NO_UPGRADE")
     out.update(derived(kconf, out))
     return out
+
+
+def _family(kconf):
+    return next(f for f in ("STM32F1", "STM32F4", "STM32H7") if kconf.syms[f"FAMILY_{f}"].str_value == "y")
 
 
 def derived(kconf, c):
     """The values that follow from the options ({NAME: C text})."""
     n = lambda name: int(c.get(name, "0"), 0)           # noqa: E731
-    family = next(f for f in ("STM32F1", "STM32F4", "STM32H7") if kconf.syms[f"FAMILY_{f}"].str_value == "y")
+    family = _family(kconf)
     links = [("TRANSPORT_UART", "UART_LINK"), ("TRANSPORT_USB_CDC", "USB_CDC_LINK"), ("TRANSPORT_CAN", "CAN_LINK"),
              ("TRANSPORT_ETH", "ETH_LINK"), ("TRANSPORT_USER", "USER_LINK")]
     shared = n("SHARED_RAM_ADDR") if family == "STM32H7" else 0x20000000 + int(kconf.syms["RAM_KB"].str_value) * 1024 - 256
@@ -305,8 +315,7 @@ def derived(kconf, c):
 def auto_layout(kconf):
     """UMCUB_CFG_LAYOUT_AUTO: the slots from the part's flash and the mode (umcub.layout)."""
     val = lambda n: kconf.syms[n].str_value          # noqa: E731
-    family = next(f for f in ("STM32F1", "STM32F4", "STM32H7") if val(f"FAMILY_{f}") == "y")
-    return layout.auto(family, int(val("FLASH_KB")), int(val("BOOT_ADDR"), 16), int(val("BOOT_SIZE"), 16),
+    return layout.auto(_family(kconf), int(val("FLASH_KB")), int(val("BOOT_ADDR"), 16), int(val("BOOT_SIZE"), 16),
                        int(val("UPGRADE_MODE")), int(val("IMAGE_NUMBER")))
 
 

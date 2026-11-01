@@ -68,8 +68,14 @@ address to the bootloader (several boards with `UMCUB_CFG_NODE_ADDR_FLASH` on on
 
 Things that are easy to get wrong:
 - **Slots.** Slots start and end on sector boundaries (checked also where sectors differ in size, as on the F4).
-  swap-offset needs a secondary slot one sector larger than the primary. Only swap-scratch needs a scratch
-  sector. The last `UMCUB_CFG_TRAILER_RESERVE` bytes of a slot belong to MCUboot.
+  MCUboot refuses every upgrade between slots whose sectors do not line up, and the application simply stays
+  ("Cannot upgrade: ..." in the log), so configure stops on such a layout: on the F411 (16, 16, 16, 16, 64, 128, 128, 128
+  KiB) the largest image that can be upgraded is one 128 KiB sector, whatever is free around it. Without upgrades from the
+  secondary slot (recovery uploads straight into the primary) a larger primary slot works:
+  `UMCUB_CFG_LAYOUT_NO_UPGRADE`, a 200 KiB image over sectors 2-5 was checked on a Black Pill.
+  swap-offset needs a secondary slot one sector larger than the primary and at least two sectors in the primary
+  (its image size limit is 0 with one), so it needs three sectors of one size or more: not on the F411. Only
+  swap-scratch needs a scratch sector. The last `UMCUB_CFG_TRAILER_RESERVE` bytes of a slot belong to MCUboot.
   The F1 port defaults it to 1 KiB (small slots), the others to 8 KiB; swap modes need more than overwrite
   (imgtool `--slot-size` checks it). The build checks that a watchdog (`UMCUB_CFG_WATCHDOG_MS`) outlasts one
   sector erase.
@@ -187,9 +193,8 @@ USB: on the F103 both share the same 512 bytes of SRAM (the build refuses it).
 **Black Pill** ([`boards/blackpill_f411ce/defconfig`](../boards/blackpill_f411ce/defconfig), WeAct; configured
 with Kconfig, see [Kconfig](configuration.md#kconfig)):
 STM32F411CEU6, 25 MHz crystal, SMP over USART1 (PA9 TX, PA10 RX), overwrite mode, bootloader in sectors 0-1
-(32 KiB), slots in sectors 5 and 6 (128 KiB each; sectors 2-4 and 7 stay free, e.g. for application data). A
-slot may also span sectors of different sizes: sectors 3-5 (16 + 64 + 128 KiB) as primary and 6-7 as secondary
-work the same way in overwrite mode (a 155 KiB image, checked on the board). Recovery by KEY (PA0) held during
+(32 KiB), slots in sectors 5 and 6 (128 KiB each; sectors 2-4 and 7 stay free, e.g. for application data). A slot
+spanning sectors of different sizes does not work with upgrades, see "Slots" above. Recovery by KEY (PA0) held during
 reset, LED PC13. A slot is one sector, so SMP upload erases it on the first chunk (about 2 s); the CPU stalls meanwhile, so a watchdog (`UMCUB_CFG_WATCHDOG_MS`) needs at
 least 3 s (LSI 17..47 kHz). RS485 through a MAX485 (RO PA10, DI PA9, DE and /RE on PA8): fragment
 `boards/blackpill_f411ce/variants/rs485.conf`; SMP and log on USART2 instead (PA2 TX, PA3 RX, e.g. a USB-UART adapter, with

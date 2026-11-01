@@ -50,6 +50,8 @@ foreach(_e "h755_cm7_app|nucleo_h755zi_q|cm7|0" "h755_cm4_app|nucleo_h755zi_q|cm
 endforeach()
 
 _umcub_test(app-library ${RUN} app-library)
+_umcub_test(noboard-app ${RUN} noboard-app)
+_umcub_test(layout ${RUN} check layout -- "${UMCUB_PY}" tests/tools/layout_test.py)
 _umcub_test(pin-check ${RUN} check pin-check -- "${UMCUB_PY}" tests/tools/check_pins_test.py)
 
 

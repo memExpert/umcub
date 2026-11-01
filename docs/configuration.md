@@ -91,9 +91,11 @@ cmake --build build/bp --target savedefconfig    # build/bp/defconfig: only what
   STM32F103C8 with SMP on USART1 PA9/PA10) and the fragments; pick the part and everything else in menuconfig,
   then keep `savedefconfig`'s output as your own defconfig or fragment. The binaries are named after the part. Board
   code (drivers, hooks) needs a board directory: its `defconfig` and `.c` files.
-- `UMCUB_CFG_LAYOUT_AUTO` (default on) places the slots: all flash behind the bootloader, split at sector boundaries
-  so that the largest image fits (swap-offset: secondary one sector larger, swap-scratch: the last sector as scratch
-  area, two images: halved first); configure prints the result. Off: set the slot addresses and sizes yourself.
+- `UMCUB_CFG_LAYOUT_AUTO` (default on) places the slots behind the bootloader: the largest image MCUboot accepts, in
+  the least flash (swap-offset: secondary one sector larger, swap-scratch: the last sector as scratch area, two images:
+  halved first); configure prints the result. MCUboot refuses upgrades unless the sectors of the two slots line up
+  ([Slots](board.md#adding-a-board)): uniform sectors give all of the flash, the F411 one 128 KiB sector per slot. Off:
+  set the slot addresses and sizes yourself, checked against the same rule.
 - Configure runs `umcub config generate`: the defconfig, then the fragments of `UMCUB_CONF` in order (a later
   assignment wins) -> in `build/<x>/umcub_kconfig/`: `.config`, `umcub_config.h` (C; do not edit), `umcub_config.cmake`
   and `umcub_config.json` (CMake, the host tools), the linker fragments. An assignment that does not take effect

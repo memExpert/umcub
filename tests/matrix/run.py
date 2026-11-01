@@ -146,6 +146,15 @@ def t_app_library(out):
     return "app-library", f"umcub_app_all.c: {' '.join(done)}, all upgrade modes"
 
 
+def t_noboard_app(out):
+    """An application without a board: the same fragments as its bootloader, a key of the part."""
+    d = build(out, "noboard-app", ["-DUMCUB_BOARD=", f"-DUMCUB_CONF={ROOT}/tests/configs/part/minimal_f4.conf", "-DAPP_NODE_ADDR=none"],
+              ROOT / "examples/blackpill_app")
+    key = re.search(r'set\(UMCUB_SIGNING_KEY "([^"]*)"\)', (d / "umcub_kconfig/keys.cmake").read_text()).group(1)
+    run([ROOT / ".venv/bin/imgtool", "verify", "-k", key, d / "blackpill_app.signed.bin"], f"{d}.verify.log")
+    return "noboard-app", "examples/blackpill_app without a board: signed with the part's key"
+
+
 def t_check(out, name, cmd, grep=None):
     log = out / f"{name}.log"
     run(cmd, log)
@@ -156,7 +165,7 @@ def t_check(out, name, cmd, grep=None):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--out", required=True, type=Path)
-    ap.add_argument("kind", choices=("config", "preset", "example", "app-library", "check"))
+    ap.add_argument("kind", choices=("config", "preset", "example", "app-library", "noboard-app", "check"))
     ap.add_argument("args", nargs=argparse.REMAINDER)
     a = ap.parse_args()
     out = a.out.resolve()
@@ -169,7 +178,7 @@ def main():
                 grep, rest = rest[1], rest[2:]
             label, text = t_check(out, name, rest[1:] if rest[:1] == ["--"] else rest, grep)
         else:
-            label, text = {"config": t_config, "preset": t_preset, "example": t_example, "app-library": t_app_library}[a.kind](out, *args)
+            label, text = {"config": t_config, "preset": t_preset, "example": t_example, "app-library": t_app_library, "noboard-app": t_noboard_app}[a.kind](out, *args)
     except Failed as e:
         print(f"FAIL: {e}")
         sys.exit(1)

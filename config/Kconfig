@@ -81,6 +81,16 @@ config BOOT_SIZE
 	  Whole erase sectors. On large-sector parts (H7, F4) pick the
 	  transports by the sector table in docs/size.md.
 
+config LAYOUT_NO_UPGRADE
+	bool "Slots MCUboot cannot upgrade between"
+	depends on !LAYOUT_AUTO
+	help
+	  Without it configure stops on slots whose sectors do not line up: MCUboot
+	  would refuse every upgrade from the secondary slot and the application
+	  would simply stay. On: only recovery uploads straight into the primary slot
+	  work, which allows a larger primary slot on a part with sectors of
+	  different sizes.
+
 config IMAGE_NUMBER
 	int "Number of images"
 	range 1 2
@@ -91,12 +101,13 @@ config LAYOUT_AUTO
 	bool "Place the slots automatically"
 	default y
 	help
-	  The slots take all flash behind the bootloader, split at sector
-	  boundaries so that the largest image fits (per image a primary and a
-	  secondary slot; swap-offset: the secondary one sector larger;
-	  swap-scratch: the last sector as scratch area; two images: the flash
-	  halved first). Configure prints the result. Off: set the addresses
-	  and sizes below.
+	  The slots behind the bootloader with the largest image MCUboot accepts:
+	  it refuses upgrades unless the sectors of the two slots line up, so
+	  on a part with sectors of different sizes part of the flash stays free
+	  (F411: one 128 KiB sector per slot). swap-offset: the secondary slot one
+	  sector larger; swap-scratch: the last sector as scratch area; two
+	  images: the flash halved first. Configure prints the result. Off: set
+	  the addresses and sizes below (also checked against that rule).
 
 if !LAYOUT_AUTO
 config IMG0_PRIMARY_ADDR
