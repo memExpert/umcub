@@ -181,6 +181,7 @@ def main():
     mode.add_argument("--check", action="store_true", help="exit 1 if docs/size.md differs")
     a = ap.parse_args()
     out = Path(a.out)
+    os.environ["UMCUB_KEYS_DIR"] = str(out.resolve() / "keys")     # generated keys: not into the keys/ of the source tree
 
     size = {}
     with concurrent.futures.ThreadPoolExecutor(a.j) as ex:

@@ -51,7 +51,8 @@ also program the option bytes (`tools/hw/h755_option_bytes.py`). For production,
 
 **6. Optional: `boards/my_board/umcub_board.c`.** It, and any other `.c` file next to it (e.g. a driver in its own
 file), is compiled automatically when present. Use it for your own text
-commands (`UMCUB_CMD_USER`), drivers for external controllers (`UMCUB_DRIVER_BOARD`) or a transport of your own
+commands (`USER<n>` in `UMCUB_CFG_CMD_TABLE`), drivers for external controllers (`UMCUB_CFG_CAN_DRIVER_BOARD`,
+`UMCUB_CFG_ETH_DRIVER_BOARD`) or a transport of your own
 (`UMCUB_CFG_TRANSPORT_USER`); see [External controllers and custom transports](#external-controllers-and-custom-transports).
 
 **7. Optional: an example application.** The console examples share
@@ -84,19 +85,15 @@ Things that are easy to get wrong:
     power supply (`UMCUB_CFG_PWR_SUPPLY`): it can be set only once per power-up.
   - STM32F1: HSE of 8, 12 or 16 MHz, otherwise HSI.
   - STM32F4: HSE of 4..26 MHz in whole MHz (25 MHz works), otherwise HSI; 96 MHz (48 MHz for USB).
-- **Pins.** Write a pin as `UMCUB_PIN('A', 9)`: when CMake configures the bootloader, the alternate function
-  comes from ST's pin data (`third_party/st/stm32_open_pin_data`, `tools/build/check_pins.py`) for the signal the
-  option needs on that pin (`UMCUB_CFG_UART_TX_PIN` with `UMCUB_CFG_UART_INSTANCE 1`: USART1_TX, AF7 on PA9) and
-  goes into `umcub_probe/umcub_pins.h` in the build tree; the configure output lists the filled-in AFs. A pin
-  that does not carry the signal stops the configuration and lists the pins that do. Plain GPIOs (entry button,
-  LED, a software-switched DE) need no AF. `UMCUB_PIN('A', 9, 7)` gives the AF explicitly (needed for the
-  hardware DE of a USART: `UMCUB_PIN('D', 12, 7)` = USART3_DE; without an AF a DE pin is switched by software);
-  it is checked the same way. F1 has no AF numbers: the remap is chosen from the TX pin and checked against the
-  port's remap tables. With `UMCUB_CFG_MCU_PART` (the part number on the chip, e.g. `"STM32F103C8T6"`) every
-  pin in use - including the entry button and a software DE pin - must also be brought out by that package
-  (LQFP48 has no port E, LQFP100 no port G); without it only the pins of the whole line are known. A pin used by
-  two options (the status LED on the UART TX pin, the entry button on USB D+ PA11/PA12, ...) stops the
-  configuration too, with or without the pin data.
+- **Pins.** Menuconfig offers for every pin option only the pins that carry its signal on the chosen part's package
+  (`UMCUB_CFG_UART_TX_PA9=y`), from ST's pin data (`third_party/st/stm32_open_pin_data`). When CMake configures the
+  bootloader, `tools/build/check_pins.py` checks them again and fills in the alternate function of the signal (USART1_TX,
+  AF7 on PA9), in `umcub_probe/umcub_pins.h` in the build tree; the configure output lists the filled-in AFs. Plain
+  GPIOs (entry button, LED, a software-switched DE) need no AF. The hardware DE of a USART has its own menu entries
+  (`UMCUB_CFG_UART_DE_PD12_HW`); any other DE pin is switched by software. A board's own options take strings: `"PA4"`,
+  or `"PD12:7"` with the AF. F1 has no AF numbers: the remap is chosen from the TX pin and checked against the port's
+  remap tables. A pin used by two options (the status LED on the UART TX pin, the entry button on USB D+ PA11/PA12,
+  ...) stops the configuration.
 - **RAM.** The handoff area (`UMCUB_CFG_SHARED_RAM_ADDR`, 256 bytes) must stay out of the application's RAM. The
   generated application linker scripts already exclude it.
 - **Image header.** `UMCUB_CFG_IMAGE_HEADER_SIZE` is also the offset of the application vector table: it must meet
@@ -104,7 +101,7 @@ Things that are easy to get wrong:
   a part with more vectors needs the next power of two.
 - **Watchdog.** If `UMCUB_CFG_WATCHDOG_MS` is set, the application must feed the IWDG: once started it cannot be
   stopped.
-- **Log.** The boot log is off by default. For bring-up set `UMCUB_CFG_LOG_LEVEL 3` (info, about 3.5 K) and watch
+- **Log.** The boot log is off by default. For bring-up set `UMCUB_CFG_LOG_LEVEL=3` (info, about 3.5 K) and watch
   the UART; switch it off again for production (it also never shares a UART with a umcub link). Without a log, the
   status LED (`UMCUB_CFG_STATUS_LED`) still shows a transport that did not come up (N blinks).
 

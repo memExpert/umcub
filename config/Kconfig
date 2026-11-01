@@ -60,10 +60,16 @@ config HSE_HZ
 	depends on CLOCK_HSE
 	range 4000000 50000000
 	default 8000000
+	help
+	  Frequency of the crystal or of the external clock on OSC_IN. The family
+	  port computes the PLL settings from it.
 
 config HSE_BYPASS
 	bool "HSE bypass (external clock instead of a crystal)"
 	depends on CLOCK_HSE
+	help
+	  On: an external clock drives OSC_IN (e.g. the ST-LINK's MCO on a
+	  Nucleo). Off: a crystal.
 
 endmenu
 
@@ -72,6 +78,10 @@ menu "Flash layout"
 config BOOT_ADDR
 	hex "Bootloader address"
 	default 0x08000000
+	help
+	  Start of the bootloader region, where the core starts: normally the
+	  start of flash. The second core's bootloader of DUALCORE_PER_CORE lies
+	  in bank 2 (option bytes: docs/configuration.md).
 
 config BOOT_SIZE
 	hex "Bootloader size"
@@ -95,6 +105,9 @@ config IMAGE_NUMBER
 	range 1 2
 	default 2 if DUALCORE_SINGLE_BOOT
 	default 1
+	help
+	  MCUboot images, each with its own slots. DUALCORE_SINGLE_BOOT needs 2:
+	  image 1 is the second core's application.
 
 config IMG0_PRIMARY_ADDR
 	hex "Image 0 primary slot address"
@@ -110,40 +123,63 @@ config IMG0_PRIMARY_ADDR
 config IMG0_PRIMARY_SIZE
 	hex "Image 0 primary slot size"
 	default 0x0
+	help
+	  The image runs from the primary slot: header, application, trailer
+	  reserve. Whole erase sectors.
 config IMG0_SECONDARY_ADDR
 	hex "Image 0 secondary slot address"
 	default 0x0
+	help
+	  Where an update waits until MCUboot installs it (direct-xip: the other
+	  slot an image can run from). Whole erase sectors, outside the primary
+	  slot.
 config IMG0_SECONDARY_SIZE
 	hex "Image 0 secondary slot size"
 	default 0x0
 	help
-	  swap-offset needs a secondary slot one sector larger than the primary.
+	  The same as the primary slot; swap-offset needs a secondary slot one
+	  sector larger.
 
 config IMG1_PRIMARY_ADDR
 	hex "Image 1 primary slot address"
 	default 0x0
 	depends on IMAGE_NUMBER = 2
+	help
+	  Image 1 (with DUALCORE_SINGLE_BOOT the second core's application); the
+	  same rules as image 0's primary slot.
 config IMG1_PRIMARY_SIZE
 	hex "Image 1 primary slot size"
 	default 0x0
 	depends on IMAGE_NUMBER = 2
+	help
+	  The same rules as image 0's primary slot.
 config IMG1_SECONDARY_ADDR
 	hex "Image 1 secondary slot address"
 	default 0x0
 	depends on IMAGE_NUMBER = 2
+	help
+	  The same rules as image 0's secondary slot.
 config IMG1_SECONDARY_SIZE
 	hex "Image 1 secondary slot size"
 	default 0x0
 	depends on IMAGE_NUMBER = 2
+	help
+	  The same rules as image 0's secondary slot.
 
 config SCRATCH_ADDR
 	hex "Scratch area address"
 	default 0x0
 	depends on UPGRADE_MODE_SWAP_SCRATCH
+	help
+	  swap-scratch: where MCUboot keeps a sector while it swaps it. Whole
+	  erase sectors, outside the slots. It wears fastest: erased once per
+	  moved sector on every update.
 config SCRATCH_SIZE
 	hex "Scratch area size"
 	default 0x0
 	depends on UPGRADE_MODE_SWAP_SCRATCH
+	help
+	  At least the largest sector of the slots (configure checks it).
 
 config IMAGE_HEADER_SIZE
 	hex "Image header size"
@@ -175,9 +211,14 @@ config NODE_ADDR_FLASH
 	default 0x0
 	help
 	  Address of a 32-bit word in flash holding the node address as
-	  UMCUB_NODE_ADDR_WORD(addr), e.g. a field of the application's own
-	  settings: the address is known right after power-up. Must lie outside
-	  the image slots. 0 = not used.
+	  UMCUB_NODE_ADDR_WORD(addr) (umcub.h), e.g. a field of the application's
+	  own settings: the address is known right after power-up, before the
+	  application has run. Must lie outside the image slots (updates rewrite
+	  them). 0 = not used.
+	  The node address on a shared bus comes, in this order, from the
+	  application (umcub_set_node_address(), kept over resets, not over
+	  power-off), from this word, or from the board hook
+	  umcub_board_node_address() (DIP switch, EEPROM, ...); 0 = unassigned.
 
 endmenu
 
@@ -186,16 +227,38 @@ menu "MCUboot"
 choice UPGRADE_MODE_CHOICE
 	prompt "Upgrade mode"
 	default UPGRADE_MODE_OVERWRITE
+	help
+	  How MCUboot installs an image from the secondary slot. The mode decides
+	  what the slots must look like: menu Flash layout, docs/board.md.
 config UPGRADE_MODE_OVERWRITE
 	bool "overwrite"
+	help
+	  The image in the secondary slot replaces the primary one: no test boot,
+	  no way back. The trailer takes only a few dozen bytes.
 config UPGRADE_MODE_SWAP_SCRATCH
 	bool "swap-scratch"
+	help
+	  The two slots are swapped through a scratch area: an image on test that
+	  the application does not confirm (umcub_confirm()) is swapped back by
+	  the next boot.
 config UPGRADE_MODE_SWAP_OFFSET
 	bool "swap-offset"
+	help
+	  The two slots are swapped without a scratch area, test and revert like
+	  swap-scratch, with a secondary slot one sector larger than the primary.
+	  Spreads the wear better than swap-scratch; recommended by MCUboot.
 config UPGRADE_MODE_DIRECT_XIP
 	bool "direct-xip"
+	help
+	  Nothing is copied: an image runs from the slot it was linked for and the
+	  newest valid one wins. An SMP upload names the slot. No encrypted
+	  images, no downgrade prevention.
 config UPGRADE_MODE_DIRECT_XIP_REVERT
 	bool "direct-xip with revert"
+	help
+	  direct-xip, and MCUboot erases an image without a confirmed trailer on
+	  the next boot: programmers and serial recovery take the .confirmed
+	  image, updates are followed by umcub_confirm() (docs/configuration.md).
 endchoice
 
 config UPGRADE_MODE
@@ -209,8 +272,13 @@ config UPGRADE_MODE
 choice SIGNATURE_CHOICE
 	prompt "Image signature"
 	default SIGNATURE_EC256
+	help
+	  What an image must carry to be accepted.
 config SIGNATURE_EC256
 	bool "ECDSA-P256"
+	help
+	  Images are signed with the signing key (menu Keys); the bootloader
+	  embeds its public half.
 config SIGNATURE_NONE
 	bool "None (SHA-256 only)"
 	help
@@ -228,16 +296,24 @@ config DOWNGRADE_PREVENTION
 	bool "Refuse older images"
 	depends on !UPGRADE_MODE_DIRECT_XIP && !UPGRADE_MODE_DIRECT_XIP_REVERT
 	help
-	  MCUboot checks it when it installs from the secondary slot. A plain
-	  SMP upload into the primary slot is not checked.
+	  Refuse images with a lower version than the running one. MCUboot checks
+	  it when it installs from the secondary slot (DFU, lite upload,
+	  umcub_slot_*, SMP with SMP_DIRECT_UPLOAD): the image is dropped, the
+	  running one stays. A plain SMP upload writes the primary slot directly
+	  and is not checked. Not in the direct-xip modes: the newest valid image
+	  wins anyway.
 
 config VALIDATE_PRIMARY
 	bool "Validate the primary slot on every boot"
 	default y
 	help
-	  Hash + signature, board type, reset vector on every boot
-	  (recommended). Off boots faster, but an image written straight into
-	  the primary slot then boots unchecked.
+	  Validate the primary slot (hash + signature, board type, reset vector)
+	  on every boot, recommended. Off boots faster (about 0.6 s on a 72 MHz
+	  Cortex-M3, about 80 ms per image on the H7): updates through the
+	  secondary slot are still validated before they are installed, but an
+	  image written straight into the primary slot (SMP or lite upload, a
+	  debugger) then boots unchecked. Refused at build time together with SMP
+	  and a board type, a secure link or encrypted images.
 
 config IMAGE_VECTOR_CHECK
 	bool "Check the image's reset vector"
@@ -250,8 +326,12 @@ config ENCRYPT_IMAGES
 	bool "Encrypted images"
 	depends on !UPGRADE_MODE_DIRECT_XIP && !UPGRADE_MODE_DIRECT_XIP_REVERT
 	help
-	  MCUboot ECIES-P256, AES-128-CTR with the device key: image files and
-	  transfers do not show the firmware.
+	  MCUboot ECIES-P256, AES-128-CTR with the device key (menu Keys): image
+	  files and transfers do not show the firmware; signing encrypts
+	  automatically. Installed from the secondary slot, the image is decrypted
+	  while it is copied; uploaded over SMP into the primary slot, it is
+	  decrypted in place after the last chunk. READBACK then answers only
+	  inside an encrypted umcub link session, never over USB DFU.
 
 config ENC_INPLACE
 	bool "In-place decryption after an SMP upload"
@@ -259,16 +339,19 @@ config ENC_INPLACE
 	default n if FAMILY_STM32F4 || CORE_CM4
 	default y
 	help
-	  Buffers one flash sector in RAM (H7: 128 KiB). Without it encrypted
-	  images go through the secondary slot.
+	  Decrypt an encrypted SMP upload into the primary slot in place. Buffers
+	  one flash sector in RAM (H7: 128 KiB), so the part needs sectors of one
+	  size. Without it encrypted images go through the secondary slot.
 
 config SWAP_SAVE_ENCTLV
 	bool "Keep encrypted key TLVs in the trailer"
 	depends on ENCRYPT_IMAGES
 	default y
 	help
-	  Swap modes: off stores the plain AES keys in the slot trailers,
-	  readable with a debugger or readback.
+	  Swap modes: the slot trailers keep the encrypted key TLVs of both images
+	  until the swap is over (signing passes --save-enctlv). Off stores the
+	  plain AES keys there, readable with a debugger or readback, for a
+	  slightly smaller trailer.
 
 endmenu
 
@@ -277,12 +360,21 @@ menu "Entering the bootloader"
 config ENTRY_ON_REQUEST
 	bool "On request of the application"
 	default y
+	help
+	  Stay in recovery when the application asked for it
+	  (umcub_enter_bootloader()). Off can lock the device out: without a
+	  button or a wait window nothing else brings it back.
 config ENTRY_ON_NO_IMAGE
 	bool "When there is no valid image"
 	default y
+	help
+	  Stay in recovery when no image is bootable. Off: a device without a
+	  valid image is unreachable (debugger only).
 
 config ENTRY_GPIO
 	bool "Button / strap pin held at reset"
+	help
+	  Stay in recovery when this pin is held at reset.
 if ENTRY_GPIO
 source "$(UMCUB_ROOT)/port/kconfig/entry_gpio.kconfig"
 endif
@@ -290,10 +382,15 @@ config ENTRY_GPIO_ACTIVE
 	bool "Entry pin active high"
 	depends on ENTRY_GPIO
 	default y
+	help
+	  On: the pin held high means recovery. Off: held low.
 choice ENTRY_GPIO_PULL_CHOICE
 	prompt "Entry pin pull"
 	depends on ENTRY_GPIO
 	default ENTRY_GPIO_PULL_NONE
+	help
+	  Internal pull while the pin is read; none when the board has its own
+	  resistor.
 config ENTRY_GPIO_PULL_NONE
 	bool "none"
 config ENTRY_GPIO_PULL_UP
@@ -311,22 +408,32 @@ config ENTRY_WAIT_MS
 	int "Wait window on every boot (ms)"
 	default 0
 	help
-	  Listen this long on every boot for an SMP request or a text command
-	  before starting the application (0 = don't wait). Pick it for the
-	  slowest transport you want to use (Ethernet: link + DHCP, USB:
-	  enumeration, seconds).
+	  Listen this long on every boot for an SMP request or a text command such
+	  as "b" before starting the application (0 = don't wait); each boot is
+	  delayed by it. Every enabled transport listens and is switched off again
+	  after the window, so pick the length for the slowest one you want to
+	  use: UART and CAN answer at once; Ethernet needs the link (about 2 s)
+	  and a DHCP lease or a static address; USB needs the host to enumerate
+	  and open the device (seconds). USB attaches and detaches on every boot
+	  then, and a device that vanishes in the middle of enumeration upsets
+	  some host controllers: with USB prefer 0 or a window of several seconds.
 
 config RECOVERY_TIMEOUT_MS
 	int "Leave recovery after inactivity (ms)"
 	default 0
 	help
-	  0 = never.
+	  Leave recovery mode (reset) after this much inactivity. 0 = never.
 
 config STATUS_LED
 	bool "Status LED"
 	help
-	  Slow blink: in the bootloader; fast flicker: data; N blinks + pause:
-	  transport N did not come up. About 200 bytes.
+	  Lit while the bootloader listens (wait window, recovery), shows what the
+	  log would say when there is none. About 200 bytes.
+	  Slow blink (1 Hz): in the bootloader, waiting.
+	  Fast flicker: data arriving.
+	  N blinks + pause: a transport did not come up (no transceiver, no PHY
+	  clock, ...), N = 1 UART, 2 USB, 4 CAN, 5 Ethernet, 7 board transport.
+	  Untouched on a plain boot; back in reset state before the application.
 if STATUS_LED
 source "$(UMCUB_ROOT)/port/kconfig/status_led.kconfig"
 endif
@@ -334,6 +441,8 @@ config STATUS_LED_ACTIVE
 	bool "LED lit high"
 	depends on STATUS_LED
 	default y
+	help
+	  On: the LED is lit when the pin is high. Off: when it is low.
 
 endmenu
 
@@ -343,53 +452,80 @@ config SMP_ENABLE
 	bool "SMP (MCUboot serial recovery)"
 	default y
 	help
-	  mcumgr / smpmgr / umcub on UART, USB CDC, CAN, UDP and the board
-	  transport. Off leaves boot_serial, zcbor and the SMP framing out
-	  (about 6 K).
+	  MCUboot serial recovery (mcumgr / smpmgr / umcub) on UART, USB CDC, CAN,
+	  UDP and the board transport. Off leaves boot_serial, zcbor and the SMP
+	  framing out (about 6 K): images then come through the lite upload, USB
+	  DFU, the application (umcub_slot_*) or the board's own protocol.
 
 config SMP_MTU
 	int "Largest packet (SMP, lite upload, link, CAN)"
 	range 512 4096
 	default 1472 if TRANSPORT_ETH
 	default 1024
+	help
+	  Largest packet (decoded) on SMP, the lite upload, the umcub link and
+	  CAN; the buffers are this size (RAM only). By default 1472 with Ethernet
+	  (a full UDP datagram, what smpmgr sends), else 1024. Hosts must not send
+	  more: smpmgr --mtu / --line-buffers.
 
 config SMP_PARAMS
 	bool "Answer MCUMGR_PARAMETERS"
 	depends on SMP_ENABLE
 	default y
 	help
-	  smpmgr then sizes serial packets itself. About 130 bytes.
+	  Answer MCUMGR_PARAMETERS (os group, id 6) with buf_size = SMP_MTU,
+	  buf_count = 1: smpmgr then sizes serial packets itself, no
+	  --line-buffers. About 130 bytes.
 
 config SMP_DIRECT_UPLOAD
 	bool "SMP upload addresses slots"
 	depends on SMP_ENABLE
 	help
-	  The "image" field of an upload names a slot; an image in the secondary
-	  slot is installed by the next boot after "image state-write" marks it.
-	  Always on in the direct-xip modes. About 2.4 K.
+	  Where an SMP upload goes. Off: "image" N is image N, written straight
+	  into its primary slot (replaced at once, no revert). On: "image"
+	  addresses slots: 0/1 image 0 primary, 2 image 0 secondary, 3 image 1
+	  primary, 4 image 1 secondary; an image in the secondary slot is
+	  installed by the next boot after "image state-write" marks it (test
+	  boot, revert in the swap modes). Always on in the direct-xip modes.
+	  Brings MCUboot's image state ("image state-write", the confirmed and
+	  pending flags in "image state-read"; not in direct-xip), the image hash
+	  in "state-read" and "image slot-info" along, about 2.4 K; without it
+	  "state-read" lists versions only.
 
 config SMP_INSPECT_GROUP
 	int "SMP group of verify / hash / read"
 	depends on SMP_ENABLE
 	default 100
+	help
+	  SMP group id of verify (0) / hash (1) / read (2).
 
 config LITE_UPLOAD
 	bool "Lite upload protocol"
 	default y if !SMP_ENABLE
 	help
-	  Small upload protocol without SMP (umcub upload --lite).
+	  Small upload protocol without SMP (umcub upload --lite): begin / data /
+	  end frames with CRC, written with umcub_slot_* (test or permanent mark,
+	  in-place decryption). On by default without SMP.
 
 config PROTO_USER
 	bool "Board protocol (umcub_proto_user)"
 	help
 	  Frames that are neither SMP, lite nor a text command go to
-	  umcub_proto_user() in the board code.
+	  umcub_proto_user() in the board code (packets of packet transports and
+	  umcub link DATA payloads; on stream transports lines 0x05 0x0E <base64>
+	  \n). Answer with umcub_proto_reply(); umcub_slot_* is available to write
+	  images. Example: boards/blackpill_f411ce, variants/proto_user.conf.
 
 config CMD_ENABLE
 	bool "Text commands"
 	help
-	  a / b / r / i (start the application, stay, reset, info) and
-	  verify / hash / read on a terminal; the table: UMCUB_CFG_CMD_TABLE.
+	  Simple text commands next to SMP, for a terminal or a few lines of host
+	  code: on stream transports (UART, USB CDC) typed text, on packet
+	  transports (UDP, CAN ISO-TP) a packet that is not an SMP frame. They are
+	  listened to in recovery mode and during the wait window (ENTRY_WAIT_MS),
+	  e.g. "send b within 300 ms after reset to stay in the bootloader". By
+	  default a / b / r / i (start the application, stay, reset, info) and
+	  verify / hash / read: CMD_TABLE.
 config CMD_TABLE
 	string "Command table"
 	depends on CMD_ENABLE
@@ -404,22 +540,37 @@ config CMD_IMMEDIATE
 	bool "Run a command as soon as the input equals it"
 	depends on CMD_ENABLE
 	default y
+	help
+	  On: a command runs as soon as the input equals it (a single key). Off:
+	  only after Enter (CR or LF). A command that is the beginning of another
+	  one ("r" and "read") always waits for Enter.
 config CMD_REPLY
 	bool "Answer text commands"
 	depends on CMD_ENABLE
 	default y
+	help
+	  Text commands answer "ok <cmd>" / "? <text>".
 
 config INSPECT_VERIFY
 	bool "Slot verify (host checks an image)"
 	default y
+	help
+	  "verify <image> <slot>": full MCUboot validation of the slot (SHA-256
+	  over flash + signature), answers "ok valid" / "bad". Also in the SMP
+	  inspect group.
 config INSPECT_HASH
 	bool "Slot hash"
 	default y
+	help
+	  "hash <image> <slot> [<off> <len>]": SHA-256 of a slot range; by default
+	  the whole stored image, the .signed.bin that was sent. Also in the SMP
+	  inspect group.
 config READBACK
 	bool "Slot readback"
 	help
-	  Exposes the firmware to anybody who can put the device into recovery
-	  mode. The bootloader region is never readable.
+	  "read <image> <slot> <off> <len>", SMP read and USB DFU upload: raw
+	  readback of the image slots. Exposes the firmware to anybody who can put
+	  the device into recovery mode. The bootloader region is never readable.
 
 endmenu
 
@@ -428,60 +579,103 @@ menu "Transports"
 config TRANSPORT_UART
 	bool "UART"
 	default y
+	help
+	  SMP serial (mcumgr / smpmgr --conntype serial) and text commands. The
+	  boot log goes to this UART too.
 if TRANSPORT_UART
 source "$(UMCUB_ROOT)/port/kconfig/uart_instance.kconfig"
 config UART_BAUD
 	int "Baud rate"
 	default 115200
+	help
+	  Baud rate of the transport and of the boot log.
 source "$(UMCUB_ROOT)/port/kconfig/uart_tx.kconfig"
 source "$(UMCUB_ROOT)/port/kconfig/uart_rx.kconfig"
 source "$(UMCUB_ROOT)/port/kconfig/uart_de.kconfig"
 config UART_DE_ACTIVE
 	bool "DE active high"
 	default y
+	help
+	  On: DE is high while sending. Off: low.
 config UART_TURNAROUND_MS
 	int "Pause before answering (ms)"
 	default 0
+	help
+	  Pause before answering, so the host has released the bus.
 config UART_TX_RING
 	int "Transmit ring (bytes, power of two, 0 = off)"
 	default 0
+	help
+	  Transmit through a RAM ring of this many bytes drained by the UART
+	  interrupt, so the log does not stall the boot (drained before the jump);
+	  the last lines can be lost on a hang. Not with RS485.
 endif
 
 config TRANSPORT_USB_CDC
 	bool "USB CDC (SMP)"
 	depends on HAS_USB
+	help
+	  CDC-ACM (tinyUSB), a serial port on the host: SMP and text commands.
 config TRANSPORT_USB_DFU
 	bool "USB DFU"
 	depends on HAS_USB
+	help
+	  DFU (tinyUSB, dfu-util): alt setting N = image N, downloaded into its
+	  secondary slot (also in direct-xip) and marked pending after
+	  manifestation.
 if TRANSPORT_USB_CDC || TRANSPORT_USB_DFU
 config USB_VID
 	hex "USB vendor id"
 	default 0x1209
+	help
+	  The default 1209:0001 is a test id of pid.codes: a product needs its
+	  own.
 config USB_PID
 	hex "USB product id"
 	default 0x0001
+	help
+	  See the vendor id.
 config USB_MANUFACTURER
 	string "USB manufacturer"
 	default "umcub"
+	help
+	  String descriptor, what the host shows.
 config USB_PRODUCT
 	string "USB product"
 	default "umcub bootloader"
+	help
+	  String descriptor, what the host shows.
 endif
 config USB_DFU_ALLOW_UNAUTH
 	bool "USB DFU next to an authenticated link"
 	depends on TRANSPORT_USB_DFU
+	help
+	  USB DFU cannot authenticate the host: next to a secure link it is
+	  refused at build time unless this is on.
 
 config TRANSPORT_CAN
 	bool "CAN (SMP over ISO-TP)"
+	help
+	  SMP over ISO-TP. On the STM32F1 not together with USB: they share their
+	  SRAM.
 if TRANSPORT_CAN
 choice CAN_DRIVER_CHOICE
 	prompt "CAN controller"
 	default CAN_DRIVER_PORT
+	help
+	  Who drives the CAN controller.
 config CAN_DRIVER_PORT
 	bool "On-chip (FDCAN / bxCAN)"
 	depends on HAS_CAN
+	help
+	  The family port's FDCAN / bxCAN driver.
 config CAN_DRIVER_BOARD
 	bool "External, driver in the board code"
+	help
+	  An external controller, e.g. MCP2515 / MCP2518FD on SPI: the board code
+	  implements umcub_port_can_init / deinit / send / recv
+	  (port/include/umcub_port_can.h), ISO-TP and SMP run on top of it.
+	  EXPERIMENTAL: host test only, not run with a real controller yet.
 endchoice
 config CAN_DRIVER
 	int
@@ -493,39 +687,65 @@ config CAN_INSTANCE
 config CAN_BITRATE
 	int "Bit rate"
 	default 500000
+	help
+	  Nominal bit rate (bit/s).
 config CAN_FD
 	bool "CAN-FD frames"
+	help
+	  CAN-FD frames, up to 64 bytes; not on the F1's bxCAN. EXPERIMENTAL:
+	  loopback only, not run on a bus yet.
 config CAN_DATA_BITRATE
 	int "Data bit rate"
 	depends on CAN_FD
 	default 2000000
+	help
+	  Bit rate of the CAN-FD data phase (bit/s).
 config CAN_RX_ID
 	hex "Id host -> device"
 	default 0x7C0
+	help
+	  CAN id of the frames from the host.
 config CAN_TX_ID
 	hex "Id device -> host"
 	default 0x7C8
+	help
+	  CAN id of the frames to the host.
 config CAN_EXT_ID
 	bool "29-bit ids"
+	help
+	  29-bit ids instead of 11-bit ones.
 if CAN_DRIVER_PORT
 source "$(UMCUB_ROOT)/port/kconfig/can_tx.kconfig"
 source "$(UMCUB_ROOT)/port/kconfig/can_rx.kconfig"
 endif
 config CAN_LOOPBACK
 	bool "Internal loopback (self-test)"
+	help
+	  No transceiver needed, nothing reaches the bus: for self-test only.
 endif
 
 config TRANSPORT_ETH
 	bool "Ethernet (SMP over UDP)"
+	help
+	  SMP and text commands over UDP, on a minimal IPv4 stack with DHCP.
+	  Recovery over the network is not authenticated without the secure link.
 if TRANSPORT_ETH
 choice ETH_DRIVER_CHOICE
 	prompt "Ethernet MAC"
 	default ETH_DRIVER_PORT
+	help
+	  Who drives the Ethernet MAC.
 config ETH_DRIVER_PORT
 	bool "On-chip MAC + RMII PHY"
 	depends on HAS_ETH
+	help
+	  The family port's driver of the on-chip MAC with an RMII PHY.
 config ETH_DRIVER_BOARD
 	bool "External, driver in the board code"
+	help
+	  An external MAC, e.g. ENC28J60 / LAN9250 on SPI: the board code
+	  implements umcub_port_eth_* (port/include/umcub_port_eth.h, raw frames),
+	  the IPv4 / DHCP stack runs on top of it.
 endchoice
 config ETH_DRIVER
 	int
@@ -534,26 +754,41 @@ config ETH_DRIVER
 config ETH_DHCP
 	bool "DHCP"
 	default y
+	help
+	  Ask for an address over DHCP, with the static address as a fallback.
 config ETH_IP
 	string "Static address (fallback with DHCP)"
 	default "192.168.1.50"
+	help
+	  Used when DHCP is off, or as a fallback when no lease comes.
 config ETH_NETMASK
 	string "Netmask"
 	default "255.255.255.0"
+	help
+	  Netmask of the static address.
 config ETH_DHCP_TIMEOUT_MS
 	int "DHCP fallback after (ms)"
 	depends on ETH_DHCP
 	default 10000
+	help
+	  Fall back to the static address when no DHCP lease comes in this time.
 config ETH_MAC
 	hex "MAC address (0 = from the unique id)"
 	default 0x0
+	help
+	  As a 48-bit number, first byte on top. 0 = derived from the MCU's unique
+	  id (locally administered).
 config ETH_SMP_PORT
 	int "UDP port of SMP"
 	default 1337
+	help
+	  UDP port the bootloader listens on.
 config ETH_PHY_ADDR
 	int "PHY address"
 	depends on ETH_DRIVER_PORT
 	default 0
+	help
+	  MDIO address of the RMII PHY.
 if ETH_DRIVER_PORT
 menu "RMII pins"
 source "$(UMCUB_ROOT)/port/kconfig/eth_rmii.kconfig"
@@ -563,6 +798,13 @@ endif
 
 config TRANSPORT_USER
 	bool "Board transport (umcub_transport_user)"
+	help
+	  Anything else (RS-485 with its own framing, a BLE module, a W5500 UDP
+	  socket, ...): the board code defines const umcub_transport_t
+	  umcub_transport_user (src/transport/include/umcub_transport.h), a stream
+	  (SMP serial framing) or a packet transport (raw SMP packets), polled
+	  with the built-in ones. EXPERIMENTAL: host test only, not run with real
+	  hardware yet.
 
 endmenu
 
@@ -572,6 +814,12 @@ choice UART_LINK_CHOICE
 	prompt "UART"
 	depends on TRANSPORT_UART
 	default UART_LINK_PLAIN
+	help
+	  plain: SMP and text as they are, one device on the line. addressed: only
+	  umcub link frames (node address, discovery, standard SMP inside); on the
+	  host the umcub tool, which also serves mcumgr / smpmgr. secure:
+	  addressed, and a host must authenticate before anything runs, a MAC on
+	  every frame. docs/link.md.
 config UART_LINK_PLAIN
 	bool "plain"
 config UART_LINK_ADDRESSED
@@ -589,6 +837,12 @@ choice USB_CDC_LINK_CHOICE
 	prompt "USB CDC"
 	depends on TRANSPORT_USB_CDC
 	default USB_CDC_LINK_PLAIN
+	help
+	  plain: SMP and text as they are, one device on the line. addressed: only
+	  umcub link frames (node address, discovery, standard SMP inside); on the
+	  host the umcub tool, which also serves mcumgr / smpmgr. secure:
+	  addressed, and a host must authenticate before anything runs, a MAC on
+	  every frame. docs/link.md.
 config USB_CDC_LINK_PLAIN
 	bool "plain"
 config USB_CDC_LINK_ADDRESSED
@@ -606,6 +860,12 @@ choice CAN_LINK_CHOICE
 	prompt "CAN"
 	depends on TRANSPORT_CAN
 	default CAN_LINK_PLAIN
+	help
+	  plain: SMP and text as they are, one device on the line. addressed: only
+	  umcub link frames (node address, discovery, standard SMP inside); on the
+	  host the umcub tool, which also serves mcumgr / smpmgr. secure:
+	  addressed, and a host must authenticate before anything runs, a MAC on
+	  every frame. docs/link.md.
 config CAN_LINK_PLAIN
 	bool "plain"
 config CAN_LINK_ADDRESSED
@@ -623,6 +883,12 @@ choice ETH_LINK_CHOICE
 	prompt "Ethernet"
 	depends on TRANSPORT_ETH
 	default ETH_LINK_PLAIN
+	help
+	  plain: SMP and text as they are, one device on the line. addressed: only
+	  umcub link frames (node address, discovery, standard SMP inside); on the
+	  host the umcub tool, which also serves mcumgr / smpmgr. secure:
+	  addressed, and a host must authenticate before anything runs, a MAC on
+	  every frame. docs/link.md.
 config ETH_LINK_PLAIN
 	bool "plain"
 config ETH_LINK_ADDRESSED
@@ -640,6 +906,12 @@ choice USER_LINK_CHOICE
 	prompt "Board transport"
 	depends on TRANSPORT_USER
 	default USER_LINK_PLAIN
+	help
+	  plain: SMP and text as they are, one device on the line. addressed: only
+	  umcub link frames (node address, discovery, standard SMP inside); on the
+	  host the umcub tool, which also serves mcumgr / smpmgr. secure:
+	  addressed, and a host must authenticate before anything runs, a MAC on
+	  every frame. docs/link.md.
 config USER_LINK_PLAIN
 	bool "plain"
 config USER_LINK_ADDRESSED
@@ -660,17 +932,28 @@ config LINK_SECURE
 config LINK_ENCRYPT
 	bool "Encrypt session payloads"
 	depends on LINK_SECURE
+	help
+	  Encrypt session payloads (AES-128-CTR) in addition to the MAC.
 config LINK_MIXED_OK
 	bool "Allow plain transports next to a secure one"
 	depends on LINK_SECURE
+	help
+	  A plain transport next to a secure one gives unauthenticated access
+	  through that transport; the build warns unless this is on.
 config LINK_REQUIRE_RDP
 	bool "Secure link needs readout protection"
 	depends on LINK_SECURE
 	default y
+	help
+	  Keep secure transports closed while flash readout protection is off (RDP
+	  level 0: the device key can be read with a debugger). Off only for
+	  development.
 config LINK_SESSION_MS
 	int "Session timeout (ms)"
 	depends on LINK_SECURE
 	default 60000
+	help
+	  A session ends after this long without a valid frame.
 
 endmenu
 
@@ -680,12 +963,18 @@ config BOARD_TYPE
 	hex "Board type"
 	default 0x0
 	help
-	  Product id. Non-zero: every image must carry it in its signed TLV
-	  (signing adds it), firmware of another product is never booted.
+	  Product id, reported to the host (text command i, SMP) and to the
+	  application (umcub_boot_info()). Non-zero: every image must carry the
+	  same value in its signed TLV (signing adds it), otherwise MCUboot
+	  rejects it before installing: firmware of another product is never
+	  booted, even when it is signed with the same key.
 config BOARD_REV
 	int "Hardware revision"
 	range 0 65535
 	default 0
+	help
+	  Reported to the host (text command i, SMP) and to the application
+	  (umcub_boot_info()).
 
 endmenu
 
@@ -699,6 +988,8 @@ config KEYS_DIR
 	  root (without a board keys/<part>); a relative path is taken from the
 	  umcub root. A key that exists there is used, never replaced: keep the
 	  directory (and a backup), the devices only accept what its keys sign.
+	  Test builds put theirs elsewhere with the environment variable
+	  UMCUB_KEYS_DIR, which an option set here overrides.
 
 choice SIGNING_KEY_SOURCE
 	prompt "Image signing key"
@@ -778,10 +1069,15 @@ choice APP_WRITE_SLOT_CHOICE
 	prompt "Slot the application writes (umcub_slot_begin)"
 	default APP_WRITE_SLOT_INACTIVE if UPGRADE_MODE_DIRECT_XIP || UPGRADE_MODE_DIRECT_XIP_REVERT
 	default APP_WRITE_SLOT_SECONDARY
+	help
+	  Where umcub_slot_begin() in the application writes with
+	  UMCUB_SLOT_DEFAULT; a call can also name a slot.
 config APP_WRITE_SLOT_SECONDARY
 	bool "Secondary"
 config APP_WRITE_SLOT_INACTIVE
 	bool "The one not in use (direct-xip)"
+	help
+	  The slot the application is not running from.
 config APP_WRITE_SLOT_PRIMARY
 	bool "Primary"
 endchoice
@@ -804,21 +1100,32 @@ config MCUBOOT_LOG_LEVEL
 	int "MCUboot log level"
 	range 0 LOG_LEVEL
 	default LOG_LEVEL
+	help
+	  Level of MCUboot's own messages ("Image index: 0, Swap type: none",
+	  ...), at most LOG_LEVEL: 1 (errors only) saves about 0.9 K on the F1 /
+	  F4 and 1.1 K on the H7 next to an info log, 0 about 1.2-1.6 K.
 config ASSERT_TRAP
 	bool "MCUboot asserts trap silently"
 	help
-	  A failed assertion traps (HardFault -> reset) instead of logging
-	  file:line: smaller, but silent.
+	  A failed assertion in MCUboot becomes one udf (HardFault, the
+	  bootloader's handler resets; so does every other fault then) instead of
+	  logging file:line and resetting: about 0.1 K smaller without a log,
+	  0.4-0.5 K with one, but silent.
 config LTO
 	bool "Link-time optimisation"
 	help
-	  3-4 K smaller on Cortex-M3 / M4, about 7 K on the H7. Verified on the
-	  F1 and the F4, EXPERIMENTAL on the H7. CMake -DUMCUB_LTO overrides it.
+	  3-4 K smaller on Cortex-M3 / M4, about 7 K on the H7. Verified on the F1
+	  and the F4, EXPERIMENTAL on the H7 (not run there yet). Inlining makes
+	  stack frames larger: check the stack on your part
+	  (tests/hw/stack_usage.py). CMake -DUMCUB_LTO overrides it for one build
+	  tree.
 config WATCHDOG_MS
 	int "Independent watchdog (ms, 0 = off)"
 	default 0
 	help
-	  At least 1.5 x the erase time of one sector (H7 6 s, F4 3 s, F1 60 ms).
+	  Fed by the bootloader. At least 1.5 x the erase time of one sector (H7 6
+	  s, F4 3 s, F1 60 ms); with a secure link at least 2000 (an
+	  authentication costs two ECC operations).
 config TEST_FAULT_INJECT
 	bool "TEST ONLY: power-loss emulation"
 	help

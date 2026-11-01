@@ -2,6 +2,10 @@
 
 choice CAN_RX_CHOICE
 	prompt "RX pin"
+	help
+	  The pins that carry this signal on this package; the alternate function
+	  is filled in.
+	  STM32F1: TX and RX go in pairs (AFIO remap).
 
 config CAN_RX_PA11
 	bool "PA11 (CAN_RX/FDCAN1_RX)"

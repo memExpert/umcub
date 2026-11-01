@@ -1,6 +1,6 @@
 # The build matrix as CTest tests: every bootloader configuration
-# (matrix/configs.txt), the presets, the example applications, the IDE
-# library compile, the checks, the host tests and the link e2e.
+# (matrix/configs.txt), the presets, the example applications, the application
+# library without CMake, the checks, the host tests and the link e2e.
 #
 #   cmake -S tests -B build/matrix -G Ninja && ctest --test-dir build/matrix -j4
 #   ctest --test-dir build/matrix -R bluepill        (some), --rerun-failed, --output-junit report.xml
@@ -26,6 +26,7 @@ endmacro()
 
 _umcub_test(layers ${RUN} check layers -- "${UMCUB_PY}" tools/build/check_layers.py)
 _umcub_test(kconfig-generated ${RUN} check kconfig-generated -- "${UMCUB_PY}" tools/build/gen_kconfig.py --check)
+_umcub_test(docs ${RUN} check docs -- "${UMCUB_PY}" tools/build/check_docs.py --fast)
 
 # Bootloader configurations: configure, build, no warnings.
 file(STRINGS matrix/configs.txt _lines REGEX "^[^#]")

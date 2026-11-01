@@ -6,8 +6,8 @@ Seen with a user's F103CB (128 KiB, 52 K application): whether it fits took abou
 trailer reserve, the 256-byte info block and page rounding, and which options save how much (LTO, inspect,
 SMP_PARAMS, lite).
 
-- [ ] **Layout calculator**: e.g. `umcub layout --flash 128K --page 1K --app 52K --transport can` prints the
-  `#define`s of a layout that fits and the option combinations that do (from measured builds, like size_table.py).
+- [ ] **Layout calculator**: e.g. `umcub layout --flash 128K --page 1K --app 52K --transport can` prints a
+  fragment with a layout that fits and the option combinations that do (from measured builds, like size_table.py).
 - [ ] **LTO on the H7** (verified on the F1 and the F4): boot, SMP / DFU / Ethernet recovery, swap upgrade, both
   cores, stack (`tests/hw/stack_usage.py`), then drop "experimental" for it.
 - [ ] **Size summary after the build**: bootloader size, free space in its region, the application window - today
@@ -18,14 +18,12 @@ SMP_PARAMS, lite).
 
 - [ ] **CAN-FD on a bus** — 64-byte frames, data bit rate switch. Needs a CAN-FD transceiver on PD0/PD1 (classic CAN
   with ISO-TP + SMP is verified on a real bus).
-- [ ] **IDE workflow** (docs/application.md "Using umcub from an IDE") in real STM32CubeIDE and Keil MDK projects: post-build
-  signing, debug download of the signed image, Keil key codes (`#L`, `$L@L`), armclang as preprocessor. So far
-  verified: `umcub_app_all.c` compiles with the documented include list (GCC, clang); `umcub image sign` gives
-  the same image as CMake (header, payload, hash) from ELF and HEX; a tool-signed image boots on the board; the
-  bootloader builds (F1, H7) with only the GCC inside STM32CubeIDE 2.2 (`UMCUB_TOOLCHAIN_PREFIX`); in CubeIDE 2.2
-  the "STM32 CMake Project" wizard + `tools/ide/umcub_cubeide.py` build every preset and the `custom` one (own
-  board through *Other options*), single targets, Build Analyzer on the clicked ELF (Linux). Open: debugging from
-  that project, CubeIDE on Windows. VS Code (CMake Tools, presets, the build matrix in the Testing view) works.
+- [ ] **Applications built without CMake** (docs/application.md) in real STM32CubeIDE and Keil MDK projects: post-build
+  signing, debug download of the signed image, Keil key codes (`#L`, `$L@L`). So far verified: `umcub_app_all.c` compiles
+  with the documented include list (GCC, clang); `umcub image sign` gives the same image as CMake (header, payload,
+  hash) from ELF and HEX; a tool-signed image boots on the board; the bootloader builds (F1, H7) with only the GCC
+  inside STM32CubeIDE 2.2 (`UMCUB_TOOLCHAIN_PREFIX`). VS Code (CMake Tools, presets, the build matrix in the Testing
+  view) works.
 - [ ] CAN board driver and board transport with a real external controller (e.g. MCP2518FD, W5500). So far: build
   matrix (`tests/boards/custom_drivers`) and host test `umcub_host_board`; the Ethernet board driver is verified
   (ENC28J60 on the Black Pill).
@@ -65,3 +63,11 @@ Larger changes:
 - [ ] Zero-copy receive paths: ISO-TP reassembles straight into the mux packet buffer (saves an MTU of RAM:
   ~0.5 K on the F1, ~1.5 K on the H7); Ethernet RX parses in the DMA buffer and TX builds in it (~3.3 K RAM on
   the H7, two frame copies per packet); link DATA frames decrypt into the mux buffer (~0.5 K on SECURE builds).
+
+## NUCLEO-H755ZI-Q on hardware after the move to Kconfig
+
+Checked on the Black Pill and the Blue Pill, on the H755 only by builds, host tests and comparing symbols with the old
+configuration. To check on the board: `SINGLE_BOOT` and `PER_CORE` (temporary option bytes, `tools/hw/h755_option_bytes.py`,
+back afterwards) with their layouts from `boards/nucleo_h755zi_q/Kconfig`, the CM4 application in the same build tree, swap-scratch
+upgrade / revert / confirm, swap-offset, USB CDC and DFU, Ethernet, UART with the new RX pull-up, generated keys.
+

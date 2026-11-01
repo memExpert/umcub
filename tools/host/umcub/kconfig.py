@@ -331,7 +331,8 @@ def keys(kconf, bdir):
                 die(f"{PREFIX}{name}_KEY_PATH: {path} not found")
             out[name] = (path, "file")
         elif val(f"{name}_KEY_GENERATE") == "y":
-            d = val("KEYS_DIR") or f"keys/{bdir.name if bdir else val('MCU_PART').lower()}"
+            d = val("KEYS_DIR") or os.environ.get("UMCUB_KEYS_DIR") \
+                or f"keys/{bdir.name if bdir else val('MCU_PART').lower()}"
             out[name] = (_root_path(d) / gen, "generate")
     return out
 

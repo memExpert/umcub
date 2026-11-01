@@ -7,17 +7,17 @@ Several devices on one bus: addressing, the SECURE mode (authentication, encrypt
 SMP over a serial line is point to point: on a shared RS485 bus every bootloader would answer at once, and anybody
 on the bus could drive them. The umcub link puts an envelope around SMP and text commands, per transport:
 
-| `UMCUB_CFG_<UART\|USB_CDC\|CAN\|ETH\|USER>_LINK` | What the transport accepts |
+| `UMCUB_CFG_<UART\|USB_CDC\|CAN\|ETH\|USER>_LINK_...` | What the transport accepts |
 |---|---|
-| `UMCUB_LINK_PLAIN` (default) | SMP and text as before; standard `mcumgr` / `smpmgr` |
-| `UMCUB_LINK_ADDRESSED` | only umcub link frames: a device answers frames for its node address (or, unassigned, for its UID after a `HELLO` with that UID), discovery with random back-off |
-| `UMCUB_LINK_SECURE` | addressed, and nothing is executed before the host has authenticated; every frame of the session carries a MAC |
+| `_PLAIN` (default) | SMP and text as before; standard `mcumgr` / `smpmgr` |
+| `_ADDRESSED` | only umcub link frames: a device answers frames for its node address (or, unassigned, for its UID after a `HELLO` with that UID), discovery with random back-off |
+| `_SECURE` | addressed, and nothing is executed before the host has authenticated; every frame of the session carries a MAC |
 
 Frames: magic, version, type, flags, destination, source, sequence number, length, payload, optional 16-byte tag.
 Packet transports (CAN ISO-TP, UDP, board packet transports) carry them as they are, stream transports (UART, USB
 CDC) as a line `0x05 0x0B <base64> \n`. The format and the handshake are described in
 [`src/proto/include/umcub_link.h`](../src/proto/include/umcub_link.h). RS485 needs the driver-enable pin
-(`UMCUB_CFG_UART_DE_PIN`; hardware DE on the H7, software on the F1) and no log on that UART. A 5 V transceiver
+(`UMCUB_CFG_UART_DE_*`; hardware DE on the H7, software on the F1) and no log on that UART. A 5 V transceiver
 (MAX485 and alike) does not drive the bus properly from 3.3 V: power it from 5 V and put its RO output on a
 5 V-tolerant RX pin, or use a 3.3 V part (MAX3485, SP3485).
 

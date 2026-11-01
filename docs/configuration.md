@@ -12,17 +12,17 @@ and its [`Kconfig`](../boards/nucleo_h755zi_q/Kconfig).
 
 | Group | Main options |
 |---|---|
-| Target | `UMCUB_CFG_MCU`, `UMCUB_CFG_DUALCORE_MODE` (`NONE` / `SINGLE_BOOT` / `PER_CORE`), `UMCUB_CFG_CORE2_DONE_TIMEOUT_MS` |
-| Clocks / power | `UMCUB_CFG_CLOCK_SOURCE`, `UMCUB_CFG_HSE_HZ`, `UMCUB_CFG_HSE_BYPASS`, `UMCUB_CFG_PWR_SUPPLY` |
+| Target | `UMCUB_CFG_PART_*`, `UMCUB_CFG_DUALCORE_NONE` / `_SINGLE_BOOT` / `_PER_CORE`, `UMCUB_CFG_CORE2_DONE_TIMEOUT_MS` |
+| Clocks / power | `UMCUB_CFG_CLOCK_HSI` / `_HSE`, `UMCUB_CFG_HSE_HZ`, `UMCUB_CFG_HSE_BYPASS`, `UMCUB_CFG_PWR_SUPPLY_*` |
 | Flash layout | `UMCUB_CFG_BOOT_*`, `UMCUB_CFG_IMG{0,1}_{PRIMARY,SECONDARY}_{ADDR,SIZE}`, `UMCUB_CFG_SCRATCH_*`, `UMCUB_CFG_IMAGE_HEADER_SIZE` |
-| MCUboot | `UMCUB_CFG_UPGRADE_MODE`, `UMCUB_CFG_SIGNATURE`, `UMCUB_CFG_DOWNGRADE_PREVENTION`, `UMCUB_CFG_VALIDATE_PRIMARY` |
+| MCUboot | `UMCUB_CFG_UPGRADE_MODE_*`, `UMCUB_CFG_SIGNATURE_*`, `UMCUB_CFG_DOWNGRADE_PREVENTION`, `UMCUB_CFG_VALIDATE_PRIMARY` |
 | Slot inspection | `UMCUB_CFG_INSPECT_VERIFY`, `UMCUB_CFG_INSPECT_HASH`, `UMCUB_CFG_READBACK`, `UMCUB_CFG_SMP_INSPECT_GROUP` |
 | Text commands | `UMCUB_CFG_CMD_ENABLE`, `UMCUB_CFG_CMD_IMMEDIATE`, `UMCUB_CFG_CMD_REPLY`, `UMCUB_CFG_CMD_TABLE` |
 | Image checks | `UMCUB_CFG_BOARD_TYPE`, `UMCUB_CFG_BOARD_REV`, `UMCUB_CFG_IMAGE_VECTOR_CHECK` |
 | Bootloader entry | `UMCUB_CFG_ENTRY_ON_REQUEST`, `..._ON_NO_IMAGE`, `..._GPIO(_PIN/_ACTIVE/_PULL)`, `..._WAIT_MS`, `UMCUB_CFG_RECOVERY_TIMEOUT_MS` |
-| Transports | `UMCUB_CFG_TRANSPORT_{UART,USB_CDC,USB_DFU,CAN,ETH,USER}` plus their parameters, `UMCUB_CFG_{CAN,ETH}_DRIVER` |
+| Transports | `UMCUB_CFG_TRANSPORT_{UART,USB_CDC,USB_DFU,CAN,ETH,USER}` plus their parameters, `UMCUB_CFG_{CAN,ETH}_DRIVER_*` |
 | Recovery protocols | `UMCUB_CFG_SMP_ENABLE`, `UMCUB_CFG_SMP_MTU`, `UMCUB_CFG_SMP_PARAMS`, `UMCUB_CFG_LITE_UPLOAD`, `UMCUB_CFG_PROTO_USER` |
-| Misc | `UMCUB_CFG_LTO` (experimental on the H7), `UMCUB_CFG_LOG_LEVEL`, `UMCUB_CFG_WATCHDOG_MS`, `UMCUB_CFG_SHARED_RAM_ADDR`, `UMCUB_CFG_APP_WRITE_SLOT` |
+| Misc | `UMCUB_CFG_LTO` (experimental on the H7), `UMCUB_CFG_LOG_LEVEL`, `UMCUB_CFG_WATCHDOG_MS`, `UMCUB_CFG_APP_WRITE_SLOT_*` |
 
 Ready-made variants of a board are fragments in `boards/<board>/variants/` (USB, RS485, CAN, umcub link, encryption, ...); those the build matrix uses for modes, transports and features are in `tests/configs/` (`mode/`, `transport/`, `feature/`, `part/`).
 
@@ -40,10 +40,10 @@ Their defaults fit almost every board, and some of them weaken the bootloader wh
 | `UMCUB_CFG_LINK_REQUIRE_RDP` | 1 | Keep SECURE transports closed while flash readout protection is off (RDP level 0, the device key can be read with a debugger). 0 only for development. |
 | `UMCUB_CFG_USB_DFU_ALLOW_UNAUTH` | 0 | USB DFU cannot authenticate the host; with a SECURE transport it is refused at build time unless this is 1. |
 | `UMCUB_CFG_LINK_SESSION_MS` | 60000 | An umcub link session ends after this long without a valid frame. |
-| `UMCUB_CFG_USER_LINK` | `UMCUB_LINK_PLAIN` | umcub link mode of the board transport (`UMCUB_CFG_TRANSPORT_USER`), like `UMCUB_CFG_UART_LINK`. |
+| `UMCUB_CFG_USER_LINK_*` | plain | umcub link mode of the board transport (`UMCUB_CFG_TRANSPORT_USER`), like `UMCUB_CFG_UART_LINK_*`. |
 | `UMCUB_CFG_LITE_UPLOAD` | 1 without SMP | Lite upload protocol (`umcub upload --lite`): begin / data / end frames with CRC, written with `umcub_slot_*` (test or permanent mark, in-place decryption). |
-| `UMCUB_CFG_MCUBOOT_LOG_LEVEL` | `UMCUB_CFG_LOG_LEVEL` | Level of MCUboot's own messages (`Image index: 0, Swap type: none`, ...), at most the umcub level: 1 (errors only) saves about 0.9 K on the F1/F4 and 1.1 K on the H7 next to an info log, 0 about 1.2-1.6 K. Overlay `tests/configs/feature/mcuboot_log_err.conf`. |
-| `UMCUB_CFG_ASSERT_TRAP` | 0 | A failed assertion in MCUboot becomes one `udf` (HardFault, the bootloader's handler resets; so does every other fault then) instead of logging `assert <file>:<line>` and resetting: about 0.1 K smaller without a log, 0.4-0.5 K with one, but silent. Overlay `tests/configs/feature/assert_trap.h`. |
+| `UMCUB_CFG_MCUBOOT_LOG_LEVEL` | `UMCUB_CFG_LOG_LEVEL` | Level of MCUboot's own messages (`Image index: 0, Swap type: none`, ...), at most the umcub level: 1 (errors only) saves about 0.9 K on the F1/F4 and 1.1 K on the H7 next to an info log, 0 about 1.2-1.6 K. Fragment `tests/configs/feature/mcuboot_log_err.conf`. |
+| `UMCUB_CFG_ASSERT_TRAP` | 0 | A failed assertion in MCUboot becomes one `udf` (HardFault, the bootloader's handler resets; so does every other fault then) instead of logging `assert <file>:<line>` and resetting: about 0.1 K smaller without a log, 0.4-0.5 K with one, but silent. Fragment `tests/configs/feature/assert_trap.conf`. |
 | `UMCUB_CFG_CMD_REPLY` | 1 | Text commands answer `ok <cmd>` / `? <text>`. |
 | `UMCUB_CFG_SMP_INSPECT_GROUP` | 100 | SMP group id of verify (0) / hash (1) / read (2). |
 | `UMCUB_CFG_IMAGE_VECTOR_CHECK` | 1 | Refuse an image whose reset vector lies outside the slot it runs from (wrong image number, built for the other core), about 200 bytes. |
@@ -53,18 +53,21 @@ Their defaults fit almost every board, and some of them weaken the bootloader wh
 | `UMCUB_CFG_UART_TX_RING` | 0 | Transmit through a RAM ring of this many bytes (power of two) drained by the UART interrupt, so the log does not stall the boot (drained before the jump); the last lines can be lost on a hang. Not with RS485. Fragment `tests/configs/feature/uart_tx_ring.conf`, verified on the Black Pill (USART2). |
 | `UMCUB_CFG_ETH_DHCP_TIMEOUT_MS` | 10000 | Fall back to `UMCUB_CFG_ETH_IP` when no DHCP lease comes in this time. |
 | `UMCUB_CFG_ETH_SMP_PORT` | 1337 | UDP port of SMP. |
-| `UMCUB_CFG_CORE2_DONE_TIMEOUT_MS` | 3000 | `UMCUB_DUALCORE_PER_CORE`, main core: how long to wait for the second core's bootloader before handing the clocks to the application. |
-| `UMCUB_CFG_BOOT_INFO_ADDR` | last 256 bytes of the bootloader region | Where the bootloader's info block lies (version, mode, slots, board type: `umcub_boot_version()`, `i`). Part of the application ABI: the application finds the block there. |
-| `UMCUB_CFG_APP_WRITE_SLOT` | from the mode | Where `umcub_slot_*()` in the application writes by default: `UMCUB_SLOT_SECONDARY`, `UMCUB_SLOT_PRIMARY`, `UMCUB_SLOT_INACTIVE` (direct-xip). |
+| `UMCUB_CFG_CORE2_DONE_TIMEOUT_MS` | 3000 | `UMCUB_CFG_DUALCORE_PER_CORE`, main core: how long to wait for the second core's bootloader before handing the clocks to the application. |
+| `UMCUB_CFG_APP_WRITE_SLOT_*` | from the mode | Where `umcub_slot_*()` in the application writes by default: `_SECONDARY`, `_PRIMARY`, `_INACTIVE` (direct-xip). |
+
+Derived, not options: `UMCUB_CFG_BOOT_INFO_ADDR` (the last 256 bytes of the bootloader region: the info block with version, mode, slots
+and board type, `umcub_boot_version()`, `i`; part of the application ABI, the application finds the block there) and
+`UMCUB_CFG_SHARED_RAM_ADDR` (the handoff area).
 
 ### Dual-core H745/H755/H747/H757
 
-- **`UMCUB_DUALCORE_SINGLE_BOOT`** (board default): one bootloader on the CM7 manages two MCUboot images — image 0 is
+- **`UMCUB_CFG_DUALCORE_SINGLE_BOOT`** (board default): one bootloader on the CM7 manages two MCUboot images — image 0 is
   the CM7 application (bank 1), image 1 the CM4 application (bank 2). Option bytes:
   `BOOT_CM4_ADD0 = BOOT_CM7_ADD0 = 0x0800`. Both cores start from the bootloader vector table; the CM4 parks in WFE
   until the CM7 has validated its image, put its vector table address into SRAM4 and released an HSEM. If the CM4
   image is missing or broken the CM7 still boots and the CM4 stays parked.
-- **`UMCUB_DUALCORE_PER_CORE`**: two independent bootloaders (`--preset h755-per-core-cm7` and `h755-per-core-cm4`),
+- **`UMCUB_CFG_DUALCORE_PER_CORE`**: two independent bootloaders (`--preset h755-per-core-cm7` and `h755-per-core-cm4`),
   the CM4 one in bank 2 (`BOOT_CM4_ADD0 = 0x0810`). Only the CM7 configures power and clocks; the two cores must not
   share transports.
 
@@ -107,7 +110,7 @@ cmake --build build/bp --target savedefconfig    # build/bp/defconfig: only what
   and for every pin option only the pins that carry the signal on that package (`UMCUB_CFG_UART_TX_PA9=y`; the
   alternate function is filled in). The part list and the pin menus are generated from ST's pin data into
   `port/kconfig/` by `tools/build/gen_kconfig.py`.
-- Values: bools `=y` / `# UMCUB_CFG_X is not set`; choices by their member (`UMCUB_CFG_UPGRADE_MODE_SWAP_OFFSET=y`);
+- Values: bools `=y` / `# UMCUB_CFG_<NAME> is not set`; choices by their member (`UMCUB_CFG_UPGRADE_MODE_SWAP_OFFSET=y`);
   IPv4 addresses as `"192.168.1.50"`; pins of board options (`boards/<b>/Kconfig`) as strings, `"PA4"` or `"PA5:5"`
   with the alternate function.
 - Signing: `umcub image sign --board blackpill_f411ce [--conf <fragment>]...`, or `--board build/<x>/umcub_kconfig`.
@@ -141,11 +144,11 @@ What every transport and feature adds, the sectors the bootloader takes per fami
   2 = image 0 secondary, 3/4 = image 1), and the image must be linked for that slot
   (`umcub_app_linker_script(... SLOT n)`, `umcub_sign_image(... SLOT n)`; the CM7 example takes `-DAPP_SLOT=1`).
   Downgrade prevention is not available in these modes.
-- **Recovery over the network / CAN is not authenticated** unless the transport uses `UMCUB_LINK_SECURE` (see
+- **Recovery over the network / CAN is not authenticated** unless the transport uses the SECURE mode (`UMCUB_CFG_<transport>_LINK_SECURE`, see
   [umcub link](link.md)): otherwise any node on the LAN (UDP 1337) or the
   CAN bus can upload any image signed with your key in recovery mode, including an older one. Signatures are
   always checked.
-  `UMCUB_CFG_DOWNGRADE_PREVENTION` (swap modes only) protects updates through the secondary slot (DFU, application);
+  `UMCUB_CFG_DOWNGRADE_PREVENTION` (not in the direct-xip modes) protects updates through the secondary slot (DFU, application);
   SMP recovery writes straight into the primary slot and is not covered. If this matters, allow recovery only by the
   entry pin (`UMCUB_CFG_ENTRY_GPIO`, no `ENTRY_WAIT_MS`) or do not enable network transports.
 - **swap-scratch wear**: the scratch sector is erased once per moved sector on every update and wears fastest;

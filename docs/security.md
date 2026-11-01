@@ -35,7 +35,7 @@ How an encrypted image is installed:
   then `image state-write`), the application or the lite upload.
 
 Installed images are plain text in flash, so `read` / SMP read / DFU upload (`UMCUB_CFG_READBACK`) answer only
-inside an encrypted umcub link session (`UMCUB_LINK_SECURE` + `UMCUB_CFG_LINK_ENCRYPT`) and refuse everywhere else
+inside an encrypted umcub link session (`UMCUB_CFG_<transport>_LINK_SECURE` + `UMCUB_CFG_LINK_ENCRYPT`) and refuse everywhere else
 (`? readback only in an encrypted session`, SMP rc 11). `verify` checks an encrypted image in the secondary slot by
 decrypting it on the fly; `hash` is computed over what is in flash (ciphertext in the secondary slot, plain text in
 the primary slot after installation). Outside an encrypted session only whole-image hashes are answered: hashes of
@@ -50,7 +50,7 @@ generates a key in `keys/<board>/`, or takes your own file, see [Kconfig](config
 For transports on a shared bus see the SECURE mode of the [umcub link](link.md)
 and its own keys.
 
-`UMCUB_CFG_SIGNATURE UMCUB_SIGN_NONE` drops the signature (about 4.6 K): images carry a SHA-256 only, so the
+`UMCUB_CFG_SIGNATURE_NONE` drops the signature (about 4.6 K): images carry a SHA-256 only, so the
 bootloader still refuses damaged images and images for another board type, but boots any correctly built image -
 there is no authenticity. CMake warns when it is configured; use it only for closed devices on parts where the
 ECDSA code does not fit (host test variant `sign_none`, build matrix `bluepill-sign-none`).

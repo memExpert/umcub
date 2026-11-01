@@ -1,25 +1,5 @@
 # Application-side helpers (loaded by lib/umcub_app/CMakeLists.txt).
 
-# Flash window of each slot, for applications that keep their own linker
-# script: UMCUB_APP_FLASH_ORIGIN_<image>_<slot> / UMCUB_APP_FLASH_LENGTH_<image>_<slot>
-foreach(_img 0 1)
-  foreach(_slot 0 1)
-    if(_slot EQUAL 0)
-      set(_a ${UMCUB_CFG_IMG${_img}_PRIMARY_ADDR})
-      set(_s ${UMCUB_CFG_IMG${_img}_PRIMARY_SIZE})
-    else()
-      set(_a ${UMCUB_CFG_IMG${_img}_SECONDARY_ADDR})
-      set(_s ${UMCUB_CFG_IMG${_img}_SECONDARY_SIZE})
-    endif()
-    if(_s)
-      math(EXPR _o "${_a} + ${UMCUB_CFG_IMAGE_HEADER_SIZE}" OUTPUT_FORMAT HEXADECIMAL)
-      math(EXPR _l "${_s} - ${UMCUB_CFG_IMAGE_HEADER_SIZE} - ${UMCUB_CFG_TRAILER_RESERVE}" OUTPUT_FORMAT HEXADECIMAL)
-      set(UMCUB_APP_FLASH_ORIGIN_${_img}_${_slot} ${_o})
-      set(UMCUB_APP_FLASH_LENGTH_${_img}_${_slot} ${_l})
-    endif()
-  endforeach()
-endforeach()
-
 # umcub_app_linker_script(<target> [IMAGE <n>] [SLOT <0|1>] [TEMPLATE <file.ld>])
 # Links <target> for the slot: its MEMORY fragment (umcub_app_img<n>_slot<m>.ld in
 # UMCUB_CONFIG_DIR) + the family's port/<fam>/ld/app_<core>_sections.ld; with

@@ -2,10 +2,11 @@
 """One test of the build matrix (tests/CMakeLists.txt); logs go to <out>/<name>.*.log,
 the line for the summary of tools/build/build_matrix.sh to <out>/summary/<name>.
 
-  run.py --out DIR config "name|core|type|pre|post|board"   bootloader: configure, build, no warnings
+  run.py --out DIR config "name|core|type|fragments|board"  bootloader: configure, build, no warnings
   run.py --out DIR preset NAME                              CMake preset: every target, a .map per .elf
   run.py --out DIR example "name|board|core|image"          example application: signed, ELF = objcopy
   run.py --out DIR app-library                              umcub_app_all.c compiled by itself (no CMake)
+  run.py --out DIR noboard-app | no-slots                   configurations without a board
   run.py --out DIR check NAME [--grep RE] -- COMMAND...     a check script: its last line (matching RE) is the summary
 """
 import argparse
@@ -186,6 +187,7 @@ def main():
     ap.add_argument("args", nargs=argparse.REMAINDER)
     a = ap.parse_args()
     out = a.out.resolve()
+    os.environ["UMCUB_KEYS_DIR"] = str(out / "keys")    # generated keys: not into the keys/ of the source tree
     (out / "summary").mkdir(parents=True, exist_ok=True)
     args = a.args[1:] if a.args[:1] == ["--"] else a.args
     try:

@@ -2,6 +2,8 @@
 
 choice ENTRY_GPIO_CHOICE
 	prompt "Entry pin"
+	help
+	  The pin read at reset, any pin of this package.
 
 config ENTRY_GPIO_PA0
 	bool "PA0"

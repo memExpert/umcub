@@ -8,6 +8,7 @@
 Checks:
   - the size tables in docs/size.md match a fresh build of every variant;
   - every board, family port, example, CMake preset and tool script is mentioned (README or docs/);
+  - every option of menuconfig has a help text, every UMCUB_CFG_ name in the docs exists;
   - the number of bootloader configurations in docs/testing.md matches tests/matrix/configs.txt;
   - every relative link points to a file that exists and, with #anchor, to a heading in it.
 It cannot judge prose: new options, transports or behaviour still need someone
@@ -36,6 +37,25 @@ def anchors(text):
     return out
 
 
+def kconfig_problems(texts):
+    """Help texts of the options one can change (members of a choice: optional, the
+    choice describes them); the option names the docs use."""
+    sys.path.insert(0, str(ROOT / "tools/host"))
+    from umcub import kconfig
+    _, kconf = kconfig._kconfig(None, None)
+    problems = []
+    for what, items in (("option", [s for s in kconf.unique_defined_syms if s.choice is None]),
+                        ("choice", kconf.unique_choices)):
+        for item in items:
+            if any(n.prompt and not n.help for n in item.nodes):
+                problems.append(f"{what} {item.name} has no help text in Kconfig")
+    known = set(kconfig.values(kconf)) | {s.name for s in kconf.unique_defined_syms} | {"ETH_RMII_PINS"}    # generated list
+    for p, text in texts.items():
+        for name in sorted(set(re.findall(r"\bUMCUB_CFG_([A-Z0-9_]*[A-Z0-9])(?![\w{*])", text)) - known):
+            problems.append(f"{p.relative_to(ROOT)}: UMCUB_CFG_{name}: no such option")
+    return problems
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--fast", action="store_true", help="skip the size tables")
@@ -52,6 +72,7 @@ def main():
 
     texts = {p: p.read_text() for p in DOCS}
     all_text = "\n".join(texts.values())
+    problems += kconfig_problems(texts)
 
     def need(kind, names):
         for n in sorted(names):

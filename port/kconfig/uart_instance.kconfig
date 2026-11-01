@@ -2,6 +2,8 @@
 
 choice UART_INSTANCE_CHOICE
 	prompt "USART"
+	help
+	  The USART of the transport and of the boot log, those this part has.
 
 config UART_INSTANCE_1
 	bool "USART1 / UART1"

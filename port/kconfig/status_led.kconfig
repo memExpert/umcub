@@ -2,6 +2,8 @@
 
 choice STATUS_LED_CHOICE
 	prompt "LED pin"
+	help
+	  The pin of the LED, any pin of this package.
 
 config STATUS_LED_PA0
 	bool "PA0"

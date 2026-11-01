@@ -19,7 +19,7 @@ umcub -d can:socketcan:can0 upload build/h755-cm7/examples/h755_cm7_app/h755_cm7
 ```
 
 SMP serial recovery writes straight into the **primary** slot (this is how MCUboot works); the image number is the
-`image` field (`smpmgr --slot`, `mcumgr -n`; 1 = CM4). With `UMCUB_CFG_SMP_DIRECT_UPLOAD 1` (always in direct-xip)
+`image` field (`smpmgr --slot`, `mcumgr -n`; 1 = CM4). With `UMCUB_CFG_SMP_DIRECT_UPLOAD` (always in direct-xip)
 the field names a slot instead: 0/1 image 0 primary, 2 image 0 secondary, 3 image 1 primary, 4 image 1 secondary;
 `smpmgr image state-write <hash>` then marks an image in the secondary slot for a test boot (`--confirm <hash>`:
 for good), and the next reset installs it (`umcub upload --slot secondary --test` does both, see [host tool](host.md)); MCUboot's slot info command (`image slot-info`) reports
@@ -63,12 +63,12 @@ SMP, hosts check slots through the SMP inspect group (`umcub verify` / `hash` / 
 - UDP and CAN: a packet that is not an SMP frame is a command; the reply comes back as one packet
   (`echo -n i | nc -u <ip> 1337`).
 - SMP (mcumgr / smpmgr / dfu-util) keeps working in parallel.
-- `ok ...` / `? ...` replies can be turned off with `UMCUB_CFG_CMD_REPLY 0`.
+- `ok ...` / `? ...` replies can be turned off with `UMCUB_CFG_CMD_REPLY`.
 
 ## Recovery without SMP: lite upload and board protocols
 
 SMP (MCUboot serial recovery) is what `mcumgr` / `smpmgr` speak, and it is the biggest part of a bootloader with a
-transport: `boot_serial`, zcbor and the SMP framing cost about 6 K (see [Bootloader size](size.md)). `UMCUB_CFG_SMP_ENABLE 0`
+transport: `boot_serial`, zcbor and the SMP framing cost about 6 K (see [Bootloader size](size.md)). Switching off `UMCUB_CFG_SMP_ENABLE`
 leaves them out; the transports stay, and images come through the protocols below. With the lite upload protocol a
 UART bootloader is about 3 K smaller (F103: 16.4 K instead of 19.4 K, H7: 22.4 K instead of 25.6 K):
 

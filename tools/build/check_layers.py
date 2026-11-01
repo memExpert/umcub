@@ -52,7 +52,7 @@ DECLARATION = re.compile(_TYPE + r"(extern\b.*\b(umcub_\w+)\s*(?:\[[^\]]*\])?\s*
 
 
 # Configuration data: assembled by config/umcub_cfg.h, so part of L0.
-CONFIG_FILES = re.compile(r"^(boards/[^/]+/umcub_config\.h|port/stm32[^/]+/include/umcub_family_facts\.h)$")
+CONFIG_FILES = re.compile(r"^port/stm32[^/]+/include/umcub_family_facts\.h$")
 
 
 def layer_of(rel):
@@ -73,7 +73,7 @@ def main():
 
     headers = {}
     for p in files:
-        if p.suffix == ".h" and not rel[p].startswith("tests/configs/"):   # overlays: not on the include path
+        if p.suffix == ".h":
             headers.setdefault(p.name, []).append(p)
     for name, paths in headers.items():
         # one family port and one board are on the include path at a time
@@ -112,8 +112,6 @@ def main():
                     tl = layer_of(rel[tgt])
                     if tl > lvl:
                         errors.append(f"{r}:{n}: {NAMES[lvl]} includes {rel[tgt]} ({NAMES[tl]})")
-                    if r.startswith("tests/configs/") and not rel[tgt].startswith("tests/configs/"):
-                        errors.append(f"{r}:{n}: a config overlay includes {rel[tgt]}")
                 else:
                     tl = next((tl for pat, tl in THIRD_PARTY if pat.search(inc)), 0)
                     if tl > lvl:
