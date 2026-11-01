@@ -1,15 +1,11 @@
-"""Flash layout: the erase sectors of a part, the rule MCUboot applies to the
-slots, and the automatic placement of the slots behind the bootloader
-(UMCUB_CFG_LAYOUT_AUTO).
+"""Flash layout: the erase sectors of a part and the rule MCUboot applies to the
+slots, which configure checks.
 
 MCUboot refuses every upgrade ("Cannot upgrade: ...", the application simply stays) unless the
 sectors of the two slots line up: compatible() is its boot_slots_compatible().
 So on a part with sectors of different sizes the largest image is not "half of
-the flash": the F411's 16, 16, 64, 128, 128, 128 KiB behind the bootloader give
-one 128 KiB sector per slot. The placement takes the layout with the largest
-image that MCUboot accepts, closest to the bootloader; with two images the
-flash is first halved between them, swap-scratch keeps the last sector as
-scratch area, direct-xip has no such rule.
+the flash": the F411's 16, 16, 64, 128, 128, 128 KiB behind a 32 KiB bootloader
+give one 128 KiB sector per slot.
 """
 from .errors import UmcubError
 
@@ -41,6 +37,17 @@ def sectors(family, flash_kb):
         out.append((a, s))
         a += s
     return out
+
+
+def sector_map(family, flash_kb):
+    """The sectors as a line of text: "4 x 16 KiB, 64 KiB, 3 x 128 KiB"."""
+    runs = []
+    for _, size in sectors(family, flash_kb):
+        if runs and runs[-1][1] == size:
+            runs[-1][0] += 1
+        else:
+            runs.append([1, size])
+    return ", ".join(f"{n} x {s // KB} KiB" if n > 1 else f"{s // KB} KiB" for n, s in runs)
 
 
 def compatible(pri, sec, mode, scratch=0):
@@ -90,76 +97,6 @@ def compatible(pri, sec, mode, scratch=0):
     return None
 
 
-def _usable(pri, sec, mode):
-    """The largest image of two slots (lists of sizes)."""
-    return min(sum(pri), sum(sec) - (sec[-1] if mode == MODE_SWAP_OFFSET else 0))
-
-
-def _split(secs, mode, scratch):
-    """(primary, secondary) in a run of sectors: the largest image MCUboot accepts,
-    in the least flash, closest to the start of the run."""
-    sizes = [s for _, s in secs]
-    n = len(secs)
-    if mode in MODES_XIP or len(set(sizes)) == 1:       # no search: thousands of pages on some parts
-        if mode in MODES_XIP:
-            k = next(k for k in range(1, max(n, 2)) if sum(sizes[:k]) * 2 >= sum(sizes)) if n > 1 else 0
-            end = n
-        else:
-            k = (n - 1) // 2 if mode == MODE_SWAP_OFFSET else n // 2
-            end = 2 * k + (1 if mode == MODE_SWAP_OFFSET else 0)
-        if k < (2 if mode == MODE_SWAP_OFFSET else 1):
-            die("not enough flash behind the bootloader for two slots" +
-                (" (swap-offset: at least two sectors in the primary)" if mode == MODE_SWAP_OFFSET else ""))
-        return secs[:k], secs[k:end]
-    best = None
-    for a in range(n):
-        for b in range(a + 1, n):
-            for c in range(b + 1, n + 1):
-                pri, sec = sizes[a:b], sizes[b:c]
-                if mode == MODE_SWAP_SCRATCH and sum(pri) != sum(sec):
-                    continue                    # compatible() has no totals to compare if they never meet
-                if compatible(pri, sec, mode, scratch) is None:
-                    # the image is what counts; then the least flash, the rest stays free
-                    key = (_usable(pri, sec, mode), -(sum(pri) + sum(sec)), -a)
-                    if best is None or key > best[0]:
-                        best = (key, secs[a:b], secs[b:c])
-    if best is None or best[0][0] <= 0:
-        die("no two slots behind the bootloader that MCUboot accepts: their sectors must line up" +
-            (", and swap-offset needs at least three sectors of one size" if mode == MODE_SWAP_OFFSET else ""))
-    return best[1], best[2]
-
-
-def auto(family, flash_kb, boot_addr, boot_size, mode, images):
-    """{UMCUB_CFG name without prefix: value} of the slots (and scratch area)."""
-    secs = sectors(family, flash_kb)
-    end = boot_addr + boot_size
-    if not any(a + s == end for a, s in secs):
-        die(f"the bootloader region 0x{boot_addr:08X}+0x{boot_size:X} does not end on a sector boundary")
-    rest = [x for x in secs if x[0] >= end]
-    out = {}
-    scratch = 0
-    if mode == MODE_SWAP_SCRATCH:
-        if len(rest) < 3:
-            die("swap-scratch: not enough sectors behind the bootloader")
-        out["SCRATCH_ADDR"], out["SCRATCH_SIZE"] = rest[-1]
-        scratch = rest[-1][1]
-        rest = rest[:-1]
-    if images == 2:
-        half = sum(x[1] for x in rest) / 2
-        k, acc = 0, 0
-        while k < len(rest) - 1 and acc + rest[k][1] <= half:
-            acc += rest[k][1]
-            k += 1
-        groups = [rest[:k], rest[k:]]
-    else:
-        groups = [rest]
-    for i, g in enumerate(groups):
-        for name, part in zip(("PRIMARY", "SECONDARY"), _split(g, mode, scratch)):
-            out[f"IMG{i}_{name}_ADDR"] = part[0][0]
-            out[f"IMG{i}_{name}_SIZE"] = sum(x[1] for x in part)
-    return out
-
-
 def check(family, flash_kb, values, mode, images):
     """A set layout (IMG<n>_..., SCRATCH_SIZE) against MCUboot's rule: what is wrong, or None.
     Slots off the sector boundaries: config/umcub_config_check.h stops those."""
@@ -178,16 +115,3 @@ def check(family, flash_kb, values, mode, images):
                 return (f"image {i}: MCUboot would refuse every upgrade between these slots ({why}): primary sectors "
                         f"{[s // KB for s in pri]} KiB, secondary {[s // KB for s in sec]} KiB (docs/board.md, Slots)")
     return None
-
-
-def describe(v):
-    """One line per region, for the configure log."""
-    lines = []
-    for i in (0, 1):
-        for slot in ("PRIMARY", "SECONDARY"):
-            a, s = v.get(f"IMG{i}_{slot}_ADDR"), v.get(f"IMG{i}_{slot}_SIZE")
-            if s:
-                lines.append(f"image {i} {slot.lower():9} 0x{a:08X} {s // KB} KiB")
-    if v.get("SCRATCH_SIZE"):
-        lines.append(f"scratch           0x{v['SCRATCH_ADDR']:08X} {v['SCRATCH_SIZE'] // KB} KiB")
-    return lines

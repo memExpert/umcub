@@ -9,7 +9,7 @@ STM32F1 (F103x8/xB) and STM32F4 (F411xC/xE). For another series the port comes f
 
 **1. Describe the board.** Configure without a board, pick the part in menuconfig (the menus then offer only what it
 has: its USARTs, USB / CAN / Ethernet, for every pin the pins that carry the signal on that package), set the clock, a
-way into the bootloader and one transport, and keep the result:
+way into the bootloader, one transport and the slots, and keep the result:
 
 ```sh
 cmake -S umcub -B build/boot -G Ninja -DCMAKE_BUILD_TYPE=Release
@@ -161,8 +161,7 @@ bootloader: `tools/hw/h755_option_bytes.py single` (see [Configuration](configur
 
 **Blue Pill** ([`boards/bluepill_f103c8/defconfig`](../boards/bluepill_f103c8/defconfig); configured with Kconfig,
 see [Kconfig](configuration.md#kconfig)): STM32F103C8T6, SMP over USART1 (PA9 TX, PA10 RX, the pins of
-the ROM bootloader), overwrite mode, bootloader 32 KiB + two 16 KiB slots (automatic layout: a fragment that changes
-`UMCUB_CFG_BOOT_SIZE` moves the slots with it).
+the ROM bootloader), overwrite mode, bootloader 32 KiB + two 16 KiB slots.
 
 There is no user button. Recovery mode starts on a request from the application (key `b` in the example), when there
 is no valid image, or when `b` arrives within 300 ms after reset (`UMCUB_CFG_ENTRY_WAIT_MS`).

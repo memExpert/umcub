@@ -83,7 +83,6 @@ config BOOT_SIZE
 
 config LAYOUT_NO_UPGRADE
 	bool "Slots MCUboot cannot upgrade between"
-	depends on !LAYOUT_AUTO
 	help
 	  Without it configure stops on slots whose sectors do not line up: MCUboot
 	  would refuse every upgrade from the secondary slot and the application
@@ -97,50 +96,54 @@ config IMAGE_NUMBER
 	default 2 if DUALCORE_SINGLE_BOOT
 	default 1
 
-config LAYOUT_AUTO
-	bool "Place the slots automatically"
-	default y
-	help
-	  The slots behind the bootloader with the largest image MCUboot accepts:
-	  it refuses upgrades unless the sectors of the two slots line up, so
-	  on a part with sectors of different sizes part of the flash stays free
-	  (F411: one 128 KiB sector per slot). swap-offset: the secondary slot one
-	  sector larger; swap-scratch: the last sector as scratch area; two
-	  images: the flash halved first. Configure prints the result. Off: set
-	  the addresses and sizes below (also checked against that rule).
-
-if !LAYOUT_AUTO
 config IMG0_PRIMARY_ADDR
 	hex "Image 0 primary slot address"
+	default 0x0
+	help
+	  The slots lie behind the bootloader on whole erase sectors. Pick them
+	  by the size of your application: both slots the same size, the
+	  secondary one sector larger for swap-offset, a scratch sector for
+	  swap-scratch. MCUboot refuses upgrades unless the sectors of the two
+	  slots line up (with sectors of different sizes: one sector per slot on
+	  the F411); configure checks that. What is left stays free, e.g. for
+	  the application's data. Configure prints the part's sectors until the slots are set.
 config IMG0_PRIMARY_SIZE
 	hex "Image 0 primary slot size"
+	default 0x0
 config IMG0_SECONDARY_ADDR
 	hex "Image 0 secondary slot address"
+	default 0x0
 config IMG0_SECONDARY_SIZE
 	hex "Image 0 secondary slot size"
+	default 0x0
 	help
 	  swap-offset needs a secondary slot one sector larger than the primary.
 
 config IMG1_PRIMARY_ADDR
 	hex "Image 1 primary slot address"
+	default 0x0
 	depends on IMAGE_NUMBER = 2
 config IMG1_PRIMARY_SIZE
 	hex "Image 1 primary slot size"
+	default 0x0
 	depends on IMAGE_NUMBER = 2
 config IMG1_SECONDARY_ADDR
 	hex "Image 1 secondary slot address"
+	default 0x0
 	depends on IMAGE_NUMBER = 2
 config IMG1_SECONDARY_SIZE
 	hex "Image 1 secondary slot size"
+	default 0x0
 	depends on IMAGE_NUMBER = 2
 
 config SCRATCH_ADDR
 	hex "Scratch area address"
+	default 0x0
 	depends on UPGRADE_MODE_SWAP_SCRATCH
 config SCRATCH_SIZE
 	hex "Scratch area size"
+	default 0x0
 	depends on UPGRADE_MODE_SWAP_SCRATCH
-endif
 
 config IMAGE_HEADER_SIZE
 	hex "Image header size"

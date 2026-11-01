@@ -27,6 +27,13 @@ set(UMCUB_IMGTOOL "" CACHE FILEPATH "imgtool executable (default: .venv/bin/imgt
 
 include(cmake/umcub_config.cmake)
 umcub_load_config("${UMCUB_BOARD}" "${UMCUB_CORE}")
+if(NOT UMCUB_CFG_IMG0_PRIMARY_SIZE)
+  # A first configure without a board: nothing to build yet, the targets for setting it up are there.
+  add_custom_target(umcub_no_slots ALL
+    COMMAND ${CMAKE_COMMAND} -E echo "umcub: no slots set yet: cmake --build ${CMAKE_BINARY_DIR} --target menuconfig (Flash layout)"
+    COMMAND ${CMAKE_COMMAND} -E false VERBATIM)
+  return()
+endif()
 umcub_check_pins()
 if(UMCUB_BOARD)
   get_filename_component(UMCUB_BOARD_NAME "${UMCUB_BOARD_DIR}" NAME)

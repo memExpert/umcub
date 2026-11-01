@@ -146,6 +146,23 @@ def t_app_library(out):
     return "app-library", f"umcub_app_all.c: {' '.join(done)}, all upgrade modes"
 
 
+def t_no_slots(out):
+    """A first configure without a board or slots: menuconfig is there, the build says what is missing."""
+    d = out / "no-slots"
+    (d / "umcub_kconfig/.config").unlink(missing_ok=True)
+    log = f"{d}.configure.log"
+    run(["cmake", "-S", ROOT, "-B", d, "-G", "Ninja", "-DUMCUB_BOARD=", "-DUMCUB_CONF="], log)
+    if "no slots set yet" not in Path(log).read_text():
+        raise Failed(f"no note about the slots ({log})")
+    r = subprocess.run(["cmake", "--build", d, "--target", "savedefconfig"], capture_output=True, text=True)
+    if r.returncode:
+        raise Failed(f"savedefconfig: {r.stdout}{r.stderr}")
+    r = subprocess.run(["cmake", "--build", d], capture_output=True, text=True)
+    if r.returncode == 0 or "no slots set yet" not in r.stdout:
+        raise Failed(f"the build did not stop on the missing slots: {r.stdout}")
+    return "no-slots", "configures, menuconfig targets there, the build stops with the hint"
+
+
 def t_noboard_app(out):
     """An application without a board: the same fragments as its bootloader, a key of the part."""
     d = build(out, "noboard-app", ["-DUMCUB_BOARD=", f"-DUMCUB_CONF={ROOT}/tests/configs/part/minimal_f4.conf", "-DAPP_NODE_ADDR=none"],
@@ -165,7 +182,7 @@ def t_check(out, name, cmd, grep=None):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--out", required=True, type=Path)
-    ap.add_argument("kind", choices=("config", "preset", "example", "app-library", "noboard-app", "check"))
+    ap.add_argument("kind", choices=("config", "preset", "example", "app-library", "noboard-app", "no-slots", "check"))
     ap.add_argument("args", nargs=argparse.REMAINDER)
     a = ap.parse_args()
     out = a.out.resolve()
@@ -178,7 +195,7 @@ def main():
                 grep, rest = rest[1], rest[2:]
             label, text = t_check(out, name, rest[1:] if rest[:1] == ["--"] else rest, grep)
         else:
-            label, text = {"config": t_config, "preset": t_preset, "example": t_example, "app-library": t_app_library, "noboard-app": t_noboard_app}[a.kind](out, *args)
+            label, text = {"config": t_config, "preset": t_preset, "example": t_example, "app-library": t_app_library, "noboard-app": t_noboard_app, "no-slots": t_no_slots}[a.kind](out, *args)
     except Failed as e:
         print(f"FAIL: {e}")
         sys.exit(1)

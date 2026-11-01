@@ -69,7 +69,8 @@ RS485 and the other variants of each board: [Reference boards](docs/board.md#ref
 1. **Pick the part and configure**: `cmake -S umcub -B build/boot -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build
    build/boot --target menuconfig`. Choose the part by its number; the menus then offer only what it has: its
    USARTs, USB / CAN / Ethernet, and for every pin only the pins that carry the signal on that package. Set the clock,
-   a way into the bootloader and one transport. The slots are placed automatically. `--target savedefconfig` writes
+   a way into the bootloader, one transport and the two slots for your application (whole erase sectors behind the
+   bootloader; configure prints the part's sectors and checks the slots against MCUboot's rules). `--target savedefconfig` writes
    the result as a `defconfig`: keep it in `boards/<your_board>/` (the board directory can live in your own
    repository) and pass `-DUMCUB_BOARD=$PWD/boards/<your_board>` from then on. SMP is on by default; off, the transports
    use the lite upload protocol (smaller bootloader).

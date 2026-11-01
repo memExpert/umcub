@@ -28,7 +28,6 @@ config BOOT_ADDR
 	hex
 	default 0x08100000 if DUALCORE_PER_CORE && CORE_CM4
 
-if !LAYOUT_AUTO
 config IMG0_PRIMARY_ADDR
 	hex
 	default 0x08120000 if DUALCORE_PER_CORE && CORE_CM4
@@ -70,7 +69,6 @@ config SCRATCH_SIZE
 	hex
 	depends on UPGRADE_MODE_SWAP_SCRATCH
 	default 0x20000
-endif
 
 # PER_CORE: the CM4 instance uses CAN only (peripherals must not overlap), CAN
 # is then not the CM7's. No transceiver on the board.

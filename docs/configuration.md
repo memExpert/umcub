@@ -88,14 +88,13 @@ cmake --build build/bp --target savedefconfig    # build/bp/defconfig: only what
 ```
 
 - Without a board (`UMCUB_BOARD` empty, the default) the configuration starts from the Kconfig defaults (an
-  STM32F103C8 with SMP on USART1 PA9/PA10) and the fragments; pick the part and everything else in menuconfig,
-  then keep `savedefconfig`'s output as your own defconfig or fragment. The binaries are named after the part. Board
+  STM32F103C8 with SMP on USART1 PA9/PA10, no slots) and the fragments; pick the part, the slots and everything else in
+  menuconfig, then keep `savedefconfig`'s output as your own defconfig or fragment. The binaries are named after the part. Board
   code (drivers, hooks) needs a board directory: its `defconfig` and `.c` files.
-- `UMCUB_CFG_LAYOUT_AUTO` (default on) places the slots behind the bootloader: the largest image MCUboot accepts, in
-  the least flash (swap-offset: secondary one sector larger, swap-scratch: the last sector as scratch area, two images:
-  halved first); configure prints the result. MCUboot refuses upgrades unless the sectors of the two slots line up
-  ([Slots](board.md#adding-a-board)): uniform sectors give all of the flash, the F411 one 128 KiB sector per slot. Off:
-  set the slot addresses and sizes yourself, checked against the same rule.
+- The slots are yours to choose (`UMCUB_CFG_IMG0_PRIMARY_ADDR` ..., menu *Flash layout*): whole erase sectors behind the
+  bootloader, sized for your application; what is left stays free for its data. Configure stops on slots MCUboot would
+  refuse to upgrade between ([Slots](board.md#adding-a-board)). Until they are set a tree offers only `menuconfig` and
+  `savedefconfig`; configure prints the part's sectors.
 - Configure runs `umcub config generate`: the defconfig, then the fragments of `UMCUB_CONF` in order (a later
   assignment wins) -> in `build/<x>/umcub_kconfig/`: `.config`, `umcub_config.h` (C; do not edit), `umcub_config.cmake`
   and `umcub_config.json` (CMake, the host tools), the linker fragments. An assignment that does not take effect

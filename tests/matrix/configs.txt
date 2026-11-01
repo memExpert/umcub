@@ -55,6 +55,6 @@ blackpill-f411-usb|cm4|Release|boards/blackpill_f411ce/variants/usb.conf|blackpi
 blackpill-f411-proto-user|cm4|Release|boards/blackpill_f411ce/variants/proto_user.conf|blackpill_f411ce
 blackpill-f411-enc28j60|cm4|Release|boards/blackpill_f411ce/variants/usart2.conf,boards/blackpill_f411ce/variants/enc28j60.conf|blackpill_f411ce
 custom-drivers|cm7|Release||tests/boards/custom_drivers    # board CAN / ETH drivers: the family ones left out
-noboard-default|cm3|Release||none    # Kconfig defaults: STM32F103C8, UART, automatic layout
+noboard-default|cm3|Release|part/slots_f103c8.conf|none    # Kconfig defaults: STM32F103C8, UART
 noboard-h755|cm7|Release|part/h755.conf|none
 noboard-f411-usb|cm4|Release|part/f411_usb.conf|none

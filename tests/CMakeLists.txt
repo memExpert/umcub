@@ -51,6 +51,7 @@ endforeach()
 
 _umcub_test(app-library ${RUN} app-library)
 _umcub_test(noboard-app ${RUN} noboard-app)
+_umcub_test(no-slots ${RUN} no-slots)
 _umcub_test(layout ${RUN} check layout -- "${UMCUB_PY}" tests/tools/layout_test.py)
 _umcub_test(pin-check ${RUN} check pin-check -- "${UMCUB_PY}" tests/tools/check_pins_test.py)
 

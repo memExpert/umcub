@@ -273,14 +273,11 @@ def values(kconf):
     if out.get("ETH_DRIVER") == "0" and out.get("TRANSPORT_ETH") == "1":
         out["ETH_RMII_PINS"] = ", ".join(rmii)
     out["CMD_TABLE"] = _cmd_table(kconf.syms["CMD_TABLE"].str_value or _off_value(k, kconf.syms["CMD_TABLE"]))
-    if out.get("LAYOUT_AUTO") == "1":
-        out.update({n: f"0x{v:X}" for n, v in auto_layout(kconf).items()})
-    else:
-        why = layout.check(_family(kconf), int(kconf.syms["FLASH_KB"].str_value),
-                           {name: int(v, 0) for name, v in out.items() if SLOT.fullmatch(name)},
-                           int(out["UPGRADE_MODE"]), int(out["IMAGE_NUMBER"]))
-        if why and out.get("LAYOUT_NO_UPGRADE") != "1":
-            die(why + " - or UMCUB_CFG_LAYOUT_NO_UPGRADE")
+    why = layout.check(_family(kconf), int(kconf.syms["FLASH_KB"].str_value),
+                       {name: int(v, 0) for name, v in out.items() if SLOT.fullmatch(name)},
+                       int(out["UPGRADE_MODE"]), int(out["IMAGE_NUMBER"]))
+    if why and out.get("LAYOUT_NO_UPGRADE") != "1":
+        die(why + " - or UMCUB_CFG_LAYOUT_NO_UPGRADE")
     out.update(derived(kconf, out))
     return out
 
@@ -310,13 +307,6 @@ def derived(kconf, c):
          "SMP": smp_transports * n("SMP_ENABLE"),                       # boot_serial, zcbor, inspect group compiled
          "SLOT_WRITER_BOOT": n("TRANSPORT_USB_DFU") + n("LITE_UPLOAD") + n("PROTO_USER")}   # umcub_slot_* in the bootloader
     return {name: (f"0x{v:X}" if name.endswith("_ADDR") else str(v)) for name, v in d.items()}
-
-
-def auto_layout(kconf):
-    """UMCUB_CFG_LAYOUT_AUTO: the slots from the part's flash and the mode (umcub.layout)."""
-    val = lambda n: kconf.syms[n].str_value          # noqa: E731
-    return layout.auto(_family(kconf), int(val("FLASH_KB")), int(val("BOOT_ADDR"), 16), int(val("BOOT_SIZE"), 16),
-                       int(val("UPGRADE_MODE")), int(val("IMAGE_NUMBER")))
 
 
 def _root_path(text):
@@ -416,7 +406,7 @@ def _write_if_changed(path, text):
 def generate(board, core, fragments, out_dir):
     """.config, umcub_config.h, keys.cmake (the key files, made when they are to
     be generated) and kconfig.deps (the Kconfig files read, for CMake's
-    reconfigure) in out_dir. Returns notes for the user (layout, new keys)."""
+    reconfigure) in out_dir. Returns notes for the user (slots not set, new keys)."""
     out = Path(out_dir)
     notes = _unchanged(board, core, fragments, out)
     if notes is not None:
@@ -427,8 +417,11 @@ def generate(board, core, fragments, out_dir):
     write_header(vals, out / HEADER, inputs)
     write_tool_files(vals, out, bdir, core)
     notes = []
-    if kconf.syms["LAYOUT_AUTO"].str_value == "y":
-        notes.append("automatic layout: " + "; ".join(layout.describe(auto_layout(kconf))))
+    if int(vals["IMG0_PRIMARY_SIZE"], 0) == 0:
+        notes.append(f"no slots set yet: choose them in menuconfig (Flash layout) or a defconfig. "
+                     f"{vals['MCU_PART'].strip(chr(34))} flash from 0x{layout.FLASH_BASE:08X}: "
+                     f"{layout.sector_map(_family(kconf), int(kconf.syms['FLASH_KB'].str_value))}; "
+                     f"the bootloader takes {vals['BOOT_SIZE']}")
     cmake = ["# Generated from Kconfig: the keys of the configuration (umcub.kconfig.keys)"]
     for name, (path, how) in keys(kconf, bdir).items():
         if how == "generate" and _keygen(path):
