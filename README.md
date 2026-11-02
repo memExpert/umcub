@@ -3,7 +3,8 @@
 umcub (**U**niversal **MCU**boot **B**ootloader) is a bootloader for STM32 microcontrollers built on
 [MCUboot](https://github.com/mcu-tools/mcuboot). It checks the signature of your application on every boot, installs
 updates (and reverts a failed one), and takes new images over the interface your board has: UART, USB, CAN or
-Ethernet. A board is one configuration file; what you do not enable is not compiled.
+Ethernet. Everything is configured with Kconfig (`menuconfig`), a board is one `defconfig`; what you do not enable is
+not compiled.
 
 - **Transports**, each enabled separately, any one of them can be the only one:
   - UART (also RS485);
@@ -38,7 +39,7 @@ Once:
 
 ```sh
 git submodule update --init
-tools/setup.sh                                 # .venv: imgtool, the umcub tool, smpmgr, python-can, ...
+tools/setup.sh                                 # .venv: imgtool, esp-idf-kconfig, the umcub tool, smpmgr, python-can, ...
 source .venv/bin/activate                      # umcub and smpmgr on PATH
 ```
 
@@ -64,9 +65,24 @@ image stays there. The H755 needs its option bytes once before the first flash: 
 `$STM32_PROGRAMMER_CLI`; `-DUMCUB_PROBE=pyocd` for pyOCD, `-DUMCUB_PROBE_ARGS=...` for more options). USB, CAN,
 RS485 and the other variants of each board: [Reference boards](docs/board.md#reference-boards).
 
+## Configuration
+
+Every option lives in Kconfig ([esp-idf-kconfig](https://github.com/espressif/esp-idf-kconfig)): a terminal menu with a
+help text for each option, a board's `defconfig`, and fragments for variants. The menus follow the part: they offer only
+its USARTs, USB / CAN / Ethernet and, for every pin, the pins that carry the signal on its package.
+
+```sh
+cmake --build --preset <preset> --target menuconfig      # change this build tree's options, then build again
+cmake --build --preset <preset> --target savedefconfig   # build/<preset>/defconfig: only what differs from the defaults
+cmake --preset <preset> -DUMCUB_CONF=boards/<board>/variants/usb.conf   # a ready-made variant (USB, RS485, CAN, ...)
+```
+
+No preset or board needed: configure without `UMCUB_BOARD` and pick the part in the menu, see the next section. Details:
+[Configuration](docs/configuration.md#kconfig).
+
 ## Your own board in five steps
 
-1. **Pick the part and configure**: `cmake -S umcub -B build/boot -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build
+1. **Pick the part and configure with Kconfig**: `cmake -S umcub -B build/boot -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build
    build/boot --target menuconfig`. Choose the part by its number; the menus then offer only what it has: its
    USARTs, USB / CAN / Ethernet, and for every pin only the pins that carry the signal on that package. Set the clock,
    a way into the bootloader, one transport and the two slots for your application (whole erase sectors behind the
@@ -133,7 +149,7 @@ Using umcub:
 | [umcub link](docs/link.md) | several devices on one bus: addressing, SECURE mode |
 | [Host tool and library](docs/host.md) | `umcub`: upload, discover, verify on every transport; the Python library for your own tools and GUIs |
 | [Encrypted images and security](docs/security.md) | images encrypted for the device, what is and is not protected |
-| [Configuration](docs/configuration.md) | where the options live, advanced options, dual-core, upgrade mode notes |
+| [Configuration](docs/configuration.md) | Kconfig: menuconfig, `defconfig`, fragments; advanced options, dual-core, upgrade mode notes |
 
 Reference:
 
