@@ -8,14 +8,14 @@ Images encrypted for one device key, and what the bootloader does and does not p
 the same device key as the SECURE link). An image file then does not show the firmware, wherever it is
 stored or sent. The signature still covers the plain image, so encryption adds confidentiality, not trust.
 
-`umcub_sign_image()` and `tools/host/umcub image sign` then write two files:
+`umcub_sign_image()` and `umcub image sign` then write two files:
 
 | File | Use |
 |---|---|
 | `<app>.signed.bin` / `.hex` | plain: programmers and debuggers write it straight into the primary slot |
 | `<app>.encrypted.bin` | updates: SMP, USB DFU, `umcub_slot_*` from the application; distribution |
 
-(`ENCRYPT_KEY` / `--encrypt-key` select the device key; the default is the development key with a warning.)
+(`ENCRYPT_KEY` / `--encrypt-key` select the device key; the default is the configuration's, menu *Keys*.)
 
 How an encrypted image is installed:
 - **through the secondary slot** (DFU, application, SMP with `UMCUB_CFG_SMP_DIRECT_UPLOAD`): MCUboot decrypts it

@@ -175,13 +175,13 @@ def t_noboard_app(out):
 
 
 def t_cmake_args(out):
-    """A relative fragment for the bootloader and its example, new keys as a warning, a leftover
-    key option and a configuration error that stop configure with what to do."""
+    """Release by default, a relative fragment for the bootloader and its example, new keys as a
+    warning, a leftover key option and a configuration error that stop configure with what to do."""
     d = out / "cmake-args"
     shutil.rmtree(d, ignore_errors=True)
     d.mkdir()
     os.environ["UMCUB_KEYS_DIR"] = str(d / "keys")
-    base = ["cmake", "-S", str(ROOT), "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Release", "-DUMCUB_BOARD=blackpill_f411ce"]
+    base = ["cmake", "-S", str(ROOT), "-G", "Ninja", "-DUMCUB_BOARD=blackpill_f411ce"]
 
     def configure(tree, *args):
         return subprocess.run(base + ["-B", str(d / tree), *args], capture_output=True, text=True)
@@ -191,6 +191,8 @@ def t_cmake_args(out):
         raise Failed(f"a relative UMCUB_CONF with the examples: {r.stderr}")
     if "CMake Warning" not in r.stderr or "new signing key" not in r.stderr:
         raise Failed(f"a new key is no warning: {r.stderr}")
+    if "CMAKE_BUILD_TYPE:STRING=Release" not in (d / "relative/CMakeCache.txt").read_text():
+        raise Failed("no build type given: not Release")
     r = configure("stale", "-DUMCUB_SIGNING_KEY=/nonexistent/prod.pem")
     if r.returncode == 0 or "UMCUB_SIGNING_KEY is no longer read" not in r.stderr:
         raise Failed(f"-DUMCUB_SIGNING_KEY did not stop configure: {r.stderr}")
@@ -202,7 +204,7 @@ def t_cmake_args(out):
     r = configure("nosec", f"-DUMCUB_CONF={frag}")
     if r.returncode == 0 or "no secondary slot" not in r.stderr or "config menu --out" not in r.stderr:
         raise Failed(f"no secondary slot: configure did not stop with the hint: {r.stderr}")
-    return "cmake-args", "relative UMCUB_CONF, new key warning, -DUMCUB_SIGNING_KEY and no secondary slot stop"
+    return "cmake-args", "Release by default, relative UMCUB_CONF, new key warning, -DUMCUB_SIGNING_KEY and no secondary slot stop"
 
 
 def t_check(out, name, cmd, grep=None):

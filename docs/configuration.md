@@ -26,8 +26,9 @@ and its [`Kconfig`](../boards/nucleo_h755zi_q/Kconfig).
 
 Ready-made variants of a board are fragments in `boards/<board>/variants/` (USB, RS485, CAN, umcub link, encryption, ...); those the build matrix uses for modes, transports and features are in `tests/configs/` (`mode/`, `transport/`, `feature/`, `part/`).
 
-Configuration errors (overlapping slots, slots not on sector boundaries, missing scratch area, conflicting modes) are
-caught at compile time (`config/umcub_config_check.h`).
+Configuration errors stop configure (an assignment that does not take effect, slots MCUboot would refuse, a primary slot
+without a secondary one) or the compile (overlapping slots, slots not on sector boundaries, missing scratch area,
+conflicting modes: `config/umcub_config_check.h`).
 
 ### Advanced options
 
@@ -84,7 +85,7 @@ board's own `Kconfig`, with the same names as above (`UMCUB_CFG_<NAME>` in `.con
 `umcub_config.h`). The fragments of a build are also what `umcub image sign --conf` takes.
 
 ```sh
-cmake -S . -B build/bp -G Ninja -DUMCUB_BOARD=blackpill_f411ce \
+cmake -S . -B build/bp -G Ninja -DCMAKE_BUILD_TYPE=Release -DUMCUB_BOARD=blackpill_f411ce \
       -DUMCUB_CONF="boards/blackpill_f411ce/variants/usart2.conf;boards/blackpill_f411ce/variants/enc28j60.conf"
 cmake --build build/bp --target menuconfig       # change the build tree's .config, then build again
 cmake --build build/bp --target savedefconfig    # build/bp/defconfig: only what differs from the defaults
@@ -130,8 +131,8 @@ cmake --build build/bp --target savedefconfig    # build/bp/defconfig: only what
 - Text commands: `UMCUB_CFG_CMD_TABLE="a=BOOT_APP i=INFO hello=USER1 +inspect"` ([recovery](recovery.md)).
 - Keys (menu *Keys*): the signing key, the device key (encrypted images, SECURE link) and the admin key (SECURE
   link) each come from `..._KEY_GENERATE` (default), `..._KEY_FILE` + `..._KEY_PATH`, or `..._KEY_DEV` (the
-  public development key of `tools/keys/`, for tests). Generated keys are made at configure time in `keys/<board>/`
-  (no board: `keys/<part>/`; `UMCUB_CFG_KEYS_DIR` changes it; relative paths are taken from the umcub root), never
+  public development key of `tools/keys/`, for tests). Generated keys are made at configure time, once the slots are
+  set, in `keys/<board>/` (no board: `keys/<part>/`; `UMCUB_CFG_KEYS_DIR` changes it; relative paths are taken from the umcub root), never
   replaced, and git-ignored: keep them and a backup, the devices accept only what they sign. Both cores of a
   dual-core board use the same keys. A new key is a configure warning, once; a clean checkout or CI workspace makes a
   different one each time, so CI takes `..._KEY_FILE` or a `UMCUB_CFG_KEYS_DIR` outside the tree.

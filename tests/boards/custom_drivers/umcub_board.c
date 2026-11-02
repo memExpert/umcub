@@ -1,5 +1,5 @@
 /*
- * Stub board drivers for the build matrix (see umcub_config.h). A real board
+ * Stub board drivers for the build matrix (see defconfig). A real board
  * talks to its external controllers here; LL / register access is allowed in
  * board code.
  */

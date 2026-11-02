@@ -25,7 +25,7 @@ Ethernet. A board is one configuration file; what you do not enable is not compi
 
 | Family | Reference board | Transports |
 |---|---|---|
-| STM32H7 (H743/H753, dual-core H745/H755/H747/H757) | NUCLEO-H755ZI-Q (both cores) | UART, USB CDC / DFU, FDCAN (CAN FD), Ethernet |
+| STM32H7 (H742/H743/H753, dual-core H745/H755/H747/H757) | NUCLEO-H755ZI-Q (both cores) | UART, USB CDC / DFU, FDCAN (CAN FD), Ethernet |
 | STM32F1 (F103x8/xB) | Blue Pill (STM32F103C8T6) | UART, USB CDC / DFU, bxCAN (not together with USB) |
 | STM32F4 (F411xC/xE) | Black Pill (STM32F411CEU6) | UART (also RS485 with umcub link), USB CDC / DFU |
 
@@ -54,8 +54,8 @@ umcub -d <port> upload build/<preset>/examples/<app>/<app>.signed.bin --reset
 
 | Board | `<preset>` | `<app>` | `<port>`: SMP and log | Stay in the bootloader |
 |---|---|---|---|---|
-| NUCLEO-H755ZI-Q | `h755-cm7` | `h755_cm7_app` (CM4: `h755_cm4_app`, `--slot 1`) | ST-LINK VCP `/dev/ttyACM0` | hold B1 during reset |
-| Blue Pill (STM32F103C8T6) | `bluepill` | `bluepill_app` | USB-UART on PA9/PA10 `/dev/ttyUSB0`, `--line-buffers 4` | send `b` within 300 ms after reset |
+| NUCLEO-H755ZI-Q | `h755-cm7` | `h755_cm7_app` (CM4: `h755_cm4_app`, `--image 1`; smpmgr: `--slot 1`) | ST-LINK VCP `/dev/ttyACM0` | hold B1 during reset |
+| Blue Pill (STM32F103C8T6) | `bluepill` | `bluepill_app` | USB-UART on PA9/PA10 `/dev/ttyUSB0` (smpmgr: `--line-buffers 4`) | send `b` within 300 ms after reset |
 | Black Pill (STM32F411CEU6) | `blackpill` | `blackpill_app` | USB-UART on PA9/PA10 `/dev/ttyUSB0` | hold KEY (PA0) during reset |
 
 On every board `b` in the running example application reboots into the bootloader, and a board without a valid
@@ -74,8 +74,8 @@ RS485 and the other variants of each board: [Reference boards](docs/board.md#ref
    the result as a `defconfig`: keep it in `boards/<your_board>/` (the board directory can live in your own
    repository) and pass `-DUMCUB_BOARD=$PWD/boards/<your_board>` from then on. SMP is on by default; off, the transports
    use the lite upload protocol (smaller bootloader).
-2. **Keys**: the first configure generates your signing key in `keys/<your_board>/` (git-ignored, never replaced);
-   keep it and a backup. Your own file or the public development key: menu *Keys*.
+2. **Keys**: the first configure with the board generates your signing key in `keys/<your_board>/` (git-ignored, never
+   replaced; a tree without a board has its own in `keys/<part>/`); keep it and a backup. Your own file or the public development key: menu *Keys*.
 3. **Build the bootloader**: `cmake --build build/boot`.
 4. **Adapt the application**: link it for the primary slot (`INCLUDE umcub_app_img0_slot0.ld` from the build tree in
    your linker script) and sign it with the configuration's key - with CMake (`umcub::app`) or a post-build

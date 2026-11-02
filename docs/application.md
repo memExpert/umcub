@@ -164,10 +164,10 @@ Every preset in `CMakePresets.json` builds the bootloader target `umcub_<board>_
 `build/<preset>/examples/<app>/<app>.{elf,map,signed.bin,signed.hex}`. Every `.elf` has its `.map` next to it. The examples remain standalone projects (`cmake -S examples/<app>`).
 
 Presets: `h755-cm7` (one bootloader for both cores; `h755-cm7-debug`: the same at -Og), `h755-per-core-cm7` +
-`h755-per-core-cm4` (a bootloader per core), `bluepill` (UART), `bluepill-usb` (USB CDC + DFU, larger bootloader), `custom` (your board:
+`h755-per-core-cm4` (a bootloader per core), `bluepill` (UART), `bluepill-usb` (USB CDC + DFU, larger bootloader), `blackpill` (UART), `custom` (your board:
 `-DUMCUB_BOARD=<board directory>` or the environment variable `UMCUB_BOARD`; no examples). Presets of your own go
 into `CMakeUserPresets.json` (not in git).
 
 On Windows (no `setup.sh`): `git submodule update --init`, `py -m venv .venv`,
-`.venv\Scripts\pip install -r tools\requirements.txt -e third_party\mcuboot\scripts`; CMake finds imgtool in
-`.venv\Scripts`.
+`.venv\Scripts\pip install -r tools\requirements.txt -e third_party\mcuboot\scripts -e tools\host`; CMake finds Python and
+imgtool in `.venv\Scripts`.

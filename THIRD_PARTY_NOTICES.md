@@ -19,7 +19,7 @@ their own licenses. When you ship a bootloader **binary**, include these notices
 | STM32F1 HAL/LL driver (ST, LL headers only) | `third_party/st/stm32f1xx_hal_driver` | BSD-3-Clause | LL inline functions |
 | STM32F4 CMSIS device (ST) | `third_party/st/cmsis_device_f4` | Apache-2.0 | headers, startup vector table |
 | STM32F4 HAL/LL driver (ST, LL headers only) | `third_party/st/stm32f4xx_hal_driver` | BSD-3-Clause | LL inline functions |
-| STM32 open pin data (ST, STM32CubeMX pin database) | `third_party/st/stm32_open_pin_data` | BSD-3-Clause | no (build-time pin check only) |
+| STM32 open pin data (ST, STM32CubeMX pin database) | `third_party/st/stm32_open_pin_data` | BSD-3-Clause | no (build-time pin check; the menus in `port/kconfig/` are generated from it) |
 
 `tools/keys/dev-ecdsa-p256.pem` is a public **development** signing key: never
 use it for products.

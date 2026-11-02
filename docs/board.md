@@ -4,7 +4,7 @@ Adding a board to umcub: its configuration, its identity on a bus, external cont
 
 ## Adding a board
 
-Ported families: STM32H7 (H743/H753 and the dual-core H745/H755/H747/H757; not H7A3/B0/H72x/H73x yet),
+Ported families: STM32H7 (H742/H743/H753 and the dual-core H745/H755/H747/H757; not H7A3/B0/H72x/H73x yet),
 STM32F1 (F103x8/xB) and STM32F4 (F411xC/xE). For another series the port comes first, see [Porting](porting.md).
 
 **1. Describe the board.** Configure without a board, pick the part in menuconfig (the menus then offer only what it
@@ -22,8 +22,8 @@ The board directory can live in your own repository (umcub as a submodule): `boa
 `umcub_examples.cmake`. [Configuration](configuration.md) explains the groups; every option has its help text in
 menuconfig.
 
-**2. Keys.** Configure generates the signing key in `keys/my_board/` (git-ignored, never replaced; keep it and a
-backup). Your own file or the public development key: menu *Keys*, see [Keys](configuration.md#kconfig).
+**2. Keys.** The first configure with the board generates the signing key in `keys/my_board/` (git-ignored, never
+replaced; keep it and a backup; a tree without a board has its own in `keys/<part>/`). Your own file or the public development key: menu *Keys*, see [Keys](configuration.md#kconfig).
 
 **3. Build the bootloader.**
 
@@ -36,14 +36,15 @@ The same with the preset `custom` (builds in `build/custom`): `cmake --preset cu
 or the board in the environment variable `UMCUB_BOARD`.
 
 `arm-none-eabi-gcc` is taken from `PATH`. A toolchain that is not there is set with `-DUMCUB_TOOLCHAIN_PREFIX=<path>/arm-none-eabi-`.
+Without `CMAKE_BUILD_TYPE` the build is `Release` (`-Os`), what the regions and the [size tables](size.md) assume.
 
 Configuration mistakes stop the build with a message: slots overlapping or off sector boundaries, the wrong slot
-sizes for the mode, a missing scratch area, an HSE the port cannot use, and so on.
+sizes for the mode, a primary slot without a secondary one, a missing scratch area, an HSE the port cannot use, and so on.
 
 **4. Adapt the application.** Use the same board directory and key: CMake with `umcub::app`,
 `umcub_add_application()` (see [Application library](application.md#application-library)), or any other
 build with `umcub image sign` (see [Applications built without CMake](application.md#applications-built-without-cmake)).
-`tools/host/umcub image info --board boards/my_board` prints where to link it.
+`python tools/host/umcub image info --board boards/my_board` prints where to link it.
 
 **5. Program and protect.** Program the bootloader `.hex` and the signed application `.hex`. On dual-core H7 parts,
 also program the option bytes (`tools/hw/h755_option_bytes.py`). For production, write-protect the bootloader sector
@@ -111,7 +112,7 @@ Things that are easy to get wrong:
 by the text command `i` and to the application (`umcub_boot_info()->board_type`, `->board_rev`).
 
 With a board type other than 0, every image must carry the same value in a signed TLV (tag `0xA0`, u32 little
-endian). `umcub_sign_image()` and `tools/host/umcub image sign` add it automatically from the board configuration.
+endian). `umcub_sign_image()` and `umcub image sign` add it automatically from the board configuration.
 MCUboot rejects an image with another board type, or without one, before installing it. This holds even when the
 image is signed with the right key, so firmware of another product cannot be booted:
 

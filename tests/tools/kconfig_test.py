@@ -60,6 +60,18 @@ with tempfile.TemporaryDirectory() as tmp:
         expect("no secondary slot stops", "no secondary slot" in str(e), True)
     kconfig.generate(BOARD, "", [fragment("noup.conf", *nosec, "UMCUB_CFG_LAYOUT_NO_UPGRADE=y")], t / "noup")
 
+    # no slots yet: nothing to sign, so no key; the key comes with the slots
+    keys_dir = os.environ["UMCUB_KEYS_DIR"]
+    os.environ["UMCUB_KEYS_DIR"] = str(t / "keys_no_slots")
+    out = t / "no_slots"
+    notes = kconfig.generate("", "", [], out)
+    expect("no slots: told", any(n.startswith("no slots") for n in notes), True)
+    expect("no slots: no key", (t / "keys_no_slots").exists(), False)
+    notes = kconfig.generate("", "", [PART], out)
+    expect("slots set: new key told", any(n.startswith("new signing key") for n in notes), True)
+    expect("slots set: key made", (t / "keys_no_slots/signing.pem").is_file(), True)
+    os.environ["UMCUB_KEYS_DIR"] = keys_dir
+
     # a tree without a board keeps its fragments through menuconfig / savedefconfig
     out = t / "noboard"
     kconfig.generate("", "", [PART], out)

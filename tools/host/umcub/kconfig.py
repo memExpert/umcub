@@ -416,7 +416,7 @@ def _write_if_changed(path, text):
 
 def generate(board, core, fragments, out_dir):
     """.config, umcub_config.h, keys.cmake (the key files, made when they are to
-    be generated) and kconfig.deps (the Kconfig files read, for CMake's
+    be generated and the slots are set) and kconfig.deps (the Kconfig files read, for CMake's
     reconfigure) in out_dir. Returns notes for the user: slots not set, and starting
     with "new ", warnings given once: new keys, a .config whose edits were dropped."""
     out = Path(out_dir)
@@ -438,14 +438,15 @@ def generate(board, core, fragments, out_dir):
     write_header(vals, out / HEADER, inputs)
     key_paths = keys(kconf, bdir)
     write_tool_files(vals, out, bdir, core, key_paths)
-    if int(vals["IMG0_PRIMARY_SIZE"], 0) == 0:
+    no_slots = int(vals["IMG0_PRIMARY_SIZE"], 0) == 0   # such a tree builds nothing, signs nothing
+    if no_slots:
         notes.append(f"no slots set yet: choose them in menuconfig (Flash layout) or a defconfig. "
                      f"{vals['MCU_PART'].strip(chr(34))} flash from 0x{layout.FLASH_BASE:08X}: "
                      f"{layout.sector_map(_family(kconf), int(kconf.syms['FLASH_KB'].str_value))}; "
                      f"the bootloader takes {vals['BOOT_SIZE']}")
     cmake = ["# Generated from Kconfig: the keys of the configuration (umcub.kconfig.keys)"]
     for name, (path, how) in key_paths.items():
-        if how == "generate" and _keygen(path):
+        if how == "generate" and not no_slots and _keygen(path):
             notes.append(f"new {name.lower()} key {path} - keep it and a backup: the devices are built for it, "
                          f"a clean checkout makes another one")
         cmake.append(f'set(UMCUB_{_key_var(name)}_KEY "{path.as_posix()}")')

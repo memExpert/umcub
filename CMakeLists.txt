@@ -16,6 +16,11 @@ endif()
 
 project(umcub VERSION 0.1.0 LANGUAGES C ASM)
 
+# The regions and the size tables assume -Os: without optimisation the bootloader takes twice the flash.
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+  set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+endif()
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_EXTENSIONS ON)
@@ -334,7 +339,7 @@ add_custom_command(TARGET ${UMCUB_BOOT_TARGET} POST_BUILD
 # ----------------------------------------------------------------------------
 option(UMCUB_BUILD_EXAMPLES "Also build the example applications for this board" OFF)
 if(UMCUB_BUILD_EXAMPLES)
-  # The board lists them in umcub_examples.cmake next to its umcub_config.h.
+  # The board lists them in umcub_examples.cmake next to its defconfig.
   set(UMCUB_BOARD_EXAMPLES)
   if(EXISTS "${UMCUB_BOARD_DIR}/umcub_examples.cmake")
     include("${UMCUB_BOARD_DIR}/umcub_examples.cmake")

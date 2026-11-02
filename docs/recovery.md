@@ -39,21 +39,20 @@ UMCUB_CFG_CMD_IMMEDIATE=y      # run as soon as the input matches, no Enter need
 UMCUB_CFG_CMD_TABLE="a=BOOT_APP b=STAY r=RESET i=INFO hello=USER1 +inspect"
 ```
 
-Actions: `BOOT_APP`, `STAY`, `RESET`, `INFO`, `VERIFY`, `HASH`, `READ`, `USER<n>`. `+inspect_read` always adds the
-inspection commands, for `+inspect` see below.
+Actions: `BOOT_APP`, `STAY`, `RESET`, `INFO`, `VERIFY`, `HASH`, `READ`, `USER<n>`.
 
-`UMCUB_DEFAULT_CMD_INSPECT` adds `verify`, `hash` (and `read` with `UMCUB_CFG_READBACK`) only when SMP is off: with
-SMP, hosts check slots through the SMP inspect group (`umcub verify` / `hash` / `read`), about 0.9 K less.
-`UMCUB_CMD_INSPECT_DEFAULTS` adds them in any case.
+`+inspect` adds `verify`, `hash` (and `read` with `UMCUB_CFG_READBACK`) only when SMP is off: with SMP, hosts check
+slots through the SMP inspect group (`umcub verify` / `hash` / `read`), about 0.9 K less. `+inspect_read` adds them in
+any case.
 
 | Action | What it does |
 |---|---|
-| `UMCUB_CMD_BOOT_APP` | leave the bootloader and start the application (from recovery through a reset; entry pin and wait window are skipped) |
-| `UMCUB_CMD_STAY` | stay in the bootloader (meaningful during `UMCUB_CFG_ENTRY_WAIT_MS`) |
-| `UMCUB_CMD_RESET` | reset |
-| `UMCUB_CMD_INFO` | bootloader version, mode, versions and state of the images in all slots |
-| `UMCUB_CMD_VERIFY` / `HASH` / `READ` | slot inspection, see below |
-| `UMCUB_CMD_USER(n)` | calls `bool umcub_cmd_user(unsigned n, const char *text, umcub_cmd_reply_t reply)`; define it in `boards/<board>/umcub_board.c`, which is added to the build automatically |
+| `BOOT_APP` | leave the bootloader and start the application (from recovery through a reset; entry pin and wait window are skipped) |
+| `STAY` | stay in the bootloader (meaningful during `UMCUB_CFG_ENTRY_WAIT_MS`) |
+| `RESET` | reset |
+| `INFO` | bootloader version, mode, versions and state of the images in all slots |
+| `VERIFY` / `HASH` / `READ` | slot inspection, see below |
+| `USER<n>` | calls `bool umcub_cmd_user(unsigned n, const char *text, umcub_cmd_reply_t reply)`; define it in `boards/<board>/umcub_board.c`, which is added to the build automatically |
 
 - Commands are accepted in recovery mode and, over every enabled transport, during the wait after reset
   (`UMCUB_CFG_ENTRY_WAIT_MS`, e.g. 300 ms: "press `b` right after reset to stay in the bootloader"; how long each
