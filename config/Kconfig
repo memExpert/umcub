@@ -94,9 +94,9 @@ config BOOT_SIZE
 config LAYOUT_NO_UPGRADE
 	bool "Slots MCUboot cannot upgrade between"
 	help
-	  Without it configure stops on slots whose sectors do not line up: MCUboot
-	  would refuse every upgrade from the secondary slot and the application
-	  would simply stay. On: only recovery uploads straight into the primary slot
+	  Without it configure stops on slots whose sectors do not line up and on a
+	  primary slot without a secondary one: MCUboot would refuse every upgrade
+	  from the secondary slot and the application would simply stay. On: only recovery uploads straight into the primary slot
 	  work, which allows a larger primary slot on a part with sectors of
 	  different sizes.
 

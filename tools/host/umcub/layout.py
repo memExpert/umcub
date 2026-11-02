@@ -98,8 +98,9 @@ def compatible(pri, sec, mode, scratch=0):
 
 
 def check(family, flash_kb, values, mode, images):
-    """A set layout (IMG<n>_..., SCRATCH_SIZE) against MCUboot's rule: what is wrong, or None.
-    Slots off the sector boundaries: config/umcub_config_check.h stops those."""
+    """A set layout (IMG<n>_..., SCRATCH_SIZE) against MCUboot's rule, a primary slot needs a
+    secondary one too: what is wrong, or None. Slots off the sector boundaries:
+    config/umcub_config_check.h stops those."""
     secs = sectors(family, flash_kb)
 
     def sizes(addr, size):
@@ -107,6 +108,9 @@ def check(family, flash_kb, values, mode, images):
         return run if sum(run) == size and any(a == addr for a, _ in secs) else None
 
     for i in range(images):
+        if values[f"IMG{i}_PRIMARY_SIZE"] and not values[f"IMG{i}_SECONDARY_SIZE"]:
+            return (f"image {i}: no secondary slot, MCUboot has nowhere to take an update from: set "
+                    f"UMCUB_CFG_IMG{i}_SECONDARY_ADDR / _SIZE (docs/board.md, Slots)")
         pri = sizes(values[f"IMG{i}_PRIMARY_ADDR"], values[f"IMG{i}_PRIMARY_SIZE"])
         sec = sizes(values[f"IMG{i}_SECONDARY_ADDR"], values[f"IMG{i}_SECONDARY_SIZE"])
         if pri and sec:

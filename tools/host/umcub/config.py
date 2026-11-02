@@ -1,7 +1,6 @@
 """The board configuration as the host tools see it: the values Kconfig generated
 (umcub.kconfig), as a build tree has them or made here from a board and fragments."""
 import json
-import re
 import tempfile
 from pathlib import Path
 
@@ -38,9 +37,7 @@ class Config:
         self.mcu = self.v["MCU"]
         self.family = "stm32" + self.mcu[5:7].lower()
         # the keys of the configuration (SIGNING, DEVICE, HOST), the defaults of signing
-        kc = self.config_dir / "keys.cmake"
-        self.keys = {m.group(1): Path(m.group(2)) for m in
-                     re.finditer(r'set\(UMCUB_(\w+)_KEY "([^"]*)"\)', kc.read_text())} if kc.is_file() else {}
+        self.keys = {name: Path(path) for name, path in data["keys"].items()}
 
     def __getitem__(self, k):
         return self.v.get(k, 0)

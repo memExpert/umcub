@@ -51,6 +51,11 @@ base.update(IMG0_PRIMARY_ADDR=0x08020000, IMG0_PRIMARY_SIZE=0x20000, IMG0_SECOND
 expect("check: accepted", layout.check("STM32F4", 512, base, OW, 1), None)
 expect("check: nothing set", layout.check("STM32F4", 512, {"IMG0_PRIMARY_ADDR": 0, "IMG0_PRIMARY_SIZE": 0, "IMG0_SECONDARY_ADDR": 0,
                                                            "IMG0_SECONDARY_SIZE": 0}, OW, 1), None)
+nosec = dict(base, IMG0_SECONDARY_ADDR=0, IMG0_SECONDARY_SIZE=0)
+expect("check: no secondary slot", "no secondary slot" in (layout.check("STM32F4", 512, nosec, OW, 1) or ""), True)
+two = dict(base, IMG1_PRIMARY_ADDR=0x08060000, IMG1_PRIMARY_SIZE=0x20000, IMG1_SECONDARY_ADDR=0, IMG1_SECONDARY_SIZE=0)
+expect("check: image 1 without a secondary slot", "image 1" in (layout.check("STM32F4", 512, two, OW, 2) or ""), True)
+expect("check: image 1 not in use", layout.check("STM32F4", 512, two, OW, 1), None)
 expect("sector map", layout.sector_map("STM32F4", 512), "4 x 16 KiB, 64 KiB, 3 x 128 KiB")
 
 print(f"layout: {'FAILED' if bad else 'all cases passed'}")

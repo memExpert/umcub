@@ -10,11 +10,7 @@
 #if !defined(UMCUB_CFG_IMG0_PRIMARY_ADDR) || !defined(UMCUB_CFG_IMG0_PRIMARY_SIZE)
 #error "umcub: image 0 primary slot not defined (UMCUB_CFG_IMG0_PRIMARY_ADDR/SIZE)"
 #endif
-#if !defined(UMCUB_CFG_IMG0_SECONDARY_ADDR) || !defined(UMCUB_CFG_IMG0_SECONDARY_SIZE)
-#error "umcub: image 0 secondary slot not defined (UMCUB_CFG_IMG0_SECONDARY_ADDR/SIZE)"
-#endif
 
-/* Host tools size their frames for at least this (tools/host/umcub). */
 /* The host tools' copies of the family facts (tools/host/umcub/layout.py). */
 #if UMCUB_FAMILY_WRITE_ALIGN != UMCUB_CFG_FAMILY_WRITE_ALIGN || UMCUB_FAMILY_MIN_SECTOR != UMCUB_CFG_FAMILY_MIN_SECTOR
 #error "umcub: the family facts differ from tools/host/umcub/layout.py"
@@ -23,6 +19,7 @@
 #error "umcub: the SRAM size of the part in port/kconfig/parts.kconfig differs from UMCUB_FAMILY_RAM_SIZE"
 #endif
 
+/* Host tools size their frames for at least this (tools/host/umcub). */
 #if UMCUB_CFG_SMP_MTU < 512
 #error "umcub: UMCUB_CFG_SMP_MTU must be at least 512"
 #endif

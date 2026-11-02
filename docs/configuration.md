@@ -90,21 +90,26 @@ cmake --build build/bp --target menuconfig       # change the build tree's .conf
 cmake --build build/bp --target savedefconfig    # build/bp/defconfig: only what differs from the defaults
 ```
 
+- Relative paths in `UMCUB_CONF` are taken from the source directory of the top project (`-S`), for the bootloader and
+  for the applications built with it.
 - Without a board (`UMCUB_BOARD` empty, the default) the configuration starts from the Kconfig defaults (an
   STM32F103C8 with SMP on USART1 PA9/PA10, no slots) and the fragments; pick the part, the slots and everything else in
   menuconfig, then keep `savedefconfig`'s output as your own defconfig or fragment. The binaries are named after the part. Board
   code (drivers, hooks) needs a board directory: its `defconfig` and `.c` files.
 - The slots are yours to choose (`UMCUB_CFG_IMG0_PRIMARY_ADDR` ..., menu *Flash layout*): whole erase sectors behind the
   bootloader, sized for your application; what is left stays free for its data. Configure stops on slots MCUboot would
-  refuse to upgrade between ([Slots](board.md#adding-a-board)). Until they are set a tree offers only `menuconfig` and
-  `savedefconfig`; configure prints the part's sectors.
+  refuse to upgrade between ([Slots](board.md#adding-a-board)) and on a primary slot without a secondary one. Until they
+  are set a tree offers only `menuconfig` and `savedefconfig`; configure prints the part's sectors.
 - Configure runs `umcub config generate`: the defconfig, then the fragments of `UMCUB_CONF` in order (a later
   assignment wins) -> in `build/<x>/umcub_kconfig/`: `.config`, `umcub_config.h` (C; do not edit), `umcub_config.cmake`
   and `umcub_config.json` (CMake, the host tools), the linker fragments. An assignment that does not take effect
   (unknown option, dependency not met, out of range) stops the configuration, unless a later fragment switched off
   what it depends on.
 - The build tree keeps its `.config` (menuconfig changes) as long as the defconfig and the fragments stay the same;
-  when one of them changes, `.config` is made again from them.
+  when one of them changes, `.config` is made again from them. If that drops edits, configure warns and names the
+  options that differ, the old file stays as `.config.old`; `savedefconfig` first keeps them.
+- When configure stops on the configuration, the `menuconfig` target cannot run (CMake configures first): the error
+  prints the command that opens the tree's `.config` directly.
 - The part is chosen by its part number (`UMCUB_CFG_PART_STM32F411CEUX=y`: package, flash and RAM follow). The
   menus then offer only what that part has: its USART instances, USB / CAN / Ethernet where the port drives them,
   and for every pin option only the pins that carry the signal on that package (`UMCUB_CFG_UART_TX_PA9=y`; the
@@ -128,7 +133,9 @@ cmake --build build/bp --target savedefconfig    # build/bp/defconfig: only what
   public development key of `tools/keys/`, for tests). Generated keys are made at configure time in `keys/<board>/`
   (no board: `keys/<part>/`; `UMCUB_CFG_KEYS_DIR` changes it; relative paths are taken from the umcub root), never
   replaced, and git-ignored: keep them and a backup, the devices accept only what they sign. Both cores of a
-  dual-core board use the same keys.
+  dual-core board use the same keys. A new key is a configure warning, once; a clean checkout or CI workspace makes a
+  different one each time, so CI takes `..._KEY_FILE` or a `UMCUB_CFG_KEYS_DIR` outside the tree.
+  `-DUMCUB_SIGNING_KEY` and the like stop configure: the keys are options.
 
 ## Bootloader size
 

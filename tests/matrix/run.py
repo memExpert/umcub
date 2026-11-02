@@ -7,9 +7,11 @@ the line for the summary of tools/build/build_matrix.sh to <out>/summary/<name>.
   run.py --out DIR example "name|board|core|image"          example application: signed, ELF = objcopy
   run.py --out DIR app-library                              umcub_app_all.c compiled by itself (no CMake)
   run.py --out DIR noboard-app | no-slots                   configurations without a board
+  run.py --out DIR cmake-args                               what configure does with its arguments
   run.py --out DIR check NAME [--grep RE] -- COMMAND...     a check script: its last line (matching RE) is the summary
 """
 import argparse
+import json
 import os
 import re
 import shutil
@@ -60,6 +62,10 @@ def build(out, name, args, src=ROOT):
     return d
 
 
+def signing_key(d):
+    return json.loads((d / "umcub_kconfig/umcub_config.json").read_text())["keys"]["SIGNING"]
+
+
 def t_config(out, line):
     name, core, btype, conf, board = (line.split("#")[0].strip().split("|") + [""] * 5)[:5]
     board = board or DEFAULT_BOARD
@@ -93,11 +99,7 @@ def t_example(out, line):
     name, board, core, image = line.split("|")
     d = build(out, name, [], ROOT / "examples" / name)
     log = f"{d}.verify.log"
-    key = "tools/keys/dev-ecdsa-p256.pem"
-    kc = d / "umcub_kconfig/keys.cmake"         # Kconfig board: the key of its configuration
-    if kc.is_file():
-        key = re.search(r'set\(UMCUB_SIGNING_KEY "([^"]*)"\)', kc.read_text()).group(1)
-    run([ROOT / ".venv/bin/imgtool", "verify", "-k", key, d / f"{name}.signed.bin"], log)
+    run([ROOT / ".venv/bin/imgtool", "verify", "-k", signing_key(d), d / f"{name}.signed.bin"], log)
     version = re.search(r"Image version: ([0-9.]+)\+", Path(log).read_text()).group(1)
     # CMake signs the ELF with `umcub image sign`; its ELF loader must see what
     # objcopy sees: signing the objcopy binary gives the same image.
@@ -168,9 +170,39 @@ def t_noboard_app(out):
     """An application without a board: the same fragments as its bootloader, a key of the part."""
     d = build(out, "noboard-app", ["-DUMCUB_BOARD=", f"-DUMCUB_CONF={ROOT}/tests/configs/part/minimal_f4.conf", "-DAPP_NODE_ADDR=none"],
               ROOT / "examples/blackpill_app")
-    key = re.search(r'set\(UMCUB_SIGNING_KEY "([^"]*)"\)', (d / "umcub_kconfig/keys.cmake").read_text()).group(1)
-    run([ROOT / ".venv/bin/imgtool", "verify", "-k", key, d / "blackpill_app.signed.bin"], f"{d}.verify.log")
+    run([ROOT / ".venv/bin/imgtool", "verify", "-k", signing_key(d), d / "blackpill_app.signed.bin"], f"{d}.verify.log")
     return "noboard-app", "examples/blackpill_app without a board: signed with the part's key"
+
+
+def t_cmake_args(out):
+    """A relative fragment for the bootloader and its example, new keys as a warning, a leftover
+    key option and a configuration error that stop configure with what to do."""
+    d = out / "cmake-args"
+    shutil.rmtree(d, ignore_errors=True)
+    d.mkdir()
+    os.environ["UMCUB_KEYS_DIR"] = str(d / "keys")
+    base = ["cmake", "-S", str(ROOT), "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Release", "-DUMCUB_BOARD=blackpill_f411ce"]
+
+    def configure(tree, *args):
+        return subprocess.run(base + ["-B", str(d / tree), *args], capture_output=True, text=True)
+
+    r = configure("relative", "-DUMCUB_CONF=boards/blackpill_f411ce/variants/usb.conf", "-DUMCUB_BUILD_EXAMPLES=ON")
+    if r.returncode:
+        raise Failed(f"a relative UMCUB_CONF with the examples: {r.stderr}")
+    if "CMake Warning" not in r.stderr or "new signing key" not in r.stderr:
+        raise Failed(f"a new key is no warning: {r.stderr}")
+    r = configure("stale", "-DUMCUB_SIGNING_KEY=/nonexistent/prod.pem")
+    if r.returncode == 0 or "UMCUB_SIGNING_KEY is no longer read" not in r.stderr:
+        raise Failed(f"-DUMCUB_SIGNING_KEY did not stop configure: {r.stderr}")
+    r = configure("old-tree", f"-DUMCUB_SIGNING_KEY={ROOT}/tools/keys/dev-ecdsa-p256.pem")   # the default of old trees
+    if r.returncode or "UMCUB_SIGNING_KEY" in (d / "old-tree/CMakeCache.txt").read_text():
+        raise Failed(f"the old default of UMCUB_SIGNING_KEY: {r.stderr}")
+    frag = d / "no_secondary.conf"
+    frag.write_text("UMCUB_CFG_IMG0_SECONDARY_ADDR=0x0\nUMCUB_CFG_IMG0_SECONDARY_SIZE=0x0\n")
+    r = configure("nosec", f"-DUMCUB_CONF={frag}")
+    if r.returncode == 0 or "no secondary slot" not in r.stderr or "config menu --out" not in r.stderr:
+        raise Failed(f"no secondary slot: configure did not stop with the hint: {r.stderr}")
+    return "cmake-args", "relative UMCUB_CONF, new key warning, -DUMCUB_SIGNING_KEY and no secondary slot stop"
 
 
 def t_check(out, name, cmd, grep=None):
@@ -183,7 +215,7 @@ def t_check(out, name, cmd, grep=None):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--out", required=True, type=Path)
-    ap.add_argument("kind", choices=("config", "preset", "example", "app-library", "noboard-app", "no-slots", "check"))
+    ap.add_argument("kind", choices=("config", "preset", "example", "app-library", "noboard-app", "no-slots", "cmake-args", "check"))
     ap.add_argument("args", nargs=argparse.REMAINDER)
     a = ap.parse_args()
     out = a.out.resolve()
@@ -197,7 +229,7 @@ def main():
                 grep, rest = rest[1], rest[2:]
             label, text = t_check(out, name, rest[1:] if rest[:1] == ["--"] else rest, grep)
         else:
-            label, text = {"config": t_config, "preset": t_preset, "example": t_example, "app-library": t_app_library, "noboard-app": t_noboard_app, "no-slots": t_no_slots}[a.kind](out, *args)
+            label, text = {"config": t_config, "preset": t_preset, "example": t_example, "app-library": t_app_library, "noboard-app": t_noboard_app, "no-slots": t_no_slots, "cmake-args": t_cmake_args}[a.kind](out, *args)
     except Failed as e:
         print(f"FAIL: {e}")
         sys.exit(1)

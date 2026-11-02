@@ -13,6 +13,7 @@ ctest --test-dir build/matrix/host    # host tests only
 tests/host/link_e2e.py build/matrix/host   # simulated devices: umcub link bus, smpmgr, host tools, lite upload
 tests/tools/check_pins_test.py              # pin check: right / wrong pins and AF numbers, AF filled in, packages
 tests/tools/layout_test.py                  # MCUboot's rule on the slots
+tests/tools/kconfig_test.py                 # what `umcub config generate` writes and warns about
 tools/build/check_docs.py                   # README and docs/ still match the repository (size tables, links, option names and help texts, ...)
 tools/build/gen_kconfig.py --check            # port/kconfig/ (part and pin menus) matches ST's pin data
 ```

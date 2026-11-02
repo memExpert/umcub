@@ -21,7 +21,7 @@ function(umcub_generate_pubkey key out)
   endif()
   if(key MATCHES "dev-ecdsa-p256.pem$")
     message(WARNING "umcub: using the development signing key from the repository. "
-                    "Anybody can sign images for this bootloader. Set UMCUB_SIGNING_KEY for production.")
+                    "Anybody can sign images for this bootloader. For production: UMCUB_CFG_SIGNING_KEY_GENERATE or _FILE (menu Keys).")
   endif()
   set(_raw "${out}.raw")
   add_custom_command(OUTPUT "${out}"
@@ -41,7 +41,7 @@ function(umcub_generate_enc_key device out)
   endif()
   if("${device}" MATCHES "/tools/keys/dev-[a-z]+-p256.pem$")
     message(WARNING "umcub: using the development device key ${device} from the repository "
-                    "(image decryption / link). Set UMCUB_DEVICE_KEY for production.")
+                    "(image decryption / link). For production: UMCUB_CFG_DEVICE_KEY_GENERATE or _FILE (menu Keys).")
   endif()
   set(_raw "${out}.raw")
   add_custom_command(OUTPUT "${out}"
@@ -64,7 +64,7 @@ function(umcub_generate_link_keys device admin out)
   # (the device key is reported by umcub_keys_command)
   if("${admin}" MATCHES "/tools/keys/dev-[a-z]+-p256.pem$")
     message(WARNING "umcub: using the development admin key ${admin} from the repository: "
-                    "anybody can open a SECURE session. Set UMCUB_HOST_KEY for production.")
+                    "anybody can open a SECURE session. For production: UMCUB_CFG_ADMIN_KEY_GENERATE or _FILE (menu Keys).")
   endif()
   umcub_keys_command(c "${device}" "${admin}" "${out}")
 endfunction()
@@ -86,7 +86,7 @@ endfunction()
 function(umcub_keys_command mode device admin out)
   if("${device}" MATCHES "/tools/keys/dev-[a-z]+-p256.pem$" AND NOT mode STREQUAL "host-c")
     message(WARNING "umcub: using the development device key ${device} from the repository "
-                    "(image decryption / link). Set UMCUB_DEVICE_KEY for production.")
+                    "(image decryption / link). For production: UMCUB_CFG_DEVICE_KEY_GENERATE or _FILE (menu Keys).")
   endif()
   set(_admin_args)
   if(admin)
@@ -131,7 +131,7 @@ function(umcub_sign_image target)
   endif()
   if(UMCUB_CFG_SIGNATURE EQUAL 1 AND A_KEY MATCHES "/tools/keys/dev-ecdsa-p256.pem$")
     message(WARNING "umcub: ${target} is signed with the development key from the repository - anybody can "
-                    "sign images for its bootloader. Pass KEY or set UMCUB_SIGNING_KEY for production.")
+                    "sign images for its bootloader. For production: KEY, or UMCUB_CFG_SIGNING_KEY_GENERATE or _FILE (menu Keys).")
   endif()
   if(NOT A_ENCRYPT_KEY)
     if(UMCUB_DEVICE_KEY)
@@ -142,7 +142,7 @@ function(umcub_sign_image target)
   endif()
   if(UMCUB_CFG_ENCRYPT_IMAGES AND A_ENCRYPT_KEY MATCHES "/tools/keys/dev-device-p256.pem$")
     message(WARNING "umcub: ${target} is encrypted for the development device key - anybody can decrypt it. "
-                    "Pass ENCRYPT_KEY or set UMCUB_DEVICE_KEY for production.")
+                    "For production: ENCRYPT_KEY, or UMCUB_CFG_DEVICE_KEY_GENERATE or _FILE (menu Keys).")
   endif()
 
   set(_args sign --board "${UMCUB_CONFIG_DIR}" --imgtool "${UMCUB_IMGTOOL}" --quiet

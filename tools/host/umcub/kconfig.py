@@ -12,7 +12,7 @@ are left out (a hidden int carries the choice).
 
 A build tree keeps its .config while the defconfig and the fragments stay the
 same (menuconfig changes survive a reconfigure); when they change, .config is
-made again from them.
+made again from them, with a warning when that drops edits (.config.old keeps them).
 """
 import hashlib
 import json
@@ -173,7 +173,8 @@ def load(board, core="", fragments=(), out_dir=None):
     dot = Path(out_dir) / ".config" if out_dir else None
     stamp = _stamp(bdir, core, inputs)
     state = _state(out_dir)
-    if dot and dot.is_file() and state.get("stamp") == stamp:
+    same = dot and dot.is_file() and state.get("stamp") == stamp
+    if same:
         kconf.load_config(str(dot))
     else:
         for i, f in enumerate(inputs):
@@ -182,8 +183,8 @@ def load(board, core="", fragments=(), out_dir=None):
     if out_dir:
         Path(out_dir).mkdir(parents=True, exist_ok=True)
         (Path(out_dir) / STATE).write_text(json.dumps(
-            {"board": str(bdir) if bdir else "", "core": core or "", "fragments": [str(f) for f in inputs[1:]],
-             "stamp": stamp}, indent=1))
+            {"board": str(bdir) if bdir else "", "core": core or "", "fragments": [str(Path(f).resolve()) for f in fragments],
+             "stamp": stamp, "made": state.get("made") if same else None}, indent=1))     # made: see generate()
     return kconf, bdir, inputs
 
 
@@ -245,6 +246,8 @@ def _c_text(k, sym, v):
     """A value as C text, None: no value."""
     if sym.type == k.BOOL:
         return "1" if v == "y" else "0"
+    if sym.type == k.HEX and v and not v.lower().startswith("0x"):
+        return "0x" + v                 # Kconfig takes hex without the prefix, C and int(v, 0) read something else
     if sym.type in (k.INT, k.HEX):
         return v if v != "" else None
     if sym.name in RAW_NAMES:
@@ -385,12 +388,19 @@ def plain_values(vals):
     return out
 
 
-def write_tool_files(vals, out_dir, bdir, core):
+def _key_var(name):
+    """A key's name in UMCUB_<name>_KEY and the host tools."""
+    return "HOST" if name == "ADMIN" else name
+
+
+def write_tool_files(vals, out_dir, bdir, core, key_paths):
     """umcub_config.json (umcub.config) and umcub_config.cmake (cmake/umcub_config.cmake)."""
     plain = plain_values(vals)
     board = bdir.name if bdir else plain["MCU_PART"].lower()
     _write_if_changed(Path(out_dir) / JSON, json.dumps(
-        {"board": board, "board_dir": str(bdir) if bdir else "", "core": core or "", "values": plain}, indent=1) + "\n")
+        {"board": board, "board_dir": str(bdir) if bdir else "", "core": core or "",
+         "keys": {_key_var(name): path.as_posix() for name, (path, _) in key_paths.items()},
+         "values": plain}, indent=1) + "\n")
     lines = ["# Generated from Kconfig - do not edit"]
     for name, v in plain.items():
         text = str(v).replace("\\", "\\\\").replace('"', '\\"').replace("$", "\\$").replace(";", "\\;")
@@ -407,33 +417,60 @@ def _write_if_changed(path, text):
 def generate(board, core, fragments, out_dir):
     """.config, umcub_config.h, keys.cmake (the key files, made when they are to
     be generated) and kconfig.deps (the Kconfig files read, for CMake's
-    reconfigure) in out_dir. Returns notes for the user (slots not set, new keys)."""
+    reconfigure) in out_dir. Returns notes for the user: slots not set, and starting
+    with "new ", warnings given once: new keys, a .config whose edits were dropped."""
     out = Path(out_dir)
     notes = _unchanged(board, core, fragments, out)
     if notes is not None:
         return notes
+    dot = out / ".config"
+    made, before = _state(out).get("made"), dot.read_bytes() if dot.is_file() else None
     kconf, bdir, inputs = load(board, core, fragments, out)
-    kconf.write_config(str(out / ".config"))
+    kconf.write_config(str(dot))
+    notes = []
+    state = _state(out)
+    if state["made"] is None:           # just made from the inputs: what it was, to see later edits
+        state["made"] = _digest(dot.read_bytes())
+        (out / STATE).write_text(json.dumps(state, indent=1))
+        if made and before and before != dot.read_bytes() and _digest(before) != made:
+            notes.append(_edits_dropped(dot))
     vals = values(kconf)
     write_header(vals, out / HEADER, inputs)
-    write_tool_files(vals, out, bdir, core)
-    notes = []
+    key_paths = keys(kconf, bdir)
+    write_tool_files(vals, out, bdir, core, key_paths)
     if int(vals["IMG0_PRIMARY_SIZE"], 0) == 0:
         notes.append(f"no slots set yet: choose them in menuconfig (Flash layout) or a defconfig. "
                      f"{vals['MCU_PART'].strip(chr(34))} flash from 0x{layout.FLASH_BASE:08X}: "
                      f"{layout.sector_map(_family(kconf), int(kconf.syms['FLASH_KB'].str_value))}; "
                      f"the bootloader takes {vals['BOOT_SIZE']}")
     cmake = ["# Generated from Kconfig: the keys of the configuration (umcub.kconfig.keys)"]
-    for name, (path, how) in keys(kconf, bdir).items():
+    for name, (path, how) in key_paths.items():
         if how == "generate" and _keygen(path):
-            notes.append(f"new {name.lower()} key {path} - keep it and a backup: the devices are built for it")
-        cmake.append(f'set(UMCUB_{"HOST" if name == "ADMIN" else name}_KEY "{path.as_posix()}")')
+            notes.append(f"new {name.lower()} key {path} - keep it and a backup: the devices are built for it, "
+                         f"a clean checkout makes another one")
+        cmake.append(f'set(UMCUB_{_key_var(name)}_KEY "{path.as_posix()}")')
     _write_if_changed(out / "keys.cmake", "\n".join(cmake) + "\n")
     deps = sorted({str(Path(f).resolve()) for f in kconf.kconfig_filenames} | {str(f) for f in inputs} |
                   {__file__, layout.__file__})
     _write_if_changed(out / "kconfig.deps", "\n".join(deps) + "\n")
     (out / DONE).write_text(json.dumps([n for n in notes if not n.startswith("new ")]))
     return notes
+
+
+def _digest(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def _edits_dropped(dot):
+    """The note when a .config edited since it was made (menuconfig) gave way to
+    changed inputs; write_config() left it as .config.old."""
+    old_path = dot.with_name(dot.name + ".old")
+    read = lambda f: {name: v for _, name, v in _assignments(f)}        # noqa: E731
+    old, new = read(old_path), read(dot)
+    diff = sorted(n for n in old.keys() | new.keys() if old.get(n) != new.get(n))
+    more = f" and {len(diff) - 10} more" if len(diff) > 10 else ""
+    return (f"new .config from the changed defconfig / fragments: the edits in the old one are gone, it is kept as "
+            f"{old_path}. Options that differ: {', '.join(diff[:10])}{more}")
 
 
 def _unchanged(board, core, fragments, out):
@@ -448,9 +485,9 @@ def _unchanged(board, core, fragments, out):
             return None
         files = [out / ".config", out / HEADER, out / JSON, out / CMAKE, out / "keys.cmake"] + \
             [Path(f) for f in (out / "kconfig.deps").read_text().splitlines()]
-        files += [Path(p) for p in re.findall(r'set\(UMCUB_\w+_KEY "([^"]*)"\)', (out / "keys.cmake").read_text())]
+        files += [Path(p) for p in json.loads((out / JSON).read_text())["keys"].values()]
         return json.loads(done.read_text()) if all(f.stat().st_mtime <= when for f in files) else None
-    except (OSError, ValueError, TypeError):
+    except (OSError, ValueError, TypeError, KeyError):
         return None
 
 
@@ -469,7 +506,7 @@ def menuconfig(out_dir):
     if run(kconf):                      # CMake generates again: .config is newer than kconfig.done
         vals = values(kconf)
         write_header(vals, Path(out_dir) / HEADER, inputs)
-        write_tool_files(vals, out_dir, bdir, _state(out_dir).get("core"))
+        write_tool_files(vals, out_dir, bdir, _state(out_dir).get("core"), keys(kconf, bdir))
 
 
 def savedefconfig(out_dir, path):

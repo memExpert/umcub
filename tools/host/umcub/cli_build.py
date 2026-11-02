@@ -79,7 +79,7 @@ def add_image_arguments(sub):
 def cmd_config(a):
     if a.sub == "generate":
         for note in kconfig.generate(a.board, a.core, a.conf or (), a.out):
-            print(f"umcub: {note}")
+            print(f"umcub: {note}", file=sys.stderr if note.startswith("new ") else sys.stdout)    # CMake: a warning
         linker.write(Config(a.out, a.core), a.out, a.core)
     elif a.sub == "menu":
         kconfig.menuconfig(a.out)
