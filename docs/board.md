@@ -74,7 +74,9 @@ Things that are easy to get wrong:
   ("Cannot upgrade: ..." in the log), so configure stops on such a layout: on the F411 (16, 16, 16, 16, 64, 128, 128, 128
   KiB) the largest image that can be upgraded is one 128 KiB sector, whatever is free around it. Without upgrades from the
   secondary slot (recovery uploads straight into the primary) a larger primary slot works:
-  `UMCUB_CFG_LAYOUT_NO_UPGRADE`, a 200 KiB image over sectors 2-5 was checked on a Black Pill.
+  `UMCUB_CFG_LAYOUT_NO_UPGRADE`, a 200 KiB image over sectors 2-5 was checked on a Black Pill. The secondary slot can
+  then also be left out (address and size 0; a 250 KiB image in a 384 KiB primary slot was checked): the log says
+  `Cannot upgrade` on every boot, an application writing the missing slot gets an error from `umcub_slot_begin()`.
   swap-offset needs a secondary slot one sector larger than the primary and at least two sectors in the primary
   (its image size limit is 0 with one), so it needs three sectors of one size or more: not on the F411. Only
   swap-scratch needs a scratch sector. The last `UMCUB_CFG_TRAILER_RESERVE` bytes of a slot belong to MCUboot.

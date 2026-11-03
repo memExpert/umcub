@@ -61,7 +61,5 @@ Larger changes:
 
 - [ ] **Windows**: configure, build and signing on a real Windows machine (docs/application.md); finding Python and
   imgtool in `.venv/Scripts` was only simulated.
-- [ ] **No secondary slot** with `UMCUB_CFG_LAYOUT_NO_UPGRADE`: configure accepts it (`tests/tools/kconfig_test.py`),
-  booting such a bootloader was not tried.
 - [ ] **H7 application RAM regions** (`tools/host/umcub/linker.py`): one set of sizes for every H7 part, taken from the
   H755 / H743, not compared with the datasheets of the others (H742). Only the application's linker fragments use them.
