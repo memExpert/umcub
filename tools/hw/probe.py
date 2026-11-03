@@ -30,6 +30,10 @@ class ProbeError(Exception):
     pass
 
 
+class ProbeTransferError(ProbeError):
+    """A memory access failed (bus busy, AP fault); the session may still work."""
+
+
 class Stm32Cube:
     """STM32_Programmer_CLI, one call per operation."""
 
@@ -142,11 +146,18 @@ class PyOcd:
         self.target = self.session.board.target
         self.under_reset = connect == "under-reset"
 
+    def _transfer(self, access, *args):
+        from pyocd.core.exceptions import TransferError
+        try:
+            return access(*args)
+        except TransferError as e:
+            raise ProbeTransferError(f"pyocd: {e}") from e
+
     def read32(self, addr, n):
-        return list(self.target.read_memory_block32(addr, n))
+        return list(self._transfer(self.target.read_memory_block32, addr, n))
 
     def write32(self, addr, words):
-        self.target.write_memory_block32(addr, list(words))
+        self._transfer(self.target.write_memory_block32, addr, list(words))
 
     def read_mem(self, addr, size):
         return bytes(self.target.read_memory_block8(addr, size))

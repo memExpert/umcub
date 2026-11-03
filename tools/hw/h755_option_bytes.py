@@ -17,7 +17,9 @@ an option byte change once left this part with garbage option bytes (RDP
 level 1, PCROP at the bank starts) - hence pyOCD only. pyOCD needs no pack
 here (--target defaults to cortex_m: plain register access through the CM7).
 The new values take effect at once; the running code must not program flash
-meanwhile.
+meanwhile. While the change runs the bus can be busy and SWD reads fail (DP wait,
+AP fault): that does not disturb the change, the tool asks again and reconnects
+only once the time for the change has passed.
 """
 import argparse
 import os
@@ -36,6 +38,7 @@ OPTSR_STATUS = 1 << 0 | 1 << 30           # OPT_BUSY, OPTCHANGEERR: in _CUR only
 OPTLOCK, OPTSTART, OPT_BUSY, OPTCHANGEERR = 1 << 0, 1 << 1, 1 << 0, 1 << 30
 BCM4, BCM7 = 1 << 22, 1 << 23
 DBGMCU_IDCODE = 0x5C001000
+OPT_SETTLE_S, OPT_POLL_S, OPT_TIMEOUT_S = 0.2, 0.1, 10
 BOOT4 = {"single": 0x10000800, "per-core": 0x10000810, "factory": 0x10000810}   # ADD1 0x1000 kept
 
 
@@ -51,7 +54,30 @@ def show(p):
     return optsr, boot4
 
 
-def program(p, boot4):
+def wait_change(p, reopen):
+    """Until the running change has ended; returns the session to go on with."""
+    time.sleep(OPT_SETTLE_S)                # the chip needs nobody: leave the bus alone first
+    failed, end = 0, time.monotonic() + OPT_TIMEOUT_S
+    while time.monotonic() < end:
+        try:
+            if not rd(p, OPTSR_CUR) & OPT_BUSY:
+                if failed:
+                    print(f"note: {failed} SWD reads failed during the change (bus busy)")
+                return p
+        except probe.ProbeTransferError:
+            failed += 1
+        time.sleep(OPT_POLL_S)
+    if not failed:
+        raise probe.ProbeError("option byte programming timed out")
+    print(f"note: no answer over SWD for {OPT_TIMEOUT_S} s, connecting again")
+    p = reopen(p)
+    if rd(p, OPTSR_CUR) & OPT_BUSY:
+        raise probe.ProbeError("option byte programming timed out")
+    return p
+
+
+def program(p, boot4, reopen):
+    """Returns the session to go on with (the given one, or a new one after a dead link)."""
     if rd(p, OPTSR_CUR) & OPT_BUSY:
         raise probe.ProbeError("an option byte change is already running")
     # A rejected change (OPTCHANGEERR) leaves its values in the _PRG registers;
@@ -72,15 +98,20 @@ def program(p, boot4):
         p.write32(OPTCCR, [OPTCHANGEERR])
         p.write32(BOOT4_PRG, [boot4])
         p.write32(OPTSR_PRG, [rd(p, OPTSR_PRG) | BCM7 | BCM4])
-        p.write32(OPTCR, [rd(p, OPTCR) | OPTSTART])
-        end = time.monotonic() + 10
-        while rd(p, OPTSR_CUR) & OPT_BUSY:
-            if time.monotonic() > end:
-                raise probe.ProbeError("option byte programming timed out")
+        start = rd(p, OPTCR) | OPTSTART
+        try:
+            p.write32(OPTCR, [start])
+        except probe.ProbeTransferError:
+            pass                            # started or not: the read back in main() tells
+        p = wait_change(p, reopen)
         if rd(p, OPTSR_CUR) & OPTCHANGEERR:
             raise probe.ProbeError("option byte change error (OPTCHANGEERR)")
     finally:
-        p.write32(OPTCR, [rd(p, OPTCR) | OPTLOCK])
+        try:
+            p.write32(OPTCR, [rd(p, OPTCR) | OPTLOCK])
+        except Exception:                   # also a closed session: must not hide the error above
+            print("note: option bytes not locked again, the next reset does it")
+    return p
 
 
 def main():
@@ -93,12 +124,16 @@ def main():
         sys.exit("h755_option_bytes: needs --probe pyocd (one session for the whole change)")
     a.target = a.target or "cortex_m"
     try:
+        def reopen(old):
+            old.close()
+            return probe.open_probe(a, "attach")
+
         p = probe.open_probe(a, "attach")
         try:
             if rd(p, DBGMCU_IDCODE) & 0xFFF != 0x450:
                 raise probe.ProbeError("not an STM32H745/H747/H755/H757 (DBGMCU_IDCODE DEV_ID != 0x450)")
             if a.mode != "show":
-                program(p, BOOT4[a.mode])
+                p = program(p, BOOT4[a.mode], reopen)
             optsr, boot4 = show(p)
             if a.mode != "show" and (boot4 != BOOT4[a.mode] or (optsr & (BCM7 | BCM4)) != BCM7 | BCM4):
                 raise probe.ProbeError("read back differs from the request")

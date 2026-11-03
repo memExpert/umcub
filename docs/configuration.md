@@ -71,6 +71,11 @@ and board type, `umcub_boot_version()`, `i`; part of the application ABI, the ap
 - **`UMCUB_CFG_DUALCORE_PER_CORE`**: two independent bootloaders (`--preset h755-per-core-cm7` and `h755-per-core-cm4`),
   the CM4 one in bank 2 (`BOOT_CM4_ADD0 = 0x0810`). Only the CM7 configures power and clocks; the two cores must not
   share transports.
+  **The CM4 can be updated over CAN only while the CM7 stays in its own recovery.** FDCAN runs on PLL1Q, set up by the CM7
+  bootloader. That one waits `UMCUB_CFG_CORE2_DONE_TIMEOUT_MS` for the CM4 and starts its application, and `SystemInit()`
+  there (CMSIS, every CubeMX application) switches off the PLLs and the HSE: a CM4 in recovery, on request or without a
+  valid image, stops answering about 3 s after the reset. Each core enters recovery on its own: `umcub_enter_bootloader()`
+  in its application, the entry pin at reset (both bootloaders read it), or no valid image.
 
 STM32CubeProgrammer 2.23 does not expose `BOOT_CM4_ADD0`/`BCM4` for the H755, so `tools/hw/h755_option_bytes.py` writes
 the FLASH option registers directly in one pyOCD session (`show` prints them). It does not run on the stm32cube

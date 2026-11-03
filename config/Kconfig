@@ -35,7 +35,9 @@ config CORE2_DONE_TIMEOUT_MS
 	default 3000
 	help
 	  Main core: how long to wait for the second core's bootloader before
-	  handing the clocks to the application.
+	  handing the clocks to the application. The application's SystemInit()
+	  then stops the clock of the second core's CAN: to update that core over
+	  CAN keep the main core in recovery (docs/configuration.md).
 
 menu "Clocks"
 

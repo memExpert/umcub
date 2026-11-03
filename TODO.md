@@ -57,13 +57,6 @@ Larger changes:
   ~0.5 K on the F1, ~1.5 K on the H7); Ethernet RX parses in the DMA buffer and TX builds in it (~3.3 K RAM on
   the H7, two frame copies per packet); link DATA frames decrypt into the mux buffer (~0.5 K on SECURE builds).
 
-## NUCLEO-H755ZI-Q on hardware after the move to Kconfig
-
-Checked on the Black Pill and the Blue Pill, on the H755 only by builds, host tests and comparing symbols with the old
-configuration. To check on the board: `SINGLE_BOOT` and `PER_CORE` (temporary option bytes, `tools/hw/h755_option_bytes.py`,
-back afterwards) with their layouts from `boards/nucleo_h755zi_q/Kconfig`, the CM4 application in the same build tree, swap-scratch
-upgrade / revert / confirm, swap-offset, USB CDC and DFU, Ethernet, UART with the new RX pull-up, generated keys.
-
 ## Not verified since the move to Kconfig
 
 - [ ] **CAN on the Blue Pill** (`boards/bluepill_f103c8/variants/can.conf`): verified on a real bus before the move, not
