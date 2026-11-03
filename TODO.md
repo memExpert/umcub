@@ -8,8 +8,6 @@ SMP_PARAMS, lite).
 
 - [ ] **LTO on the H7** (verified on the F1 and the F4): boot, SMP / DFU / Ethernet recovery, swap upgrade, both
   cores, stack (`tests/hw/stack_usage.py`), then drop "experimental" for it.
-- [ ] **Size summary after the build**: bootloader size, free space in its region, the application window - today
-  only the linker's memory report and `umcub image info`.
 - [ ] **Size table with minimal columns** per family in docs/size.md (LTO, without inspect, lite).
 
 ## Hardware verification (NUCLEO-H755ZI-Q)

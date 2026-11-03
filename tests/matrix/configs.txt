@@ -49,6 +49,7 @@ per-core-cm4-encrypt|cm4|Release|boards/nucleo_h755zi_q/variants/per_core.conf,f
 blackpill-f411|cm4|Release||blackpill_f411ce
 blackpill-f411-rs485|cm4|Release|boards/blackpill_f411ce/variants/rs485.conf|blackpill_f411ce
 blackpill-f411-usart2|cm4|Release|boards/blackpill_f411ce/variants/usart2.conf|blackpill_f411ce
+blackpill-f411-no-secondary|cm4|Release|boards/blackpill_f411ce/variants/no_secondary.conf|blackpill_f411ce
 blackpill-f411-rs485-link|cm4|Release|boards/blackpill_f411ce/variants/rs485.conf,boards/blackpill_f411ce/variants/rs485_link.conf|blackpill_f411ce
 blackpill-f411-encrypt|cm4|Release|boards/blackpill_f411ce/variants/encrypt.conf|blackpill_f411ce
 blackpill-f411-usb|cm4|Release|boards/blackpill_f411ce/variants/usb.conf|blackpill_f411ce

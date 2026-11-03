@@ -57,6 +57,12 @@ two = dict(base, IMG1_PRIMARY_ADDR=0x08060000, IMG1_PRIMARY_SIZE=0x20000, IMG1_S
 expect("check: image 1 without a secondary slot", "image 1" in (layout.check("STM32F4", 512, two, OW, 2) or ""), True)
 expect("check: image 1 not in use", layout.check("STM32F4", 512, two, OW, 1), None)
 expect("sector map", layout.sector_map("STM32F4", 512), "4 x 16 KiB, 64 KiB, 3 x 128 KiB")
+expect("region: F1 pages", layout.smallest_region("STM32F1", 64, 0x08000000, 28620), 28 * KB)
+expect("region: exactly a page", layout.smallest_region("STM32F1", 64, 0x08000000, 28 * KB), 28 * KB)
+expect("region: F4 two sectors", layout.smallest_region("STM32F4", 512, 0x08000000, 26236), 32 * KB)
+expect("region: F4 into the 64 KiB sector", layout.smallest_region("STM32F4", 512, 0x08000000, 65 * KB), 128 * KB)
+expect("region: H7 bank 2", layout.smallest_region("STM32H7", 2048, 0x08100000, 30000), 128 * KB)
+expect("region: does not fit", layout.smallest_region("STM32F1", 64, 0x08000000, 65 * KB), None)
 
 print(f"layout: {'FAILED' if bad else 'all cases passed'}")
 sys.exit(1 if bad else 0)

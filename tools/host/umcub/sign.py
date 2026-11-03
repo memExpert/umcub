@@ -11,6 +11,7 @@ import tempfile
 from pathlib import Path
 
 from .config import MODES, ROOT, die
+from .layout import smallest_region
 
 DEV_KEY = ROOT / "tools/keys/dev-ecdsa-p256.pem"
 DEV_DEVICE_KEY = ROOT / "tools/keys/dev-device-p256.pem"
@@ -47,6 +48,22 @@ def load_segments(path):
     if ext == ".bin":
         return [(None, data)]
     die(f"{path}: unknown input format (ELF/AXF, .hex or .bin)")
+
+
+def boot_usage(cfg, path):
+    """What a bootloader ELF or Intel HEX takes of its region, in bytes: used, free (the info block
+    at the end of the region is not free), and enough: the fewest whole sectors that would hold it,
+    None when that is the region it has."""
+    segs = load_segments(path)
+    if segs[0][0] is None:
+        die(f"{path}: a raw binary has no addresses, give the ELF or the Intel HEX")
+    base, info, size = cfg["BOOT_ADDR"], cfg["BOOT_INFO_ADDR"], cfg["BOOT_SIZE"]
+    code = [a + len(d) for a, d in segs if base <= a < info]
+    if not code:
+        die(f"{path}: nothing in the bootloader region 0x{base:08X}..0x{info:08X}")
+    used = max(code) - base
+    enough = smallest_region(cfg.family.upper(), cfg["FLASH_KB"], base, used + base + size - info)
+    return {"used": used, "free": info - base - used, "enough": enough if enough != size else None}
 
 
 def flatten(segs, origin, length, path, log=None):
@@ -202,7 +219,7 @@ def sign(cfg, input, image=0, slot=0, version="0.0.0", key=None, encrypt_key=Non
             write_hex(str(out) + ".hex", Path(str(out) + ".bin").read_bytes(), slot_addr)
             written += [Path(str(out) + ".bin"), Path(str(out) + ".hex")]
             log(f"{out}.bin / .hex: image {image} slot {slot} version {version} at 0x{slot_addr:08X} "
-                f"({len(img)} bytes of code, {MODES.get(mode, mode)})")
+                f"({len(img)} of {length} bytes of code, {length - len(img)} free, {MODES.get(mode, mode)})")
         if cfg["ENCRYPT_IMAGES"]:                   # for updates; the plain .signed.* is for programmers
             dkey = Path(encrypt_key) if encrypt_key else cfg.keys.get("DEVICE", DEV_DEVICE_KEY)
             if dkey.resolve() == DEV_DEVICE_KEY.resolve():

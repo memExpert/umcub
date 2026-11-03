@@ -326,10 +326,12 @@ target_link_options(${UMCUB_BOOT_TARGET} PRIVATE
   -nostartfiles
 )
 
+umcub_python(_umcub_size_py)
 add_custom_command(TARGET ${UMCUB_BOOT_TARGET} POST_BUILD
   COMMAND ${CMAKE_OBJCOPY} -O binary $<TARGET_FILE:${UMCUB_BOOT_TARGET}> $<TARGET_FILE_DIR:${UMCUB_BOOT_TARGET}>/$<TARGET_FILE_BASE_NAME:${UMCUB_BOOT_TARGET}>.bin
   COMMAND ${CMAKE_OBJCOPY} -O ihex $<TARGET_FILE:${UMCUB_BOOT_TARGET}> $<TARGET_FILE_DIR:${UMCUB_BOOT_TARGET}>/$<TARGET_FILE_BASE_NAME:${UMCUB_BOOT_TARGET}>.hex
   COMMAND ${CMAKE_SIZE} $<TARGET_FILE:${UMCUB_BOOT_TARGET}>
+  COMMAND "${_umcub_size_py}" "${UMCUB_ROOT}/tools/host/umcub" image size --board "${UMCUB_CONFIG_DIR}" $<TARGET_FILE:${UMCUB_BOOT_TARGET}>
   VERBATIM)
 
 # ----------------------------------------------------------------------------

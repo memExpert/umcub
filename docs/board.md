@@ -36,6 +36,9 @@ The same with the preset `custom` (builds in `build/custom`): `cmake --preset cu
 or the board in the environment variable `UMCUB_BOARD`.
 
 `arm-none-eabi-gcc` is taken from `PATH`. A toolchain that is not there is set with `-DUMCUB_TOOLCHAIN_PREFIX=<path>/arm-none-eabi-`.
+The build ends with a summary (`umcub image size`): what the bootloader takes of its region, whether a smaller region
+would do, and how large an application can be. Signing an application tells how much of that it uses.
+
 Without `CMAKE_BUILD_TYPE` the build is `Release` (`-Os`), what the regions and the [size tables](size.md) assume.
 
 Configuration mistakes stop the build with a message: slots overlapping or off sector boundaries, the wrong slot
@@ -75,7 +78,8 @@ Things that are easy to get wrong:
   KiB) the largest image that can be upgraded is one 128 KiB sector, whatever is free around it. Without upgrades from the
   secondary slot (recovery uploads straight into the primary) a larger primary slot works:
   `UMCUB_CFG_LAYOUT_NO_UPGRADE`, a 200 KiB image over sectors 2-5 was checked on a Black Pill. The secondary slot can
-  then also be left out (address and size 0; a 250 KiB image in a 384 KiB primary slot was checked): the log says
+  then also be left out (address and size 0, `boards/blackpill_f411ce/variants/no_secondary.conf`; a 250 KiB image in
+  a 384 KiB primary slot was checked): the log says
   `Cannot upgrade` on every boot, an application writing the missing slot gets an error from `umcub_slot_begin()`.
   swap-offset needs a secondary slot one sector larger than the primary and at least two sectors in the primary
   (its image size limit is 0 with one), so it needs three sectors of one size or more: not on the F411. Only

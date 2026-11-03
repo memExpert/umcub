@@ -46,6 +46,17 @@ def flash_use(log):
     return f"{m.group(1)} {m.group(2)}" if m else ""
 
 
+def size_summary(log):
+    """The summary after the build (umcub image size) says what the linker's memory report says."""
+    text = Path(log).read_text(errors="replace")
+    own = re.search(r"^umcub: bootloader (\d+) B,", text, re.M)
+    if not own:
+        raise Failed(f"no size summary in {log}")
+    ld = re.search(r"^\s+FLASH:\s+(\d+) B\s", text, re.M)
+    if ld and ld.group(1) != own.group(1):
+        raise Failed(f"size summary {own.group(1)} B, linker {ld.group(1)} B ({log})")
+
+
 def overlay(v):
     """tests/configs/<file>, or a board variant boards/<b>/variants/<file>."""
     return v if v.startswith("boards/") else f"tests/configs/{v}"
@@ -77,6 +88,7 @@ def t_config(out, line):
     args = [f"-DCMAKE_BUILD_TYPE={btype}", f"-DUMCUB_BOARD={board}", f"-DUMCUB_CORE={core}",
             "-DUMCUB_CONF=" + ";".join(overlay(f) for f in conf.split(",") if f)]
     d = build(out, name, args)
+    size_summary(f"{d}.build.log")
     if name == "custom-drivers" and re.search(r"fdcan\.c|/eth\.c", (d / "build.ninja").read_text()):
         raise Failed("the family FDCAN / ETH driver is built next to the board's")
     return name, flash_use(f"{d}.build.log")

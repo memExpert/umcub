@@ -39,6 +39,17 @@ def sectors(family, flash_kb):
     return out
 
 
+def smallest_region(family, flash_kb, start, needed):
+    """Size of the fewest whole sectors from `start` that hold `needed` bytes, None if they do not fit."""
+    size = 0
+    for addr, s in sectors(family, flash_kb):
+        if addr >= start:
+            size += s
+            if size >= needed:
+                return size
+    return None
+
+
 def sector_map(family, flash_kb):
     """The sectors as a line of text: "4 x 16 KiB, 64 KiB, 3 x 128 KiB"."""
     runs = []

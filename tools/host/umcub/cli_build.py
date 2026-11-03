@@ -4,7 +4,7 @@ import sys
 
 from . import kconfig, keys, linker
 from .config import MODES, ROOT, Config
-from .sign import DEV_DEVICE_KEY, DEV_KEY, sign
+from .sign import DEV_DEVICE_KEY, DEV_KEY, boot_usage, sign
 
 
 def _log(text):
@@ -48,10 +48,25 @@ def cmd_info(cfg, a):
     return 0
 
 
+def cmd_size(cfg, a):
+    u = boot_usage(cfg, a.input)
+    print(f"umcub: bootloader {u['used']} B, {u['free']} B free (region 0x{cfg['BOOT_SIZE']:X}, its last "
+          f"{cfg['BOOT_ADDR'] + cfg['BOOT_SIZE'] - cfg['BOOT_INFO_ADDR']} B: info block)"
+          + (f"; UMCUB_CFG_BOOT_SIZE=0x{u['enough']:X} would be enough" if u["enough"] else ""))
+    for img in cfg.images():
+        for slot in ((0, 1) if cfg.xip() else (0,)):
+            origin, length = cfg.window(img, slot)
+            print(f"umcub: application image {img}{' slot ' + str(slot) if cfg.xip() else ''}: up to {length} B "
+                  f"at 0x{origin:08X} (slot 0x{cfg.slot(img, slot)[1]:X} less header "
+                  f"0x{cfg['IMAGE_HEADER_SIZE']:X}, trailer 0x{cfg['TRAILER_RESERVE']:X})")
+    return 0
+
+
 def add_image_arguments(sub):
     for name, what in (("info", "where to link the application, what RAM to keep free, IDE settings"),
                        ("ld", "GNU ld MEMORY blocks of the slots (INCLUDE umcub_app_img<n>_slot<m>.ld)"),
-                       ("sign", "sign an ELF/AXF, Intel HEX or raw .bin -> <name>.signed.bin + .signed.hex")):
+                       ("sign", "sign an ELF/AXF, Intel HEX or raw .bin -> <name>.signed.bin + .signed.hex"),
+                       ("size", "what a bootloader takes of its region, the room for the applications")):
         p = sub.add_parser(name, help=what)
         p.add_argument("--board", required=True, help="board name under boards/, a directory with a defconfig, "
                        "or a build tree's umcub_kconfig directory; \"\": no board (--conf)")
@@ -59,6 +74,8 @@ def add_image_arguments(sub):
         p.add_argument("--conf", action="append", help="configuration fragment (repeatable, as for the build)")
         if name == "ld":
             p.add_argument("-o", "--out", default=".", help="output directory (default: current)")
+        if name == "size":
+            p.add_argument("input", help="the bootloader's ELF or Intel HEX")
         if name == "sign":
             p.add_argument("input", help="ELF/AXF, Intel HEX or raw .bin linked for the slot")
             p.add_argument("--image", type=int, default=0)
@@ -119,7 +136,7 @@ def run(a):
         for note in cfg.notes:
             if note.startswith("new "):
                 _log(f"umcub: {note}")
-        return {"sign": cmd_sign, "ld": cmd_ld, "info": cmd_info}[a.sub](cfg, a)
+        return {"sign": cmd_sign, "ld": cmd_ld, "info": cmd_info, "size": cmd_size}[a.sub](cfg, a)
     if a.cmd == "config":
         return cmd_config(a)
     if a.sub == "pub":
