@@ -62,6 +62,7 @@ VARIANTS = [
     ("USB CDC only", {"TRANSPORT_USB_CDC": 1}),
     ("Ethernet only", {"TRANSPORT_ETH": 1}),
     ("UART lite", {**U, "SMP_ENABLE": 0, "LITE_UPLOAD": 1}),
+    ("UART no params", {**U, "SMP_PARAMS": 0}),
     ("log", {**U, "LOG_LEVEL": 3}),
     ("commands", {**U, "CMD_ENABLE": 1}),
     ("status LED", {**U, "STATUS_LED": 1}),
@@ -77,9 +78,11 @@ VARIANTS = [
 ]
 # The same builds with link-time optimisation (UMCUB_CFG_LTO, experimental):
 # name -> the variant it repeats.
-LTO_OF = {"base LTO": "base", "UART LTO": "UART", "everything LTO": "everything"}
+LTO_OF = {"base LTO": "base", "UART LTO": "UART", "everything LTO": "everything",
+          "UART no params LTO": "UART no params", "UART lite LTO": "UART lite"}
 _v = dict(VARIANTS)
 VARIANTS += [(n, _v[o], True) for n, o in LTO_OF.items()]
+VARIANTS.append(("UART lite no signature LTO", {**_v["UART lite"], "SIGNATURE_NONE": 1}, True))
 
 # Rows of the cost table: label, then the variants added and subtracted
 # ("uart" = the UART driver alone: UART+CAN - CAN only).
@@ -116,6 +119,12 @@ SECTOR_SETS = ["UART lite", "UART", "USB CDC only", "CAN only", "Ethernet only",
 SECTOR_LABELS = {"UART lite": "UART, lite (no SMP)", "UART": "UART", "USB CDC only": "USB CDC",
                  "CAN only": "CAN", "Ethernet only": "Ethernet", "secure": "UART, link SECURE",
                  "everything": "all on"}
+# The same for a UART bootloader made smaller step by step (no log, no text commands, no LED in all of them).
+SMALL_SETS = ["verify+hash", "UART", "UART no params", "UART no params LTO", "UART lite", "UART lite LTO",
+              "UART lite no signature LTO"]
+SMALL_LABELS = {"verify+hash": "SMP, verify + hash", "UART": "SMP", "UART no params": "SMP, no `SMP_PARAMS`",
+                "UART no params LTO": "SMP, no `SMP_PARAMS`, LTO", "UART lite": "lite", "UART lite LTO": "lite, LTO",
+                "UART lite no signature LTO": "lite, LTO, no signature"}
 DOC = ROOT / "docs/size.md"
 BEGIN, END = "<!-- size-table:begin -->", "<!-- size-table:end -->"
 
@@ -224,12 +233,11 @@ def main():
                 return used
         return None
 
-    def sector_table():
-        rows = ["| Bootloader size → `UMCUB_CFG_BOOT_SIZE` | " + " | ".join(SECTOR_LABELS[c] for c in SECTOR_SETS) + " |",
-                "|---|" + "---:|" * len(SECTOR_SETS)]
+    def region_table(title, sets, labels):
+        rows = [f"| {title} | " + " | ".join(labels[c] for c in sets) + " |", "|---|" + "---:|" * len(sets)]
         for name, ci, layout in LAYOUTS:
             cells = []
-            for col in SECTOR_SETS:
+            for col in sets:
                 n = size.get((ci, col))
                 r = None if n is None else region(layout, n)
                 cells.append("—" if r is None else f"{kb(n)} → {r} K")
@@ -247,7 +255,10 @@ def main():
             rows.append(f"| {label} | " + " | ".join(cells) + " |")
         return "\n".join(rows)
 
-    tables = cost_table() + "\n\n" + sector_table() + "\n\n" + lto_table()
+    tables = "\n\n".join((cost_table(),
+                            region_table("Bootloader size → `UMCUB_CFG_BOOT_SIZE`", SECTOR_SETS, SECTOR_LABELS),
+                            lto_table(),
+                            region_table("Smallest UART bootloader → `UMCUB_CFG_BOOT_SIZE`", SMALL_SETS, SMALL_LABELS)))
     if not (a.update or a.check):
         print(tables)
         return

@@ -17,6 +17,10 @@ ECDSA-P256), and what every transport and feature adds. Regenerate with `tools/b
   sectors / pages).
 - The third table repeats base, base + SMP + UART and "all on" with link-time optimisation (experimental, see the
   notes below): absolute size and the saving against the same build without it.
+- The fourth table: how small a bootloader with one UART gets, step by step (no log, text commands or LED in any
+  column, no slot inspection from the second on), with the region each step needs. For a part where every KiB
+  counts: pick the first column that leaves the application enough room. Without a signature there is no authenticity
+  ([Security](security.md)): only for closed devices. These builds are measured, not all of them were run on a board.
 
 **Rule: the bootloader region is a whole number of erase sectors, and on parts with large sectors at most three.**
 Every sector given to the bootloader is lost for the slots, and on parts whose first sectors are small (F2/F4/F7) the
@@ -60,6 +64,12 @@ F103 one) - round them up to that part's sector layout and check the real size a
 | base | 15.6 K (-2.9 K) | 13.2 K (-2.9 K) | 14.0 K (-2.9 K) | 10.0 K (-2.5 K) | 10.7 K (-2.7 K) |
 | base + SMP + UART | 21.7 K (-3.9 K) | 19.2 K (-3.9 K) | 20.0 K (-3.9 K) | 15.7 K (-3.7 K) | 16.5 K (-3.6 K) |
 | all on | 46.7 K (-6.1 K) | 43.9 K (-6.1 K) | 44.6 K (-6.1 K) | 31.9 K (-5.3 K) | 33.9 K (-5.2 K) |
+
+| Smallest UART bootloader → `UMCUB_CFG_BOOT_SIZE` | SMP, verify + hash | SMP | SMP, no `SMP_PARAMS` | SMP, no `SMP_PARAMS`, LTO | lite | lite, LTO | lite, LTO, no signature |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| STM32H7 (128 KiB sectors) | 26.6 K → 128 K | 25.6 K → 128 K | 25.5 K → 128 K | 21.6 K → 128 K | 22.5 K → 128 K | 19.1 K → 128 K | 15.0 K → 128 K |
+| STM32F4 (16, 16, 16, 16, 64, 128 KiB ...) | 21.1 K → 32 K | 20.1 K → 32 K | 20.0 K → 32 K | 16.4 K → 32 K | 17.1 K → 32 K | 14.0 K → 16 K | 9.9 K → 16 K |
+| STM32F1 (1 KiB pages; 2 KiB on high-density parts) | 20.4 K → 21 K | 19.4 K → 20 K | 19.3 K → 20 K | 15.6 K → 16 K | 16.4 K → 17 K | 13.3 K → 14 K | 9.1 K → 10 K |
 <!-- size-table:end -->
 
 Notes:
