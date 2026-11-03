@@ -59,8 +59,6 @@ Larger changes:
 
 ## Not verified since the move to Kconfig
 
-- [ ] **CAN on the Blue Pill** (`boards/bluepill_f103c8/variants/can.conf`): verified on a real bus before the move, not
-  run since. Needs a transceiver on PB9 / PB8.
 - [ ] **Windows**: configure, build and signing on a real Windows machine (docs/application.md); finding Python and
   imgtool in `.venv/Scripts` was only simulated.
 - [ ] **No secondary slot** with `UMCUB_CFG_LAYOUT_NO_UPGRADE`: configure accepts it (`tests/tools/kconfig_test.py`),
