@@ -1,7 +1,7 @@
 /*
  * USART drivers shared by the family ports (umcub_port_uart_*):
- *  - usart_v2.c: ISR / ICR / RDR / TDR (H7, G4, L4, L5, F7, F0, F3, ...);
- *  - usart_v1.c: SR / DR (F1, F2, F4, L1).
+ *  - usart_isr.c: ISR / ICR / RDR / TDR (H7, G4, L4, L5, F7, F0, F3, ...);
+ *  - usart_sr.c: SR / DR (F1, F2, F4, L1).
  * The family supplies its instances and pins (stm32_usart_get()) and the
  * vectors, which call stm32_usart_isr().
  */

@@ -1,5 +1,5 @@
 /*
- * USART v2 driver (umcub_port_uart_*), register level, for every family
+ * USART driver (umcub_port_uart_*), register level, for every family
  * with the ISR / ICR / RDR / TDR register set; the instance and its pins come
  * from the family (stm32_usart_get()). RS485: hardware DE when the DE pin has the
  * USART's RTS/DE alternate function, otherwise a GPIO switched by software.

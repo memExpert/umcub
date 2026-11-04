@@ -1,9 +1,8 @@
 /*
- * USART v1 driver (umcub_port_uart_*), register level, for the families with
- * the SR / DR register set (F1, F2, F4, L1); the instance and its pins come
- * from the family (stm32_usart_find(), stm32_usart_pins()). RX interrupt into
- * a ring, polled TX (or the TX ring). RS485: DE always switched by software
- * (no hardware DE on this USART).
+ * USART driver (umcub_port_uart_*), register level, for the families with the
+ * SR / DR register set (F1, F2, F4, L1); the instance and its pins come from
+ * the family (stm32_usart_get()). RX interrupt into a ring, polled TX (or the
+ * TX ring). RS485: DE always switched by software (no hardware DE on this USART).
  */
 #include "umcub_cfg.h"
 #include "umcub_port.h"

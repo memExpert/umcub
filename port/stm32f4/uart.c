@@ -1,6 +1,6 @@
 /*
- * STM32F4 port: USART instances for the USART v1 driver
- * (port/arch/stm32/usart_v1.c, RM0383 §19). F411: USART1, USART2, USART6;
+ * STM32F4 port: USART instances for the SR / DR USART driver
+ * (port/arch/stm32/usart_sr.c, RM0383 §19). F411: USART1, USART2, USART6;
  * the pins and their AF numbers come from the board config (DS10314 Table 9).
  */
 #include "f4.h"

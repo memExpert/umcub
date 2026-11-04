@@ -1,5 +1,5 @@
 /*
- * STM32F1 port: USART1..3 for the USART v1 driver (port/arch/stm32/usart_v1.c,
+ * STM32F1 port: USART1..3 for the SR / DR USART driver (port/arch/stm32/usart_sr.c,
  * RM0008 §27). Pins: the default mapping or the AFIO remap the pins select
  * (RM0008 §9.3.8): USART1 PA9/PA10 or PB6/PB7, USART2 PA2/PA3 or PD5/PD6,
  * USART3 PB10/PB11, PC10/PC11 (partial) or PD8/PD9 (full). Remapped pins

@@ -1,6 +1,6 @@
 /*
- * STM32H7 port: USART / UART instances for the USART v2 driver
- * (port/arch/stm32/usart_v2.c, RM0399 §48).
+ * STM32H7 port: USART / UART instances for the ISR / ICR USART driver
+ * (port/arch/stm32/usart_isr.c, RM0399 §48).
  */
 #include "h7.h"
 #include "../arch/stm32/stm32_usart.h"
