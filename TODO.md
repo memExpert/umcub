@@ -54,6 +54,31 @@ Larger changes:
   ~0.5 K on the F1, ~1.5 K on the H7); Ethernet RX parses in the DMA buffer and TX builds in it (~3.3 K RAM on
   the H7, two frame copies per packet); link DATA frames decrypt into the mux buffer (~0.5 K on SECURE builds).
 
+## GUI flasher
+
+- [ ] **GUI in its own repository** (`umcub-gui`, PySide6 + PyInstaller), first as a flasher only: discover, upload,
+  verify. It depends on the host library by a tagged git URL (`umcub @ git+...@<tag>#subdirectory=tools/host`) and
+  holds no protocol or device logic: what it lacks goes into the library, so the CLI and the GUI behave the same.
+  It keeps paths to key files, never copies of the keys, and gets the host signature through one interface, a local
+  file at first (see the remote signing item). Needed here first: version tags, the public API defined, build-only
+  dependencies (`esp-idf-kconfig`) moved to an extra such as `umcub[build]` after checking what is imported at start.
+- [ ] **SECURE link sessions signed by a server**, for users who log in instead of holding key files. The admin
+  private key stays on the server (preferably in an HSM) and is never downloaded: one shared key cannot be revoked
+  without reflashing the bootloaders, and one leak exposes every device built with it.
+  - Flow: the GUI gets the device's challenge and sends the server the challenge, its ephemeral public key and its
+    nonce. The server checks the account and its rights to that device, computes `th` itself, signs it, logs the
+    session and returns the signature; the GUI sends `AUTH` as usual.
+  - Library: `Link.authenticate()` takes a signing function next to `admin_key` as a file. No firmware change
+    (size delta 0): the device sees an ordinary signature. The public half of the device key can come from the
+    server over verified TLS.
+  - Limits: blocking an account stops new sessions, an open one lasts until it ends. Needs internet while connecting;
+    the request must finish within the challenge's 10 s lifetime. Rights per product or customer need a separate admin
+    key in their bootloaders. Compromising the server equals leaking the key, though image signing still blocks
+    foreign firmware while the signing key is kept elsewhere. Offline work would need short-lived certificates, a
+    firmware change with a size cost: only if really required.
+- [ ] Admin key with a passphrase or loaded from memory (OS key store): `load_key()` reads an unencrypted PEM by path.
+  Needed once the GUI goes to operators with local key files.
+
 ## Not verified since the move to Kconfig
 
 - [ ] **Windows**: configure, build and signing on a real Windows machine (docs/application.md); finding Python and
