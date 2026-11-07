@@ -79,7 +79,7 @@ def connect(spec, node=None, uid=None, admin_key=None, device_key=None, timeout=
     try:
         if conn.selects_node:
             if uid is not None:
-                raise LinkError(f"{conn.name}: the node is selected by its address, not by UID")
+                raise LinkError(code="link.uid_not_addressed", name=conn.name)
             return Device(conn, timeout=timeout)
         if node is None and uid is None:
             return Device(conn, timeout=timeout)

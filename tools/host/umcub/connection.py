@@ -69,7 +69,7 @@ class Serial(Connection):
         try:
             self.s = serial.Serial(port, baud, timeout=0)
         except serial.SerialException as e:
-            raise UmcubError(f"{port}: {e}") from e
+            raise UmcubError(code="serial.open", port=port, reason=str(e)) from e
         self.name = port
         self.buf = b""
         self.nlip = NlipDecoder()
@@ -173,7 +173,7 @@ def isotp_stack(interface, channel, bitrate, tx_id, rx_id, fd=False, data_bitrat
         bus = can.Bus(interface=interface, channel=channel, bitrate=bitrate, fd=fd,
                       data_bitrate=data_bitrate if fd else None)
     except (can.CanError, OSError, ValueError, ImportError) as e:
-        raise UmcubError(f"CAN {interface}:{channel}: {e}") from e
+        raise UmcubError(code="can.open", interface=interface, channel=channel, reason=str(e)) from e
     # A device that allows back-to-back consecutive frames (STmin 0) fills
     # the interface's TX queue (Linux default qlen 10): wait instead of
     # failing on ENOBUFS.
@@ -222,7 +222,7 @@ class IsoTp(_Packets):
         try:
             self.stack.send(payload, send_timeout=10.0)
         except Exception as e:      # isotp.BlockingSendFailure and the like
-            raise UmcubError(f"CAN send: {e}") from e
+            raise UmcubError(code="can.send", reason=str(e)) from e
 
     def recv(self, kind, timeout):
         r = self.stack.recv(block=True, timeout=max(timeout, 0))
@@ -239,7 +239,7 @@ def _options(parts, known):
         k, _, v = p.partition("=")
         k = k.strip().replace("_", "-")
         if k not in known:
-            raise UmcubError(f"unknown option '{k}' (known: {', '.join(sorted(known))})")
+            raise UmcubError(code="spec.option", option=k, known=", ".join(sorted(known)))
         conv = known[k]
         opts[k.replace("-", "_")] = True if conv is bool else conv(v)
     return opts
@@ -266,9 +266,9 @@ def register_transport(scheme, open, options=None, description="", adapters=None
     """Add a transport (built-in or a plugin's register()). A scheme is
     registered once: a plugin cannot replace another transport."""
     if not re.fullmatch(r"[a-z][a-z0-9_-]*", scheme or ""):
-        raise UmcubError(f"transport scheme '{scheme}': lower-case letters, digits, '-' and '_'")
+        raise UmcubError(code="transport.scheme", scheme=scheme)
     if scheme in _transports:
-        raise UmcubError(f"transport '{scheme}' is already registered")
+        raise UmcubError(code="transport.duplicate", scheme=scheme)
     _transports[scheme] = Transport(scheme, open, options, description, adapters)
     return _transports[scheme]
 
@@ -295,7 +295,7 @@ def _open_udp(target, node, port=UDP_PORT, mtu=None):
 def _open_can(target, node, **o):
     interface, _, channel = target.partition(":")
     if not channel:
-        raise UmcubError("CAN: can:<python-can interface>:<channel>, e.g. can:socketcan:can0")
+        raise UmcubError(code="can.spec")
     return IsoTp(interface, channel, node=node, **o)
 
 
@@ -331,5 +331,5 @@ def open_connection(spec, node=0):
     t = known[scheme]
     conn = t.open(target, node, **_options(parts, t.options))
     if not isinstance(conn, Connection):
-        raise UmcubError(f"transport '{scheme}' returned {type(conn).__name__}, not a umcub Connection")
+        raise UmcubError(code="transport.type", scheme=scheme, type=type(conn).__name__)
     return conn

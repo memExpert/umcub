@@ -156,14 +156,19 @@ def load_key(path, private):
     try:
         data = open(path, "rb").read()
     except OSError as e:
-        raise LinkError(f"{path}: {e.strerror}") from e
+        raise LinkError(code="file.read", path=path, reason=e.strerror) from e
     try:
         k = serialization.load_pem_private_key(data, password=None)
         return k if private else k.public_key()
     except (ValueError, TypeError):
-        if private:
-            raise LinkError(f"{path}: a private key is needed")
-        return serialization.load_pem_public_key(data)
+        pass
+    try:
+        pub = serialization.load_pem_public_key(data)
+    except (ValueError, TypeError):
+        raise LinkError(code="key.invalid", path=path) from None
+    if private:
+        raise LinkError(code="key.private_needed", path=path)
+    return pub
 
 
 # --------------------------------------------------------------------------
@@ -223,22 +228,22 @@ class Link:
     def hello(self):
         """Select the device; SECURE: run the challenge / AUTH handshake. Returns its identity."""
         if self.addr is None and self.uid is None:
-            raise LinkError("select the device by node address or UID")
+            raise LinkError(code="link.select")
         if self.uid is not None:
             self.send(T_HELLO, bytes.fromhex(self.uid), flags=F_UID, dst=0)
         else:
             self.send(T_HELLO)
         fr = self.recv((T_ANNOUNCE, T_CHALLENGE))
         if not fr:
-            raise LinkError("no answer to HELLO (wrong node, not in recovery, or not a link transport)")
+            raise LinkError(code="link.no_hello")
         self.ident = identity(fr["payload"])
         self.peer = fr["src"]
         if fr["type"] == T_ANNOUNCE:
             if self.ident["closed"]:
-                raise LinkError("device refuses SECURE sessions (readout protection off, UMCUB_CFG_LINK_REQUIRE_RDP)")
+                raise LinkError(code="link.closed")
             return self.ident
         if not (self.admin_key and self.device_key):
-            raise LinkError("SECURE transport: the admin key and the device key are needed")
+            raise LinkError(code="link.keys_needed")
         self.authenticate(fr["payload"])
         return self.ident
 
@@ -259,7 +264,7 @@ class Link:
         self.send(T_AUTH, eph_pub + nonce_h + sig)
         fr = self.recv((T_AUTH_OK,), timeout=max(self.timeout, 5.0), src=self.peer)   # ECC on a M3: ~1.5 s
         if not fr or not session.check(fr):
-            raise LinkError("authentication failed (wrong admin key, device key or no answer)")
+            raise LinkError(code="link.auth_failed")
         self.session = session
 
     def send_data(self, payload):

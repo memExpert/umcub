@@ -18,7 +18,7 @@ class Image:
 
     def __init__(self, data):
         if len(data) < 32 or struct.unpack_from("<I", data)[0] != IMAGE_MAGIC:
-            raise UmcubError("not a signed MCUboot image (no header magic)")
+            raise UmcubError(code="image.not_signed")
         hdr_size, prot_size, img_size, flags = struct.unpack_from("<HHII", data, 8)
         major, minor, rev, build = struct.unpack_from("<BBHI", data, 20)
         self.data = bytes(data)
@@ -40,7 +40,7 @@ class Image:
             off = end
         self.hash = next((self.tlvs[t] for t in (TLV_SHA256, TLV_SHA384, TLV_SHA512) if t in self.tlvs), None)
         if self.hash is None:
-            raise UmcubError("signed image without a hash TLV")
+            raise UmcubError(code="image.no_hash")
         bt = self.tlvs.get(TLV_BOARD_TYPE)
         self.board_type = struct.unpack("<I", bt)[0] if bt and len(bt) == 4 else None
         self.size = len(data)
@@ -50,7 +50,7 @@ class Image:
         try:
             return cls(open(path, "rb").read())
         except OSError as e:
-            raise UmcubError(f"{path}: {e.strerror}") from e
+            raise UmcubError(code="file.read", path=str(path), reason=e.strerror) from e
 
     def check_board(self, board_type):
         """Raise if the bootloader of `board_type` would refuse this image (umcub
@@ -58,6 +58,6 @@ class Image:
         if not board_type:
             return
         if self.board_type is None:
-            raise UmcubError(f"the image has no board type, the device is 0x{board_type:08x}")
+            raise UmcubError(code="image.no_board_type", device=board_type)
         if self.board_type != board_type:
-            raise UmcubError(f"the image is for board type 0x{self.board_type:08x}, the device is 0x{board_type:08x}")
+            raise UmcubError(code="image.board_type", image=self.board_type, device=board_type)

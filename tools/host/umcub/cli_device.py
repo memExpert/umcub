@@ -23,7 +23,7 @@ def _read(path):
     try:
         return open(path, "rb").read()
     except OSError as e:
-        raise UmcubError(f"{path}: {e.strerror}") from e
+        raise UmcubError(code="file.read", path=path, reason=e.strerror) from e
 
 
 def cmd_discover(a):

@@ -180,9 +180,9 @@ class Smp:
         try:
             return self.loop.run_until_complete(coro)
         except TimeoutError as e:
-            raise NoAnswer("no SMP answer (not in recovery, no SMP in this build, wrong port / node?)") from e
+            raise NoAnswer(code="smp.no_answer") from e
         except SMPClientException as e:
-            raise UmcubError(f"SMP: {e}") from e
+            raise UmcubError(code="smp.client", reason=str(e)) from e
 
     def request(self, req, timeout=None):
         """One request; the typed response, or DeviceError."""
@@ -191,9 +191,9 @@ class Smp:
             rc = int(r.rc) if hasattr(r, "rc") else int(r.err.rc)
             if rc == 0:
                 return r                    # boot_serial answers e.g. reset with {"rc": 0}
-            raise DeviceError(f"device: {ERRORS.get(rc, 'error')} (rc {rc})", rc)
+            raise DeviceError(rc=rc, code="smp.device", reason=ERRORS.get(rc, "error"))
         if success(r) and getattr(r, "rc", 0):
-            raise DeviceError(f"device: {ERRORS.get(r.rc, 'error')} (rc {r.rc})", r.rc)
+            raise DeviceError(rc=r.rc, code="smp.device", reason=ERRORS.get(r.rc, "error"))
         return r
 
     def echo(self, text):
@@ -222,13 +222,13 @@ class Smp:
                     if progress:
                         progress(off, len(data))
                     if cancel is not None and cancel.is_set():
-                        raise Cancelled("upload cancelled")
+                        raise Cancelled(code="cancelled.upload")
             finally:
                 await gen.aclose()
         try:
             self._run(run())
         except SMPClientException as e:
-            raise DeviceError(f"upload refused: {e}") from e
+            raise DeviceError(code="smp.upload_refused", reason=str(e)) from e
 
     def mark(self, image_hash, permanent=False):
         """Mark the image with this hash (Image.hash) in a secondary slot for a test
@@ -255,7 +255,7 @@ class Smp:
         out = bytearray()
         while len(out) < length:
             if cancel is not None and cancel.is_set():
-                raise Cancelled("read cancelled")
+                raise Cancelled(code="cancelled.read")
             n = min(128, length - len(out))     # the bootloader returns what fits its response buffer
             out += self.request(InspectRead(image=image, slot=slot, off=off + len(out), len=n)).data
             if progress:

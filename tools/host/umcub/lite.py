@@ -36,12 +36,12 @@ def request(dev, f, timeout=None, retries=5):
         ans = parse_answer(r) if r else None
         if ans:
             return ans
-    raise NoAnswer("no answer from the bootloader (lite upload)")
+    raise NoAnswer(code="lite.no_answer")
 
 
-def _check(rc, what):
+def _check(rc, code, **params):
     if rc:
-        raise DeviceError(f"{what}: {ERRORS.get(rc, rc)}", rc)
+        raise DeviceError(rc=rc, code=code, reason=ERRORS.get(rc, str(rc)), **params)
 
 
 def upload(dev, data, image=0, slot=0, test=False, permanent=False, chunk=None, progress=None, cancel=None):
@@ -51,19 +51,19 @@ def upload(dev, data, image=0, slot=0, test=False, permanent=False, chunk=None, 
     chunk = chunk or (CHUNK_SERIAL if dev.stream else CHUNK_PACKET)
     t = dev.timeout
     rc, _ = request(dev, frame("B", struct.pack("<BBI", image, slot, len(data))), t + 10)   # erases
-    _check(rc, "begin refused")
+    _check(rc, "lite.begin_refused")
     off = 0
     while off < len(data):
         if cancel is not None and cancel.is_set():
-            raise Cancelled("upload cancelled")
+            raise Cancelled(code="cancelled.upload")
         rc, taken = request(dev, frame("D", struct.pack("<I", off) + data[off:off + chunk]), t)
-        _check(rc, f"data at {off} refused")
+        _check(rc, "lite.data_refused", offset=off)
         off = taken
         if progress:
             progress(off, len(data))
     flags = (1 if test or permanent else 0) | (2 if permanent else 0)
     rc, _ = request(dev, frame("E", bytes([flags])), t + 30)     # in-place decryption takes a while
-    _check(rc, "end refused (not a valid image for this device?)")
+    _check(rc, "lite.end_refused")
 
 
 def reset(dev):

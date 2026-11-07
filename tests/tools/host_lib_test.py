@@ -206,5 +206,54 @@ u.close()
 raises("can: needs a channel", lambda: umcub.open_connection("can:socketcan"), text="can:<python-can interface>")
 raises("unknown scheme is a serial port", lambda: umcub.open_connection("nosuch:/dev/x"), text="nosuch:/dev/x")
 
+# Error codes: every code used in the library is in MESSAGES with exactly the params its template needs, every
+# message is used, and the errors carry code / params / rc.
+import ast  # noqa: E402
+import string  # noqa: E402
+from umcub.errors import MESSAGES, DeviceError  # noqa: E402
+
+used = set()
+for f in sorted((Path(umcub.__file__).parent).glob("*.py")):
+    for node in ast.walk(ast.parse(f.read_text())):
+        if not isinstance(node, ast.Call):
+            continue
+        kw = {k.arg: k.value for k in node.keywords if k.arg}
+        code, names = None, set(kw) - {"code"}
+        if isinstance(kw.get("code"), ast.Constant):
+            code = kw["code"].value
+        elif getattr(node.func, "id", "") == "_check" and len(node.args) > 1 and isinstance(node.args[1], ast.Constant):
+            code, names = node.args[1].value, names | {"reason", "rc"}         # lite._check adds both
+        if code is None:
+            continue
+        used.add(code)
+        if code not in MESSAGES:
+            expect(f"{f.name}:{node.lineno} code {code} in MESSAGES", False)
+            continue
+        fields = {n for _, n, _, _ in string.Formatter().parse(MESSAGES[code]) if n}
+        extra = names - fields - {"rc"}                 # rc is kept for DeviceError even when the text has none
+        expect(f"{f.name}:{node.lineno} {code} params", fields <= names and not extra,
+               f"- template {sorted(fields)}, given {sorted(names)}")
+expect("every message is used", set(MESSAGES) - {"error"} <= used, str(sorted(set(MESSAGES) - {"error"} - used)))
+
+e = DeviceError(rc=5, code="smp.device", reason="no image in that slot")
+expect("device error", (str(e), e.code, e.rc, e.params) ==
+       ("device: no image in that slot (rc 5)", "smp.device", 5, {"reason": "no image in that slot", "rc": 5}), repr(e))
+e = umcub.UmcubError("plain text")
+expect("plain message", (e.code, e.params) == ("error", {"message": "plain text"}), str(e.params))
+raises("image file error code", lambda: umcub.Image(b"\0" * 64), text="no header magic")
+try:
+    umcub.Image(b"\0" * 64)
+except umcub.UmcubError as err:
+    expect("image error code", err.code == "image.not_signed", err.code)
+junk = tmp / "junk.pem"
+junk.write_text("not a key")
+from umcub.link import load_key  # noqa: E402
+for private in (False, True):
+    try:
+        load_key(junk, private)
+        expect("junk key refused", False)
+    except umcub.LinkError as err:
+        expect("junk key: LinkError key.invalid", err.code == "key.invalid", err.code)
+
 print(f"host library: {'all cases passed' if not bad else f'{bad} failure(s)'}")
 sys.exit(1 if bad else 0)

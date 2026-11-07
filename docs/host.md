@@ -143,6 +143,11 @@ Nothing in the library prints or exits: errors are exceptions (`UmcubError`: `No
 device's `rc`, `LinkError`, `Cancelled`), progress is a callback, a `threading.Event` cancels. The calls block, so
 a GUI runs them in a worker thread.
 
+Every error has a stable `code` (`link.auth_failed`, `smp.device`, ...) and its `params`; the English text is
+`umcub.errors.MESSAGES[code]` filled with them. A translated program keeps its own text per code and fills in the
+same params, with `str(error)` as the fallback; `smp.ERRORS` and `lite.ERRORS` give the meaning of a device's `rc`.
+Codes and their params only change with the library's version.
+
 ```python
 import threading
 import umcub
@@ -171,6 +176,7 @@ A board protocol (`UMCUB_CFG_PROTO_USER`) uses the connection directly: `dev.sen
 | Module | Contents |
 |---|---|
 | `adapter` | `adapters()`: serial ports, CAN channels, network interfaces, plugins' adapters |
+| `errors` | the exceptions, their codes and English messages (`MESSAGES`) |
 | `plugins` | transport plugins: installed packages and plugin folders |
 | `connection` | the device strings and the transport registry; serial (SMP as NLIP lines, frames as `05 <kind> base64` lines, text), UDP, CAN ISO-TP |
 | `device` | `connect()`, `discover()`, `Device` (directly, or as a link node) |
