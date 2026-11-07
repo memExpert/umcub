@@ -378,7 +378,7 @@ config ENTRY_GPIO
 	help
 	  Stay in recovery when this pin is held at reset.
 if ENTRY_GPIO
-source "$(UMCUB_ROOT)/port/kconfig/entry_gpio.kconfig"
+source "$(UMCUB_ROOT)/port/kconfig_gen/entry_gpio.kconfig"
 endif
 config ENTRY_GPIO_ACTIVE
 	bool "Entry pin active high"
@@ -437,7 +437,7 @@ config STATUS_LED
 	  clock, ...), N = 1 UART, 2 USB, 4 CAN, 5 Ethernet, 7 board transport.
 	  Untouched on a plain boot; back in reset state before the application.
 if STATUS_LED
-source "$(UMCUB_ROOT)/port/kconfig/status_led.kconfig"
+source "$(UMCUB_ROOT)/port/kconfig_gen/status_led.kconfig"
 endif
 config STATUS_LED_ACTIVE
 	bool "LED lit high"
@@ -585,15 +585,15 @@ config TRANSPORT_UART
 	  SMP serial (mcumgr / smpmgr --conntype serial) and text commands. The
 	  boot log goes to this UART too.
 if TRANSPORT_UART
-source "$(UMCUB_ROOT)/port/kconfig/uart_instance.kconfig"
+source "$(UMCUB_ROOT)/port/kconfig_gen/uart_instance.kconfig"
 config UART_BAUD
 	int "Baud rate"
 	default 115200
 	help
 	  Baud rate of the transport and of the boot log.
-source "$(UMCUB_ROOT)/port/kconfig/uart_tx.kconfig"
-source "$(UMCUB_ROOT)/port/kconfig/uart_rx.kconfig"
-source "$(UMCUB_ROOT)/port/kconfig/uart_de.kconfig"
+source "$(UMCUB_ROOT)/port/kconfig_gen/uart_tx.kconfig"
+source "$(UMCUB_ROOT)/port/kconfig_gen/uart_rx.kconfig"
+source "$(UMCUB_ROOT)/port/kconfig_gen/uart_de.kconfig"
 config UART_DE_ACTIVE
 	bool "DE active high"
 	default y
@@ -717,8 +717,8 @@ config CAN_EXT_ID
 	help
 	  29-bit ids instead of 11-bit ones.
 if CAN_DRIVER_PORT
-source "$(UMCUB_ROOT)/port/kconfig/can_tx.kconfig"
-source "$(UMCUB_ROOT)/port/kconfig/can_rx.kconfig"
+source "$(UMCUB_ROOT)/port/kconfig_gen/can_tx.kconfig"
+source "$(UMCUB_ROOT)/port/kconfig_gen/can_rx.kconfig"
 endif
 config CAN_LOOPBACK
 	bool "Internal loopback (self-test)"
@@ -793,7 +793,7 @@ config ETH_PHY_ADDR
 	  MDIO address of the RMII PHY.
 if ETH_DRIVER_PORT
 menu "RMII pins"
-source "$(UMCUB_ROOT)/port/kconfig/eth_rmii.kconfig"
+source "$(UMCUB_ROOT)/port/kconfig_gen/eth_rmii.kconfig"
 endmenu
 endif
 endif

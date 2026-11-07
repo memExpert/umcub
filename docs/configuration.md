@@ -120,7 +120,7 @@ cmake --build build/bp --target savedefconfig    # build/bp/defconfig: only what
   menus then offer only what that part has: its USART instances, USB / CAN / Ethernet where the port drives them,
   and for every pin option only the pins that carry the signal on that package (`UMCUB_CFG_UART_TX_PA9=y`; the
   alternate function is filled in). The part list and the pin menus are generated from ST's pin data into
-  `port/kconfig/` by `tools/build/gen_kconfig.py`.
+  `port/kconfig_gen/` by `tools/build/gen_kconfig.py`.
 - Values: bools `=y` / `# UMCUB_CFG_<NAME> is not set`; choices by their member (`UMCUB_CFG_UPGRADE_MODE_SWAP_OFFSET=y`);
   IPv4 addresses as `"192.168.1.50"`; pins of board options (`boards/<b>/Kconfig`) as strings, `"PA4"` or `"PA5:5"`
   with the alternate function.

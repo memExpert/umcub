@@ -51,7 +51,7 @@ bootloader writes: the SRAM size (the handoff area is its last 256 bytes; H7: SR
 reference manual, add the part to the list (with its SRAM size where the port needs one) and build its
 configuration in the matrix. Also add the line to `LINES` in `tools/build/gen_kconfig.py` (and
 what the port drives to `PORT_UARTS` / `PORT_CAN` / ...) and run it: it writes the part numbers of the line and
-their pin menus to `port/kconfig/` from ST's pin data. A part whose flash map the port cannot describe (e.g. the dual-bank F42x/43x, the
+their pin menus to `port/kconfig_gen/` from ST's pin data. A part whose flash map the port cannot describe (e.g. the dual-bank F42x/43x, the
 8 KiB sectors of the H7A3/B0/B3) needs a change in the port first.
 
 ## Layout

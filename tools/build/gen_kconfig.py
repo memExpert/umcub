@@ -4,7 +4,7 @@
 
   tools/build/gen_kconfig.py [--check]
 
-port/kconfig/*.kconfig (sourced by port/Kconfig and config/Kconfig):
+port/kconfig_gen/*.kconfig (sourced by port/Kconfig and config/Kconfig):
   parts.kconfig       the part choice: every part number of the lines the ports
                       support, with package, flash and RAM; per part what it has
                       (USART instances, USB, CAN, Ethernet) and its pin set
@@ -30,7 +30,7 @@ sys.path.insert(0, str(HERE))
 import check_pins as cp  # noqa: E402
 
 DATA = ROOT / "third_party/st/stm32_open_pin_data"
-OUT = ROOT / "port/kconfig"
+OUT = ROOT / "port/kconfig_gen"
 
 # Lines the ports support: CMSIS define, part-name pattern, family.
 LINES = [
@@ -347,8 +347,8 @@ def main():
             if not a.check:
                 p.write_text(text)
     if a.check and stale:
-        sys.exit(f"port/kconfig: {', '.join(stale)} not up to date - run tools/build/gen_kconfig.py")
-    print(f"port/kconfig: {len(files)} files, {len(stale)} {'stale' if a.check else 'written'}")
+        sys.exit(f"port/kconfig_gen: {', '.join(stale)} not up to date - run tools/build/gen_kconfig.py")
+    print(f"port/kconfig_gen: {len(files)} files, {len(stale)} {'stale' if a.check else 'written'}")
 
 
 if __name__ == "__main__":

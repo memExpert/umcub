@@ -25,6 +25,7 @@ macro(_umcub_test name)
 endmacro()
 
 _umcub_test(layers ${RUN} check layers -- "${UMCUB_PY}" tools/build/check_layers.py)
+_umcub_test(paths ${RUN} check paths -- "${UMCUB_PY}" tools/build/check_paths.py)
 _umcub_test(kconfig-generated ${RUN} check kconfig-generated -- "${UMCUB_PY}" tools/build/gen_kconfig.py --check)
 _umcub_test(docs ${RUN} check docs -- "${UMCUB_PY}" tools/build/check_docs.py --fast)
 

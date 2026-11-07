@@ -33,7 +33,7 @@ DONE = "kconfig.done"           # written last by generate()
 IP_NAMES = {"ETH_IP", "ETH_NETMASK"}
 RAW_NAMES = {"MCU"}             # C tokens, not strings
 # Kconfig helpers that stay out of the header: what the part has, pin sets,
-# lines and families (port/kconfig/*.kconfig, port/Kconfig, Kconfig).
+# lines and families (port/kconfig_gen/*.kconfig, port/Kconfig, Kconfig).
 INTERNAL = re.compile(r"(PIN|PINSET|HAS)_\w+|FAMILY_STM32\w+|MCU_STM32\w+|BUILD_CORE|CORE_CM4|MCU_DUALCORE|LINK_SECURE"
                       r"|KEYS_DIR|(SIGNING|DEVICE|ADMIN)_KEY_\w+")
 # The keys (config/Kconfig "Keys"): generated file name, development key of the repository.
@@ -45,7 +45,7 @@ SLOT = re.compile(r"(IMG\d_(PRIMARY|SECONDARY)|SCRATCH)_(ADDR|SIZE)")
 # UMCUB_CFG_CMD_TABLE: its actions and the groups of inspection commands.
 CMD_ACTIONS = {"BOOT_APP", "STAY", "RESET", "INFO", "VERIFY", "HASH", "READ"}
 CMD_GROUPS = {"+inspect": "UMCUB_DEFAULT_CMD_INSPECT", "+inspect_read": "UMCUB_CMD_INSPECT_DEFAULTS"}
-# The RMII pin menus (port/kconfig/eth_rmii.kconfig) -> UMCUB_CFG_ETH_RMII_PINS, in this order.
+# The RMII pin menus (port/kconfig_gen/eth_rmii.kconfig) -> UMCUB_CFG_ETH_RMII_PINS, in this order.
 RMII = ["REF_CLK", "MDIO", "CRS_DV", "MDC", "RXD0", "RXD1", "TX_EN", "TXD0", "TXD1"]
 
 

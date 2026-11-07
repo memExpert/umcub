@@ -16,7 +16,7 @@
 #error "umcub: the family facts differ from tools/host/umcub/layout.py"
 #endif
 #if defined(UMCUB_FAMILY_RAM_SIZE) && UMCUB_CFG_SHARED_RAM_ADDR != 0x20000000 + UMCUB_FAMILY_RAM_SIZE - 256
-#error "umcub: the SRAM size of the part in port/kconfig/parts.kconfig differs from UMCUB_FAMILY_RAM_SIZE"
+#error "umcub: the SRAM size of the part in port/kconfig_gen/parts.kconfig differs from UMCUB_FAMILY_RAM_SIZE"
 #endif
 
 /* Host tools size their frames for at least this (tools/host/umcub). */
