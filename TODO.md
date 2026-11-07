@@ -56,12 +56,14 @@ Larger changes:
 
 ## GUI flasher
 
-- [ ] **GUI in its own repository** (`umcub-gui`, PySide6 + PyInstaller), first as a flasher only: discover, upload,
-  verify. It depends on the host library by a tagged git URL (`umcub @ git+...@<tag>#subdirectory=tools/host`) and
-  holds no protocol or device logic: what it lacks goes into the library, so the CLI and the GUI behave the same.
-  It keeps paths to key files, never copies of the keys, and gets the host signature through one interface, a local
-  file at first (see the remote signing item). Needed here first: version tags, the public API defined, build-only
-  dependencies (`esp-idf-kconfig`) moved to an extra such as `umcub[build]` after checking what is imported at start.
+- [ ] **GUI** in its own repository (github.com/memExpert/umcub-gui, PySide6; its docs/plan.md holds the plan), a
+  flasher only. It depends on the host library by the source archive of a tag
+  (`umcub @ https://github.com/memExpert/umcub/archive/refs/tags/<tag>.zip#subdirectory=tools/host`: a git URL would
+  clone every submodule, and on Windows some of their paths are too long) and holds no protocol or device logic: what
+  it lacks goes into the library, so the CLI and the GUI behave the same. Library changes the plan asks for:
+  transport registry with plugins, adapter list, bus hub for parallel uploads on one bus, `flash()` choosing SMP or
+  lite, frame tap, error codes, a signing function for SECURE sessions, board name catalog (JSON), build-only
+  dependencies (`esp-idf-kconfig`) in an extra such as `umcub[build]`, CAN discovery.
 - [ ] **SECURE link sessions signed by a server**, for users who log in instead of holding key files. The admin
   private key stays on the server (preferably in an HSM) and is never downloaded: one shared key cannot be revoked
   without reflashing the bootloaders, and one leak exposes every device built with it.
