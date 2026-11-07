@@ -9,6 +9,7 @@ description = "Host library and command line tool for the umcub bootloader"
 requires-python = ">=3.10"
 dependencies = [
   "pyserial>=3.5",
+  "psutil>=5.9",           # network interfaces for umcub.adapters()
   "smpclient>=7.3",
   "python-can>=4.3",
   "can-isotp>=2.0",

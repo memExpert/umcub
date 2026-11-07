@@ -248,10 +248,12 @@ def _options(parts, known):
 class Transport:
     """A registered kind of connection: `<scheme>:<target>[,option[=value]]...` opens
     open(target, node, **options). `options` maps each option name to its converter
-    (int, bool for a flag, str, ...); `description` is one line for lists and help."""
+    (int, bool for a flag, str, ...); `description` is one line for lists and help;
+    `adapters` (optional) returns the umcub.Adapter list of what is plugged in now."""
 
-    def __init__(self, scheme, open, options=None, description=""):
+    def __init__(self, scheme, open, options=None, description="", adapters=None):
         self.scheme, self.open, self.options, self.description = scheme, open, dict(options or {}), description
+        self.adapters = adapters
 
     def __repr__(self):
         return f"Transport({self.scheme!r})"
@@ -260,14 +262,14 @@ class Transport:
 _transports = {}
 
 
-def register_transport(scheme, open, options=None, description=""):
+def register_transport(scheme, open, options=None, description="", adapters=None):
     """Add a transport (built-in or a plugin's register()). A scheme is
     registered once: a plugin cannot replace another transport."""
     if not re.fullmatch(r"[a-z][a-z0-9_-]*", scheme or ""):
         raise UmcubError(f"transport scheme '{scheme}': lower-case letters, digits, '-' and '_'")
     if scheme in _transports:
         raise UmcubError(f"transport '{scheme}' is already registered")
-    _transports[scheme] = Transport(scheme, open, options, description)
+    _transports[scheme] = Transport(scheme, open, options, description, adapters)
     return _transports[scheme]
 
 
@@ -297,10 +299,20 @@ def _open_can(target, node, **o):
     return IsoTp(interface, channel, node=node, **o)
 
 
-register_transport("serial", _open_serial, {"baud": int}, "serial port: UART, RS485 adapter, USB CDC")
-register_transport("udp", _open_udp, {"port": int, "mtu": int}, "UDP (Ethernet, any IP network)")
+def _adapters(name):
+    def find(*args):
+        from . import adapter
+        return getattr(adapter, name)(*args)
+    return find
+
+
+register_transport("serial", _open_serial, {"baud": int}, "serial port: UART, RS485 adapter, USB CDC",
+                   _adapters("serial_adapters"))
+register_transport("udp", _open_udp, {"port": int, "mtu": int}, "UDP (Ethernet, any IP network)",
+                   _adapters("network_adapters"))
 register_transport("can", _open_can, {"bitrate": int, "fd": bool, "data-bitrate": int, "tx": _int, "rx": _int,
-                                      "ext": bool, "mtu": int}, "CAN ISO-TP through a python-can interface")
+                                      "ext": bool, "mtu": int}, "CAN ISO-TP through a python-can interface",
+                   _adapters("can_adapters"))
 
 
 def open_connection(spec, node=0):

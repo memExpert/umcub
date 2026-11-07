@@ -24,6 +24,32 @@ A device is one string (`-d`, or `$UMCUB_DEVICE`):
 `--uid` selects an unassigned link device. SECURE link transports also need `--admin-key` (private) and
 `--device-key` (the public half is enough).
 
+## Adapters
+
+`umcub adapters` (`umcub.adapters()` in a program) lists what is plugged in now, each with a ready device string:
+
+```
+/dev/ttyUSB0                 /dev/ttyUSB0                 FT232R USB UART (FTDI) [0403:6001 A5069RR4]
+/dev/ttyUSB1                 /dev/ttyUSB1                 USB Serial [1a86:7523]
+udp:192.168.0.255            enp10s0 192.168.0.109/24     broadcast 192.168.0.255
+                             enp12s0u5u2                  no link (cable?), USB 10/100/1000 LAN (Realtek) [0bda:8153 DF1300E04C151FB0]
+can:socketcan:can0           socketcan:can0               Candlelight 2.5 - Multiboard (ElmueSoft (netcult.ch/elmue)) [1d50:606f 20673392363050112]
+```
+
+- serial ports with hardware behind them (`--all` adds the empty `/dev/ttyS*` of Linux), with USB vendor / product
+  id and serial number: the serial number finds an adapter again after the OS renumbered it (chips without one,
+  such as the CH340, only by their USB port, `location`);
+- CAN channels: on Linux every SocketCAN interface, also one that is down (with the command that brings it up), with
+  the USB facts of the adapter; elsewhere the python-can interfaces that can enumerate their hardware (PCAN, Kvaser,
+  Vector, IXXAT, gs_usb / candleLight on Windows, ...); slcan adapters (CANable) show up as serial ports;
+- network interfaces that are up, as the broadcast address of their subnet (for `discover`); on Linux also the
+  Ethernet ports that cannot be used yet (no link, no IPv4 address: a USB-Ethernet adapter without a cable), with an
+  empty device string, the reason and the USB facts;
+- whatever transport plugins report (`adapters=` of `register_transport`).
+
+Nothing is opened, so a listed port says nothing about a device answering on it. A source that fails is skipped
+(`umcub.adapters(errors=list)` collects why).
+
 ## Transport plugins
 
 An adapter the operating system does not show as a serial port or network interface, and python-can does not know,
@@ -44,7 +70,8 @@ class MyAdapter(umcub.Connection):
 
 def register():
     umcub.register_transport("myadapter", lambda target, node, speed=1000000: MyAdapter(target, speed),
-                             {"speed": int}, "my adapter through its vendor API")
+                             {"speed": int}, "my adapter through its vendor API",
+                             adapters=lambda: [umcub.Adapter("myadapter:0", "myadapter", "MyAdapter #0")])
 ```
 
 `umcub -d myadapter:0,speed=500000 upload app.signed.bin` then works like any other transport, link nodes included.
@@ -143,6 +170,7 @@ A board protocol (`UMCUB_CFG_PROTO_USER`) uses the connection directly: `dev.sen
 
 | Module | Contents |
 |---|---|
+| `adapter` | `adapters()`: serial ports, CAN channels, network interfaces, plugins' adapters |
 | `plugins` | transport plugins: installed packages and plugin folders |
 | `connection` | the device strings and the transport registry; serial (SMP as NLIP lines, frames as `05 <kind> base64` lines, text), UDP, CAN ISO-TP |
 | `device` | `connect()`, `discover()`, `Device` (directly, or as a link node) |

@@ -102,6 +102,101 @@ raises("node by IDs refuses a UID", lambda: umcub.connect("addressed:x", uid="00
 with umcub.connect("addressed:x", node=3) as dev:          # node chosen when opening: no link layer
     expect("node by IDs: no link", dev.link is None)
 
+# Adapters: fake serial ports and network interfaces, a plugin's own list, a failing source.
+import types  # noqa: E402
+from serial.tools import list_ports  # noqa: E402
+from serial.tools.list_ports_common import ListPortInfo  # noqa: E402
+
+
+def port(dev, hwid="n/a", desc="n/a", vid=None, pid=None, sn=None, mfr=None):
+    p = ListPortInfo(dev, skip_link_detection=True)
+    p.hwid, p.description, p.vid, p.pid, p.serial_number, p.manufacturer = hwid, desc, vid, pid, sn, mfr
+    return p
+
+
+list_ports.comports = lambda: [port("/dev/ttyS10"), port("/dev/ttyS2"),
+                               port("/dev/ttyUSB10", "USB VID:PID=0403:6001", "FT232R USB UART", 0x0403, 0x6001, "A1",
+                                    "FTDI"),
+                               port("/dev/ttyUSB2", "USB VID:PID=1a86:7523", "USB Serial", 0x1a86, 0x7523)]
+a = umcub.adapters(["serial"])
+expect("serial: empty ttyS hidden, natural order", [x.spec for x in a] == ["/dev/ttyUSB2", "/dev/ttyUSB10"],
+       str([x.spec for x in a]))
+expect("serial: USB facts", a[1].description == "FT232R USB UART (FTDI)" and (a[1].vid, a[1].pid, a[1].serial_number)
+       == (0x0403, 0x6001, "A1"), str(a[1]))
+expect("serial: --all", [x.spec for x in umcub.adapters(["serial"], all_serial_ports=True)][:2] ==
+       ["/dev/ttyS2", "/dev/ttyS10"])
+
+AF = __import__("socket").AF_INET
+addr = types.SimpleNamespace
+sys.modules["psutil"] = types.SimpleNamespace(
+    net_if_stats=lambda: {"eth0": addr(isup=True), "lo": addr(isup=True), "down0": addr(isup=False),
+                          "ptp": addr(isup=True)},
+    net_if_addrs=lambda: {"eth0": [addr(family=AF, address="192.168.5.7", netmask="255.255.255.0"),
+                                   addr(family=-1, address="fe80::1", netmask=None)],
+                          "lo": [addr(family=AF, address="127.0.0.1", netmask="255.0.0.0")],
+                          "down0": [addr(family=AF, address="10.1.1.1", netmask="255.255.255.0")],
+                          "ptp": [addr(family=AF, address="10.9.9.9", netmask="255.255.255.255")]})
+
+# Linux SocketCAN from a fake sysfs: a USB adapter that is down, a vcan that is up, an Ethernet port.
+from umcub.adapter import socketcan_adapters  # noqa: E402
+fs = tmp / "sysfs"
+usbdev = fs / "devices/usb1/1-1.2"
+(usbdev / "1-1.2:1.0").mkdir(parents=True)
+for k, v in {"idVendor": "1d50", "idProduct": "606f", "product": "candleLight", "manufacturer": "bytewerk",
+             "serial": "0042"}.items():
+    (usbdev / k).write_text(v + "\n")
+for name, typ, state, dev in (("can0", "280", "down", usbdev / "1-1.2:1.0"), ("vcan0", "280", "unknown", None),
+                              ("eth0", "1", "up", None)):
+    (fs / "net" / name).mkdir(parents=True)
+    (fs / "net" / name / "type").write_text(typ + "\n")
+    (fs / "net" / name / "operstate").write_text(state + "\n")
+    if dev:
+        (fs / "net" / name / "device").symlink_to(dev)
+a = socketcan_adapters(str(fs / "net"))
+expect("socketcan: CAN interfaces only", [x.spec for x in a] == ["can:socketcan:can0", "can:socketcan:vcan0"],
+       str([x.spec for x in a]))
+expect("socketcan: USB facts, down hint", a and (a[0].vid, a[0].pid, a[0].serial_number, a[0].location) ==
+       (0x1d50, 0x606f, "0042", "1-1.2") and a[0].description.startswith("candleLight (bytewerk), down: sudo ip link"),
+       str(a[:1]))
+expect("socketcan: vcan", len(a) > 1 and a[1].description == "virtual", str(a[1:]))
+
+# Network: psutil above, sysfs here; usbeth0 is a USB-Ethernet adapter without a cable, wlan0 has a link but no
+# address, the others have no sysfs device (virtual) and are left out unless they have an IPv4 subnet.
+from umcub.adapter import network_adapters  # noqa: E402
+(fs / "devices/usb2/2-5.2/2-5.2:1.0").mkdir(parents=True)
+for k, v in {"idVendor": "0bda", "idProduct": "8153", "product": "USB 10/100/1000 LAN", "manufacturer": "Realtek"}.items():
+    (fs / f"devices/usb2/2-5.2/{k}").write_text(v + "\n")
+(fs / "devices/pci/wifi").mkdir(parents=True)
+for name, carrier, dev in (("usbeth0", "0", fs / "devices/usb2/2-5.2/2-5.2:1.0"), ("wlan0", "1", fs / "devices/pci/wifi"),
+                          ("wlan1", "0", fs / "devices/pci/wifi")):
+    (fs / "net" / name).mkdir(parents=True)
+    (fs / "net" / name / "type").write_text("1\n")
+    (fs / "net" / name / "carrier").write_text(carrier + "\n")
+    (fs / "net" / name / "device").symlink_to(dev)
+(fs / "net/wlan1/wireless").mkdir()
+ps = sys.modules["psutil"]
+stats, addrs_ = ps.net_if_stats(), ps.net_if_addrs()
+stats.update({"usbeth0": addr(isup=True), "wlan0": addr(isup=True), "wlan1": addr(isup=False)})
+addrs_.update({"usbeth0": [], "wlan0": [addr(family=-1, address="fe80::2", netmask=None)], "wlan1": []})
+ps.net_if_stats, ps.net_if_addrs = (lambda: stats), (lambda: addrs_)
+a = network_adapters(str(fs / "net")) if sys.platform.startswith("linux") else []
+if sys.platform.startswith("linux"):
+    expect("network: subnets and unusable Ethernet ports",
+           [(x.spec, x.name, x.description) for x in a] ==
+           [("udp:192.168.5.255", "eth0 192.168.5.7/24", "broadcast 192.168.5.255"),
+            ("", "usbeth0", "no link (cable?), USB 10/100/1000 LAN (Realtek)"),
+            ("", "wlan0", "no IPv4 address"), ("", "wlan1", "not connected")], str([(x.spec, x.name, x.description) for x in a]))
+    expect("network: USB facts", a[1].vid == 0x0bda and a[1].location == "2-5.2", str(a[1]))
+
+calls = []
+umcub.register_transport("listed", lambda target, node: None, adapters=lambda: (calls.append(1), [
+    umcub.Adapter("listed:1", "listed", "one"), "not an adapter"])[1])
+umcub.register_transport("failing", lambda target, node: None, adapters=lambda: 1 / 0)
+errors = []
+a = umcub.adapters(["listed", "failing"], errors=errors)
+expect("plugin adapters", [x.spec for x in a] == ["listed:1"] and calls == [1], str(a))
+expect("failing source reported", errors == ["failing: ZeroDivisionError: division by zero"], str(errors))
+
 u = umcub.open_connection("10.0.0.1:1400")
 expect("IP address with port is UDP", isinstance(u, Udp) and u.addr == ("10.0.0.1", 1400))
 u.close()

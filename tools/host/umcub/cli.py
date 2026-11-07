@@ -80,6 +80,8 @@ def parser():
     p.add_argument("--pty-link", help="also create this symlink to the pty")
     p.add_argument("--udp-listen", help="local HOST:PORT for SMP over UDP clients")
     sub.add_parser("transports", help="device string schemes, with the plugins that add them (no device)")
+    p = sub.add_parser("adapters", help="adapters plugged in now, with their device strings (no device)")
+    p.add_argument("--all", action="store_true", help="also serial ports with nothing behind them (Linux ttyS*)")
     p = sub.add_parser("sniff", help="listen only: decode every link frame on a serial bus")
     p.add_argument("--raw", action="store_true", help="also print lines that are not link frames")
 
@@ -103,6 +105,16 @@ def main(argv=None):
         for p in load_plugins(a.plugins):
             if p.error:
                 print(f"umcub: plugin {p.name} ({p.source}) not loaded: {p.error}", file=sys.stderr)
+        if a.cmd == "adapters":
+            from .adapter import adapters
+            errors = []
+            for ad in adapters(errors=errors, all_serial_ports=a.all):
+                usb = f" [{ad.vid:04x}:{ad.pid:04x}{' ' + ad.serial_number if ad.serial_number else ''}]" \
+                    if ad.vid is not None and ad.pid is not None else ""
+                print(f"{ad.spec:28s} {ad.name:28s} {ad.description}{usb}")
+            for e in errors:
+                print(f"umcub: {e}", file=sys.stderr)
+            return 0
         if a.cmd == "transports":
             from .connection import transports
             for t in transports().values():
