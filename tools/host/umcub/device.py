@@ -1,7 +1,7 @@
 """A connected bootloader: the connection, and on a umcub link bus the selected node."""
 import time
 
-from .connection import IsoTp, open_connection
+from .connection import open_connection
 from .errors import LinkError
 from .link import Link
 
@@ -77,9 +77,9 @@ def connect(spec, node=None, uid=None, admin_key=None, device_key=None, timeout=
     `device_key`, PEM files); on CAN `node` selects the node's IDs."""
     conn = open_connection(spec, node=node or 0)
     try:
-        if isinstance(conn, IsoTp):
+        if conn.selects_node:
             if uid is not None:
-                raise LinkError("CAN selects a node by its address, not by UID")
+                raise LinkError(f"{conn.name}: the node is selected by its address, not by UID")
             return Device(conn, timeout=timeout)
         if node is None and uid is None:
             return Device(conn, timeout=timeout)

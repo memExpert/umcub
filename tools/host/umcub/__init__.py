@@ -14,10 +14,12 @@ Signing and keys (umcub.config, umcub.sign, umcub.keys) are for builds and IDE
 post-build steps. The command line tool is `umcub` (umcub.cli).
 """
 from . import lite
-from .connection import KIND_LINK, KIND_LITE, KIND_SMP, KIND_USER, open_connection
+from .connection import (KIND_LINK, KIND_LITE, KIND_SMP, KIND_USER, Connection, Transport, open_connection,
+                         register_transport, transports)
 from .device import Device, connect, discover
 from .errors import Cancelled, DeviceError, LinkError, NoAnswer, UmcubError
 from .image import Image
+from .plugins import Plugin, load_plugins, plugins
 
 
 def __getattr__(name):
@@ -28,5 +30,6 @@ def __getattr__(name):
     raise AttributeError(f"module 'umcub' has no attribute '{name}'")
 
 
-__all__ = ["Cancelled", "Device", "DeviceError", "Image", "KIND_LINK", "KIND_LITE", "KIND_SMP", "KIND_USER", "LinkError",
-           "NoAnswer", "Smp", "UmcubError", "connect", "discover", "lite", "open_connection"]
+__all__ = ["Cancelled", "Connection", "Device", "DeviceError", "Image", "KIND_LINK", "KIND_LITE", "KIND_SMP", "KIND_USER",
+           "LinkError", "NoAnswer", "Plugin", "Smp", "Transport", "UmcubError", "connect", "discover", "lite",
+           "load_plugins", "open_connection", "plugins", "register_transport", "transports"]

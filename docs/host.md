@@ -18,9 +18,45 @@ A device is one string (`-d`, or `$UMCUB_DEVICE`):
 | UDP | `192.168.1.50`, `udp:192.168.1.50,port=1337` |
 | CAN ISO-TP | `can:<python-can interface>:<channel>`, e.g. `can:socketcan:can0`, `can:pcan:PCAN_USBBUS1,bitrate=250000`, `can:slcan:/dev/ttyACM0,fd,data-bitrate=2000000`; also `tx=0x7C0`, `rx=0x7C8` (ID bases), `ext` (29-bit), `mtu=1024` |
 
+| plugin | `<scheme>:<target>[,option[=value]]...`, see [Transport plugins](#transport-plugins); `umcub transports` lists the schemes |
+
 `--node N` selects a device on a [umcub link](link.md) bus (serial, UDP) or, on CAN, the node's IDs (bases + N);
 `--uid` selects an unassigned link device. SECURE link transports also need `--admin-key` (private) and
 `--device-key` (the public half is enough).
+
+## Transport plugins
+
+An adapter the operating system does not show as a serial port or network interface, and python-can does not know,
+gets a plugin: a Python module with a `register()` function that registers a scheme. `open(target, node, **options)`
+returns a `umcub.Connection` that carries whole payloads (`send(kind, payload)`, `recv(kind, timeout)` returning
+`None` on timeout, `close()`, a `name`; `text(cmd, wait)` for text commands):
+
+```python
+import umcub
+
+class MyAdapter(umcub.Connection):
+    def __init__(self, target, speed):
+        self.name = f"myadapter:{target}"
+        ...                                  # open the vendor API
+    def send(self, kind, payload): ...
+    def recv(self, kind, timeout): ...       # one payload, or None
+    def close(self): ...
+
+def register():
+    umcub.register_transport("myadapter", lambda target, node, speed=1000000: MyAdapter(target, speed),
+                             {"speed": int}, "my adapter through its vendor API")
+```
+
+`umcub -d myadapter:0,speed=500000 upload app.signed.bin` then works like any other transport, link nodes included.
+A connection that already selects the node when it opens (like CAN by its IDs) sets `selects_node = True`. Serial
+style transports that frame payloads as lines set `stream = True` and must split the kinds like `Serial` does. For
+a CAN adapter a python-can interface plugin is usually less work: `can:<that interface>:<channel>` then works.
+
+Plugins come from installed packages (entry point group `umcub.transports`, naming the module or its `register`) or
+from a folder of `.py` files: `--plugins DIR` / `$UMCUB_PLUGINS`, in a program `umcub.load_plugins(folder)`. A plugin
+runs with the rights of the program: load only folders you trust. One that fails to load is reported
+(`umcub.plugins()`, a warning in the tool) and the others still load; a plugin cannot take over a scheme that is
+already registered.
 
 ## Commands
 
@@ -107,7 +143,8 @@ A board protocol (`UMCUB_CFG_PROTO_USER`) uses the connection directly: `dev.sen
 
 | Module | Contents |
 |---|---|
-| `connection` | the device strings; serial (SMP as NLIP lines, frames as `05 <kind> base64` lines, text), UDP, CAN ISO-TP |
+| `plugins` | transport plugins: installed packages and plugin folders |
+| `connection` | the device strings and the transport registry; serial (SMP as NLIP lines, frames as `05 <kind> base64` lines, text), UDP, CAN ISO-TP |
 | `device` | `connect()`, `discover()`, `Device` (directly, or as a link node) |
 | `smp` | `Smp` (smpclient on a `Device`), the inspection group requests |
 | `lite` | lite upload frames, `upload()`, `reset()` |

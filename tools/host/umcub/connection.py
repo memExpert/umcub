@@ -7,6 +7,7 @@ A connection is opened from one string (what a user types or an application stor
     can:socketcan:can0  can:pcan:PCAN_USBBUS1,bitrate=250000  can:slcan:/dev/ttyACM0,fd,data-bitrate=2000000
         CAN options: bitrate, fd, data-bitrate, tx (host -> device base ID, 0x7C0), rx (device -> host, 0x7C8),
         ext (29-bit IDs), mtu (largest SMP packet, UMCUB_CFG_SMP_MTU); the interface is a python-can one.
+    <scheme>:<target>[,option[=value]]...: a transport a plugin registered (umcub.plugins).
 
 Every connection carries payloads of a kind: an SMP packet (KIND_SMP), a frame of
 a line kind (KIND_LINK, KIND_LITE, KIND_USER) or text. On a stream each kind has
@@ -42,7 +43,9 @@ MTU_MIN = 512
 class Connection:
     """send(kind, payload) / recv(kind, timeout) / text(cmd, wait) / close()."""
 
+    name = "?"          # shown in messages and Device.name
     stream = False      # payloads framed as lines (serial)
+    selects_node = False    # the node was chosen when opening (CAN IDs): no umcub link addressing on top
     mtu = MTU_MIN       # largest SMP packet, when the device does not report it
     noise = 0           # lines that were neither ours nor valid (collisions on a shared bus)
 
@@ -199,6 +202,8 @@ def isotp_stack(interface, channel, bitrate, tx_id, rx_id, fd=False, data_bitrat
 class IsoTp(_Packets):
     """CAN ISO-TP; the node's IDs are the bases + its node address (like the bootloader)."""
 
+    selects_node = True
+
     def __init__(self, interface, channel, bitrate=500000, fd=False, data_bitrate=2000000, tx=CAN_TX, rx=CAN_RX,
                  ext=False, node=0, mtu=1024):
         self.name = f"{interface}:{channel}"
@@ -240,29 +245,79 @@ def _options(parts, known):
     return opts
 
 
+class Transport:
+    """A registered kind of connection: `<scheme>:<target>[,option[=value]]...` opens
+    open(target, node, **options). `options` maps each option name to its converter
+    (int, bool for a flag, str, ...); `description` is one line for lists and help."""
+
+    def __init__(self, scheme, open, options=None, description=""):
+        self.scheme, self.open, self.options, self.description = scheme, open, dict(options or {}), description
+
+    def __repr__(self):
+        return f"Transport({self.scheme!r})"
+
+
+_transports = {}
+
+
+def register_transport(scheme, open, options=None, description=""):
+    """Add a transport (built-in or a plugin's register()). A scheme is
+    registered once: a plugin cannot replace another transport."""
+    if not re.fullmatch(r"[a-z][a-z0-9_-]*", scheme or ""):
+        raise UmcubError(f"transport scheme '{scheme}': lower-case letters, digits, '-' and '_'")
+    if scheme in _transports:
+        raise UmcubError(f"transport '{scheme}' is already registered")
+    _transports[scheme] = Transport(scheme, open, options, description)
+    return _transports[scheme]
+
+
+def transports():
+    """The registered transports by scheme (installed plugins loaded)."""
+    from .plugins import load_installed
+    load_installed()
+    return dict(_transports)
+
+
+def _open_serial(target, node, baud=115200):
+    return Serial(target, baud)
+
+
+def _open_udp(target, node, port=UDP_PORT, mtu=None):
+    try:
+        ipaddress.ip_address(target)
+    except ValueError:
+        target = socket.gethostbyname(target)
+    return Udp(target, port, mtu)
+
+
+def _open_can(target, node, **o):
+    interface, _, channel = target.partition(":")
+    if not channel:
+        raise UmcubError("CAN: can:<python-can interface>:<channel>, e.g. can:socketcan:can0")
+    return IsoTp(interface, channel, node=node, **o)
+
+
+register_transport("serial", _open_serial, {"baud": int}, "serial port: UART, RS485 adapter, USB CDC")
+register_transport("udp", _open_udp, {"port": int, "mtu": int}, "UDP (Ethernet, any IP network)")
+register_transport("can", _open_can, {"bitrate": int, "fd": bool, "data-bitrate": int, "tx": _int, "rx": _int,
+                                      "ext": bool, "mtu": int}, "CAN ISO-TP through a python-can interface")
+
+
 def open_connection(spec, node=0):
     """The connection described by `spec` (see the module docstring); `node`
-    selects the CAN IDs of a node (base + node address)."""
+    selects the CAN IDs of a node (base + node address). Without a known
+    scheme the string is an IP address (UDP) or a serial port."""
     spec = spec.strip()
+    known = transports()
     scheme, sep, rest = spec.partition(":")
-    if not sep or scheme not in ("serial", "udp", "can"):
+    if not sep or scheme not in known:
         if re.match(r"^\d+\.\d+\.\d+\.\d+(:\d+)?$", spec):
             scheme, rest = "udp", spec.replace(":", ",port=")
         else:
             scheme, rest = "serial", spec       # /dev/ttyUSB0, COM3
     target, *parts = rest.split(",")
-    if scheme == "serial":
-        return Serial(target, **_options(parts, {"baud": int}))
-    if scheme == "udp":
-        try:
-            ipaddress.ip_address(target)
-        except ValueError:
-            target = socket.gethostbyname(target)
-        o = _options(parts, {"port": int, "mtu": int})
-        return Udp(target, o.get("port", UDP_PORT), o.get("mtu"))
-    interface, _, channel = target.partition(":")
-    if not channel:
-        raise UmcubError("CAN: can:<python-can interface>:<channel>, e.g. can:socketcan:can0")
-    o = _options(parts, {"bitrate": int, "fd": bool, "data-bitrate": int, "tx": _int, "rx": _int, "ext": bool,
-                         "mtu": int})
-    return IsoTp(interface, channel, node=node, **o)
+    t = known[scheme]
+    conn = t.open(target, node, **_options(parts, t.options))
+    if not isinstance(conn, Connection):
+        raise UmcubError(f"transport '{scheme}' returned {type(conn).__name__}, not a umcub Connection")
+    return conn

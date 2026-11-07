@@ -14,6 +14,7 @@ tests/host/link_e2e.py build/matrix/host   # simulated devices: umcub link bus, 
 tests/tools/check_pins_test.py              # pin check: right / wrong pins and AF numbers, AF filled in, packages
 tests/tools/layout_test.py                  # MCUboot's rule on the slots
 tests/tools/kconfig_test.py                 # what `umcub config generate` writes and warns about
+tests/tools/host_lib_test.py                # host library without a device: transports, plugins, device strings
 tools/build/check_docs.py                   # README and docs/ still match the repository (size tables, links, option names and help texts, ...)
 tools/build/gen_kconfig.py --check            # port/kconfig_gen/ (part and pin menus) matches ST's pin data
 tools/build/check_paths.py                  # no two paths differ only in case (Windows / macOS checkouts)

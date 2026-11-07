@@ -14,6 +14,7 @@
 The device (-d, or $UMCUB_DEVICE): a serial port (/dev/ttyUSB0, COM3,
 serial:<port>,baud=921600), an IP address (udp:<ip>,port=1337) or a CAN bus
 (can:<python-can interface>:<channel>[,bitrate=500000][,fd][,data-bitrate=N][,tx=0x7C0][,rx=0x7C8][,ext]).
+Plugins add more (`umcub transports` lists them, --plugins DIR loads a folder).
 The bootloader must be in recovery mode. `image` and `keys` need no device.
 """
 import argparse
@@ -33,6 +34,8 @@ def parser():
     ap.add_argument("--admin-key", help="link SECURE: private admin key (PEM)")
     ap.add_argument("--device-key", help="link SECURE: device key (PEM, the public half is enough)")
     ap.add_argument("--timeout", type=float, default=3.0, help="seconds per request")
+    ap.add_argument("--plugins", default=os.environ.get("UMCUB_PLUGINS"),
+                    help="folder of transport plugins (.py files) to load (default $UMCUB_PLUGINS)")
     sub = ap.add_subparsers(dest="cmd", required=True, metavar="command")
 
     p = sub.add_parser("discover", help="umcub link devices on the bus")
@@ -76,6 +79,7 @@ def parser():
     p = sub.add_parser("serve", help="proxy for smpmgr / mcumgr (pty or UDP)")
     p.add_argument("--pty-link", help="also create this symlink to the pty")
     p.add_argument("--udp-listen", help="local HOST:PORT for SMP over UDP clients")
+    sub.add_parser("transports", help="device string schemes, with the plugins that add them (no device)")
     p = sub.add_parser("sniff", help="listen only: decode every link frame on a serial bus")
     p.add_argument("--raw", action="store_true", help="also print lines that are not link frames")
 
@@ -95,6 +99,15 @@ def main(argv=None):
         if a.cmd in ("image", "keys", "config"):
             from . import cli_build
             return cli_build.run(a)
+        from .plugins import load_plugins
+        for p in load_plugins(a.plugins):
+            if p.error:
+                print(f"umcub: plugin {p.name} ({p.source}) not loaded: {p.error}", file=sys.stderr)
+        if a.cmd == "transports":
+            from .connection import transports
+            for t in transports().values():
+                print(f"{t.scheme:10s} {t.description}")
+            return 0
         if not a.device:
             sys.exit("umcub: no device (-d or $UMCUB_DEVICE)")
         from . import cli_device
