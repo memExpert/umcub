@@ -60,10 +60,10 @@ Larger changes:
   flasher only. It depends on the host library by the source archive of a tag
   (`umcub @ https://github.com/memExpert/umcub/archive/refs/tags/<tag>.zip#subdirectory=tools/host`: a git URL would
   clone every submodule, and on Windows some of their paths are too long) and holds no protocol or device logic: what
-  it lacks goes into the library, so the CLI and the GUI behave the same. Library changes the plan asks for:
-  transport registry with plugins, adapter list, bus hub for parallel uploads on one bus, `flash()` choosing SMP or
-  lite, frame tap, error codes, a signing function for SECURE sessions, board name catalog (JSON), build-only
-  dependencies (`esp-idf-kconfig`) in an extra such as `umcub[build]`, CAN discovery.
+  it lacks goes into the library, so the CLI and the GUI behave the same. Library changes the plan still asks for:
+  `flash()` (protocol given by the caller), a signing function for SECURE sessions, board name catalog (JSON),
+  build-only dependencies (`esp-idf-kconfig`) in an extra such as `umcub[build]`, bus hub for parallel uploads on one
+  bus, CAN discovery.
 - [ ] **SECURE link sessions signed by a server**, for users who log in instead of holding key files. The admin
   private key stays on the server (preferably in an HSM) and is never downloaded: one shared key cannot be revoked
   without reflashing the bootloaders, and one leak exposes every device built with it.

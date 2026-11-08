@@ -23,6 +23,7 @@ import re
 import select
 import socket
 import time
+from dataclasses import dataclass
 
 from .errors import UmcubError
 from .nlip import NlipDecoder, nlip_encode
@@ -49,6 +50,12 @@ class Connection:
     mtu = MTU_MIN       # largest SMP packet, when the device does not report it
     noise = 0           # lines that were neither ours nor valid (collisions on a shared bus)
 
+    def text(self, cmd, wait):
+        """A text command and its answer; by default one packet each way (Serial frames lines itself)."""
+        self.send(None, cmd.encode())
+        r = self.recv(None, wait)
+        return r.decode(errors="replace") if r else ""
+
     def close(self):
         pass
 
@@ -59,17 +66,22 @@ class Connection:
         self.close()
 
 
+def open_serial(port, baud, timeout):
+    """A pyserial port; failures as UmcubError (serial.open)."""
+    import serial
+    try:
+        return serial.Serial(port, baud, timeout=timeout)
+    except serial.SerialException as e:
+        raise UmcubError(code="serial.open", port=port, reason=str(e)) from e
+
+
 class Serial(Connection):
     """Stream transport: SMP as NLIP lines, frames as '05 <kind> base64 \\n' lines, text as is."""
 
     stream = True
 
     def __init__(self, port, baud=115200):
-        import serial
-        try:
-            self.s = serial.Serial(port, baud, timeout=0)
-        except serial.SerialException as e:
-            raise UmcubError(code="serial.open", port=port, reason=str(e)) from e
+        self.s = open_serial(port, baud, 0)
         self.name = port
         self.buf = b""
         self.nlip = NlipDecoder()
@@ -136,16 +148,7 @@ class Serial(Connection):
         return out.replace(b"\r", b"").decode(errors="replace")
 
 
-class _Packets(Connection):
-    """One payload per packet, whatever its kind; a text command is one packet, the answer the next."""
-
-    def text(self, cmd, wait):
-        self.send(None, cmd.encode())
-        r = self.recv(None, wait)
-        return r.decode(errors="replace") if r else ""
-
-
-class Udp(_Packets):
+class Udp(Connection):
     def __init__(self, host, port=UDP_PORT, mtu=None):
         self.name = f"{host}:{port}"
         self.addr = (host, port)
@@ -199,7 +202,7 @@ def isotp_stack(interface, channel, bitrate, tx_id, rx_id, fd=False, data_bitrat
     return bus, notifier, stack
 
 
-class IsoTp(_Packets):
+class IsoTp(Connection):
     """CAN ISO-TP; the node's IDs are the bases + its node address (like the bootloader)."""
 
     selects_node = True
@@ -243,6 +246,60 @@ def _options(parts, known):
         conv = known[k]
         opts[k.replace("-", "_")] = True if conv is bool else conv(v)
     return opts
+
+
+@dataclass
+class TapEvent:
+    """One payload a connection sent or received (see add_tap)."""
+    time: float         # time.monotonic()
+    direction: str      # "tx" or "rx"
+    kind: object        # KIND_SMP, KIND_LINK, KIND_LITE, KIND_USER, "text", or None (a packet transport's DATA)
+    payload: bytes      # as on the connection: link frames still encrypted (umcub.link.describe_frame decodes them)
+    connection: str     # Connection.name
+
+
+def add_tap(conn, tap):
+    """Call tap(TapEvent) for every payload `conn` sends or receives and every text
+    command and its answer, from the thread doing the I/O. Wraps the methods of this
+    one object, so it works for any Connection, plugins included. An exception in
+    `tap` does not stop the transfer (a log must not break an upload): the first
+    one is kept in conn.tap_error."""
+    send, recv, text = conn.send, conn.recv, conn.text
+    conn.tap_error = None
+    in_text = []            # inside text(): its packets are the text events, not reported again
+
+    def emit(direction, kind, payload):
+        if in_text:
+            return
+        try:
+            tap(TapEvent(time.monotonic(), direction, kind, bytes(payload), conn.name))
+        except Exception as e:
+            if conn.tap_error is None:
+                conn.tap_error = e
+
+    def tapped_send(kind, payload):
+        emit("tx", kind, payload)
+        return send(kind, payload)
+
+    def tapped_recv(kind, timeout):
+        r = recv(kind, timeout)
+        if r is not None:
+            emit("rx", kind, r)
+        return r
+
+    def tapped_text(cmd, wait):
+        emit("tx", "text", cmd.encode())
+        in_text.append(1)
+        try:
+            r = text(cmd, wait)
+        finally:
+            in_text.pop()
+        if r:
+            emit("rx", "text", r.encode())
+        return r
+
+    conn.send, conn.recv, conn.text = tapped_send, tapped_recv, tapped_text
+    return conn
 
 
 class Transport:
@@ -315,10 +372,10 @@ register_transport("can", _open_can, {"bitrate": int, "fd": bool, "data-bitrate"
                    _adapters("can_adapters"))
 
 
-def open_connection(spec, node=0):
+def open_connection(spec, node=0, tap=None):
     """The connection described by `spec` (see the module docstring); `node`
     selects the CAN IDs of a node (base + node address). Without a known
-    scheme the string is an IP address (UDP) or a serial port."""
+    scheme the string is an IP address (UDP) or a serial port. `tap`: see add_tap."""
     spec = spec.strip()
     known = transports()
     scheme, sep, rest = spec.partition(":")
@@ -332,4 +389,4 @@ def open_connection(spec, node=0):
     conn = t.open(target, node, **_options(parts, t.options))
     if not isinstance(conn, Connection):
         raise UmcubError(code="transport.type", scheme=scheme, type=type(conn).__name__)
-    return conn
+    return add_tap(conn, tap) if tap else conn

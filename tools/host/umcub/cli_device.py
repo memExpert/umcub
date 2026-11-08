@@ -6,7 +6,7 @@ import sys
 import time
 
 from . import lite
-from .connection import KIND_SMP
+from .connection import KIND_LINK, KIND_LITE, KIND_SMP
 from .device import connect, discover
 from .errors import UmcubError
 from .image import Image
@@ -26,8 +26,14 @@ def _read(path):
         raise UmcubError(code="file.read", path=path, reason=e.strerror) from e
 
 
+def _trace(ev):
+    kind = {KIND_SMP: "smp", KIND_LINK: "link", KIND_LITE: "lite"}.get(ev.kind, ev.kind or "data")
+    shown = ev.payload[:32].hex() + ("..." if len(ev.payload) > 32 else "")
+    print(f"{ev.time:.3f} {ev.direction} {kind} {len(ev.payload)} B {shown}", file=sys.stderr, flush=True)
+
+
 def cmd_discover(a):
-    devs = discover(a.device, a.rounds, a.slots, a.slot_ms, a.timeout)
+    devs = discover(a.device, a.rounds, a.slots, a.slot_ms, a.timeout, tap=_trace if a.trace else None)
     for d in devs:
         print(describe_identity(d))
     print(f"{len(devs)} device(s)")
@@ -194,7 +200,7 @@ def cmd_serve(dev, a):
 def cmd_sniff(a):
     port, _, baud = a.device.removeprefix("serial:").partition(",baud=")
     print(f"# listening on {port} (no transmit), Ctrl-C to stop", flush=True)
-    sniff(port, int(baud or 115200), a.raw, lambda text, ts: print(f"{ts:8.3f}  {text}", flush=True))
+    sniff(port, lambda ev: print(f"{ev.time:8.3f}  {ev.text}", flush=True), int(baud or 115200), a.raw)
 
 
 COMMANDS = {"info": cmd_info, "cmd": cmd_cmd, "upload": cmd_upload, "reset": cmd_reset, "list": cmd_list,
@@ -207,5 +213,5 @@ def run(a):
         return cmd_discover(a)
     if a.cmd == "sniff":
         return cmd_sniff(a)
-    with connect(a.device, a.node, a.uid, a.admin_key, a.device_key, a.timeout) as dev:
+    with connect(a.device, a.node, a.uid, a.admin_key, a.device_key, a.timeout, tap=_trace if a.trace else None) as dev:
         return COMMANDS[a.cmd](dev, a)

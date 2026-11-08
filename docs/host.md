@@ -55,7 +55,7 @@ Nothing is opened, so a listed port says nothing about a device answering on it.
 An adapter the operating system does not show as a serial port or network interface, and python-can does not know,
 gets a plugin: a Python module with a `register()` function that registers a scheme. `open(target, node, **options)`
 returns a `umcub.Connection` that carries whole payloads (`send(kind, payload)`, `recv(kind, timeout)` returning
-`None` on timeout, `close()`, a `name`; `text(cmd, wait)` for text commands):
+`None` on timeout, `close()`, a `name`; the inherited `text(cmd, wait)` sends a text command as one packet):
 
 ```python
 import umcub
@@ -142,6 +142,13 @@ Outside the checkout (an installed copy of the package) `$UMCUB_ROOT` points to 
 Nothing in the library prints or exits: errors are exceptions (`UmcubError`: `NoAnswer`, `DeviceError` with the
 device's `rc`, `LinkError`, `Cancelled`), progress is a callback, a `threading.Event` cancels. The calls block, so
 a GUI runs them in a worker thread.
+
+`tap=` on `connect()`, `discover()` and `open_connection()` (or `umcub.add_tap(conn, tap)`) calls `tap(TapEvent)`
+for every payload sent and received and every text command and its answer: time, direction, kind, bytes (link
+frames as on the wire; `umcub.link.describe_frame()` decodes them) and the connection's name, from the thread doing
+the I/O. An exception in the tap does not stop the transfer; the first one is kept in `conn.tap_error`. The tool's
+`--trace` prints them. `umcub.link.sniff(port, out, baud, raw, stop)` listens on a serial bus without writing and calls
+`out(SniffEvent)` (time, the parsed frame or a raw line, its text) until the `stop` event is set.
 
 Every error has a stable `code` (`link.auth_failed`, `smp.device`, ...) and its `params`; the English text is
 `umcub.errors.MESSAGES[code]` filled with them. A translated program keeps its own text per code and fills in the

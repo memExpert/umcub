@@ -10,8 +10,9 @@ import hmac
 import os
 import struct
 import time
+from dataclasses import dataclass
 
-from .connection import KIND_LINK
+from .connection import KIND_LINK, open_serial
 from .errors import LinkError
 
 MAGIC, VERSION = 0xA5, 1
@@ -87,28 +88,43 @@ def describe_frame(f):
     return s
 
 
-def sniff(port, baud=115200, raw=False, out=print):
+@dataclass
+class SniffEvent:
+    """A line seen on the bus: a link frame (`frame` parsed, `data` its bytes) or,
+    with `raw`, anything else (`frame` None, `data` the line)."""
+    time: float         # seconds since the sniffer started
+    frame: dict | None  # parse_frame() of a link frame, None for a raw line or a frame that does not parse
+    data: bytes
+    text: str           # describe_frame(), or "raw <hex>"
+
+
+def sniff(port, out, baud=115200, raw=False, stop=None):
     """Report every link frame seen on a serial port (never writes to it) as
-    out(text, seconds since start); runs until interrupted."""
-    import serial
-    s = serial.Serial(port, baud, timeout=0.1)
-    s.reset_input_buffer()
-    start = bytes([0x05, KIND_LINK])
-    buf, t0 = b"", time.monotonic()
-    while True:
-        buf += s.read(max(1, s.in_waiting))     # timestamps as the bytes arrive
-        while b"\n" in buf:
-            line, buf = buf.split(b"\n", 1)
-            ts = time.monotonic() - t0
-            i = line.find(start)
-            if i >= 0:
-                try:
-                    out(describe_frame(base64.b64decode(line[i + 2:].strip(), validate=True)), ts)
-                    continue
-                except ValueError:
-                    pass
-            if raw and line.strip():
-                out(f"raw {line[:64].hex()}", ts)
+    out(SniffEvent), from this thread; returns when the `stop` event is set
+    (checked every 0.1 s), otherwise runs until interrupted."""
+    s = open_serial(port, baud, 0.1)
+    try:
+        s.reset_input_buffer()
+        start = bytes([0x05, KIND_LINK])
+        buf, t0 = b"", time.monotonic()
+        while stop is None or not stop.is_set():
+            buf += s.read(max(1, s.in_waiting))     # timestamps as the bytes arrive
+            while b"\n" in buf:
+                line, buf = buf.split(b"\n", 1)
+                ts = time.monotonic() - t0
+                i = line.find(start)
+                if i >= 0:
+                    try:
+                        data = base64.b64decode(line[i + 2:].strip(), validate=True)
+                    except ValueError:
+                        pass
+                    else:
+                        out(SniffEvent(ts, parse_frame(data), data, describe_frame(data)))
+                        continue
+                if raw and line.strip():
+                    out(SniffEvent(ts, None, line, f"raw {line[:64].hex()}"))
+    finally:
+        s.close()
 
 
 # --------------------------------------------------------------------------

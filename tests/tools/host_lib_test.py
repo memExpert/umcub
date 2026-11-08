@@ -1,9 +1,17 @@
 #!/usr/bin/env python3
 """umcub host library without a device: transport registry, plugins (a folder and an
-installed package's entry point), device strings."""
+installed package's entry point), device strings, adapter lists, error codes, the tap
+and the sniffer (on a pseudo terminal)."""
+import ast
+import base64
+import os
+import string
 import sys
 import tempfile
 import textwrap
+import threading
+import time
+import types
 from pathlib import Path
 
 tmp = Path(tempfile.mkdtemp(prefix="umcub_host_lib_"))
@@ -23,7 +31,12 @@ tmp = Path(tempfile.mkdtemp(prefix="umcub_host_lib_"))
 sys.path.insert(0, str(tmp / "site"))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools/host"))
 import umcub  # noqa: E402
-from umcub.connection import Serial, Udp  # noqa: E402,F401
+from serial.tools import list_ports  # noqa: E402
+from serial.tools.list_ports_common import ListPortInfo  # noqa: E402
+from umcub import link  # noqa: E402
+from umcub.adapter import network_adapters, socketcan_adapters  # noqa: E402
+from umcub.connection import Udp  # noqa: E402
+from umcub.errors import MESSAGES, DeviceError  # noqa: E402
 
 bad = 0
 
@@ -102,12 +115,8 @@ raises("node by IDs refuses a UID", lambda: umcub.connect("addressed:x", uid="00
 with umcub.connect("addressed:x", node=3) as dev:          # node chosen when opening: no link layer
     expect("node by IDs: no link", dev.link is None)
 
+
 # Adapters: fake serial ports and network interfaces, a plugin's own list, a failing source.
-import types  # noqa: E402
-from serial.tools import list_ports  # noqa: E402
-from serial.tools.list_ports_common import ListPortInfo  # noqa: E402
-
-
 def port(dev, hwid="n/a", desc="n/a", vid=None, pid=None, sn=None, mfr=None):
     p = ListPortInfo(dev, skip_link_detection=True)
     p.hwid, p.description, p.vid, p.pid, p.serial_number, p.manufacturer = hwid, desc, vid, pid, sn, mfr
@@ -138,7 +147,6 @@ sys.modules["psutil"] = types.SimpleNamespace(
                           "ptp": [addr(family=AF, address="10.9.9.9", netmask="255.255.255.255")]})
 
 # Linux SocketCAN from a fake sysfs: a USB adapter that is down, a vcan that is up, an Ethernet port.
-from umcub.adapter import socketcan_adapters  # noqa: E402
 fs = tmp / "sysfs"
 usbdev = fs / "devices/usb1/1-1.2"
 (usbdev / "1-1.2:1.0").mkdir(parents=True)
@@ -162,7 +170,6 @@ expect("socketcan: vcan", len(a) > 1 and a[1].description == "virtual", str(a[1:
 
 # Network: psutil above, sysfs here; usbeth0 is a USB-Ethernet adapter without a cable, wlan0 has a link but no
 # address, the others have no sysfs device (virtual) and are left out unless they have an IPv4 subnet.
-from umcub.adapter import network_adapters  # noqa: E402
 (fs / "devices/usb2/2-5.2/2-5.2:1.0").mkdir(parents=True)
 for k, v in {"idVendor": "0bda", "idProduct": "8153", "product": "USB 10/100/1000 LAN", "manufacturer": "Realtek"}.items():
     (fs / f"devices/usb2/2-5.2/{k}").write_text(v + "\n")
@@ -208,10 +215,6 @@ raises("unknown scheme is a serial port", lambda: umcub.open_connection("nosuch:
 
 # Error codes: every code used in the library is in MESSAGES with exactly the params its template needs, every
 # message is used, and the errors carry code / params / rc.
-import ast  # noqa: E402
-import string  # noqa: E402
-from umcub.errors import MESSAGES, DeviceError  # noqa: E402
-
 used = set()
 for f in sorted((Path(umcub.__file__).parent).glob("*.py")):
     for node in ast.walk(ast.parse(f.read_text())):
@@ -247,13 +250,54 @@ except umcub.UmcubError as err:
     expect("image error code", err.code == "image.not_signed", err.code)
 junk = tmp / "junk.pem"
 junk.write_text("not a key")
-from umcub.link import load_key  # noqa: E402
 for private in (False, True):
     try:
-        load_key(junk, private)
+        link.load_key(junk, private)
         expect("junk key refused", False)
     except umcub.LinkError as err:
         expect("junk key: LinkError key.invalid", err.code == "key.invalid", err.code)
+
+# Tap: every payload and text command of a connection, plugins included; a failing tap does not stop the transfer.
+events = []
+with umcub.connect("loop:t", tap=events.append) as dev:
+    dev.send(umcub.KIND_SMP, b"abc")
+    dev.recv(umcub.KIND_SMP, 0.1)
+    dev.recv(umcub.KIND_SMP, 0.0)                         # timeout: no event
+expect("tap: tx and rx", [(e.direction, e.kind, e.payload, e.connection) for e in events] ==
+       [("tx", umcub.KIND_SMP, b"abc", "loop:t"), ("rx", umcub.KIND_SMP, b"abc", "loop:t")], str(events))
+events.clear()
+with umcub.connect("loop:t", tap=events.append) as dev:          # a plugin inherits the packet text()
+    answer = dev.text("i", 0.1)
+expect("plugin text(): one packet each way", answer == "i", repr(answer))
+expect("tap: a text command is one tx / rx pair", [(e.direction, e.kind, e.payload) for e in events] ==
+       [("tx", "text", b"i"), ("rx", "text", b"i")], str(events))
+c = umcub.open_connection("loop:t", tap=lambda ev: 1 / 0)
+c.send(None, b"x")
+expect("tap error kept, transfer goes on", isinstance(c.tap_error, ZeroDivisionError) and c.recv(None, 0) == b"x")
+
+# Sniffer on a pseudo terminal: link frames and a raw line, stops on the event.
+if sys.platform.startswith("linux"):
+    import pty
+    master, slave = pty.openpty()
+    got, stop = [], threading.Event()
+    th = threading.Thread(target=link.sniff, args=(os.ttyname(slave), got.append), kwargs=dict(raw=True, stop=stop))
+    th.start()
+    time.sleep(0.3)
+    f = link.make_frame(link.T_HELLO, 0, 5, 1, b"")
+    os.write(master, b"\x05\x0b" + base64.b64encode(f) + b"\nnoise line\n")
+    for _ in range(50):
+        if len(got) >= 2:
+            break
+        time.sleep(0.05)
+    stop.set()
+    th.join(2)
+    expect("sniff: stops on the event", not th.is_alive())
+    expect("sniff: link frame parsed", got and got[0].frame and got[0].frame["dst"] == 5 and got[0].data == f,
+           str(got[:1]))
+    expect("sniff: raw line", len(got) > 1 and got[1].frame is None and got[1].text.startswith("raw "), str(got[1:]))
+    os.close(master)
+    os.close(slave)
+raises("sniff: port that does not exist", lambda: link.sniff("/dev/umcub-no-such-port", print), text="umcub-no-such-port")
 
 print(f"host library: {'all cases passed' if not bad else f'{bad} failure(s)'}")
 sys.exit(1 if bad else 0)

@@ -71,11 +71,12 @@ class Device:
         self.close()
 
 
-def connect(spec, node=None, uid=None, admin_key=None, device_key=None, timeout=3.0):
+def connect(spec, node=None, uid=None, admin_key=None, device_key=None, timeout=3.0, tap=None):
     """Open `spec` (see umcub.connection). On serial and UDP, `node` or `uid`
     selects a device on a umcub link bus (SECURE: with `admin_key` and
-    `device_key`, PEM files); on CAN `node` selects the node's IDs."""
-    conn = open_connection(spec, node=node or 0)
+    `device_key`, PEM files); on CAN `node` selects the node's IDs. `tap` sees
+    every payload on the connection (umcub.connection.add_tap)."""
+    conn = open_connection(spec, node=node or 0, tap=tap)
     try:
         if conn.selects_node:
             if uid is not None:
@@ -91,7 +92,7 @@ def connect(spec, node=None, uid=None, admin_key=None, device_key=None, timeout=
         raise
 
 
-def discover(spec, rounds=8, slots=16, slot_ms=20, timeout=3.0):
+def discover(spec, rounds=8, slots=16, slot_ms=20, timeout=3.0, tap=None):
     """Identities of the umcub link devices on the bus of `spec` (serial or UDP broadcast)."""
-    with open_connection(spec) as conn:
+    with open_connection(spec, tap=tap) as conn:
         return Link(conn, timeout=timeout).discover(rounds, slots, slot_ms)
