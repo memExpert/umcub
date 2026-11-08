@@ -37,7 +37,7 @@ def _trace(ev):
 def cmd_discover(a):
     devs = discover(a.device, a.rounds, a.slots, a.slot_ms, a.timeout, tap=_trace if a.trace else None)
     for d in devs:
-        print(describe_identity(d))
+        print(describe_identity(d) if "uid" in d else f"node {d['addr']:5d}  {d['protocol']}")     # CAN: no identity
     print(f"{len(devs)} device(s)")
 
 

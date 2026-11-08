@@ -60,8 +60,7 @@ Larger changes:
   flasher only. It depends on the host library by the source archive of a tag
   (`umcub @ https://github.com/memExpert/umcub/archive/refs/tags/<tag>.zip#subdirectory=tools/host`: a git URL would
   clone every submodule, and on Windows some of their paths are too long) and holds no protocol or device logic: what
-  it lacks goes into the library, so the CLI and the GUI behave the same. Library changes the plan still asks for:
-  bus hub for parallel uploads on one bus, CAN discovery.
+  it lacks goes into the library, so the CLI and the GUI behave the same.
 - [ ] **SECURE link sessions signed by a server**, for users who log in instead of holding key files. The admin
   private key stays on the server (preferably in an HSM) and is never downloaded: one shared key cannot be revoked
   without reflashing the bootloaders, and one leak exposes every device built with it.

@@ -22,6 +22,7 @@ import ipaddress
 import re
 import select
 import socket
+import threading
 import time
 from dataclasses import dataclass
 
@@ -168,57 +169,91 @@ class Udp(Connection):
         return self.s.recv(4096) if r else None
 
 
-def isotp_stack(interface, channel, bitrate, tx_id, rx_id, fd=False, data_bitrate=2000000, extended=False):
-    """A started python-can-isotp stack with the umcub frame settings; returns (bus, notifier, stack)."""
-    import can
-    import isotp
-    try:
-        bus = can.Bus(interface=interface, channel=channel, bitrate=bitrate, fd=fd,
-                      data_bitrate=data_bitrate if fd else None)
-    except (can.CanError, OSError, ValueError, ImportError) as e:
-        raise UmcubError(code="can.open", interface=interface, channel=channel, reason=str(e)) from e
-    # A device that allows back-to-back consecutive frames (STmin 0) fills
-    # the interface's TX queue (Linux default qlen 10): wait instead of
-    # failing on ENOBUFS.
-    send = bus.send
+_buses = {}                 # (interface, channel) -> _SharedBus
+_buses_lock = threading.Lock()
 
-    def send_retry(msg, timeout=None):
-        for _ in range(1000):
-            try:
-                return send(msg, timeout)
-            except can.CanOperationError as e:
-                if getattr(e, "error_code", None) != errno.ENOBUFS:
-                    raise
-                time.sleep(0.001)
-        return send(msg, timeout)
-    bus.send = send_retry
-    mode = isotp.AddressingMode.Normal_29bits if extended else isotp.AddressingMode.Normal_11bits
-    addr = isotp.Address(mode, txid=tx_id, rxid=rx_id)
-    params = {"tx_padding": 0xCC, "can_fd": fd, "tx_data_length": 64 if fd else 8,
-              "blocking_send": True, "max_frame_size": 4095, "bitrate_switch": fd}
-    notifier = can.Notifier(bus, [])
-    stack = isotp.NotifierBasedCanStack(bus, notifier, address=addr, params=params)
-    stack.start()
-    return bus, notifier, stack
+
+class _SharedBus:
+    """One python-can bus and notifier per channel for every connection on it: drivers such as PCAN or Vector open
+    a channel once; each connection adds its own ISO-TP stack (its node's IDs)."""
+
+    def __init__(self, key, settings):
+        import can
+        interface, channel = key
+        bitrate, fd, data_bitrate = settings
+        try:
+            self.bus = can.Bus(interface=interface, channel=channel, bitrate=bitrate, fd=fd,
+                               data_bitrate=data_bitrate if fd else None)
+        except (can.CanError, OSError, ValueError, ImportError) as e:
+            raise UmcubError(code="can.open", interface=interface, channel=channel, reason=str(e)) from e
+        # A device that allows back-to-back consecutive frames (STmin 0) fills
+        # the interface's TX queue (Linux default qlen 10): wait instead of
+        # failing on ENOBUFS.
+        send = self.bus.send
+
+        def send_retry(msg, timeout=None):
+            for _ in range(1000):
+                try:
+                    return send(msg, timeout)
+                except can.CanOperationError as e:
+                    if getattr(e, "error_code", None) != errno.ENOBUFS:
+                        raise
+                    time.sleep(0.001)
+            return send(msg, timeout)
+        self.bus.send = send_retry
+        self.notifier = can.Notifier(self.bus, [])
+        self.key, self.settings, self.users = key, settings, 0
+
+    @classmethod
+    def take(cls, interface, channel, settings):
+        key = (interface, str(channel))
+        with _buses_lock:
+            b = _buses.get(key)
+            if b is None:
+                b = _buses[key] = cls(key, settings)
+            elif b.settings != settings:
+                raise UmcubError(code="can.open", interface=interface, channel=channel,
+                                 reason="already open with other settings")
+            b.users += 1
+            return b
+
+    def release(self):
+        with _buses_lock:
+            self.users -= 1
+            if self.users:
+                return
+            del _buses[self.key]
+        self.notifier.stop()
+        self.bus.shutdown()
 
 
 class IsoTp(Connection):
-    """CAN ISO-TP; the node's IDs are the bases + its node address (like the bootloader)."""
+    """CAN ISO-TP; the node's IDs are the bases + its node address (like the bootloader). Connections on one
+    channel share its bus."""
 
     selects_node = True
 
     def __init__(self, interface, channel, bitrate=500000, fd=False, data_bitrate=2000000, tx=CAN_TX, rx=CAN_RX,
                  ext=False, node=0, mtu=1024):
+        import isotp
         self.name = f"{interface}:{channel}"
         self.mtu = mtu
-        self.bus, self.notifier, self.stack = isotp_stack(interface, channel, bitrate, tx + node, rx + node, fd=fd,
-                                                          data_bitrate=data_bitrate, extended=ext)
+        mode = isotp.AddressingMode.Normal_29bits if ext else isotp.AddressingMode.Normal_11bits
+        params = {"tx_padding": 0xCC, "can_fd": fd, "tx_data_length": 64 if fd else 8,
+                  "blocking_send": True, "max_frame_size": 4095, "bitrate_switch": fd}
+        self.shared = _SharedBus.take(interface, channel, (bitrate, fd, data_bitrate))
+        try:
+            self.stack = isotp.NotifierBasedCanStack(self.shared.bus, self.shared.notifier, params=params,
+                                                     address=isotp.Address(mode, txid=tx + node, rxid=rx + node))
+            self.stack.start()
+        except BaseException:
+            self.shared.release()
+            raise
 
     def close(self):
         if self.stack:
             self.stack.stop()
-            self.notifier.stop()
-            self.bus.shutdown()
+            self.shared.release()
             self.stack = None
 
     def send(self, kind, payload):
@@ -306,11 +341,12 @@ class Transport:
     """A registered kind of connection: `<scheme>:<target>[,option[=value]]...` opens
     open(target, node, **options). `options` maps each option name to its converter
     (int, bool for a flag, str, ...); `description` is one line for lists and help;
-    `adapters` (optional) returns the umcub.Adapter list of what is plugged in now."""
+    `adapters` (optional) returns the umcub.Adapter list of what is plugged in now; `parallel`: several
+    connections to one target may work at once (see exclusive_key)."""
 
-    def __init__(self, scheme, open, options=None, description="", adapters=None):
+    def __init__(self, scheme, open, options=None, description="", adapters=None, parallel=False):
         self.scheme, self.open, self.options, self.description = scheme, open, dict(options or {}), description
-        self.adapters = adapters
+        self.adapters, self.parallel = adapters, parallel
 
     def __repr__(self):
         return f"Transport({self.scheme!r})"
@@ -319,14 +355,14 @@ class Transport:
 _transports = {}
 
 
-def register_transport(scheme, open, options=None, description="", adapters=None):
+def register_transport(scheme, open, options=None, description="", adapters=None, parallel=False):
     """Add a transport (built-in or a plugin's register()). A scheme is
     registered once: a plugin cannot replace another transport."""
     if not re.fullmatch(r"[a-z][a-z0-9_-]*", scheme or ""):
         raise UmcubError(code="transport.scheme", scheme=scheme)
     if scheme in _transports:
         raise UmcubError(code="transport.duplicate", scheme=scheme)
-    _transports[scheme] = Transport(scheme, open, options, description, adapters)
+    _transports[scheme] = Transport(scheme, open, options, description, adapters, parallel)
     return _transports[scheme]
 
 
@@ -366,16 +402,14 @@ def _adapters(name):
 register_transport("serial", _open_serial, {"baud": int}, "serial port: UART, RS485 adapter, USB CDC",
                    _adapters("serial_adapters"))
 register_transport("udp", _open_udp, {"port": int, "mtu": int}, "UDP (Ethernet, any IP network)",
-                   _adapters("network_adapters"))
+                   _adapters("network_adapters"), parallel=True)
 register_transport("can", _open_can, {"bitrate": int, "fd": bool, "data-bitrate": int, "tx": _int, "rx": _int,
                                       "ext": bool, "mtu": int}, "CAN ISO-TP through a python-can interface",
-                   _adapters("can_adapters"))
+                   _adapters("can_adapters"), parallel=True)
 
 
-def open_connection(spec, node=0, tap=None):
-    """The connection described by `spec` (see the module docstring); `node`
-    selects the CAN IDs of a node (base + node address). Without a known
-    scheme the string is an IP address (UDP) or a serial port. `tap`: see add_tap."""
+def _parse(spec):
+    """(Transport, target, option strings) of a device string."""
     spec = spec.strip()
     known = transports()
     scheme, sep, rest = spec.partition(":")
@@ -385,8 +419,22 @@ def open_connection(spec, node=0, tap=None):
         else:
             scheme, rest = "serial", spec       # /dev/ttyUSB0, COM3
     target, *parts = rest.split(",")
-    t = known[scheme]
+    return known[scheme], target, parts
+
+
+def exclusive_key(spec):
+    """None when connections to `spec` may work at the same time (CAN: shared bus, UDP: one socket each); else the
+    key of the medium they must take turns on ("serial:/dev/ttyUSB1": a half-duplex bus, one port)."""
+    t, target, _ = _parse(spec)
+    return None if t.parallel else f"{t.scheme}:{target}"
+
+
+def open_connection(spec, node=0, tap=None):
+    """The connection described by `spec` (see the module docstring); `node`
+    selects the CAN IDs of a node (base + node address). Without a known
+    scheme the string is an IP address (UDP) or a serial port. `tap`: see add_tap."""
+    t, target, parts = _parse(spec)
     conn = t.open(target, node, **_options(parts, t.options))
     if not isinstance(conn, Connection):
-        raise UmcubError(code="transport.type", scheme=scheme, type=type(conn).__name__)
+        raise UmcubError(code="transport.type", scheme=t.scheme, type=type(conn).__name__)
     return add_tap(conn, tap) if tap else conn

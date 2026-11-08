@@ -138,6 +138,9 @@ def can_tools(build, py):
     try:
         p = tool(py, can + ["echo", "hello-can"])
         check(p.returncode == 0 and "hello-can" in p.stdout, "umcub echo over CAN")
+        p = tool(py, can + ["discover"], timeout=60)
+        check(p.returncode == 0 and "node     0  smp" in p.stdout and "1 device(s)" in p.stdout,
+              "umcub discover over CAN: node 0 answers SMP, the others are silent")
         with tempfile.TemporaryDirectory() as d:
             subprocess.run([py, os.path.join(ROOT, "tools/host/umcub"), "image", "sign", "--board", "nucleo_h755zi_q",
                             "--core", "cm7", *host_conf("sim_can_post"), "--version", "3.1.4",
@@ -199,6 +202,8 @@ def lite_tools(build, py):
         hub.start()
         try:
             can = ["-d", f"can:serial:{hub.path}"]
+            p = tool(py, can + ["discover"], timeout=60)
+            check(p.returncode == 0 and "node     0  lite" in p.stdout, "umcub discover over CAN: a lite bootloader")
             p = tool(py, can + ["upload", "--lite", img, "--chunk", "512"], timeout=300)
             check(p.returncode == 0 and "uploaded" in p.stdout, "umcub upload --lite over CAN ISO-TP")
             p = tool(py, can + ["cmd", "verify 0 0"])

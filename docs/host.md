@@ -89,6 +89,7 @@ def register():
 A connection that already selects the node when it opens (like CAN by its IDs) sets `selects_node = True`. Serial
 style transports that frame payloads as lines set `stream = True` and must split the kinds like `Serial` does. For
 a CAN adapter a python-can interface plugin is usually less work: `can:<that interface>:<channel>` then works.
+`parallel=True` tells programs that several connections to one target may work at once (see below).
 
 Plugins come from installed packages (entry point group `umcub.transports`, naming the module or its `register`) or
 from a folder of `.py` files: `--plugins DIR` / `$UMCUB_PLUGINS`, in a program `umcub.load_plugins(folder)`. A plugin
@@ -112,6 +113,7 @@ umcub -d 192.168.1.50 hash 0 0 --file app.signed.bin         # MATCH / MISMATCH
 umcub -d 192.168.1.50 read 0 0 --out dump.bin                # needs UMCUB_CFG_READBACK
 umcub -d can:socketcan:can0 --node 5 upload app.signed.bin   # CAN, node 5
 umcub -d /dev/ttyUSB1 discover                               # umcub link devices on an RS485 bus
+umcub -d can:socketcan:can0 discover                         # CAN: the nodes 0..7 that answer, SMP or lite
 umcub -d /dev/ttyUSB1 --node 5 info                          # identity (SECURE: authenticates first)
 umcub -d /dev/ttyUSB1 --node 5 --admin-key admin.pem --device-key device.pem upload app.encrypted.bin
 umcub -d /dev/ttyUSB1 --node 5 serve --pty-link /tmp/smp     # proxy: smpmgr --port /tmp/smp ... through the link
@@ -191,6 +193,14 @@ with umcub.connect("/dev/ttyUSB1", node=5) as dev:           # same strings and 
 for d in umcub.discover("/dev/ttyUSB1"):                     # umcub link devices
     print(d["addr"], d["uid"], hex(d["board_type"]))
 ```
+
+Several devices at once: the connections of one CAN channel share one python-can bus (drivers such as PCAN or
+Vector open a channel once), each with its node's IDs, so uploads to several CAN nodes or UDP devices can run in
+parallel threads. A serial port is one half-duplex bus (RS485: no arbitration), so its devices take turns.
+`umcub.exclusive_key(spec)` tells a program which is which: `None` when connections may run at once, else the key
+of the medium to take turns on (`"serial:/dev/ttyUSB1"`). On CAN `discover()` asks every node of `nodes` (default
+0..7, what fits the default IDs) an SMP echo, else a lite frame of no known kind (answered "not supported"); it
+returns `{"addr": node, "protocol": "smp" | "lite"}` per node that answered.
 
 A board protocol (`UMCUB_CFG_PROTO_USER`) uses the connection directly: `dev.send(umcub.KIND_USER, frame)` and
 `dev.recv(umcub.KIND_USER, timeout)` (see `boards/blackpill_f411ce/proto_upload.py`).

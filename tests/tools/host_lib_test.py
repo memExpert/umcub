@@ -462,6 +462,53 @@ raises("board names: missing file", lambda: umcub.load_board_names(tmp / "none.j
 expect("a failed load keeps the catalog", umcub.board_label(7) == "0x00000007 (Pump controller)")
 umcub.load_board_names()
 
+# Which connections may run at once: a serial port one at a time (a shared bus, half duplex), CAN and UDP together;
+# a plugin says so when it registers (default: one at a time per target).
+umcub.register_transport("par", lambda target, node: None, description="parallel test", parallel=True)
+for spec, key in (("/dev/ttyUSB1", "serial:/dev/ttyUSB1"), ("serial:/dev/ttyUSB1,baud=9600", "serial:/dev/ttyUSB1"),
+                  ("COM3", "serial:COM3"), ("192.168.1.5", None), ("udp:10.0.0.255,port=1337", None),
+                  ("can:socketcan:can0", None), ("can:pcan:PCAN_USBBUS1,bitrate=250000", None), ("loop:t", "loop:t"),
+                  ("par:x", None)):
+    expect(f"exclusive_key({spec})", umcub.exclusive_key(spec) == key, repr(umcub.exclusive_key(spec)))
+
+# CAN: the connections of one channel share one python-can bus (single-handle drivers), each with its node's IDs.
+try:
+    import can
+    import isotp
+    from umcub.connection import CAN_RX, CAN_TX
+    peer = can.Bus(interface="virtual", channel="umcub-test")
+    echo = {}
+    for n in (1, 2):    # the devices' side: receive on the host's TX id, answer on its RX id
+        echo[n] = isotp.NotifierBasedCanStack(peer, can.Notifier(peer, []) if n == 1 else echo[1].notifier,
+                                              address=isotp.Address(isotp.AddressingMode.Normal_11bits,
+                                                                    txid=CAN_RX + n, rxid=CAN_TX + n),
+                                              params={"tx_padding": 0xCC, "blocking_send": False})
+        echo[n].start()
+    a = umcub.open_connection("can:virtual:umcub-test", node=1)
+    b = umcub.open_connection("can:virtual:umcub-test", node=2)
+    expect("CAN: one bus per channel", a.shared.bus is b.shared.bus)
+    a.send(None, b"to node 1 " * 3)
+    b.send(None, b"to node 2 " * 3)
+    got = {n: echo[n].recv(block=True, timeout=2) for n in (1, 2)}
+    expect("CAN: each node's IDs", got == {1: b"to node 1 " * 3, 2: b"to node 2 " * 3}, repr(got))
+    echo[2].send(b"answer of 2")
+    expect("CAN: answers reach their connection", b.recv(None, 2) == b"answer of 2" and a.recv(None, 0.2) is None)
+    a.close()
+    echo[2].send(b"still open")
+    expect("CAN: the bus stays open for the other node", b.recv(None, 2) == b"still open")
+    raises("CAN: the same channel with other settings", lambda: umcub.open_connection(
+        "can:virtual:umcub-test,bitrate=250000", node=3), text="other settings")
+    b.close()
+    c = umcub.open_connection("can:virtual:umcub-test,bitrate=250000", node=3)
+    expect("CAN: closed with its last connection (new settings take)", c.shared.bus is not b.shared.bus)
+    c.close()
+    for n in (1, 2):
+        echo[n].stop()
+    echo[1].notifier.stop()
+    peer.shutdown()
+except ImportError as err:
+    print(f"skip CAN bus tests: {err}")
+
 # Install extras: the build-only dependency is in umcub[build]; nothing above (device side) loaded it.
 if sys.version_info >= (3, 11):
     import tomllib

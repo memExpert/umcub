@@ -20,7 +20,7 @@ from . import lite
 from .adapter import Adapter, adapters
 from .board_names import board_label, load_board_names
 from .connection import (KIND_LINK, KIND_LITE, KIND_SMP, KIND_USER, Connection, TapEvent, Transport, add_tap,
-                         open_connection, register_transport, transports)
+                         exclusive_key, open_connection, register_transport, transports)
 from .device import Device, connect, discover
 from .errors import Cancelled, DeviceError, LinkError, NoAnswer, UmcubError
 from .flasher import flash
@@ -38,5 +38,5 @@ def __getattr__(name):
 
 __all__ = ["Adapter", "Cancelled", "Connection", "Device", "DeviceError", "Image", "KIND_LINK", "KIND_LITE",
            "KIND_SMP", "KIND_USER", "LinkError", "NoAnswer", "Plugin", "Smp", "TapEvent", "Transport", "UmcubError",
-           "adapters", "add_tap", "board_label", "connect", "discover", "flash", "lite", "load_board_names",
-           "load_plugins", "open_connection", "plugins", "register_transport", "transports"]
+           "adapters", "add_tap", "board_label", "connect", "discover", "exclusive_key", "flash", "lite",
+           "load_board_names", "load_plugins", "open_connection", "plugins", "register_transport", "transports"]

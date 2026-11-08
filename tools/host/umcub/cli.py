@@ -41,7 +41,7 @@ def parser():
                     help="folder of transport plugins (.py files) to load (default $UMCUB_PLUGINS)")
     sub = ap.add_subparsers(dest="cmd", required=True, metavar="command")
 
-    p = sub.add_parser("discover", help="umcub link devices on the bus")
+    p = sub.add_parser("discover", help="umcub link devices on the bus; on CAN the nodes 0..7 that answer")
     p.add_argument("--rounds", type=int, default=8, help="at most; stops after a quiet round")
     p.add_argument("--slots", type=int, default=16)
     p.add_argument("--slot-ms", type=int, default=20)

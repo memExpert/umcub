@@ -1,8 +1,11 @@
 """A connected bootloader: the connection, and on a umcub link bus the selected node."""
+import logging
 import time
+from concurrent.futures import ThreadPoolExecutor
 
-from .connection import open_connection
-from .errors import LinkError
+from . import lite
+from .connection import KIND_LITE, _parse, open_connection
+from .errors import LinkError, UmcubError
 from .link import Link
 
 # A SECURE session ends on the device after a while without traffic; the
@@ -93,7 +96,41 @@ def connect(spec, node=None, uid=None, admin_key=None, device_key=None, timeout=
         raise
 
 
-def discover(spec, rounds=8, slots=16, slot_ms=20, timeout=3.0, tap=None):
-    """Identities of the umcub link devices on the bus of `spec` (serial or UDP broadcast)."""
-    with open_connection(spec, tap=tap) as conn:
-        return Link(conn, timeout=timeout).discover(rounds, slots, slot_ms)
+CAN_NODES = range(8)        # node addresses that fit the default IDs (host TX 0x7C0 + n, RX 0x7C8 + n)
+CAN_PROBE_TIMEOUT = 0.3     # seconds per probe of a node
+
+
+def discover(spec, rounds=8, slots=16, slot_ms=20, timeout=3.0, tap=None, nodes=CAN_NODES):
+    """The devices on the bus of `spec`. Serial or UDP broadcast: the identities of the umcub link devices. CAN:
+    each of `nodes` is asked an SMP echo, else a lite frame of no known kind (answered "not supported", nothing
+    changes); the ones that answer as {"addr": node, "protocol": "smp" | "lite"}, by node."""
+    if _parse(spec)[0].scheme != "can":
+        with open_connection(spec, tap=tap) as conn:
+            return Link(conn, timeout=timeout).discover(rounds, slots, slot_ms)
+    # All nodes at once, each probe with its node's IDs on the channel's shared bus; a silent node makes
+    # python-can-isotp warn ("Reception of FlowControl timed out") through logging.
+    log = logging.getLogger("isotp")
+    level = log.level
+    log.setLevel(logging.ERROR)
+    try:
+        with ThreadPoolExecutor() as pool:
+            found = list(pool.map(lambda n: _probe_can(spec, n, tap), nodes))
+    finally:
+        log.setLevel(level)
+    return [{"addr": n, "protocol": p} for n, p in zip(nodes, found) if p]
+
+
+def _probe_can(spec, node, tap):
+    from .smp import Smp
+    with connect(spec, node=node, timeout=CAN_PROBE_TIMEOUT, tap=tap) as dev:
+        try:
+            with Smp(dev) as smp:
+                smp.echo("umcub")
+            return "smp"
+        except UmcubError:
+            pass
+    # A fresh connection: a receive of the SMP client may still be waiting on the old one and take the answer.
+    with connect(spec, node=node, timeout=CAN_PROBE_TIMEOUT, tap=tap) as dev:
+        dev.send(KIND_LITE, lite.frame("?"))
+        r = dev.recv(KIND_LITE, CAN_PROBE_TIMEOUT)
+        return "lite" if r and lite.parse_answer(r) else None
