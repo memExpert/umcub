@@ -114,8 +114,12 @@ SMP), the tool does not probe for it. SMP uploads take the packet size from the 
 `--test` / `--permanent` (or `mark` later) set the image state by its hash, read from the file; MCUboot takes
 one mark per upload, so `mark` does not turn a test mark into a permanent one. On a link node the board type of
 the image (TLV `0xA0`) is checked against the node's before anything is sent; elsewhere the bootloader refuses a
-wrong image after the transfer. The standard tools (`smpmgr`, `mcumgr`, `dfu-util`) keep working for SMP and
-DFU without it.
+wrong image after the transfer. After an SMP upload the device checks the image without sending it back: MCUboot's
+validation (`UMCUB_CFG_INSPECT_VERIFY`), else the SHA-256 of the slot against the file (`UMCUB_CFG_INSPECT_HASH`;
+not for an encrypted image in the primary slot, which is decrypted there); `upload` prints which check passed, or
+"not checked" when the bootloader cannot check the image (and after a lite upload). A failed check stops before
+`--test` / `--permanent` and `--reset`. The standard tools (`smpmgr`, `mcumgr`,
+`dfu-util`) keep working for SMP and DFU without it.
 
 ## Images and keys (no device)
 
@@ -164,10 +168,10 @@ with umcub.connect("/dev/ttyUSB1", node=5) as dev:           # same strings and 
     print(dev.identity)                                       # link nodes: uid, board type, version, mode
     print(dev.text("i"))                                      # a text command
     img = umcub.Image.load("app.signed.bin")                  # version, hash, board_type
-    if dev.identity:
-        img.check_board(dev.identity["board_type"])
+    umcub.flash(dev, img, "smp", progress=lambda done, total: print(done, total), cancel=cancel)
+    # = umcub upload: board type check, upload, check ("verify" / "hash" / None returned), marks, reset
     with umcub.Smp(dev) as smp:                               # SMP: upload, images, mark, reset, verify, hash, read
-        smp.upload(img.data, progress=lambda done, total: print(done, total), cancel=cancel)
+        smp.upload(img.data)                                  # the steps one by one
         # direct upload: smp.upload(img.data, umcub.smp.direct_slot(0, 1)); smp.mark(img.hash)
         print(smp.images(), smp.verify(0, 0))
         smp.reset()
@@ -189,6 +193,7 @@ A board protocol (`UMCUB_CFG_PROTO_USER`) uses the connection directly: `dev.sen
 | `device` | `connect()`, `discover()`, `Device` (directly, or as a link node) |
 | `smp` | `Smp` (smpclient on a `Device`), the inspection group requests |
 | `lite` | lite upload frames, `upload()`, `reset()` |
+| `flasher` | `flash()`: the whole upload of `umcub upload` (checks, marks, reset) |
 | `image` | `Image`: a signed image file - version, hash, board type TLV |
 | `link` | link frames, DISCOVER, the SECURE handshake (mirrors `src/proto/link.c`), `sniff()` |
 | `kconfig`, `layout` | the configuration from Kconfig (defconfig + fragments), the generated files, keys, MCUboot's rule on the slots |

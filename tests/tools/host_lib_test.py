@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """umcub host library without a device: transport registry, plugins (a folder and an
-installed package's entry point), device strings, adapter lists, error codes, the tap
-and the sniffer (on a pseudo terminal)."""
+installed package's entry point), device strings, adapter lists, error codes, the tap,
+the sniffer (on a pseudo terminal) and flash() (SMP / lite faked)."""
 import ast
 import base64
+import hashlib
 import os
 import string
+import struct
 import sys
 import tempfile
 import textwrap
@@ -33,6 +35,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools/host"))
 import umcub  # noqa: E402
 from serial.tools import list_ports  # noqa: E402
 from serial.tools.list_ports_common import ListPortInfo  # noqa: E402
+import umcub.smp  # noqa: E402  (flash() tests replace umcub.smp.Smp)
 from umcub import link  # noqa: E402
 from umcub.adapter import network_adapters, socketcan_adapters  # noqa: E402
 from umcub.connection import Udp  # noqa: E402
@@ -298,6 +301,115 @@ if sys.platform.startswith("linux"):
     os.close(master)
     os.close(slave)
 raises("sniff: port that does not exist", lambda: link.sniff("/dev/umcub-no-such-port", print), text="umcub-no-such-port")
+
+
+# flash(): board type check, upload, check without readback (verify, else hash), mark, reset; SMP and lite faked.
+def signed_image(board_type=None, encrypted=False, payload=b"\x11" * 64):
+    tlvs = struct.pack("<HH", 0x10, 32) + hashlib.sha256(payload).digest()
+    if board_type is not None:
+        tlvs += struct.pack("<HHI", 0xA0, 4, board_type)
+    hdr = struct.pack("<IIHHIIBBHI", 0x96F3B83D, 0, 32, 0, len(payload), 0x04 if encrypted else 0, 1, 2, 3, 0)
+    return umcub.Image(hdr.ljust(32, b"\0") + payload + struct.pack("<HH", 0x6907, 4 + len(tlvs)) + tlvs)
+
+
+NOT_SUPPORTED = DeviceError(rc=umcub.smp.InspectErr.ENOTSUP, code="smp.device", reason="not supported")
+
+
+class FakeSmp:
+    """Records the calls; verify / hash answer with `answers` (an exception is raised)."""
+    calls, answers = [], {}
+
+    def __init__(self, dev):
+        pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        pass
+
+    def _answer(self, what):
+        a = FakeSmp.answers[what]
+        if isinstance(a, Exception):
+            raise a
+        return a
+
+    def upload(self, data, image=0, progress=None, cancel=None):
+        FakeSmp.calls.append(("upload", image, cancel))
+        if progress:
+            progress(len(data), len(data))
+
+    def verify(self, image, slot):
+        FakeSmp.calls.append(("verify", image, slot))
+        return self._answer("verify")
+
+    def hash(self, image, slot, off=0, length=0):
+        FakeSmp.calls.append(("hash", image, slot, off, length))
+        return self._answer("hash"), length
+
+    def mark(self, image_hash, permanent=False):
+        FakeSmp.calls.append(("mark", image_hash, permanent))
+
+    def reset(self):
+        FakeSmp.calls.append(("reset",))
+
+
+umcub.smp.Smp = FakeSmp
+lite_calls = []
+umcub.lite.upload = lambda *a, **kw: lite_calls.append(("upload", a[1:], kw))
+umcub.lite.reset = lambda dev: lite_calls.append(("reset",))
+dev = types.SimpleNamespace(identity={"board_type": 0x46103001})
+img = signed_image(0x46103001)
+
+
+def flash(answers, *args, image_=img, **kw):
+    FakeSmp.calls, FakeSmp.answers = [], answers
+    return umcub.flash(dev, image_, *args, **kw)
+
+
+done = []
+expect("flash: verified by the device", flash({"verify": True}, progress=lambda d, t: done.append((d, t))) == "verify"
+       and FakeSmp.calls == [("upload", 0, None), ("verify", 0, 0)] and done == [(img.size, img.size)],
+       str(FakeSmp.calls))
+expect("flash: no verify, the hash matches",
+       flash({"verify": NOT_SUPPORTED, "hash": hashlib.sha256(img.data).digest()}) == "hash"
+       and FakeSmp.calls[-1] == ("hash", 0, 0, 0, img.size), str(FakeSmp.calls))
+expect("flash: neither verify nor hash: not checked", flash({"verify": NOT_SUPPORTED, "hash": NOT_SUPPORTED}) is None)
+for answers, code in (({"verify": False}, "flash.invalid"),
+                      ({"verify": NOT_SUPPORTED, "hash": b"\0" * 32}, "flash.hash_mismatch")):
+    try:
+        flash(answers, reset=True)
+        expect(f"flash: {code}", False, "- no error")
+    except umcub.UmcubError as err:
+        expect(f"flash: {code}, no reset", err.code == code and ("reset",) not in FakeSmp.calls,
+               f"{err.code} {FakeSmp.calls}")
+enc = signed_image(0x46103001, encrypted=True)
+expect("flash: encrypted image in the primary slot is not hashed (decrypted there)",
+       flash({"verify": NOT_SUPPORTED, "hash": b"\0" * 32}, image_=enc) is None
+       and not any(c[0] == "hash" for c in FakeSmp.calls), str(FakeSmp.calls))
+cancel = threading.Event()
+expect("flash: secondary slot, test boot, reset",
+       flash({"verify": True}, slot="secondary", test=True, reset=True, cancel=cancel) == "verify"
+       and FakeSmp.calls == [("upload", 2, cancel), ("verify", 0, 1), ("mark", img.hash, False), ("reset",)],
+       str(FakeSmp.calls))
+expect("flash: image 1 primary slot (direct upload)", flash({"verify": True}, image=1, slot="primary") == "verify"
+       and FakeSmp.calls == [("upload", 3, None), ("verify", 1, 0)], str(FakeSmp.calls))
+for kw in (dict(test=True), dict(permanent=True, slot="primary")):
+    try:
+        flash({"verify": True}, **kw)
+        expect(f"flash {kw}: refused", False)
+    except umcub.UmcubError as err:
+        expect(f"flash {kw}: refused before the upload", err.code == "flash.mark_needs_secondary"
+               and not FakeSmp.calls, f"{err.code} {FakeSmp.calls}")
+try:
+    flash({"verify": True}, image_=signed_image(0x46411001))
+    expect("flash: wrong board type refused", False)
+except umcub.UmcubError as err:
+    expect("flash: wrong board type refused before the upload", err.code == "image.board_type" and not FakeSmp.calls)
+expect("flash: lite, secondary slot, permanent, reset: not checked",
+       flash({}, protocol="lite", slot="secondary", permanent=True, reset=True, chunk=64, cancel=cancel) is None
+       and lite_calls == [("upload", (img.data, 0, 1, False, True, 64, None, cancel), {}), ("reset",)]
+       and not FakeSmp.calls, str(lite_calls))
 
 print(f"host library: {'all cases passed' if not bad else f'{bad} failure(s)'}")
 sys.exit(1 if bad else 0)

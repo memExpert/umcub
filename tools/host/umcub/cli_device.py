@@ -9,10 +9,11 @@ from . import lite
 from .connection import KIND_LINK, KIND_LITE, KIND_SMP
 from .device import connect, discover
 from .errors import UmcubError
+from .flasher import flash
 from .image import Image
 from .link import LINK_NAMES, describe_identity, sniff
 from .nlip import NlipDecoder, nlip_encode
-from .smp import Smp, direct_slot, file_hash
+from .smp import Smp, file_hash
 
 
 def _progress(done, total):
@@ -59,29 +60,19 @@ def cmd_cmd(dev, a):
     return 0
 
 
+CHECKED = {"verify": "checked: valid (MCUboot validation on the device)", "hash": "checked: SHA-256 matches",
+           None: "not checked (lite upload, or the bootloader cannot check this image)"}
+
+
 def cmd_upload(dev, a):
     img = Image.load(a.file)
-    if dev.identity:
-        img.check_board(dev.identity["board_type"])     # the bootloader would refuse it after the transfer
-    if (a.test or a.permanent) and a.slot != "secondary":
-        raise UmcubError("--test / --permanent mark an image in the secondary slot (--slot secondary)")
     t0 = time.monotonic()
-    if a.lite:
-        lite.upload(dev, img.data, a.image, 1 if a.slot == "secondary" else 0, a.test, a.permanent, a.chunk,
+    checked = flash(dev, img, "lite" if a.lite else "smp", a.image, a.slot, a.test, a.permanent, a.reset, a.chunk,
                     _progress)
-    else:
-        # Without --slot SMP's image field is the image number (upload into its primary slot); with --slot
-        # it names the slot (UMCUB_CFG_SMP_DIRECT_UPLOAD).
-        field = direct_slot(a.image, 1 if a.slot == "secondary" else 0) if a.slot else a.image
-        with Smp(dev) as smp:
-            smp.upload(img.data, field, _progress)
-            if a.test or a.permanent:
-                smp.mark(img.hash, a.permanent)
     print(file=sys.stderr)
-    print(f"uploaded {img.size} bytes ({img.version}) in {time.monotonic() - t0:.1f} s"
-          + (", marked " + ("permanent" if a.permanent else "for a test boot") if a.test or a.permanent else ""))
-    if a.reset:
-        cmd_reset(dev, a)
+    print(f"uploaded {img.size} bytes ({img.version}) in {time.monotonic() - t0:.1f} s, {CHECKED[checked]}"
+          + (", marked " + ("permanent" if a.permanent else "for a test boot") if a.test or a.permanent else "")
+          + (", reset" if a.reset else ""))
     return 0
 
 

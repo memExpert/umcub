@@ -46,6 +46,10 @@ MESSAGES = {
     "image.no_hash": "signed image without a hash TLV",
     "image.no_board_type": "the image has no board type, the device is 0x{device:08x}",
     "image.board_type": "the image is for board type 0x{image:08x}, the device is 0x{device:08x}",
+    # flash()
+    "flash.mark_needs_secondary": "a test boot / permanent mark needs the secondary slot",
+    "flash.invalid": "the device reports the uploaded image invalid (hash, signature or board type)",
+    "flash.hash_mismatch": "the image on the device differs from the file (SHA-256)",
 }
 
 

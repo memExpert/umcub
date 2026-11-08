@@ -5,6 +5,7 @@
         with umcub.Smp(dev) as smp:
             smp.upload(open("app.signed.bin", "rb").read(), progress=lambda done, total: ...)
             smp.reset()
+        umcub.flash(dev, umcub.Image.load("app.signed.bin"), reset=True)   # the same with the checks
     umcub.discover("/dev/ttyUSB1")                              # umcub link devices on a bus
     umcub.adapters()                                            # serial ports, CAN, network, plugins
     umcub.lite.upload(dev, data)                                # bootloaders without SMP
@@ -20,6 +21,7 @@ from .connection import (KIND_LINK, KIND_LITE, KIND_SMP, KIND_USER, Connection, 
                          open_connection, register_transport, transports)
 from .device import Device, connect, discover
 from .errors import Cancelled, DeviceError, LinkError, NoAnswer, UmcubError
+from .flasher import flash
 from .image import Image
 from .plugins import Plugin, load_plugins, plugins
 
@@ -34,5 +36,5 @@ def __getattr__(name):
 
 __all__ = ["Adapter", "Cancelled", "Connection", "Device", "DeviceError", "Image", "KIND_LINK", "KIND_LITE",
            "KIND_SMP", "KIND_USER", "LinkError", "NoAnswer", "Plugin", "Smp", "TapEvent", "Transport", "UmcubError",
-           "adapters", "add_tap", "connect", "discover", "lite", "load_plugins", "open_connection", "plugins",
-           "register_transport", "transports"]
+           "adapters", "add_tap", "connect", "discover", "flash", "lite", "load_plugins", "open_connection",
+           "plugins", "register_transport", "transports"]

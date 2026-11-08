@@ -144,7 +144,8 @@ def can_tools(build, py):
                             os.path.join(build, "payload.bin"), "-o", os.path.join(d, "app")],
                            check=True, capture_output=True)
             p = tool(py, can + ["upload", os.path.join(d, "app.signed.bin")], timeout=300)
-            check(p.returncode == 0 and "uploaded" in p.stdout, "umcub upload over CAN")
+            check(p.returncode == 0 and "uploaded" in p.stdout and "checked: valid" in p.stdout,
+                  "umcub upload over CAN, checked by the device")
             p = tool(py, can + ["verify", "0", "0"])
             check(p.returncode == 0 and "valid" in p.stdout, "umcub verify 0 0 over CAN")
             p = tool(py, can + ["hash", "0", "0", "--file", os.path.join(d, "app.signed.bin")])
@@ -178,7 +179,8 @@ def lite_tools(build, py):
         try:
             port = ["-d", hub.path]
             p = tool(py, port + ["upload", "--lite", img], timeout=120)
-            check(p.returncode == 0 and "uploaded" in p.stdout, "umcub upload --lite over a stream")
+            check(p.returncode == 0 and "uploaded" in p.stdout and "not checked" in p.stdout,
+                  "umcub upload --lite over a stream (lite cannot check)")
             p = tool(py, port + ["cmd", "verify 0 0"])
             check("ok valid" in p.stdout, "text command verify 0 0: valid")
             p = tool(py, port + ["cmd", "i"])
@@ -236,7 +238,8 @@ def plain_tools(build, py, smpmgr):
             check(p.returncode == 0 and open(dump, "rb").read() == open(img, "rb").read()[:1000],
                   "umcub read: readback equals the file")
             p = tool(py, port + ["upload", img], timeout=300)
-            check(p.returncode == 0 and "uploaded" in p.stdout, "umcub upload (SMP over NLIP lines)")
+            check(p.returncode == 0 and "uploaded" in p.stdout and "checked: valid" in p.stdout,
+                  "umcub upload (SMP over NLIP lines), checked by the device")
             if p.returncode:
                 print(p.stdout[-500:], p.stderr[-1500:])
             p = tool(py, port + ["list"])
@@ -247,6 +250,8 @@ def plain_tools(build, py, smpmgr):
                            check=True, capture_output=True)
             app2 = os.path.join(d, "app2.signed.bin")
             p = tool(py, port + ["upload", "--slot", "secondary", app2], 300)
+            check(p.returncode == 0 and "checked: valid" in p.stdout,
+                  "umcub upload --slot secondary: checked in slot 1")
             p = tool(py, port + ["list"])
             check(any("slot 1: 2.0.2" in l and "pending" not in l for l in p.stdout.splitlines()),
                   "umcub upload --slot secondary (SMP direct upload): 2.0.2 in slot 1, not marked")
