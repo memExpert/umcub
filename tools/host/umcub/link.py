@@ -187,6 +187,24 @@ def load_key(path, private):
     return pub
 
 
+def transcript(challenge, eph_pub, nonce):
+    """th: the hash the admin key signs in the SECURE handshake (what a signing server computes)."""
+    return hashlib.sha256(LABEL + struct.pack("<H", HOST_ADDR) + challenge + eph_pub + nonce).digest()
+
+
+def key_signer(path):
+    """The signing function of an admin key file (PEM, unencrypted): (challenge, eph_pub, nonce) -> r || s."""
+    from cryptography.hazmat.primitives import hashes
+    from cryptography.hazmat.primitives.asymmetric import ec, utils
+    admin = load_key(path, True)
+
+    def sign(challenge, eph_pub, nonce):
+        der = admin.sign(transcript(challenge, eph_pub, nonce), ec.ECDSA(utils.Prehashed(hashes.SHA256())))
+        r, s = utils.decode_dss_signature(der)
+        return r.to_bytes(32, "big") + s.to_bytes(32, "big")
+    return sign
+
+
 # --------------------------------------------------------------------------
 # Link endpoint
 # --------------------------------------------------------------------------
@@ -264,17 +282,17 @@ class Link:
         return self.ident
 
     def authenticate(self, challenge):
-        from cryptography.hazmat.primitives import hashes
-        from cryptography.hazmat.primitives.asymmetric import ec, utils
-        admin = load_key(self.admin_key, True)
+        """admin_key: a PEM file, or a function (challenge, eph_pub, nonce) -> r || s, e.g. asking a server
+        that holds the key and computes transcript() itself; its exceptions pass through."""
+        from cryptography.hazmat.primitives.asymmetric import ec
+        sign = self.admin_key if callable(self.admin_key) else key_signer(self.admin_key)
         devpub = load_key(self.device_key, False)
         eph = ec.generate_private_key(ec.SECP256R1())
         n = eph.public_key().public_numbers()
         eph_pub = n.x.to_bytes(32, "big") + n.y.to_bytes(32, "big")
         nonce_h = os.urandom(32)
-        th = hashlib.sha256(LABEL + struct.pack("<H", HOST_ADDR) + challenge + eph_pub + nonce_h).digest()
-        r, s = utils.decode_dss_signature(admin.sign(th, ec.ECDSA(utils.Prehashed(hashes.SHA256()))))
-        sig = r.to_bytes(32, "big") + s.to_bytes(32, "big")
+        sig = sign(challenge, eph_pub, nonce_h)
+        th = transcript(challenge, eph_pub, nonce_h)
         shared = eph.exchange(ec.ECDH(), devpub)
         session = Session(derive(th, shared))
         self.send(T_AUTH, eph_pub + nonce_h + sig)

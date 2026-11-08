@@ -22,7 +22,10 @@ A device is one string (`-d`, or `$UMCUB_DEVICE`):
 
 `--node N` selects a device on a [umcub link](link.md) bus (serial, UDP) or, on CAN, the node's IDs (bases + N);
 `--uid` selects an unassigned link device. SECURE link transports also need `--admin-key` (private) and
-`--device-key` (the public half is enough).
+`--device-key` (the public half is enough). In a program `admin_key` can also be a signing function
+`(challenge, eph_pub, nonce) -> r || s` (64 bytes; `challenge` is the whole CHALLENGE payload, the device's identity
+with its UID and board type, then the 32-byte challenge), e.g. a request to a server that keeps the admin key and
+computes the signed hash itself (`umcub.link.transcript()`); `umcub.link.key_signer(path)` is the one of a key file.
 
 ## Adapters
 

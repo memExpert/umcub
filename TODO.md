@@ -61,7 +61,7 @@ Larger changes:
   (`umcub @ https://github.com/memExpert/umcub/archive/refs/tags/<tag>.zip#subdirectory=tools/host`: a git URL would
   clone every submodule, and on Windows some of their paths are too long) and holds no protocol or device logic: what
   it lacks goes into the library, so the CLI and the GUI behave the same. Library changes the plan still asks for:
-  a signing function for SECURE sessions, board name catalog (JSON),
+  board name catalog (JSON),
   build-only dependencies (`esp-idf-kconfig`) in an extra such as `umcub[build]`, bus hub for parallel uploads on one
   bus, CAN discovery.
 - [ ] **SECURE link sessions signed by a server**, for users who log in instead of holding key files. The admin
@@ -70,9 +70,9 @@ Larger changes:
   - Flow: the GUI gets the device's challenge and sends the server the challenge, its ephemeral public key and its
     nonce. The server checks the account and its rights to that device, computes `th` itself, signs it, logs the
     session and returns the signature; the GUI sends `AUTH` as usual.
-  - Library: `Link.authenticate()` takes a signing function next to `admin_key` as a file. No firmware change
-    (size delta 0): the device sees an ordinary signature. The public half of the device key can come from the
-    server over verified TLS.
+  - Open: the server and the GUI's request, passed to the library as the signing function `admin_key`
+    (`umcub.link.transcript()` is the server's `th`). No firmware change (size delta 0): the device sees an ordinary
+    signature. The public half of the device key can come from the server over verified TLS.
   - Limits: blocking an account stops new sessions, an open one lasts until it ends. Needs internet while connecting;
     the request must finish within the challenge's 10 s lifetime. Rights per product or customer need a separate admin
     key in their bootloaders. Compromising the server equals leaking the key, though image signing still blocks

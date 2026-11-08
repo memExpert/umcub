@@ -260,6 +260,27 @@ for private in (False, True):
     except umcub.LinkError as err:
         expect("junk key: LinkError key.invalid", err.code == "key.invalid", err.code)
 
+# SECURE signing: the key file signer signs the transcript hash a server computes the same way.
+from cryptography.exceptions import InvalidSignature  # noqa: E402
+from cryptography.hazmat.primitives import hashes, serialization  # noqa: E402
+from cryptography.hazmat.primitives.asymmetric import ec, utils  # noqa: E402
+
+KEYS = Path(__file__).resolve().parents[2] / "tools/keys"
+challenge, eph_pub, nonce = bytes(range(56)), bytes(range(64)), bytes(range(100, 132))   # CHALLENGE: identity + 32
+th = hashlib.sha256(b"umcub-link-v1" + struct.pack("<H", 0xFFFE) + challenge + eph_pub + nonce).digest()
+expect("transcript hash", link.transcript(challenge, eph_pub, nonce) == th)
+sig = link.key_signer(KEYS / "dev-admin-p256.pem")(challenge, eph_pub, nonce)
+admin_pub = link.load_key(KEYS / "dev-admin-p256.pem", False)
+try:
+    admin_pub.verify(utils.encode_dss_signature(int.from_bytes(sig[:32], "big"), int.from_bytes(sig[32:], "big")),
+                     th, ec.ECDSA(utils.Prehashed(hashes.SHA256())))
+    expect("key signer: r || s of the transcript hash", len(sig) == 64)
+except InvalidSignature:
+    expect("key signer: r || s of the transcript hash", False)
+pub = tmp / "admin-pub.pem"
+pub.write_bytes(admin_pub.public_bytes(serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo))
+raises("key signer needs the private key", lambda: link.key_signer(pub), umcub.LinkError, "a private key is needed")
+
 # Tap: every payload and text command of a connection, plugins included; a failing tap does not stop the transfer.
 events = []
 with umcub.connect("loop:t", tap=events.append) as dev:

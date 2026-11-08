@@ -73,9 +73,10 @@ class Device:
 
 def connect(spec, node=None, uid=None, admin_key=None, device_key=None, timeout=3.0, tap=None):
     """Open `spec` (see umcub.connection). On serial and UDP, `node` or `uid`
-    selects a device on a umcub link bus (SECURE: with `admin_key` and
-    `device_key`, PEM files); on CAN `node` selects the node's IDs. `tap` sees
-    every payload on the connection (umcub.connection.add_tap)."""
+    selects a device on a umcub link bus (SECURE: with `admin_key`, a PEM file
+    or a signing function (umcub.link.key_signer), and `device_key`, a PEM
+    file); on CAN `node` selects the node's IDs. `tap` sees every payload on
+    the connection (umcub.connection.add_tap)."""
     conn = open_connection(spec, node=node or 0, tap=tap)
     try:
         if conn.selects_node:

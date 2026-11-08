@@ -321,6 +321,30 @@ def secure_tools(build, py, smpmgr):
             rc, out = run(py, port + ["--node", "1", "--admin-key", bad, "--device-key", dev, "cmd", "i"])
             check(rc != 0 and "authentication failed" in out, "AUTH with another admin key fails")
 
+        print("[e2e] SECURE session signed by a function (as a server would)", flush=True)
+        script = f"""
+import umcub
+from umcub import link
+calls, sign = [], link.key_signer({adm!r})
+def signer(challenge, eph_pub, nonce):
+    calls.append((challenge, eph_pub, nonce))
+    return sign(challenge, eph_pub, nonce)
+with umcub.connect({hub.path!r}, node=1, admin_key=signer, device_key={dev!r}) as d:
+    print("text", d.text("i", 1.0).strip())
+print("calls", len(calls), [len(x) for x in calls[0]])
+try:
+    umcub.connect({hub.path!r}, node=1, admin_key=lambda *a: bytes(64), device_key={dev!r})
+except umcub.LinkError as e:
+    print("bad signature", e.code)
+"""
+        p = subprocess.run([py, "-c", script], capture_output=True, text=True, timeout=60, env=ENV)
+        check(p.returncode == 0 and "board type" in p.stdout and "calls 1 [" in p.stdout,
+              "connect(admin_key=<signing function>): one signature, encrypted session")
+        check("[56, 64, 32]" in p.stdout, "the function gets CHALLENGE (identity + 32), the ephemeral key, the nonce")
+        check("bad signature link.auth_failed" in p.stdout, "a wrong signature from the function: link.auth_failed")
+        if p.returncode:
+            print(p.stdout[-500:], p.stderr[-1500:])
+
         print("[e2e] smpmgr through `umcub serve` (SECURE, encrypted), umcub upload through the link", flush=True)
         with tempfile.TemporaryDirectory() as d:
             link = os.path.join(d, "smp")
