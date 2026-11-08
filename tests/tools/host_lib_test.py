@@ -462,5 +462,13 @@ raises("board names: missing file", lambda: umcub.load_board_names(tmp / "none.j
 expect("a failed load keeps the catalog", umcub.board_label(7) == "0x00000007 (Pump controller)")
 umcub.load_board_names()
 
+# Install extras: the build-only dependency is in umcub[build]; nothing above (device side) loaded it.
+if sys.version_info >= (3, 11):
+    import tomllib
+    proj = tomllib.loads((Path(__file__).resolve().parents[2] / "tools/host/pyproject.toml").read_text())["project"]
+    expect("esp-idf-kconfig only in the build extra", not any("esp-idf-kconfig" in d for d in proj["dependencies"])
+           and any("esp-idf-kconfig" in d for d in proj["optional-dependencies"]["build"]), str(proj))
+expect("device side without esp-idf-kconfig", "esp_kconfiglib" not in sys.modules)
+
 print(f"host library: {'all cases passed' if not bad else f'{bad} failure(s)'}")
 sys.exit(1 if bad else 0)

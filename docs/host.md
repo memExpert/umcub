@@ -6,7 +6,9 @@ protocol, umcub link (addressing on a shared bus, SECURE sessions) and the inspe
 PC reaches: serial ports (UART and RS485 adapters, USB CDC), UDP and CAN (any python-can interface: SocketCAN,
 PCAN, Kvaser, Vector, IXXAT, slcan / CANable, candleLight, ...).
 
-`tools/setup.sh` installs it into `.venv` (`pip install -e tools/host`); elsewhere `pip install <umcub>/tools/host`.
+`tools/setup.sh` installs it into `.venv` (`pip install -e tools/host`, esp-idf-kconfig from
+`tools/requirements.txt`). Elsewhere `pip install <umcub>/tools/host` is enough for devices (a flasher);
+`"<umcub>/tools/host[build]"` adds esp-idf-kconfig for `config`, `image` and `keys`.
 
 ## Devices
 

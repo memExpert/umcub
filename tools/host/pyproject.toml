@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "umcub"
-version = "0.1.1"
+version = "0.2.0"
 description = "Host library and command line tool for the umcub bootloader"
 requires-python = ">=3.10"
 dependencies = [
@@ -14,8 +14,10 @@ dependencies = [
   "python-can>=4.3",
   "can-isotp>=2.0",
   "cryptography",
-  "esp-idf-kconfig>=3.14,<4",
 ]
+
+[project.optional-dependencies]
+build = ["esp-idf-kconfig>=3.14,<4"]   # umcub config / image / keys: the bootloader and application builds
 
 [project.scripts]
 umcub = "umcub.cli:main"

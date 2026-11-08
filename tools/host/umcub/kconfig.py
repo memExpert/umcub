@@ -84,7 +84,8 @@ def _kconfig(bdir, core):
     try:
         import esp_kconfiglib.core as k
     except ImportError:
-        die("esp-idf-kconfig is not installed (pip install esp-idf-kconfig; tools/setup.sh does it)")
+        die("esp-idf-kconfig is not installed (pip install \"<umcub>/tools/host[build]\" or esp-idf-kconfig; "
+            "tools/setup.sh does it)")
     k.Symbol._rec_invalidate = k.Choice._rec_invalidate = _rec_invalidate
     try:
         return k, k.Kconfig(str(ROOT / "Kconfig"), warn_to_stderr=False, info=False)
