@@ -2,6 +2,7 @@
 (the TLVs MCUboot and umcub check), read without imgtool."""
 import struct
 
+from .board_names import board_label
 from .errors import UmcubError
 
 IMAGE_MAGIC = 0x96F3B83D
@@ -58,6 +59,7 @@ class Image:
         if not board_type:
             return
         if self.board_type is None:
-            raise UmcubError(code="image.no_board_type", device=board_type)
+            raise UmcubError(code="image.no_board_type", device=board_label(board_type))
         if self.board_type != board_type:
-            raise UmcubError(code="image.board_type", image=self.board_type, device=board_type)
+            raise UmcubError(code="image.board_type", image=board_label(self.board_type),
+                             device=board_label(board_type))

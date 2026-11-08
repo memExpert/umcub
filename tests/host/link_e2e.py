@@ -285,6 +285,7 @@ def secure_tools(build, py, smpmgr):
         print("[e2e] discovery of 3 devices on one bus", flush=True)
         rc, out = run(py, port + ["discover", "--slots", "8", "--slot-ms", "30"])
         check(rc == 0 and "3 device(s)" in out, "discover finds 3 devices")
+        out_discover = out
         uids = [l.split("uid ")[1].split()[0] for l in out.splitlines() if l.startswith("node ") and
                 l.split()[1] == "0"]
         check(len(uids) == 1, "one unassigned device")
@@ -312,6 +313,15 @@ def secure_tools(build, py, smpmgr):
                             "-o", os.path.join(d, "other")], check=True, capture_output=True)
             rc, out = run(py, port + ["--node", "1"] + sec + ["upload", os.path.join(d, "other.signed.bin")])
             check(rc != 0 and "is for board type" in out, "umcub upload of another board's image: refused")
+            board = next(l.split("board ")[1].split()[0] for l in out_discover.splitlines() if "board 0x" in l)
+            names = os.path.join(d, "names.json")
+            open(names, "w").write(f'{{"{board}": "Sim board", "0x12345678": "Other board"}}')
+            rc, out = run(py, port + ["--names", names, "discover", "--slots", "8", "--slot-ms", "30"])
+            check(rc == 0 and f"board {board} (Sim board)" in out, "umcub --names discover: board names shown")
+            rc, out = run(py, port + ["--names", names, "--node", "1"] + sec + ["upload",
+                                                                               os.path.join(d, "other.signed.bin")])
+            check(rc != 0 and "0x12345678 (Other board), the device is " + board + " (Sim board)" in out,
+                  "umcub --names upload of another board's image: the message names both boards")
 
         print("[e2e] wrong admin key is refused", flush=True)
         with tempfile.TemporaryDirectory() as d:

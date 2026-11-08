@@ -27,6 +27,12 @@ A device is one string (`-d`, or `$UMCUB_DEVICE`):
 with its UID and board type, then the 32-byte challenge), e.g. a request to a server that keeps the admin key and
 computes the signed hash itself (`umcub.link.transcript()`); `umcub.link.key_signer(path)` is the one of a key file.
 
+`--names boards.json` shows the user's names of board types (`UMCUB_CFG_BOARD_TYPE`) next to the hex id: in
+`discover`, `info`, `sniff` and when an image is for another board. The file is a JSON object of ids and names,
+`{"0x00010002": "Pump controller"}`; `--names` repeats, a later file wins. In a program
+`umcub.load_board_names(*paths)` replaces the catalog with those files (none empties it) and `umcub.board_label(id)`
+gives `0x00010002 (Pump controller)`, or the hex alone.
+
 ## Adapters
 
 `umcub adapters` (`umcub.adapters()` in a program) lists what is plugged in now, each with a ready device string:
@@ -190,6 +196,7 @@ A board protocol (`UMCUB_CFG_PROTO_USER`) uses the connection directly: `dev.sen
 | Module | Contents |
 |---|---|
 | `adapter` | `adapters()`: serial ports, CAN channels, network interfaces, plugins' adapters |
+| `board_names` | the board name catalog: `load_board_names()`, `board_label()` |
 | `errors` | the exceptions, their codes and English messages (`MESSAGES`) |
 | `plugins` | transport plugins: installed packages and plugin folders |
 | `connection` | the device strings and the transport registry; serial (SMP as NLIP lines, frames as `05 <kind> base64` lines, text), UDP, CAN ISO-TP |

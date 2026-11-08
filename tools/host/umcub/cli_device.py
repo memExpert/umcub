@@ -6,6 +6,7 @@ import sys
 import time
 
 from . import lite
+from .board_names import board_label
 from .connection import KIND_LINK, KIND_LITE, KIND_SMP
 from .device import connect, discover
 from .errors import UmcubError
@@ -46,7 +47,7 @@ def cmd_info(dev, a):
         sys.stdout.write(dev.text("i", a.wait))
         return 0
     for k in ("addr", "uid", "board_type", "board_rev", "version"):
-        print(f"{k:10s} {hex(i[k]) if k == 'board_type' else i[k]}")
+        print(f"{k:10s} {board_label(i[k]) if k == 'board_type' else i[k]}")
     print(f"{'link':10s} {LINK_NAMES.get(i['link'], '?')}{' (encrypted)' if i['enc'] else ''}"
           f"{' (authenticated)' if dev.link.session else ''}")
     return 0

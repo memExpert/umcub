@@ -35,6 +35,8 @@ def parser():
     ap.add_argument("--device-key", help="link SECURE: device key (PEM, the public half is enough)")
     ap.add_argument("--timeout", type=float, default=3.0, help="seconds per request")
     ap.add_argument("--trace", action="store_true", help="print every payload sent and received to stderr")
+    ap.add_argument("--names", action="append", default=[], metavar="FILE",
+                    help='board names, JSON: {"0x00010002": "Pump controller"}; repeat to merge, a later file wins')
     ap.add_argument("--plugins", default=os.environ.get("UMCUB_PLUGINS"),
                     help="folder of transport plugins (.py files) to load (default $UMCUB_PLUGINS)")
     sub = ap.add_subparsers(dest="cmd", required=True, metavar="command")
@@ -102,6 +104,8 @@ def main(argv=None):
         if a.cmd in ("image", "keys", "config"):
             from . import cli_build
             return cli_build.run(a)
+        from .board_names import load_board_names
+        load_board_names(*a.names)
         from .plugins import load_plugins
         for p in load_plugins(a.plugins):
             if p.error:

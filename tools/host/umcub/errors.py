@@ -44,8 +44,9 @@ MESSAGES = {
     # images
     "image.not_signed": "not a signed MCUboot image (no header magic)",
     "image.no_hash": "signed image without a hash TLV",
-    "image.no_board_type": "the image has no board type, the device is 0x{device:08x}",
-    "image.board_type": "the image is for board type 0x{image:08x}, the device is 0x{device:08x}",
+    "image.no_board_type": "the image has no board type, the device is {device}",
+    "image.board_type": "the image is for board type {image}, the device is {device}",
+    "names.invalid": "{path}: not a board name catalog ({reason})",
     # flash()
     "flash.mark_needs_secondary": "a test boot / permanent mark needs the secondary slot",
     "flash.invalid": "the device reports the uploaded image invalid (hash, signature or board type)",

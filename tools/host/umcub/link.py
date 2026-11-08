@@ -12,6 +12,7 @@ import struct
 import time
 from dataclasses import dataclass
 
+from .board_names import board_label
 from .connection import KIND_LINK, open_serial
 from .errors import LinkError
 
@@ -59,7 +60,7 @@ def identity(p):
 
 
 def describe_identity(i):
-    return (f"node {i['addr']:5d}  uid {i['uid']}  board 0x{i['board_type']:08x} rev {i['board_rev']}"
+    return (f"node {i['addr']:5d}  uid {i['uid']}  board {board_label(i['board_type'])} rev {i['board_rev']}"
             f"  {LINK_NAMES.get(i['link'], '?')}{' enc' if i['enc'] else ''}{' closed' if i['closed'] else ''}"
             f"  umcub {i['version']}")
 
@@ -76,7 +77,7 @@ def describe_frame(f):
     p = fr["payload"]
     i = identity(p) if fr["type"] in (T_ANNOUNCE, T_CHALLENGE) else None
     if i:
-        s += (f"\n    uid {i['uid']} addr {i['addr']} board 0x{i['board_type']:08x} rev {i['board_rev']} "
+        s += (f"\n    uid {i['uid']} addr {i['addr']} board {board_label(i['board_type'])} rev {i['board_rev']} "
               f"{LINK_NAMES.get(i['link'], '?')}{' enc' if i['enc'] else ''}{' closed' if i['closed'] else ''}"
               f" umcub {i['version']}")
     elif fr["type"] == T_DATA and fr["flags"] & F_ENC:

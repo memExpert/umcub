@@ -8,6 +8,7 @@
         umcub.flash(dev, umcub.Image.load("app.signed.bin"), reset=True)   # the same with the checks
     umcub.discover("/dev/ttyUSB1")                              # umcub link devices on a bus
     umcub.adapters()                                            # serial ports, CAN, network, plugins
+    umcub.load_board_names("boards.json")                       # names of board types, shown with them
     umcub.lite.upload(dev, data)                                # bootloaders without SMP
 
 Nothing here prints or exits: errors are UmcubError (NoAnswer, DeviceError,
@@ -17,6 +18,7 @@ post-build steps. The command line tool is `umcub` (umcub.cli).
 """
 from . import lite
 from .adapter import Adapter, adapters
+from .board_names import board_label, load_board_names
 from .connection import (KIND_LINK, KIND_LITE, KIND_SMP, KIND_USER, Connection, TapEvent, Transport, add_tap,
                          open_connection, register_transport, transports)
 from .device import Device, connect, discover
@@ -36,5 +38,5 @@ def __getattr__(name):
 
 __all__ = ["Adapter", "Cancelled", "Connection", "Device", "DeviceError", "Image", "KIND_LINK", "KIND_LITE",
            "KIND_SMP", "KIND_USER", "LinkError", "NoAnswer", "Plugin", "Smp", "TapEvent", "Transport", "UmcubError",
-           "adapters", "add_tap", "connect", "discover", "flash", "lite", "load_plugins", "open_connection",
-           "plugins", "register_transport", "transports"]
+           "adapters", "add_tap", "board_label", "connect", "discover", "flash", "lite", "load_board_names",
+           "load_plugins", "open_connection", "plugins", "register_transport", "transports"]

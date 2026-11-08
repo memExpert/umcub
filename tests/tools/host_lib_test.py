@@ -432,5 +432,35 @@ expect("flash: lite, secondary slot, permanent, reset: not checked",
        and lite_calls == [("upload", (img.data, 0, 1, False, True, 64, None, cancel), {}), ("reset",)]
        and not FakeSmp.calls, str(lite_calls))
 
+# Board names: JSON files merge (the later one wins), a new load replaces the catalog; shown wherever a board type is.
+(tmp / "names1.json").write_text('{"0x46103001": "Blue Pill", "0x00000007": "old name"}')
+(tmp / "names2.json").write_text('{"0x00000007": "Pump controller", "0X46411001": "Black Pill"}')
+got = umcub.load_board_names(tmp / "names1.json", tmp / "names2.json")
+expect("board names: merged, later wins",
+       got == {0x46103001: "Blue Pill", 7: "Pump controller", 0x46411001: "Black Pill"}, str(got))
+expect("board label: name", umcub.board_label(0x46103001) == "0x46103001 (Blue Pill)", umcub.board_label(0x46103001))
+expect("board label: unknown stays hex", umcub.board_label(0x12345678) == "0x12345678")
+ident = dict(addr=5, uid="00" * 12, board_type=0x46103001, board_rev=1, link=1, enc=False, closed=False,
+             version="1.0.0")
+expect("discover / info line with the name", "board 0x46103001 (Blue Pill)" in link.describe_identity(ident),
+       link.describe_identity(ident))
+raises("board type mismatch with names", lambda: signed_image(7).check_board(0x46103001),
+       text="board type 0x00000007 (Pump controller), the device is 0x46103001 (Blue Pill)")
+raises("image without board type: device name", lambda: signed_image().check_board(0x46103001),
+       text="the device is 0x46103001 (Blue Pill)")
+expect("a new load replaces the catalog", umcub.load_board_names(tmp / "names2.json") == {7: "Pump controller",
+       0x46411001: "Black Pill"} and umcub.board_label(0x46103001) == "0x46103001")
+for name, text in (("bad.json", "{"), ("list.json", "[1]"), ("key.json", '{"pump": "x"}'), ("value.json", '{"7": 7}')):
+    (tmp / name).write_text(text)
+    try:
+        umcub.load_board_names(tmp / name)
+        expect(f"board names {name}: refused", False)
+    except umcub.UmcubError as err:
+        expect(f"board names {name}: names.invalid with the path", err.code == "names.invalid" and name in str(err),
+               f"{err.code} {err}")
+raises("board names: missing file", lambda: umcub.load_board_names(tmp / "none.json"), text="none.json")
+expect("a failed load keeps the catalog", umcub.board_label(7) == "0x00000007 (Pump controller)")
+umcub.load_board_names()
+
 print(f"host library: {'all cases passed' if not bad else f'{bad} failure(s)'}")
 sys.exit(1 if bad else 0)
