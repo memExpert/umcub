@@ -196,6 +196,13 @@ for d in umcub.discover("/dev/ttyUSB1"):                     # umcub link device
     print(d["addr"], d["uid"], hex(d["board_type"]))
 ```
 
+A program that stays connected opens the port itself and gives the Connection to `connect()` for each node:
+`conn = umcub.open_connection("/dev/ttyUSB1")`, `dev = umcub.connect(conn, node=5, ...)`; `dev.close()` then leaves
+the port open, `umcub.discover(conn)` searches over it, and the program serializes the nodes of one port.
+`dev.ping("smp" | "lite")` is a request that changes nothing (an SMP echo, or a lite frame of no known kind): sent
+more often than every 20 s (`umcub.device.SESSION_IDLE`; after that the next request authenticates again) it keeps a
+SECURE session alive, and it raises when the device no longer answers.
+
 Several devices at once: the connections of one CAN channel share one python-can bus (drivers such as PCAN or
 Vector open a channel once), each with its node's IDs, so uploads to several CAN nodes or UDP devices can run in
 parallel threads. A serial port is one half-duplex bus (RS485: no arbitration), so its devices take turns.

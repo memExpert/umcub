@@ -339,6 +339,35 @@ def secure_tools(build, py, smpmgr):
             rc, out = run(py, port + ["--node", "1", "--admin-key", bad, "--device-key", dev, "cmd", "i"])
             check(rc != 0 and "authentication failed" in out, "AUTH with another admin key fails")
 
+        print("[e2e] several nodes over one open port (a GUI keeps it open), keepalive pings", flush=True)
+        script = f"""
+import umcub
+conn = umcub.open_connection({hub.path!r})
+a = umcub.connect(conn, node=1, admin_key={adm!r}, device_key={dev!r})
+b = umcub.connect(conn, node=2, admin_key={adm!r}, device_key={dev!r})
+a.ping("smp"); b.ping("smp"); a.ping("smp")
+print("pinged", a.identity["addr"], b.identity["addr"])
+print("found", sorted(d["addr"] for d in umcub.discover(conn, slots=8, slot_ms=30)))
+a.close()
+b.ping("smp")
+print("b after a closed: ok")
+b.close()
+print("still open", len(umcub.discover(conn, slots=8, slot_ms=30)))     # closing the devices left the port open
+conn.close()
+try:
+    umcub.connect(umcub.open_connection({hub.path!r}), node=9, admin_key={adm!r}, device_key={dev!r})
+except umcub.UmcubError as e:
+    print("absent node", e.code)
+"""
+        p = subprocess.run([py, "-c", script], capture_output=True, text=True, timeout=120, env=ENV)
+        check(p.returncode == 0 and "pinged 1 2" in p.stdout, "two SECURE nodes over one open port, pings to both")
+        check("found [0, 1, 2]" in p.stdout, "discover over the open port")
+        check("b after a closed: ok" in p.stdout, "closing one node keeps the port and the other session")
+        check("still open 3" in p.stdout, "closing the devices leaves the program's port open")
+        check("absent node link.no_hello" in p.stdout, "an absent node: link.no_hello")
+        if p.returncode:
+            print(p.stdout[-500:], p.stderr[-1500:])
+
         print("[e2e] SECURE session signed by a function (as a server would)", flush=True)
         script = f"""
 import umcub

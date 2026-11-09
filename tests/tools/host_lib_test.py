@@ -281,6 +281,14 @@ pub = tmp / "admin-pub.pem"
 pub.write_bytes(admin_pub.public_bytes(serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo))
 raises("key signer needs the private key", lambda: link.key_signer(pub), umcub.LinkError, "a private key is needed")
 
+# A connection opened by the program is shared: devices on it do not close it.
+shared = umcub.open_connection("loop:t")
+d = umcub.connect(shared)
+d.close()
+shared.send(None, b"still open")
+expect("a device on a given connection leaves it open", shared.recv(None, 0) == b"still open")
+shared.close()
+
 # Tap: every payload and text command of a connection, plugins included; a failing tap does not stop the transfer.
 events = []
 with umcub.connect("loop:t", tap=events.append) as dev:

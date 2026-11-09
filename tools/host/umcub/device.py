@@ -4,7 +4,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 
 from . import lite
-from .connection import KIND_LITE, _parse, can_bus, open_connection
+from .connection import Connection, _parse, can_bus, open_connection
 from .errors import LinkError, UmcubError
 from .link import Link
 
@@ -17,8 +17,8 @@ class Device:
     """send(kind, payload) / recv(kind, timeout) / text(cmd, wait) to one bootloader,
     directly or as DATA of a umcub link node (`link`, `identity`)."""
 
-    def __init__(self, conn, link=None, timeout=3.0):
-        self.conn, self.link, self.timeout = conn, link, timeout
+    def __init__(self, conn, link=None, timeout=3.0, owns_conn=True):
+        self.conn, self.link, self.timeout, self._owns_conn = conn, link, timeout, owns_conn
         self.identity = link.ident if link else None
         self._last = time.monotonic()
 
@@ -60,12 +60,24 @@ class Device:
             return r.decode(errors="replace") if r else ""
         return self.conn.text(cmd, wait)
 
+    def ping(self, protocol="smp"):
+        """A request that changes nothing - keeps a SECURE session alive when sent within SESSION_IDLE, shows the
+        device still answers: an SMP echo, or a lite frame of no known kind (answered "not supported"). Raises
+        UmcubError (NoAnswer when silent)."""
+        if protocol == "lite":
+            lite.request(self, lite.frame("?"), retries=1)
+        else:
+            from .smp import Smp
+            with Smp(self) as smp:
+                smp.echo("umcub")
+
     def close(self):
         try:
             if self.link:
                 self.link.close()
         finally:
-            self.conn.close()
+            if self._owns_conn:          # a connection the program opened stays open for its other devices
+                self.conn.close()
 
     def __enter__(self):
         return self
@@ -79,20 +91,24 @@ def connect(spec, node=None, uid=None, admin_key=None, device_key=None, timeout=
     selects a device on a umcub link bus (SECURE: with `admin_key`, a PEM file
     or a signing function (umcub.link.key_signer), and `device_key`, a PEM
     file); on CAN `node` selects the node's IDs. `tap` sees every payload on
-    the connection (umcub.connection.add_tap)."""
-    conn = open_connection(spec, node=node or 0, tap=tap)
+    the connection (umcub.connection.add_tap). `spec` can also be a Connection
+    the program opened (open_connection): the device then uses it and close()
+    leaves it open, so several link nodes share one port (one at a time)."""
+    owns = not isinstance(spec, Connection)
+    conn = open_connection(spec, node=node or 0, tap=tap) if owns else spec
     try:
         if conn.selects_node:
             if uid is not None:
                 raise LinkError(code="link.uid_not_addressed", name=conn.name)
-            return Device(conn, timeout=timeout)
+            return Device(conn, timeout=timeout, owns_conn=owns)
         if node is None and uid is None:
-            return Device(conn, timeout=timeout)
+            return Device(conn, timeout=timeout, owns_conn=owns)
         link = Link(conn, node, uid, admin_key, device_key, timeout)
         link.hello()
-        return Device(conn, link, timeout)
+        return Device(conn, link, timeout, owns)
     except BaseException:
-        conn.close()
+        if owns:
+            conn.close()
         raise
 
 
@@ -101,9 +117,12 @@ CAN_PROBE_TIMEOUT = 1.0     # seconds per probe of a node (all nodes are probed 
 
 
 def discover(spec, rounds=8, slots=16, slot_ms=20, timeout=3.0, tap=None, nodes=CAN_NODES):
-    """The devices on the bus of `spec`. Serial or UDP broadcast: the identities of the umcub link devices. CAN:
-    each of `nodes` is asked a lite frame of no known kind (answered "not supported", nothing changes), else an SMP
-    echo; the ones that answer as {"addr": node, "protocol": "smp" | "lite"}, by node."""
+    """The devices on the bus of `spec` (a device string, or an open Connection of a link bus). Serial or UDP
+    broadcast: the identities of the umcub link devices. CAN: each of `nodes` is asked a lite frame of no known kind
+    (answered "not supported", nothing changes), else an SMP echo (Device.ping); the ones that answer as
+    {"addr": node, "protocol": "smp" | "lite"}, by node."""
+    if isinstance(spec, Connection):         # a port the program keeps open
+        return Link(spec, timeout=timeout).discover(rounds, slots, slot_ms)
     if _parse(spec)[0].scheme != "can":
         with open_connection(spec, tap=tap) as conn:
             return Link(conn, timeout=timeout).discover(rounds, slots, slot_ms)
@@ -123,15 +142,11 @@ def discover(spec, rounds=8, slots=16, slot_ms=20, timeout=3.0, tap=None, nodes=
 def _probe_can(spec, node, tap):
     # lite first: one single frame. An SMP echo is several ISO-TP frames, and a device left waiting for the rest of
     # it after the probe gives up takes no new frame for a while.
-    from .smp import Smp
     with connect(spec, node=node, timeout=CAN_PROBE_TIMEOUT, tap=tap) as dev:
-        dev.send(KIND_LITE, lite.frame("?"))
-        r = dev.recv(KIND_LITE, CAN_PROBE_TIMEOUT)
-        if r and lite.parse_answer(r):
-            return "lite"
-        try:
-            with Smp(dev) as smp:
-                smp.echo("umcub")
-            return "smp"
-        except UmcubError:
-            return None
+        for protocol in ("lite", "smp"):
+            try:
+                dev.ping(protocol)
+                return protocol
+            except UmcubError:
+                pass
+        return None
