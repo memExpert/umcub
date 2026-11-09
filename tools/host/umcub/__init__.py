@@ -25,6 +25,7 @@ from .device import Device, connect, discover
 from .errors import Cancelled, DeviceError, LinkError, NoAnswer, UmcubError
 from .flasher import flash
 from .image import Image
+from .link import LINK_NAMES
 from .plugins import Plugin, load_plugins, plugins
 
 
@@ -37,6 +38,6 @@ def __getattr__(name):
 
 
 __all__ = ["Adapter", "Cancelled", "Connection", "Device", "DeviceError", "Image", "KIND_LINK", "KIND_LITE",
-           "KIND_SMP", "KIND_USER", "LinkError", "NoAnswer", "Plugin", "Smp", "TapEvent", "Transport", "UmcubError",
-           "adapters", "add_tap", "board_label", "connect", "discover", "exclusive_key", "flash", "lite",
+           "KIND_SMP", "KIND_USER", "LINK_NAMES", "LinkError", "NoAnswer", "Plugin", "Smp", "TapEvent", "Transport",
+           "UmcubError", "adapters", "add_tap", "board_label", "connect", "discover", "exclusive_key", "flash", "lite",
            "load_board_names", "load_plugins", "open_connection", "plugins", "register_transport", "transports"]

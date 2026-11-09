@@ -24,6 +24,7 @@ import select
 import socket
 import threading
 import time
+from contextlib import contextmanager
 from dataclasses import dataclass
 
 from .errors import UmcubError
@@ -169,6 +170,7 @@ class Udp(Connection):
         return self.s.recv(4096) if r else None
 
 
+CAN_BITRATE, CAN_DATA_BITRATE = 500000, 2000000
 _buses = {}                 # (interface, channel) -> _SharedBus
 _buses_lock = threading.Lock()
 
@@ -205,8 +207,9 @@ class _SharedBus:
         self.key, self.settings, self.users = key, settings, 0
 
     @classmethod
-    def take(cls, interface, channel, settings):
-        key = (interface, str(channel))
+    def take(cls, interface, channel, bitrate=CAN_BITRATE, fd=False, data_bitrate=CAN_DATA_BITRATE, **_):
+        """The channel's bus (opened by the first user); other connection options (IDs, mtu) do not matter."""
+        key, settings = (interface, str(channel)), (bitrate, fd, data_bitrate)
         with _buses_lock:
             b = _buses.get(key)
             if b is None:
@@ -233,15 +236,15 @@ class IsoTp(Connection):
 
     selects_node = True
 
-    def __init__(self, interface, channel, bitrate=500000, fd=False, data_bitrate=2000000, tx=CAN_TX, rx=CAN_RX,
-                 ext=False, node=0, mtu=1024):
+    def __init__(self, interface, channel, bitrate=CAN_BITRATE, fd=False, data_bitrate=CAN_DATA_BITRATE, tx=CAN_TX,
+                 rx=CAN_RX, ext=False, node=0, mtu=1024):
         import isotp
         self.name = f"{interface}:{channel}"
         self.mtu = mtu
         mode = isotp.AddressingMode.Normal_29bits if ext else isotp.AddressingMode.Normal_11bits
         params = {"tx_padding": 0xCC, "can_fd": fd, "tx_data_length": 64 if fd else 8,
                   "blocking_send": True, "max_frame_size": 4095, "bitrate_switch": fd}
-        self.shared = _SharedBus.take(interface, channel, (bitrate, fd, data_bitrate))
+        self.shared = _SharedBus.take(interface, channel, bitrate=bitrate, fd=fd, data_bitrate=data_bitrate)
         try:
             self.stack = isotp.NotifierBasedCanStack(self.shared.bus, self.shared.notifier, params=params,
                                                      address=isotp.Address(mode, txid=tx + node, rxid=rx + node))
@@ -385,11 +388,16 @@ def _open_udp(target, node, port=UDP_PORT, mtu=None):
     return Udp(target, port, mtu)
 
 
-def _open_can(target, node, **o):
+def _can_target(target):
+    """(python-can interface, channel) of `<interface>:<channel>`."""
     interface, _, channel = target.partition(":")
     if not channel:
         raise UmcubError(code="can.spec")
-    return IsoTp(interface, channel, node=node, **o)
+    return interface, channel
+
+
+def _open_can(target, node, **o):
+    return IsoTp(*_can_target(target), node=node, **o)
 
 
 def _adapters(name):
@@ -427,6 +435,20 @@ def exclusive_key(spec):
     key of the medium they must take turns on ("serial:/dev/ttyUSB1": a half-duplex bus, one port)."""
     t, target, _ = _parse(spec)
     return None if t.parallel else f"{t.scheme}:{target}"
+
+
+@contextmanager
+def can_bus(spec):
+    """Keep the channel of a CAN device string open while connections to its nodes come and go (reopening a
+    channel can lose the first frames, e.g. python-can's serial interface); yields its shared bus."""
+    t, target, parts = _parse(spec)
+    if t.scheme != "can":
+        raise UmcubError(code="can.spec")
+    shared = _SharedBus.take(*_can_target(target), **_options(parts, t.options))
+    try:
+        yield shared
+    finally:
+        shared.release()
 
 
 def open_connection(spec, node=0, tap=None):

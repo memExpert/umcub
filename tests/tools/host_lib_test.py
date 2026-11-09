@@ -38,7 +38,7 @@ from serial.tools.list_ports_common import ListPortInfo  # noqa: E402
 import umcub.smp  # noqa: E402  (flash() tests replace umcub.smp.Smp)
 from umcub import link  # noqa: E402
 from umcub.adapter import network_adapters, socketcan_adapters  # noqa: E402
-from umcub.connection import Udp  # noqa: E402
+from umcub.connection import Udp, can_bus  # noqa: E402
 from umcub.errors import MESSAGES, DeviceError  # noqa: E402
 
 bad = 0
@@ -502,12 +502,21 @@ try:
     c = umcub.open_connection("can:virtual:umcub-test,bitrate=250000", node=3)
     expect("CAN: closed with its last connection (new settings take)", c.shared.bus is not b.shared.bus)
     c.close()
+    with can_bus("can:virtual:umcub-test") as held:          # discover() keeps the channel open between probes
+        d = umcub.open_connection("can:virtual:umcub-test", node=4)
+        d.close()
+        e = umcub.open_connection("can:virtual:umcub-test", node=5)
+        expect("CAN: a held channel is not closed and reopened", e.shared is held)
+        e.close()
+    raises("CAN: can_bus of a non-CAN device string", lambda: can_bus("/dev/ttyUSB0").__enter__(), text="CAN")
     for n in (1, 2):
         echo[n].stop()
     echo[1].notifier.stop()
     peer.shutdown()
 except ImportError as err:
     print(f"skip CAN bus tests: {err}")
+
+expect("link mode names exported", umcub.LINK_NAMES == {0: "plain", 1: "addressed", 2: "secure"})
 
 # Install extras: the build-only dependency is in umcub[build]; nothing above (device side) loaded it.
 if sys.version_info >= (3, 11):

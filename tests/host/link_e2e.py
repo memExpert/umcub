@@ -146,6 +146,9 @@ def can_tools(build, py):
                             "--core", "cm7", *host_conf("sim_can_post"), "--version", "3.1.4",
                             os.path.join(build, "payload.bin"), "-o", os.path.join(d, "app")],
                            check=True, capture_output=True)
+            p = tool(py, can + ["upload", "--slot", "secondary", os.path.join(d, "app.signed.bin")], timeout=120)
+            check(p.returncode != 0 and "upload refused: no such slot" in p.stderr and "SMP_DIRECT_UPLOAD" in p.stderr
+                  and "rc 5" in p.stderr, "upload into a slot the bootloader does not offer: a readable refusal")
             p = tool(py, can + ["upload", os.path.join(d, "app.signed.bin")], timeout=300)
             check(p.returncode == 0 and "uploaded" in p.stdout and "checked: valid" in p.stdout,
                   "umcub upload over CAN, checked by the device")

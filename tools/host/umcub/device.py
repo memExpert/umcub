@@ -4,7 +4,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 
 from . import lite
-from .connection import KIND_LITE, _parse, open_connection
+from .connection import KIND_LITE, _parse, can_bus, open_connection
 from .errors import LinkError, UmcubError
 from .link import Link
 
@@ -97,13 +97,13 @@ def connect(spec, node=None, uid=None, admin_key=None, device_key=None, timeout=
 
 
 CAN_NODES = range(8)        # node addresses that fit the default IDs (host TX 0x7C0 + n, RX 0x7C8 + n)
-CAN_PROBE_TIMEOUT = 0.3     # seconds per probe of a node
+CAN_PROBE_TIMEOUT = 1.0     # seconds per probe of a node (all nodes are probed at once)
 
 
 def discover(spec, rounds=8, slots=16, slot_ms=20, timeout=3.0, tap=None, nodes=CAN_NODES):
     """The devices on the bus of `spec`. Serial or UDP broadcast: the identities of the umcub link devices. CAN:
-    each of `nodes` is asked an SMP echo, else a lite frame of no known kind (answered "not supported", nothing
-    changes); the ones that answer as {"addr": node, "protocol": "smp" | "lite"}, by node."""
+    each of `nodes` is asked a lite frame of no known kind (answered "not supported", nothing changes), else an SMP
+    echo; the ones that answer as {"addr": node, "protocol": "smp" | "lite"}, by node."""
     if _parse(spec)[0].scheme != "can":
         with open_connection(spec, tap=tap) as conn:
             return Link(conn, timeout=timeout).discover(rounds, slots, slot_ms)
@@ -113,7 +113,7 @@ def discover(spec, rounds=8, slots=16, slot_ms=20, timeout=3.0, tap=None, nodes=
     level = log.level
     log.setLevel(logging.ERROR)
     try:
-        with ThreadPoolExecutor() as pool:
+        with can_bus(spec), ThreadPoolExecutor() as pool:
             found = list(pool.map(lambda n: _probe_can(spec, n, tap), nodes))
     finally:
         log.setLevel(level)
@@ -121,16 +121,17 @@ def discover(spec, rounds=8, slots=16, slot_ms=20, timeout=3.0, tap=None, nodes=
 
 
 def _probe_can(spec, node, tap):
+    # lite first: one single frame. An SMP echo is several ISO-TP frames, and a device left waiting for the rest of
+    # it after the probe gives up takes no new frame for a while.
     from .smp import Smp
     with connect(spec, node=node, timeout=CAN_PROBE_TIMEOUT, tap=tap) as dev:
+        dev.send(KIND_LITE, lite.frame("?"))
+        r = dev.recv(KIND_LITE, CAN_PROBE_TIMEOUT)
+        if r and lite.parse_answer(r):
+            return "lite"
         try:
             with Smp(dev) as smp:
                 smp.echo("umcub")
             return "smp"
         except UmcubError:
-            pass
-    # A fresh connection: a receive of the SMP client may still be waiting on the old one and take the answer.
-    with connect(spec, node=node, timeout=CAN_PROBE_TIMEOUT, tap=tap) as dev:
-        dev.send(KIND_LITE, lite.frame("?"))
-        r = dev.recv(KIND_LITE, CAN_PROBE_TIMEOUT)
-        return "lite" if r and lite.parse_answer(r) else None
+            return None

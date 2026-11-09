@@ -8,12 +8,13 @@ upload() / images() / reset() / verify(). The umcub inspection group (SMP group
 import asyncio
 import hashlib
 import logging
+import re
 from enum import IntEnum, unique
 
 from smp import error as smperr
 from smp import message as smpmsg
 from smpclient import SMPClient
-from smpclient.exceptions import SMPClientException
+from smpclient.exceptions import SMPClientException, SMPUploadError
 from smpclient.generics import error, success
 from smpclient.requests.image_management import ImageStatesRead, ImageStatesWrite
 from smpclient.requests.os_management import EchoWrite, ResetWrite
@@ -41,6 +42,9 @@ ERRORS = {3: "invalid argument", 5: "no image in that slot",
           6: "bad state (an image is already marked for the next boot, or not the newest)",
           8: "not supported (feature disabled?)",
           11: "refused outside an encrypted umcub link session"}
+# boot_serial's answers to an upload (bs_upload): what they mean there
+UPLOAD_ERRORS = {3: "invalid request, or the slot cannot be opened",
+                 5: "no such slot (the secondary slot needs UMCUB_CFG_SMP_DIRECT_UPLOAD)"}
 
 
 class _InspectErrorV1(smperr.ErrorV1):
@@ -188,7 +192,7 @@ class Smp:
         """One request; the typed response, or DeviceError."""
         r = self._run(self.client.request(req, timeout))
         if error(r):
-            rc = int(r.rc) if hasattr(r, "rc") else int(r.err.rc)
+            rc = _rc(r)
             if rc == 0:
                 return r                    # boot_serial answers e.g. reset with {"rc": 0}
             raise DeviceError(rc=rc, code="smp.device", reason=ERRORS.get(rc, "error"))
@@ -223,12 +227,11 @@ class Smp:
                         progress(off, len(data))
                     if cancel is not None and cancel.is_set():
                         raise Cancelled(code="cancelled.upload")
+            except SMPUploadError as e:
+                raise _refused(e) from e
             finally:
                 await gen.aclose()
-        try:
-            self._run(run())
-        except SMPClientException as e:
-            raise DeviceError(code="smp.upload_refused", reason=str(e)) from e
+        self._run(run())
 
     def mark(self, image_hash, permanent=False):
         """Mark the image with this hash (Image.hash) in a secondary slot for a test
@@ -261,6 +264,26 @@ class Smp:
             if progress:
                 progress(len(out), length)
         return bytes(out)
+
+
+def _rc(r):
+    """The rc of an SMP response: SMP v1 has it in the map, v2 in "err"; None without one."""
+    rc = getattr(r, "rc", None)
+    if rc is None:
+        rc = getattr(getattr(r, "err", None), "rc", None)
+    return None if rc is None else int(rc)
+
+
+def _refused(e):
+    """The device's refusal of an upload chunk: smpclient raises SMPUploadError with an error response, or with the
+    text of a response that has an rc and no offset ("No offset received: response=...rc=5)")."""
+    rc = _rc(e.args[0]) if e.args else None
+    if rc is None:
+        m = re.search(r"\brc=(\d+)", str(e))
+        if not m:
+            return UmcubError(code="smp.client", reason=str(e))
+        rc = int(m.group(1))
+    return DeviceError(rc=rc, code="smp.upload_refused", reason=UPLOAD_ERRORS.get(rc) or ERRORS.get(rc, "error"))
 
 
 def direct_slot(image, slot):

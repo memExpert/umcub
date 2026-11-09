@@ -169,8 +169,9 @@ the I/O. An exception in the tap does not stop the transfer; the first one is ke
 
 Every error has a stable `code` (`link.auth_failed`, `smp.device`, ...) and its `params`; the English text is
 `umcub.errors.MESSAGES[code]` filled with them. A translated program keeps its own text per code and fills in the
-same params, with `str(error)` as the fallback; `smp.ERRORS` and `lite.ERRORS` give the meaning of a device's `rc`.
-Codes and their params only change with the library's version.
+same params, with `str(error)` as the fallback; `smp.ERRORS` and `lite.ERRORS` give the meaning of a device's `rc`,
+`smp.UPLOAD_ERRORS` the meaning of an upload refusal's `rc` (`smp.upload_refused`: `reason`, `rc`). Codes and their
+params only change with the library's version.
 
 ```python
 import threading
@@ -179,6 +180,7 @@ import umcub
 cancel = threading.Event()
 with umcub.connect("/dev/ttyUSB1", node=5) as dev:           # same strings and options as the tool
     print(dev.identity)                                       # link nodes: uid, board type, version, mode
+    print(umcub.LINK_NAMES[dev.identity["link"]])             # the mode's name: plain / addressed / secure
     print(dev.text("i"))                                      # a text command
     img = umcub.Image.load("app.signed.bin")                  # version, hash, board_type
     umcub.flash(dev, img, "smp", progress=lambda done, total: print(done, total), cancel=cancel)
@@ -199,8 +201,9 @@ Vector open a channel once), each with its node's IDs, so uploads to several CAN
 parallel threads. A serial port is one half-duplex bus (RS485: no arbitration), so its devices take turns.
 `umcub.exclusive_key(spec)` tells a program which is which: `None` when connections may run at once, else the key
 of the medium to take turns on (`"serial:/dev/ttyUSB1"`). On CAN `discover()` asks every node of `nodes` (default
-0..7, what fits the default IDs) an SMP echo, else a lite frame of no known kind (answered "not supported"); it
-returns `{"addr": node, "protocol": "smp" | "lite"}` per node that answered.
+0..7, what fits the default IDs) a lite frame of no known kind (answered "not supported"), else an SMP echo, with the
+channel kept open for all probes (`umcub.connection.can_bus()`); it returns `{"addr": node, "protocol": "smp" |
+"lite"}` per node that answered.
 
 A board protocol (`UMCUB_CFG_PROTO_USER`) uses the connection directly: `dev.send(umcub.KIND_USER, frame)` and
 `dev.recv(umcub.KIND_USER, timeout)` (see `boards/blackpill_f411ce/proto_upload.py`).
