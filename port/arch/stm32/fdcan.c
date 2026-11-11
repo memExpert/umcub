@@ -43,8 +43,37 @@ static void ram_layout(FDCAN_GlobalTypeDef *can)
     /* frames no filter accepts: rejected */
     can->GFC = (2u << FDCAN_GFC_ANFS_Pos) | (2u << FDCAN_GFC_ANFE_Pos) | FDCAN_GFC_RRFS | FDCAN_GFC_RRFE;
 }
+#elif defined(FDCAN_RXGFC_LSS)
+/* Fixed message RAM (G4, RM0440 §44.3.3), 212 words per instance, word
+ * offsets from SRAMCAN_BASE (FDCAN1 only); every RX / TX element has room
+ * for 64 data bytes (18 words):
+ *   0      28 standard filters (1 word)
+ *   28     8 extended filters (2 words)
+ *   44     RX FIFO 0, 3 elements
+ *   98     RX FIFO 1, 3 elements
+ *   152    TX event FIFO, 3 elements (2 words)
+ *   158    TX buffers / FIFO, 3 elements
+ * Only the list sizes and the FIFO / queue mode are configurable. */
+#define OFF_SFLT        0u
+#define OFF_XFLT        28u
+#define OFF_RXF0        44u
+#define OFF_TXF         158u
+#define RAM_INST_WORDS  212u
+
+static void ram_layout(FDCAN_GlobalTypeDef *can)
+{
+    /* 32-bit stores only, as ST's driver clears it */
+    for (uint32_t w = 0; w < RAM_INST_WORDS; w++) {
+        RAM_WORDS(w)[0] = 0;
+    }
+    can->TXBC = 0;      /* TX FIFO mode (TFQM = 0) */
+    /* one standard and one extended filter in the lists; frames no filter
+     * accepts and remote frames: rejected */
+    can->RXGFC = (1u << FDCAN_RXGFC_LSS_Pos) | (1u << FDCAN_RXGFC_LSE_Pos) |
+                 (2u << FDCAN_RXGFC_ANFS_Pos) | (2u << FDCAN_RXGFC_ANFE_Pos) | FDCAN_RXGFC_RRFS | FDCAN_RXGFC_RRFE;
+}
 #else
-#error "FDCAN: message RAM layout of this part not described yet (fixed layout, e.g. G4: RXGFC)"
+#error "FDCAN: message RAM layout of this part not described yet"
 #endif
 
 static FDCAN_GlobalTypeDef *can;

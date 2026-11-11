@@ -288,7 +288,7 @@ def values(kconf):
 
 
 def _family(kconf):
-    return next(f for f in ("STM32F1", "STM32F4", "STM32H7") if kconf.syms[f"FAMILY_{f}"].str_value == "y")
+    return next(f for f in ("STM32F1", "STM32F4", "STM32G4", "STM32H7") if kconf.syms[f"FAMILY_{f}"].str_value == "y")
 
 
 def derived(kconf, c):

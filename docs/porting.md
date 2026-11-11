@@ -51,7 +51,7 @@ peripheral a driver touches.
 ## Adding a part
 
 Each port lists the parts it is verified for in `port/stm32<fam>/include/umcub_family_facts.h` (today: H742,
-H743, H753, H745, H747, H755, H757; F103x8/xB; F411xC/xE); any other `UMCUB_CFG_MCU` stops the build with
+H743, H753, H745, H747, H755, H757; F103x8/xB; F411xC/xE; G474xB/xC/xE); any other `UMCUB_CFG_MCU` stops the build with
 "this ... part is not verified with the port". The values that differ between parts of one series decide where the
 bootloader writes: the SRAM size (the handoff area is its last 256 bytes; H7: SRAM4), the flash sectors or pages
 (size, map, banks) and, for a driver, the peripheral instances the part has. Check them in the datasheet and the

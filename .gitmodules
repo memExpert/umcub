@@ -29,3 +29,9 @@
 [submodule "third_party/st/stm32f4xx_hal_driver"]
 	path = third_party/st/stm32f4xx_hal_driver
 	url = https://github.com/STMicroelectronics/stm32f4xx_hal_driver.git
+[submodule "third_party/st/cmsis_device_g4"]
+	path = third_party/st/cmsis_device_g4
+	url = https://github.com/STMicroelectronics/cmsis_device_g4.git
+[submodule "third_party/st/stm32g4xx_hal_driver"]
+	path = third_party/st/stm32g4xx_hal_driver
+	url = https://github.com/STMicroelectronics/stm32g4xx_hal_driver.git

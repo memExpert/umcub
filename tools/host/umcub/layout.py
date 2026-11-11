@@ -14,7 +14,7 @@ KB = 1024
 MODE_OVERWRITE, MODE_SWAP_SCRATCH, MODE_SWAP_OFFSET = 1, 2, 4
 MODES_XIP = (5, 6)                  # direct-xip: no upgrade copies, no rule on the sectors
 # Program unit of the flash driver (UMCUB_FAMILY_WRITE_ALIGN, config/umcub_config_check.h compares them).
-WRITE_ALIGN = {"STM32F1": 8, "STM32F4": 8, "STM32H7": 32}
+WRITE_ALIGN = {"STM32F1": 8, "STM32F4": 8, "STM32G4": 8, "STM32H7": 32}
 
 
 def die(msg):
@@ -28,6 +28,8 @@ def sectors(family, flash_kb):
         sizes = [page] * (flash_kb * KB // page)
     elif family == "STM32F4":
         sizes = [16 * KB] * 4 + [64 * KB] + [128 * KB] * ((flash_kb - 128) // 128)   # RM0383 Table 4
+    elif family == "STM32G4":
+        sizes = [2 * KB] * (flash_kb // 2)                  # RM0440 §3.3.1: 2 KiB pages, dual-bank mode
     elif family == "STM32H7":
         sizes = [128 * KB] * (flash_kb // 128)
     else:

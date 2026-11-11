@@ -185,7 +185,7 @@ config SCRATCH_SIZE
 
 config IMAGE_HEADER_SIZE
 	hex "Image header size"
-	default 0x200 if FAMILY_STM32F1 || FAMILY_STM32F4
+	default 0x200 if FAMILY_STM32F1 || FAMILY_STM32F4 || FAMILY_STM32G4
 	default 0x400
 	help
 	  Reserved by imgtool (--header-size). Must keep the application vector

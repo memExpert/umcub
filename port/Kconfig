@@ -6,6 +6,8 @@ config FAMILY_STM32F1
 	bool
 config FAMILY_STM32F4
 	bool
+config FAMILY_STM32G4
+	bool
 config FAMILY_STM32H7
 	bool
 config MCU_DUALCORE

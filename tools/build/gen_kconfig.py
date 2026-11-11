@@ -36,6 +36,7 @@ OUT = ROOT / "port/kconfig_gen"
 LINES = [
     ("STM32F103xB", r"STM32F103.[8B]..", "STM32F1"),
     ("STM32F411xE", r"STM32F411.[CE]..", "STM32F4"),
+    ("STM32G474xx", r"STM32G474.[BCE]..", "STM32G4"),
     ("STM32H742xx", r"STM32H742.[GI]..", "STM32H7"),
     ("STM32H743xx", r"STM32H743.[GI]..", "STM32H7"),
     ("STM32H753xx", r"STM32H753.I..", "STM32H7"),
@@ -49,8 +50,8 @@ LINES = [
 DUALCORE = {"STM32H745xx", "STM32H745xG", "STM32H747xx", "STM32H747xG", "STM32H755xx", "STM32H757xx"}
 
 # What the family ports drive (port/stm32<fam>/uart.c, can.c, eth.c, usb.c).
-PORT_UARTS = {"STM32F1": [1, 2, 3], "STM32F4": [1, 2, 6], "STM32H7": [1, 2, 3, 4, 5, 6, 7, 8]}
-PORT_CAN = {"STM32F1", "STM32H7"}           # CAN1 / FDCAN1
+PORT_UARTS = {"STM32F1": [1, 2, 3], "STM32F4": [1, 2, 6], "STM32G4": [1, 2, 3], "STM32H7": [1, 2, 3, 4, 5, 6, 7, 8]}
+PORT_CAN = {"STM32F1", "STM32G4", "STM32H7"}           # CAN1 / FDCAN1
 PORT_ETH = {"STM32H7"}
 PORT_USB = {"STM32F1", "STM32F4", "STM32H7"}
 # STM32F1 has no AF numbers: the AFIO remap is chosen by the pin pair
