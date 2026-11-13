@@ -289,6 +289,43 @@ shared.send(None, b"still open")
 expect("a device on a given connection leaves it open", shared.recv(None, 0) == b"still open")
 shared.close()
 
+# describe(): one line per tap event, the node it concerns (link frames), for exchange logs (CLI --trace, GUIs).
+from umcub.lite import frame as lite_frame  # noqa: E402
+
+def ev(direction, kind, payload):
+    return umcub.TapEvent(0.0, direction, kind, payload, "test")
+
+
+hello = link.make_frame(link.T_HELLO, 0, 5, 7, b"")
+d = umcub.describe(ev("tx", umcub.KIND_LINK, hello))
+expect("describe: link frame", d.kind == "link" and d.node == 5 and d.text.startswith("HELLO") and "seq=7" in d.text,
+       str(d))
+d = umcub.describe(ev("rx", None, link.make_frame(link.T_ANNOUNCE, 0, 0xFFFE, 9, b"")))   # UDP / CAN: no kind
+expect("describe: link frame on a packet transport", d.kind == "link" and d.text.startswith("ANNOUNCE"), str(d))
+d = umcub.describe(ev("rx", umcub.KIND_LINK, link.make_frame(link.T_ANNOUNCE, 0, link.HOST_ADDR, 9, b"", src=6)))
+expect("describe: a node's answer is that node's", d.node == 6, str(d))
+smp_echo = bytes([2, 0, 0, 7, 0, 0, 3, 0]) + b"\xa1aedhey"           # write, group 0 (os), seq 3, command 0 (echo)
+d = umcub.describe(ev("tx", umcub.KIND_SMP, smp_echo))
+expect("describe: SMP request", (d.kind, d.node, d.text) == ("smp", None, "write os/echo seq 3, 15 B"), str(d))
+d = umcub.describe(ev("rx", None, bytes([3, 0, 0, 2, 0, 1, 4, 1]) + b"\xa0\xa0"))  # write response, image/upload
+expect("describe: SMP response on a packet transport", d.text == "write-rsp image/upload seq 4, 10 B", str(d))
+d = umcub.describe(ev("tx", umcub.KIND_LITE, lite_frame("R")))
+expect("describe: lite frame", d.kind == "lite" and d.text.startswith("R"), str(d))
+d = umcub.describe(ev("rx", "text", b"ok valid\r\n"))
+expect("describe: text", (d.kind, d.text) == ("text", "ok valid"), str(d))
+d = umcub.describe(ev("rx", None, b"\x01\x02"))
+expect("describe: unknown bytes", d.kind == "data" and d.text == "2 B", str(d))
+import contextlib  # noqa: E402
+import io  # noqa: E402
+
+from umcub import cli_device  # noqa: E402
+
+err = io.StringIO()
+with contextlib.redirect_stderr(err):
+    cli_device._trace(ev("tx", umcub.KIND_LINK, hello))
+expect("umcub --trace prints the described line", " tx link node 5 HELLO" in err.getvalue() and hello[:8].hex() in
+       err.getvalue(), err.getvalue())
+
 # Tap: every payload and text command of a connection, plugins included; a failing tap does not stop the transfer.
 events = []
 with umcub.connect("loop:t", tap=events.append) as dev:

@@ -7,7 +7,7 @@ import time
 
 from . import lite
 from .board_names import board_label
-from .connection import KIND_LINK, KIND_LITE, KIND_SMP
+from .connection import KIND_SMP
 from .device import connect, discover
 from .errors import UmcubError
 from .flasher import flash
@@ -15,6 +15,7 @@ from .image import Image
 from .link import LINK_NAMES, describe_identity, sniff
 from .nlip import NlipDecoder, nlip_encode
 from .smp import Smp, file_hash
+from .trace import describe
 
 
 def _progress(done, total):
@@ -29,9 +30,10 @@ def _read(path):
 
 
 def _trace(ev):
-    kind = {KIND_SMP: "smp", KIND_LINK: "link", KIND_LITE: "lite"}.get(ev.kind, ev.kind or "data")
+    d = describe(ev)
+    node = f" node {d.node}" if d.node is not None else ""
     shown = ev.payload[:32].hex() + ("..." if len(ev.payload) > 32 else "")
-    print(f"{ev.time:.3f} {ev.direction} {kind} {len(ev.payload)} B {shown}", file=sys.stderr, flush=True)
+    print(f"{ev.time:.3f} {ev.direction} {d.kind}{node} {d.text}  {shown}", file=sys.stderr, flush=True)
 
 
 def cmd_discover(a):

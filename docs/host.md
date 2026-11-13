@@ -164,8 +164,11 @@ a GUI runs them in a worker thread.
 for every payload sent and received and every text command and its answer: time, direction, kind, bytes (link
 frames as on the wire; `umcub.link.describe_frame()` decodes them) and the connection's name, from the thread doing
 the I/O. An exception in the tap does not stop the transfer; the first one is kept in `conn.tap_error`. The tool's
-`--trace` prints them. `umcub.link.sniff(port, out, baud, raw, stop)` listens on a serial bus without writing and calls
-`out(SniffEvent)` (time, the parsed frame or a raw line, its text) until the `stop` event is set.
+`--trace` prints them, one line each: `umcub.describe(event)` gives the kind (link / smp / lite / text, else
+data), the link node the frame concerns and a one-line summary (link frame type, source -> destination, sequence;
+SMP operation, group / command, sequence). `umcub.link.sniff(port, out, baud, raw, stop)` listens on a serial bus
+without writing and calls `out(SniffEvent)` (time, the parsed frame or a raw line, its text) until the `stop` event
+is set.
 
 Every error has a stable `code` (`link.auth_failed`, `smp.device`, ...) and its `params`; the English text is
 `umcub.errors.MESSAGES[code]` filled with them. A translated program keeps its own text per code and fills in the
@@ -228,6 +231,7 @@ A board protocol (`UMCUB_CFG_PROTO_USER`) uses the connection directly: `dev.sen
 | `flasher` | `flash()`: the whole upload of `umcub upload` (checks, marks, reset) |
 | `image` | `Image`: a signed image file - version, hash, board type TLV |
 | `link` | link frames, DISCOVER, the SECURE handshake (mirrors `src/proto/link.c`), `sniff()` |
+| `trace` | `describe()`: a tap event as one log line (kind, node, summary) |
 | `kconfig`, `layout` | the configuration from Kconfig (defconfig + fragments), the generated files, keys, MCUboot's rule on the slots |
 | `config` | a board's generated configuration as values, slot windows |
 | `linker` | GNU ld MEMORY blocks of the slots |
