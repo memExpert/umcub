@@ -14,7 +14,7 @@ and its [`Kconfig`](../boards/nucleo_h755zi_q/Kconfig).
 |---|---|
 | Target | `UMCUB_CFG_PART_*`, `UMCUB_CFG_DUALCORE_NONE` / `_SINGLE_BOOT` / `_PER_CORE`, `UMCUB_CFG_CORE2_DONE_TIMEOUT_MS` |
 | Clocks / power | `UMCUB_CFG_CLOCK_HSI` / `_HSE`, `UMCUB_CFG_HSE_HZ`, `UMCUB_CFG_HSE_BYPASS`, `UMCUB_CFG_PWR_SUPPLY_*` |
-| Flash layout | `UMCUB_CFG_BOOT_*`, `UMCUB_CFG_IMG{0,1}_{PRIMARY,SECONDARY}_{ADDR,SIZE}`, `UMCUB_CFG_SCRATCH_*`, `UMCUB_CFG_IMAGE_HEADER_SIZE` |
+| Flash layout | `UMCUB_CFG_BOOT_*`, `UMCUB_CFG_IMG{0,1}_{PRIMARY,SECONDARY}_{ADDR,SIZE}`, `UMCUB_CFG_SCRATCH_*`, `UMCUB_CFG_IMAGE_HEADER_SIZE`, `UMCUB_CFG_LAYOUT_NO_UPGRADE` |
 | MCUboot | `UMCUB_CFG_UPGRADE_MODE_*`, `UMCUB_CFG_SIGNATURE_*`, `UMCUB_CFG_DOWNGRADE_PREVENTION`, `UMCUB_CFG_VALIDATE_PRIMARY` |
 | Slot inspection | `UMCUB_CFG_INSPECT_VERIFY`, `UMCUB_CFG_INSPECT_HASH`, `UMCUB_CFG_READBACK`, `UMCUB_CFG_SMP_INSPECT_GROUP` |
 | Text commands | `UMCUB_CFG_CMD_ENABLE`, `UMCUB_CFG_CMD_IMMEDIATE`, `UMCUB_CFG_CMD_REPLY`, `UMCUB_CFG_CMD_TABLE` |
@@ -27,7 +27,7 @@ and its [`Kconfig`](../boards/nucleo_h755zi_q/Kconfig).
 Ready-made variants of a board are fragments in `boards/<board>/variants/` (USB, RS485, CAN, umcub link, encryption, ...); those the build matrix uses for modes, transports and features are in `tests/configs/` (`mode/`, `transport/`, `feature/`, `part/`).
 
 Configuration errors stop configure (an assignment that does not take effect, slots MCUboot would refuse, a primary slot
-without a secondary one) or the compile (overlapping slots, slots not on sector boundaries, missing scratch area,
+without a secondary one; the last two not with `UMCUB_CFG_LAYOUT_NO_UPGRADE`) or the compile (overlapping slots, slots not on sector boundaries, missing scratch area,
 conflicting modes: `config/umcub_config_check.h`).
 
 ### Advanced options
@@ -104,7 +104,8 @@ cmake --build build/bp --target savedefconfig    # build/bp/defconfig: only what
   code (drivers, hooks) needs a board directory: its `defconfig` and `.c` files.
 - The slots are yours to choose (`UMCUB_CFG_IMG0_PRIMARY_ADDR` ..., menu *Flash layout*): whole erase sectors behind the
   bootloader, sized for your application; what is left stays free for its data. Configure stops on slots MCUboot would
-  refuse to upgrade between ([Slots](board.md#adding-a-board)) and on a primary slot without a secondary one. Until they
+  refuse to upgrade between ([Slots](board.md#adding-a-board)) and on a primary slot without a secondary one, unless `UMCUB_CFG_LAYOUT_NO_UPGRADE` is on (then only
+  recovery uploads straight into the primary slot work). Until they
   are set a tree offers only `menuconfig` and `savedefconfig`; configure prints the part's sectors.
 - Configure runs `umcub config generate`: the defconfig, then the fragments of `UMCUB_CONF` in order (a later
   assignment wins) -> in `build/<x>/umcub_kconfig/`: `.config`, `umcub_config.h` (C; do not edit), `umcub_config.cmake`
@@ -161,8 +162,9 @@ What every transport and feature adds, the sectors the bootloader takes per fami
   [umcub link](link.md)): otherwise any node on the LAN (UDP 1337) or the
   CAN bus can upload any image signed with your key in recovery mode, including an older one. Signatures are
   always checked.
-  `UMCUB_CFG_DOWNGRADE_PREVENTION` (not in the direct-xip modes) protects updates through the secondary slot (DFU, application);
-  SMP recovery writes straight into the primary slot and is not covered. If this matters, allow recovery only by the
+  `UMCUB_CFG_DOWNGRADE_PREVENTION` (not in the direct-xip modes) protects updates through the secondary slot (DFU,
+  application, a lite upload or SMP with `UMCUB_CFG_SMP_DIRECT_UPLOAD` into the secondary slot); uploads straight into
+  the primary slot (a plain SMP recovery upload, a lite upload with `--slot primary`) are not covered. If this matters, allow recovery only by the
   entry pin (`UMCUB_CFG_ENTRY_GPIO`, no `ENTRY_WAIT_MS`) or do not enable network transports.
 - **swap-scratch wear**: the scratch sector is erased once per moved sector on every update and wears fastest;
   swap-offset (recommended by MCUboot) or overwrite spread the wear better.

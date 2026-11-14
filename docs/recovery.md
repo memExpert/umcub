@@ -22,12 +22,13 @@ SMP serial recovery writes straight into the **primary** slot (this is how MCUbo
 `image` field (`smpmgr --slot`, `mcumgr -n`; 1 = CM4). With `UMCUB_CFG_SMP_DIRECT_UPLOAD` (always in direct-xip)
 the field names a slot instead: 0/1 image 0 primary, 2 image 0 secondary, 3 image 1 primary, 4 image 1 secondary;
 `smpmgr image state-write <hash>` then marks an image in the secondary slot for a test boot (`--confirm <hash>`:
-for good), and the next reset installs it (`umcub upload --slot secondary --test` does both, see [host tool](host.md)); MCUboot's slot info command (`image slot-info`) reports
+for good; not in plain direct-xip (without revert), where MCUboot picks the newest version), and the next reset installs it (`umcub upload --slot secondary --test` does both, see [host tool](host.md)); MCUboot's slot info command (image group, id 6; smpmgr has none) reports
 `upload_image_id`, the `image` value to upload each slot with. These commands, and the flags and image hash in
 `image state-read`, come only with direct upload (about 2.4 K); without it `state-read` lists the versions. The bootloader answers MCUMGR_PARAMETERS
 (`UMCUB_CFG_SMP_PARAMS`), so smpmgr sizes serial packets to `UMCUB_CFG_SMP_MTU` by itself (default 1472 with
 Ethernet - one full UDP datagram, what smpmgr sends over UDP - otherwise 1024); other hosts: `--line-buffers`
-lines of 128 bytes within it. DFU and `umcub_slot_*` write into the **secondary** slot and mark the image for a test boot.
+lines of 128 bytes within it. DFU writes into the **secondary** slot and marks the image for a test boot (as the application does with
+`umcub_slot_*`).
 
 ## Text commands
 
@@ -59,7 +60,7 @@ any case.
   transport needs: [Getting into the bootloader](../README.md#getting-into-the-bootloader)).
 - UART and USB CDC: typed text. A command is recognised only at the start of a line; a command that is the beginning
   of another one (`r` / `read`) waits for Enter; an unknown line is answered with `? text` after Enter.
-- UDP and CAN: a packet that is not an SMP frame is a command; the reply comes back as one packet
+- UDP and CAN: a packet that is not an SMP frame (nor a lite / board protocol frame) is a command; the reply comes back as one packet
   (`echo -n i | nc -u <ip> 1337`).
 - SMP (mcumgr / smpmgr / dfu-util) keeps working in parallel.
 - `ok ...` / `? ...` replies can be turned off with `UMCUB_CFG_CMD_REPLY`.
@@ -69,7 +70,7 @@ any case.
 SMP (MCUboot serial recovery) is what `mcumgr` / `smpmgr` speak, and it is the biggest part of a bootloader with a
 transport: `boot_serial`, zcbor and the SMP framing cost about 6 K (see [Bootloader size](size.md)). Switching off `UMCUB_CFG_SMP_ENABLE`
 leaves them out; the transports stay, and images come through the protocols below. With the lite upload protocol a
-UART bootloader is about 3 K smaller (F103: 16.4 K instead of 19.4 K, H7: 22.4 K instead of 25.6 K):
+UART bootloader is about 3 K smaller (F103: 16.4 K instead of 19.4 K, H7: 22.5 K instead of 25.6 K):
 
 - **the lite upload protocol** (`UMCUB_CFG_LITE_UPLOAD`, on by default without SMP; about 2.5 K with the slot writer).
   Begin / data / end frames with a CRC, every frame answered, lost frames repeated; the image goes through the same
@@ -89,9 +90,10 @@ UART bootloader is about 3 K smaller (F103: 16.4 K instead of 19.4 K, H7: 22.4 K
   packet transports carry one frame per packet. The default `--chunk` (data bytes per frame: 373 on serial, 504
   otherwise) fits the smallest allowed `UMCUB_CFG_SMP_MTU` (512); with a larger MTU, `--chunk` can go up to
   3/4 of the MTU - 8 on serial and the MTU - 8 otherwise.
-- **the board's own protocol** (`UMCUB_CFG_PROTO_USER`, also next to SMP): every frame that is neither SMP, lite
-  nor a text command goes to `umcub_proto_user(t, data, len)` in `boards/<b>/umcub_board.c` - a packet of a
-  packet transport, a umcub link DATA payload, or a line `0x05 0x0E <base64> \n` on a stream. Both are declared
+- **the board's own protocol** (`UMCUB_CFG_PROTO_USER`, also next to SMP): every frame that is neither SMP nor
+  lite goes to `umcub_proto_user(t, data, len)` in `boards/<b>/umcub_board.c` - a packet of a packet transport, a
+  umcub link DATA payload, or a line `0x05 0x0E <base64> \n` on a stream; it returns true when the frame was its
+  own, else a packet is tried as a text command next. Both are declared
   in `umcub_proto.h` (`#include "umcub_proto.h"`). Answer with `umcub_proto_reply()`; write images with `umcub_slot_*` (`umcub.h`), which is part of the bootloader then.
   Example: the Black Pill (`boards/blackpill_f411ce/umcub_board.c`, fragment `variants/proto_user.conf`, SMP and lite off)
   writes a signed image into the primary slot with four frames - `B image size` (begin), `W offset data`, `E` (finish),
@@ -116,7 +118,8 @@ Slot 0 is primary, 1 is secondary. Addressing is only by (image, slot, offset): 
 reachable, whatever the configuration.
 
 The same operations are available in SMP group `UMCUB_CFG_SMP_INSPECT_GROUP` (default 100: id 0 verify, 1 hash,
-2 read) for your own host code (`umcub.Smp.verify()` / `hash()` / `read()` in the [host library](host.md)):
+2 read) for your own host code (`umcub.Smp.verify()` / `hash()` / `read()` in the [host library](host.md), which
+uses group 100):
 
 ```sh
 umcub -d /dev/ttyACM1 verify 0 1

@@ -11,8 +11,8 @@ Probe options (--probe stm32cube|pyocd, --target, ...): probe.py.
 pattern from the end of .bss up to the top of the stack and lets the core start.
 `measure` reads the area back while the code runs and reports how much of it
 was overwritten. After the jump the application owns the RAM: measure boot
-paths with an application that does not touch it (`loop-app` writes a signed
-`b .` image for that), or measure while the bootloader stays in recovery.
+paths with an application that does not touch it (`loop-app` writes a raw
+unsigned `b .` image for that), or measure while the bootloader stays in recovery.
 """
 import argparse
 import os

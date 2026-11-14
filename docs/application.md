@@ -34,7 +34,7 @@ driver). Writing an image from the application (`umcub_slot_*`) adds the rest of
 umcub_version_t v;
 umcub_boot_version(&v);                         /* bootloader version */
 const umcub_handoff_t *bi = umcub_boot_info();  /* boot reason, image versions, update transport */
-umcub_confirm();                                /* swap modes: otherwise reverted after reset */
+umcub_confirm();                                /* swap, direct-xip-revert: otherwise reverted after reset */
 umcub_enter_bootloader(0);                      /* reboot into recovery mode */
 
 umcub_slot_writer_t w;                          /* the application writes an image itself */
@@ -48,14 +48,14 @@ and keeps an info block in the last 256 bytes of its own flash, so the bootloade
 the RAM was cleared.
 
 Writing from the application:
-- target slot `UMCUB_SLOT_SECONDARY` (default), `UMCUB_SLOT_PRIMARY` or `UMCUB_SLOT_INACTIVE` (direct-xip: the slot the
-  application is not running from); it can be overridden per call;
+- target slot `UMCUB_SLOT_SECONDARY` (default), `UMCUB_SLOT_PRIMARY` or `UMCUB_SLOT_INACTIVE` (default in the direct-xip
+  modes: the slot the application is not running from); it can be overridden per call;
 - writing a slot code is running from is refused (`UMCUB_EBUSY`): the application's own, and any slot the bootloader
   started an image from according to the handoff - on dual-core parts the CM7 application cannot erase the running
   CM4 image and vice versa (`UMCUB_SLOT_INACTIVE` picks the other slot of that image);
 - in swap modes the secondary slot is refused (`UMCUB_EBUSY`) while the running image is still on test: the secondary
   then holds the previous image, the only way back;
-- if the slot is in the same flash bank as the running code, the CPU stalls during a sector erase (up to ~2 s on the
+- if the slot is in the same flash bank as the running code, the CPU stalls during a sector erase (up to 4 s on the
   H7). Applications that write their own updates should keep the secondary slot in the other bank.
 
 ## Applications built without CMake
@@ -85,6 +85,7 @@ image 0 (CM7 application): slot 0x08020000 size 0x60000
   Keil      Target > IROM1: Start 0x08020400  Size 0x5DC00
 ...
 keep free: 0x3800FF00..0x38010000 (bootloader handoff, kept over reset)
+           dual-core: keep the handoff areas of both cores free (H7: 0x3800FE00..0x38010000)
 ```
 
 - Keil: *Options for Target → Target*: IROM1 start/size as printed, IROM2 unchecked (or the same region in your

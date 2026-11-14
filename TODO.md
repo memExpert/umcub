@@ -14,7 +14,7 @@ SMP_PARAMS, lite).
 - [ ] **CAN-FD on a bus** — 64-byte frames, data bit rate switch. Needs a CAN-FD transceiver on PD0/PD1 (classic CAN
   with ISO-TP + SMP is verified on a real bus).
 - [ ] **Applications built without CMake** (docs/application.md) in real STM32CubeIDE and Keil MDK projects: post-build
-  signing, debug download of the signed image, Keil key codes (`#L`, `$L@L`). So far verified: `umcub_app_all.c` compiles
+  signing, debug download of the signed image. So far verified: `umcub_app_all.c` compiles
   with the documented include list (GCC, clang); `umcub image sign` gives the same image as CMake (header, payload,
   hash) from ELF and HEX; a tool-signed image boots on the board; the bootloader builds (F1, H7) with only the GCC
   inside STM32CubeIDE 2.2 (`UMCUB_TOOLCHAIN_PREFIX`). VS Code (CMake Tools, presets, the build matrix in the Testing

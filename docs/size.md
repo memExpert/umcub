@@ -1,17 +1,18 @@
 # Bootloader size
 
-Flash used by the bootloader (`.text` + `.data`, arm-none-eabi-gcc 15.2, Release `-Os`, swap-scratch,
-ECDSA-P256), and what every transport and feature adds. Regenerate with `tools/build/size_table.py`.
+Flash used by the bootloader (`.text` + `.data`, arm-none-eabi-gcc 15.2, Release `-Os`, ECDSA-P256; swap-scratch on
+the H7, overwrite on the F1 / F4), and what every transport and feature adds. Regenerate with
+`tools/build/size_table.py --update` (`tools/build/check_docs.py` fails when they are stale).
 
 - The first table: **base** (MCUboot with signature check, upgrade/revert, the jump to the application, handoff and
-  info block; no transport, no log), then what each item adds, then **all on** (every transport and feature the
-  port supports).
+  info block; no transport, no log), then what each item adds, then **all on** (every transport the
+  port supports, log, text commands, status LED, verify / hash / readback; no lite upload, link or encrypted images).
 - **SMP** is MCUboot's serial recovery (`boot_serial`, zcbor) and the multiplexer: it comes once, with the first
   SMP transport (UART, USB CDC, CAN, Ethernet). USB DFU and the lite upload need no SMP: a DFU-only build is base +
   USB DFU. No transport is required either: any one of them (or none) can be the only one.
-- Each transport and feature is measured on top of base + SMP + UART (UART itself: UART + CAN minus CAN alone).
-  The rows add up to "all on" within a few hundred bytes; code that two items share (USB CDC and DFU: the USB core)
-  is counted in both rows.
+- Each transport and feature is measured on top of base + SMP + UART (UART itself: UART + CAN minus CAN alone;
+  without CAN: UART + USB CDC minus USB CDC alone). Code that two items share (USB CDC and DFU: the USB core) is
+  counted in both rows, so the rows of the items in "all on" add up to 7-9 K more than it.
 - The second table: the bootloader size for a set of transports on each ported family, and the region it needs
   from the start of flash (`UMCUB_CFG_BOOT_SIZE`: the size plus the 256-byte info block, rounded up to whole erase
   sectors / pages).
@@ -25,7 +26,7 @@ ECDSA-P256), and what every transport and feature adds. Regenerate with `tools/b
 **Rule: the bootloader region is a whole number of erase sectors, and on parts with large sectors at most three.**
 Every sector given to the bootloader is lost for the slots, and on parts whose first sectors are small (F2/F4/F7) the
 fourth sector is already 64 or 128 KiB. Choose the transports so that the build fits: on the H7 everything fits into
-one 128 KiB sector; on the F4 one SMP transport takes two 16 KiB sectors and USB a third. Page flash (F1, G4, L4:
+one 128 KiB sector; on the F4 one SMP transport (even USB CDC) fits two 16 KiB sectors, "all on" takes a third. Page flash (F1, G4, L4:
 1-4 KiB pages) has no such limit: size the region in pages with some reserve, the slots take the rest. A series
 without a port yet: the sizes follow the core (Cortex-M4: the F411 column, Cortex-M7: the H7 one, Cortex-M3: the
 F103 one) - round them up to that part's sector layout and check the real size after porting.
@@ -79,12 +80,12 @@ Notes:
 - STM32F103: UART, USB (CDC, DFU) and bxCAN (classic CAN, not together with USB: they share their SRAM) are
   ported, no Ethernet on this part; "all on" is without CAN.
   The column is measured in the 44 KiB region of the USB layout. The Blue Pill default
-  (UART, log, text commands, status LED) is 26.9 K of its 32 K region; without log, commands and LED 21.4 K.
+  (UART, log, text commands, status LED) is 24.9 K of its 32 K region; without log, commands and LED 20.5 K.
 - USB is mostly tinyUSB. Ethernet is the own IPv4/ARP/ICMP/UDP/DHCP stack plus the MAC driver. CAN FD only changes
   configuration, not code size.
 - Debug builds (`-Og`) are about 18 % larger.
 - **Link-time optimisation** (`UMCUB_CFG_LTO=y` or `-DUMCUB_LTO=ON`, fragment `tests/configs/feature/lto.conf`, third
-  table): 3-4 K less on the Cortex-M3 / M4, 6-7 K on the H7. Verified on the F1 and the F4, experimental on the H7
+  table): about 4 K less for base + SMP + UART, 5-6 K for "all on". Verified on the F1 and the F4, experimental on the H7
   (not run there yet). Inlining makes single stack frames larger (MCUboot's image validation 248 -> 848 bytes), the
   peak grows little: Blue Pill about 1.5-2.9 KiB of the 4 KiB reserve (the deepest path is an SMP upload of an
   encrypted image), Black Pill 2416 instead of 2144 bytes (umcub link upload, verify, hash). Check the stack of your
@@ -92,5 +93,5 @@ Notes:
   overwrite upgrade from the application, SECURE + encrypted images; on the Black Pill: umcub link recovery upload,
   verify / hash, boot, the application's request back into the bootloader, overwrite upgrade, the ENC28J60 board
   driver and a board override of a weak function (`umcub_cmd_user`).
-- Every byte counts on small parts: the bootloader keeps compiler-generated tables (`-fno-optimize-crc`), 64-bit
-  division and MCUboot's assert paths out of the image; disabled features are not compiled.
+- Every byte counts on small parts: the bootloader keeps 64-bit division out of the image, MCUboot's asserts carry
+  no file paths (none without a log; `UMCUB_CFG_ASSERT_TRAP`: one trap each); disabled features are not compiled.

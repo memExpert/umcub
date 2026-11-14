@@ -28,7 +28,7 @@ not compiled.
 |---|---|---|
 | STM32H7 (H742/H743/H753, dual-core H745/H755/H747/H757) | NUCLEO-H755ZI-Q (both cores) | UART, USB CDC / DFU, FDCAN (CAN FD), Ethernet |
 | STM32F1 (F103x8/xB) | Blue Pill (STM32F103C8T6) | UART, USB CDC / DFU, bxCAN (not together with USB) |
-| STM32F4 (F411xC/xE) | Black Pill (STM32F411CEU6) | UART (also RS485 with umcub link), USB CDC / DFU |
+| STM32F4 (F411xC/xE) | Black Pill (STM32F411CEU6) | UART (also RS485 with umcub link), USB CDC / DFU, Ethernet through an ENC28J60 (board driver) |
 
 Size: from 12.5 K (F103) / 16.9 K (H743) without a transport, about 19 K with one UART on the F103 (20 K on the F411); every transport
 and feature is listed in [Bootloader size](docs/size.md).
@@ -61,7 +61,7 @@ umcub -d <port> upload build/<preset>/examples/<app>/<app>.signed.bin --reset
 
 On every board `b` in the running example application reboots into the bootloader, and a board without a valid
 image stays there. The H755 needs its option bytes once before the first flash: `tools/hw/h755_option_bytes.py single`
-(the CM4 waits in the bootloader). The `flash` target uses `tools/hw/probe.py` (STM32_Programmer_CLI on PATH or in
+(the CM4 waits in the bootloader; needs pyOCD, which `tools/setup.sh` does not install: `pip install pyocd`). The `flash` target uses `tools/hw/probe.py` (STM32_Programmer_CLI on PATH or in
 `$STM32_PROGRAMMER_CLI`; `-DUMCUB_PROBE=pyocd` for pyOCD, `-DUMCUB_PROBE_ARGS=...` for more options). USB, CAN,
 RS485 and the other variants of each board: [Reference boards](docs/board.md#reference-boards).
 
@@ -116,7 +116,7 @@ The bootloader starts the application unless one of these says otherwise:
 In the bootloader (recovery mode) every enabled interface accepts updates until a reset (or, with
 `UMCUB_CFG_RECOVERY_TIMEOUT_MS`, until it has been idle that long).
 
-A status LED (`UMCUB_CFG_STATUS_LED`, about 230 bytes) shows it without a log: slow blink (1 Hz) while the bootloader
+A status LED (`UMCUB_CFG_STATUS_LED`, about 200 bytes) shows it without a log: slow blink (1 Hz) while the bootloader
 listens, fast flicker while data arrives, N blinks and a pause when transport N did not come up (1 UART, 2 USB,
 4 CAN, 5 Ethernet, 7 board transport: no transceiver, no PHY clock, ...). On a plain boot it stays dark.
 
@@ -127,7 +127,7 @@ listens, fast flicker while data arrives, N blinks and a pause when transport N 
 | recovery, SMP (UART, USB CDC, UDP, CAN) | [`umcub`](docs/host.md), `smpmgr`, `mcumgr` | primary by default; secondary with `UMCUB_CFG_SMP_DIRECT_UPLOAD` |
 | recovery, USB DFU | `dfu-util -a <image> -D app.signed.bin -R` | secondary, test boot |
 | recovery without SMP | `umcub upload --lite` | either (`--slot`) |
-| the running application | `umcub_slot_*` (your own protocol) | secondary (default) or any slot it does not run from |
+| the running application | `umcub_slot_*` (your own protocol) | secondary (default; direct-xip: the inactive one) or any slot it does not run from |
 
 Two ways to install an image:
 - **into the primary slot**: it replaces the old image at once - quick, nothing to swap, but no way back if the

@@ -29,7 +29,7 @@ replaced; keep it and a backup; a tree without a board has its own in `keys/<par
 
 ```sh
 cmake -S umcub -B build/boot -G Ninja -DCMAKE_BUILD_TYPE=Release -DUMCUB_BOARD=$PWD/boards/my_board
-cmake --build build/boot                # build/boot/umcub_my_board_cm7.{elf,hex,bin}
+cmake --build build/boot                # build/boot/umcub_my_board_<core>.{elf,hex,bin} (cm7, cm4, cm3)
 ```
 
 The same with the preset `custom` (builds in `build/custom`): `cmake --preset custom -DUMCUB_BOARD=$PWD/boards/my_board`,
@@ -250,7 +250,7 @@ board driver and implement that interface:
 
 ```
 UMCUB_CFG_TRANSPORT_CAN=y
-UMCUB_CFG_CAN_DRIVER_BOARD=y     # the on-chip FDCAN driver is not compiled
+UMCUB_CFG_CAN_DRIVER_BOARD=y     # the on-chip CAN driver (FDCAN / bxCAN) is not compiled
 UMCUB_CFG_TRANSPORT_ETH=y
 UMCUB_CFG_ETH_DRIVER_BOARD=y     # the on-chip MAC driver is not compiled
 ```
@@ -260,14 +260,14 @@ UMCUB_CFG_ETH_DRIVER_BOARD=y     # the on-chip MAC driver is not compiled
 | CAN | `umcub_port_can_init(cfg)`, `_deinit()`, `_send(id, data, len)`, `_tx_idle()`, `_recv(&id, data, &len)` (`umcub_port_can.h`) | receive only `cfg->rx_id`; `send` returns `UMCUB_EBUSY` when the TX buffer is full; `tx_idle` is true once every sent frame is on the bus (ISO-TP STmin); `len` up to 8 (classic) or 64 (`cfg->fd`) |
 | Ethernet | `umcub_port_eth_init(mac, phy, pins, npins)`, `_deinit()`, `_link()`, `_tx(frame, len)`, `_rx(buf, max)` (`umcub_port_eth.h`) | whole Ethernet frames without FCS; `pins` is `NULL` when `UMCUB_CFG_ETH_RMII_PINS` is not set; `rx` returns 0 when nothing arrived |
 
-All CAN settings from the config (`UMCUB_CFG_CAN_BITRATE`, `_FD`, `_RX_ID`, `_TX_ID`, `_EXT_ID`, ...) reach the
-driver through `umcub_can_cfg_t`. Everything above the driver works as with the on-chip controller, including
-the `umcub` tool, `mcumgr --conntype udp`, text commands and verify/hash.
+All CAN settings from the config (`UMCUB_CFG_CAN_BITRATE`, `_FD`, `_RX_ID`, `_EXT_ID`, ...) reach the
+driver through `umcub_can_cfg_t`; `_TX_ID` (plus the node address) comes as `id` of `send`. Everything above
+the driver works as with the on-chip controller, including the `umcub` tool, `mcumgr --conntype udp`, text commands and verify/hash.
 
 Example: [`boards/blackpill_f411ce/enc28j60.c`](../boards/blackpill_f411ce/enc28j60.c), an ENC28J60 module on SPI1
 (fragment `boards/blackpill_f411ce/variants/enc28j60.conf`; the pins are board options in
 [`boards/blackpill_f411ce/Kconfig`](../boards/blackpill_f411ce/Kconfig)).
-About 300 lines, polled, with the chip's errata handled in the driver; the bootloader with the IPv4 / DHCP / UDP stack
+About 380 lines, polled, with the chip's errata handled in the driver; the bootloader with the IPv4 / DHCP / UDP stack
 is about 30 K and still fits the Black Pill's 32 KiB. On the bench: DHCP lease about 0.2 s after reset, a 110 K
 image over `umcub upload` in 1.6 s.
 
@@ -280,6 +280,7 @@ Set `UMCUB_CFG_TRANSPORT_USER=y` and:
 
 ```c
 /* umcub_board.c - a packet transport, e.g. a W5500 UDP socket */
+#include "umcub_cfg.h"            /* UMCUB_CFG_* */
 #include "umcub_transport.h"      /* also declares umcub_transport_user */
 #include "umcub_handoff.h"
 
@@ -300,6 +301,7 @@ static int w5500_send(const uint8_t *pkt, size_t len) { /* send to the last send
 const umcub_transport_t umcub_transport_user = {
     .id = UMCUB_TRANSPORT_USER,
     .init = w5500_init, .deinit = w5500_deinit, .poll = w5500_poll, .send_packet = w5500_send,
+    .link = UMCUB_CFG_USER_LINK,  /* must match the option, or the transport stays off */
 };
 ```
 

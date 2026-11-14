@@ -8,8 +8,9 @@ PCAN, Kvaser, Vector, IXXAT, slcan / CANable, candleLight, ...).
 
 `tools/setup.sh` installs it into `.venv` (`pip install -e tools/host`, esp-idf-kconfig from
 `tools/requirements.txt`). Elsewhere `pip install <umcub>/tools/host` is enough for devices (a flasher);
-`"<umcub>/tools/host[build]"` adds esp-idf-kconfig for `config`, `image` and `keys`.
-A program that pins the library takes the source archive of a release tag `host-v<version>`:
+`"<umcub>/tools/host[build]"` adds esp-idf-kconfig for `config` and `image` (`image sign` also needs imgtool's
+dependencies, `third_party/mcuboot/scripts/requirements.txt`). A program that pins the library takes the source
+archive of a release tag `host-v<version>`:
 `umcub @ https://github.com/memExpert/umcub/archive/refs/tags/host-v<version>.zip#subdirectory=tools/host`.
 
 ## Devices
@@ -21,7 +22,6 @@ A device is one string (`-d`, or `$UMCUB_DEVICE`):
 | serial | `/dev/ttyUSB0`, `COM3`, `serial:/dev/ttyUSB0,baud=921600` (default 115200) |
 | UDP | `192.168.1.50`, `udp:192.168.1.50,port=1337` |
 | CAN ISO-TP | `can:<python-can interface>:<channel>`, e.g. `can:socketcan:can0`, `can:pcan:PCAN_USBBUS1,bitrate=250000`, `can:slcan:/dev/ttyACM0,fd,data-bitrate=2000000`; also `tx=0x7C0`, `rx=0x7C8` (ID bases), `ext` (29-bit), `mtu=1024` |
-
 | plugin | `<scheme>:<target>[,option[=value]]...`, see [Transport plugins](#transport-plugins); `umcub transports` lists the schemes |
 
 `--node N` selects a device on a [umcub link](link.md) bus (serial, UDP) or, on CAN, the node's IDs (bases + N);
@@ -124,7 +124,7 @@ umcub -d /dev/ttyUSB1 sniff                                  # listen only: ever
 
 `umcub <command> --help` lists the options. The protocol is the user's choice (`--lite` for bootloaders without
 SMP), the tool does not probe for it. SMP uploads take the packet size from the bootloader
-(`UMCUB_CFG_SMP_PARAMS`), otherwise 512 bytes (`mtu=` raises it on UDP and CAN). Over SMP, `--slot` needs
+(`UMCUB_CFG_SMP_PARAMS`), otherwise 512 bytes, 1024 on CAN (`mtu=` sets it on UDP and CAN). Over SMP, `--slot` needs
 `UMCUB_CFG_SMP_DIRECT_UPLOAD` (the image field then names the slot, see [Recovery mode](recovery.md)) and
 `--test` / `--permanent` (or `mark` later) set the image state by its hash, read from the file; MCUboot takes
 one mark per upload, so `mark` does not turn a test mark into a permanent one. On a link node the board type of
@@ -139,8 +139,8 @@ not for an encrypted image in the primary slot, which is decrypted there); `uplo
 ## Images and keys (no device)
 
 The build side lives in the same tool: CMake's `umcub_sign_image()` and post-build steps of other builds sign with it, and
-CMake embeds the umcub link keys with it. These commands need neither a device nor the transport libraries
-(smpclient, python-can), only imgtool's dependencies and esp-idf-kconfig, and run straight from a checkout as
+CMake embeds the umcub link keys with it. These commands need neither a device nor smpclient or python-can, only imgtool's dependencies,
+esp-idf-kconfig and `smp` (the packet library under smpclient), and run straight from a checkout as
 `python <umcub>/tools/host/umcub ...` - no install needed.
 
 ```sh
@@ -226,6 +226,7 @@ A board protocol (`UMCUB_CFG_PROTO_USER`) uses the connection directly: `dev.sen
 | `board_names` | the board name catalog: `load_board_names()`, `board_label()` |
 | `errors` | the exceptions, their codes and English messages (`MESSAGES`) |
 | `plugins` | transport plugins: installed packages and plugin folders |
+| `nlip` | SMP serial framing (NLIP lines): `nlip_encode()`, `NlipDecoder` |
 | `connection` | the device strings and the transport registry; serial (SMP as NLIP lines, frames as `05 <kind> base64` lines, text), UDP, CAN ISO-TP |
 | `device` | `connect()`, `discover()`, `Device` (directly, or as a link node) |
 | `smp` | `Smp` (smpclient on a `Device`), the inspection group requests |

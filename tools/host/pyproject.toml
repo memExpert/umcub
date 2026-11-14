@@ -17,7 +17,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-build = ["esp-idf-kconfig>=3.14,<4"]   # umcub config / image / keys: the bootloader and application builds
+build = ["esp-idf-kconfig>=3.14,<4"]   # umcub config / image: the bootloader and application builds
 
 [project.scripts]
 umcub = "umcub.cli:main"

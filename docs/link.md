@@ -58,8 +58,8 @@ development keys from the repository, the build warns about them.
   plenty for challenges that must not repeat; a colder or quieter part has less noise, so measure a new board. Randomness is fail-closed: if the entropy source fails
   or its output looks stuck, `HELLO` gets no challenge.
 - A failed `AUTH` blocks further attempts for one second, a challenge is valid for ten seconds. An `AUTH` costs two
-  ECC operations (about 1.3 s on a 72 MHz Cortex-M3), so with SECURE `UMCUB_CFG_WATCHDOG_MS` must be at least 2000
-  and `UMCUB_CFG_VALIDATE_PRIMARY` must stay on (both checked at build time).
+  ECC operations (about 1.3 s on a 72 MHz Cortex-M3), so with SECURE `UMCUB_CFG_WATCHDOG_MS` (if set) must be at least 2000
+  and, with SMP, `UMCUB_CFG_VALIDATE_PRIMARY` must stay on (both checked at build time).
 - The policy is per transport: a PLAIN transport next to a SECURE one is a way around it, the build warns unless
   `UMCUB_CFG_LINK_MIXED_OK` is set. A UART with a link never carries the log.
 - A bus can always be jammed; the link protects authenticity, integrity, replay and (with encryption)
