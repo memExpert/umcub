@@ -126,16 +126,18 @@ class Serial(Connection):
 
     def recv(self, kind, timeout):
         end = time.monotonic() + timeout
+        polled = False
         while True:
             if self.queues[kind]:
                 return self.queues[kind].popleft()
             left = end - time.monotonic()
-            if left <= 0:
-                if self.buf.strip() and kind != KIND_SMP:
+            if left <= 0 and polled:
+                if timeout > 0 and self.buf.strip() and kind != KIND_SMP:
                     self.noise += 1         # a line cut short (its newline lost in a collision)
                     self.buf = b""
                 return None
-            self._read(min(left, 0.05))
+            self._read(max(0.0, min(left, 0.05)))  # at least once: a poll takes what the OS has
+            polled = True
 
     def text(self, cmd, wait):
         self.s.reset_input_buffer()

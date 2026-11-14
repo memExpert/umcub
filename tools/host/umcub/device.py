@@ -59,10 +59,10 @@ class Device:
 
     def ping(self, protocol="smp"):
         """A request that changes nothing - keeps a SECURE session alive when sent within SESSION_IDLE, shows the
-        device still answers: an SMP echo, or a lite frame of no known kind (answered "not supported"). Raises
+        device still answers: an SMP echo, or a lite frame of no known kind ('P', answered "not supported"). Raises
         UmcubError (NoAnswer when silent)."""
         if protocol == "lite":
-            lite.request(self, lite.frame("?"), retries=1)
+            lite.request(self, lite.frame("P"), retries=1)
         else:
             from .smp import Smp
             with Smp(self) as smp:

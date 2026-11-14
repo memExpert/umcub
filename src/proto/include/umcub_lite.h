@@ -26,8 +26,14 @@
  *                   A6 'E' flags:u8                    end; bit 0 mark for a test boot,
  *                                                      bit 1 permanent (secondary slot)
  *                   A6 'R'                             reset
- *   device -> host  A6 'k' rc:i8 off:u32               answer to each frame; off = bytes taken
- * rc is UMCUB_OK or a negative UMCUB_E* code. Host side: tools/host/umcub/lite.py. */
+ *   device -> host  A6 kind rc:i8 off:u32              answer to each frame; off = bytes taken
+ * kind is the answered frame's in lower case ('b', 'd', 'e', 'r'; another kind
+ * is answered UMCUB_ENOTSUP), '?' for a damaged frame (bad CRC: repeat it), so
+ * a request of kind '?' is reserved. rc is UMCUB_OK or a negative UMCUB_E* code.
+ * A host drops answers of another kind (late answers to earlier frames) and
+ * repeats a frame on '?' or silence; an 'E' that went unanswered and whose
+ * repeat gets UMCUB_EINVAL may have finished the upload: check the slot.
+ * Host side: tools/host/umcub/lite.py. */
 #define UMCUB_LITE_MAGIC        0xA6
 
 /* A frame that starts with UMCUB_LITE_MAGIC: handled (answered) and true;

@@ -25,9 +25,11 @@ static bool active;
 static uint32_t taken;      /* image bytes accepted (written or buffered) */
 static uint32_t total;
 
-static void answer(const umcub_transport_t *t, int rc)
+/* The answer names the frame it answers: its kind in lower case ('?' for a
+ * damaged frame), so a late answer is never taken for the next frame's. */
+static void answer(const umcub_transport_t *t, uint8_t kind, int rc)
 {
-    uint8_t f[9] = { UMCUB_LITE_MAGIC, 'k', (uint8_t)(int8_t)rc };
+    uint8_t f[9] = { UMCUB_LITE_MAGIC, kind, (uint8_t)(int8_t)rc };
     umcub_put_le32(&f[3], taken);
     umcub_put_be16(&f[7], crc16_ccitt(0, f, 7));
     umcub_mux_send_frame(t, UMCUB_FRAME_LITE, f, sizeof(f));
@@ -99,28 +101,29 @@ bool umcub_lite_rx(const umcub_transport_t *t, const uint8_t *f, size_t len)
         return false;
     }
     if (len < 4 || crc16_ccitt(0, f, (int)len - 2) != (uint16_t)(f[len - 2] << 8 | f[len - 1])) {
-        answer(t, UMCUB_EINVAL);            /* damaged: the host repeats it */
+        answer(t, '?', UMCUB_EINVAL);       /* damaged: the host repeats it */
         return true;
     }
     const uint8_t *p = &f[2];
     size_t n = len - 4;
+    uint8_t kind = f[1] | 0x20;             /* 'B' -> 'b', ... */
     switch (f[1]) {
     case 'B':
-        answer(t, begin(p, n));
+        answer(t, kind, begin(p, n));
         break;
     case 'D':
-        answer(t, data(p, n));
+        answer(t, kind, data(p, n));
         break;
     case 'E':
-        answer(t, end(p, n));
+        answer(t, kind, end(p, n));
         break;
     case 'R':
-        answer(t, UMCUB_OK);
+        answer(t, kind, UMCUB_OK);
         umcub_mux_flush(50);                /* let the answer leave (USB, Ethernet) */
         umcub_port_reset();
         break;
     default:
-        answer(t, UMCUB_ENOTSUP);
+        answer(t, kind, UMCUB_ENOTSUP);
         break;
     }
     return true;

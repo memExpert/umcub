@@ -73,7 +73,9 @@ leaves them out; the transports stay, and images come through the protocols belo
 UART bootloader is about 3 K smaller (F103: 16.4 K instead of 19.4 K, H7: 22.5 K instead of 25.6 K):
 
 - **the lite upload protocol** (`UMCUB_CFG_LITE_UPLOAD`, on by default without SMP; about 2.5 K with the slot writer).
-  Begin / data / end frames with a CRC, every frame answered, lost frames repeated; the image goes through the same
+  Begin / data / end frames with a CRC, every frame answered (the answer names the frame), lost or damaged frames
+  repeated; bootloaders newer than 1.0.0 need the host library 0.5.2 or later (older hosts get no answer, earlier
+  bootloaders answer in a format newer hosts do not take). The image goes through the same
   slot writer as from the application (header check, test or permanent mark for the secondary slot, in-place
   decryption and validation of encrypted images in the primary slot). Frames are described in
   [`src/proto/include/umcub_lite.h`](../src/proto/include/umcub_lite.h); the host side is `umcub upload --lite` ([host tool](host.md)):

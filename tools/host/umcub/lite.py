@@ -2,9 +2,10 @@
 frames: src/proto/include/umcub_lite.h). Every frame is answered; lost frames are repeated."""
 import binascii
 import struct
+import time
 
 from .connection import KIND_LITE
-from .errors import Cancelled, DeviceError, NoAnswer
+from .errors import Cancelled, DeviceError, NoAnswer, UmcubError
 
 MAGIC = 0xA6
 # Data bytes per 'D' frame that fit every build (UMCUB_CFG_SMP_MTU >= 512,
@@ -23,19 +24,32 @@ def frame(kind, payload=b""):
 
 
 def parse_answer(f):
-    if len(f) != 9 or f[0] != MAGIC or f[1] != ord("k") or binascii.crc_hqx(f[:7], 0) != struct.unpack(">H", f[7:])[0]:
+    """(kind, rc, taken): kind is the answered frame's in lower case, '?' for a damaged one."""
+    if len(f) != 9 or f[0] != MAGIC or binascii.crc_hqx(f[:7], 0) != struct.unpack(">H", f[7:])[0]:
         return None
-    return struct.unpack("<bI", f[2:7])
+    return (chr(f[1]),) + struct.unpack("<bI", f[2:7])
 
 
 def request(dev, f, timeout=None, retries=5):
-    """Send a frame until it is answered; returns (rc, taken)."""
+    """Send a frame until its own answer comes (none, or '?' for a damaged frame: sent again); answers of
+    earlier frames that came late are dropped. Returns (rc, taken, lost): lost is True when a sending
+    went unanswered (the device may have acted on it)."""
+    want = chr(f[1]).lower()
+    wait = dev.timeout if timeout is None else timeout
+    lost = False
     for _ in range(retries):
+        while dev.recv(KIND_LITE, 0) is not None:      # late answers of earlier frames
+            pass
         dev.send(KIND_LITE, f)
-        r = dev.recv(KIND_LITE, timeout)
-        ans = parse_answer(r) if r else None
-        if ans:
-            return ans
+        end = time.monotonic() + wait
+        while (r := dev.recv(KIND_LITE, max(0.0, end - time.monotonic()))) is not None:
+            ans = parse_answer(r)
+            if ans and ans[0] == "?":
+                break
+            if ans and ans[0] == want:
+                return ans[1:] + (lost,)
+        else:
+            lost = True
     raise NoAnswer(code="lite.no_answer")
 
 
@@ -50,19 +64,21 @@ def upload(dev, data, image=0, slot=0, test=False, permanent=False, chunk=None, 
     frame; setting the `cancel` event stops the upload."""
     chunk = chunk or (CHUNK_SERIAL if dev.stream else CHUNK_PACKET)
     t = dev.timeout
-    rc, _ = request(dev, frame("B", struct.pack("<BBI", image, slot, len(data))), t + 10)   # erases
+    rc, _, _ = request(dev, frame("B", struct.pack("<BBI", image, slot, len(data))), t + 10)   # erases
     _check(rc, "lite.begin_refused")
     off = 0
     while off < len(data):
         if cancel is not None and cancel.is_set():
             raise Cancelled(code="cancelled.upload")
-        rc, taken = request(dev, frame("D", struct.pack("<I", off) + data[off:off + chunk]), t)
+        rc, taken, _ = request(dev, frame("D", struct.pack("<I", off) + data[off:off + chunk]), t)
         _check(rc, "lite.data_refused", offset=off)
         off = taken
         if progress:
             progress(off, len(data))
     flags = (1 if test or permanent else 0) | (2 if permanent else 0)
-    rc, _ = request(dev, frame("E", bytes([flags])), t + 30)     # in-place decryption takes a while
+    rc, _, lost = request(dev, frame("E", bytes([flags])), t + 30)     # in-place decryption takes a while
+    if rc == -1 and lost:               # an unanswered one may have ended the upload
+        raise UmcubError(code="lite.end_unconfirmed")
     _check(rc, "lite.end_refused")
 
 

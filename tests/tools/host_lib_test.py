@@ -4,6 +4,7 @@ installed package's entry point), device strings, adapter lists, error codes, th
 the sniffer (on a pseudo terminal) and flash() (SMP / lite faked)."""
 import ast
 import base64
+import binascii
 import hashlib
 import os
 import string
@@ -58,6 +59,14 @@ def raises(what, fn, exc=umcub.UmcubError, text=""):
         expect(what, text in str(e), f"- message: {e}")
         return
     expect(what, False, f"- no {exc.__name__}")
+
+
+def code_of(fn):
+    try:
+        fn()
+    except umcub.UmcubError as e:
+        return e.code
+    return None
 
 
 # Folder plugins: a loopback transport, a node-selecting one, a broken file, a duplicate
@@ -311,6 +320,63 @@ d = umcub.describe(ev("rx", None, bytes([3, 0, 0, 2, 0, 1, 4, 1]) + b"\xa0\xa0")
 expect("describe: SMP response on a packet transport", d.text == "write-rsp image/upload seq 4, 10 B", str(d))
 d = umcub.describe(ev("tx", umcub.KIND_LITE, lite_frame("R")))
 expect("describe: lite frame", d.kind == "lite" and d.text.startswith("R"), str(d))
+
+
+# Lite upload: answers name the frame they answer ('?' for a damaged one).
+class LiteDev:
+    """A lite bootloader: answers every frame; `quirks` damages, delays or loses answers."""
+    stream, timeout = False, 0.05
+
+    def __init__(self, *quirks, kind=None):
+        self.quirks, self.q, self.taken, self.sent, self.kind = set(quirks), [], 0, [], kind
+
+    def answer(self, kind, rc):
+        body = bytes([0xA6, ord(self.kind or kind), rc & 0xFF]) + struct.pack("<I", self.taken)
+        self.q.append(body + struct.pack(">H", binascii.crc_hqx(body, 0)))
+
+    def send(self, kind, f):
+        k = chr(f[1])
+        self.sent.append(k)
+        if k == "D":
+            if "damage" in self.quirks:
+                self.quirks.discard("damage")
+                return self.answer("?", -1)
+            off = struct.unpack_from("<I", f, 2)[0]
+            self.taken = off + len(f) - 8
+            self.answer("d", 0)
+        elif k == "E":
+            if "damage_end" in self.quirks:
+                self.quirks.discard("damage_end")
+                self.quirks.add("ended")                # the repeat meets an upload that is not active
+                return self.answer("?", -1)
+            if "stale" in self.quirks:
+                self.answer("d", 0)                 # the late answer to a repeated data frame
+                return self.answer("e", -2)
+            if "lose_end" in self.quirks:
+                self.quirks.discard("lose_end")
+                self.quirks.add("ended")
+                return                              # finalized, the answer lost
+            self.answer("e", -1 if "ended" in self.quirks else 0)
+        else:
+            self.answer(k.lower(), 0)
+
+    def recv(self, kind, timeout):
+        return self.q.pop(0) if self.q else None
+
+
+data = bytes(range(256)) * 4
+ld = LiteDev("damage")
+umcub.lite.upload(ld, data, chunk=200)
+expect("lite: a damaged frame is repeated, the upload goes on", ld.sent.count("D") == 7 and ld.taken == len(data),
+       str(ld.sent))
+expect("lite: a late data answer is not taken for the end frame's",
+       code_of(lambda: umcub.lite.upload(LiteDev("stale"), data, chunk=512)) == "lite.end_refused")
+expect("lite: the end frame's answer lost, the repeat refused: the outcome is unknown, not refused",
+       code_of(lambda: umcub.lite.upload(LiteDev("lose_end"), data, chunk=512)) == "lite.end_unconfirmed")
+expect("lite: a damaged end frame repeated and refused: refused (it never ended the upload)",
+       code_of(lambda: umcub.lite.upload(LiteDev("damage_end"), data, chunk=512)) == "lite.end_refused")
+expect("lite: answers of the old format ('k' for every frame) are not taken",
+       code_of(lambda: umcub.lite.upload(LiteDev(kind="k"), data)) == "lite.no_answer")
 d = umcub.describe(ev("rx", "text", b"ok valid\r\n"))
 expect("describe: text", (d.kind, d.text) == ("text", "ok valid"), str(d))
 d = umcub.describe(ev("rx", None, b"\x01\x02"))
@@ -344,9 +410,22 @@ c = umcub.open_connection("loop:t", tap=lambda ev: 1 / 0)
 c.send(None, b"x")
 expect("tap error kept, transfer goes on", isinstance(c.tap_error, ZeroDivisionError) and c.recv(None, 0) == b"x")
 
-# Sniffer on a pseudo terminal: link frames and a raw line, stops on the event.
+# Serial: a poll without waiting (timeout 0) takes what the OS already has, and keeps a line still arriving.
 if sys.platform.startswith("linux"):
     import pty
+    master, slave = pty.openpty()
+    sc = umcub.open_connection(os.ttyname(slave))
+    f = lite_frame("D", b"abc")
+    os.write(master, b"\x05\x0c" + base64.b64encode(f) + b"\n" + b"\x05\x0c" + base64.b64encode(f)[:4])
+    time.sleep(0.1)
+    expect("serial: recv(timeout 0) reads what arrived", sc.recv(umcub.KIND_LITE, 0) == f)
+    expect("serial: recv(timeout 0) keeps a line half there", sc.recv(umcub.KIND_LITE, 0) is None and sc.buf)
+    sc.close()
+    os.close(master)
+    os.close(slave)
+
+# Sniffer on a pseudo terminal: link frames and a raw line, stops on the event.
+if sys.platform.startswith("linux"):
     master, slave = pty.openpty()
     got, stop = [], threading.Event()
     th = threading.Thread(target=link.sniff, args=(os.ttyname(slave), got.append), kwargs=dict(raw=True, stop=stop))
@@ -581,14 +660,6 @@ class BusConn:
 def announce(src, mode=1, uid=b"\x11" * 12, closed=False, short=False):
     p = uid + struct.pack("<HIH", src, 0x46103001, 1) + bytes([mode | (link.ANNOUNCE_CLOSED if closed else 0), 1, 0, 0])
     return link.make_frame(link.T_ANNOUNCE, 0, link.HOST_ADDR, 1, p[:20] if short else p, src=src)
-
-
-def code_of(fn):
-    try:
-        fn()
-    except umcub.UmcubError as e:
-        return e.code
-    return None
 
 
 lk = link.Link(BusConn(announce(5)), addr=5, admin_key=KEYS / "dev-admin-p256.pem",

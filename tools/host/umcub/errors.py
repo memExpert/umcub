@@ -40,6 +40,8 @@ MESSAGES = {
     "lite.begin_refused": "begin refused: {reason}",
     "lite.data_refused": "data at {offset} refused: {reason}",
     "lite.end_refused": "end refused (not a valid image for this device?): {reason}",
+    "lite.end_unconfirmed": "the answer to the end frame was lost and its repeat was refused: the upload may have "
+                            "ended; check the slot (umcub verify)",
     # cancel
     "cancelled.upload": "upload cancelled",
     "cancelled.read": "read cancelled",
