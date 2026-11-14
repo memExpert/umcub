@@ -25,6 +25,8 @@ MESSAGES = {
     "link.no_hello": "no answer to HELLO (wrong node, not in recovery, or not a link transport)",
     "link.closed": "device refuses SECURE sessions (readout protection off, UMCUB_CFG_LINK_REQUIRE_RDP)",
     "link.keys_needed": "SECURE transport: the admin key and the device key are needed",
+    "link.not_secure": "keys given, but the device answered without a SECURE challenge (not a SECURE transport, or "
+                       "a forged answer): no unprotected session",
     "link.auth_failed": "authentication failed (wrong admin key, device key or no answer)",
     "key.private_needed": "{path}: a private key is needed",
     "key.invalid": "{path}: not a PEM key",

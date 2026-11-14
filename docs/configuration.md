@@ -40,7 +40,7 @@ Their defaults fit almost every board, and some of them weaken the bootloader wh
 | `UMCUB_CFG_ENTRY_ON_NO_IMAGE` | 1 | Stay in recovery when no image is bootable. **0 = a device without a valid image is unreachable** (debugger only). |
 | `UMCUB_CFG_LINK_REQUIRE_RDP` | 1 | Keep SECURE transports closed while flash readout protection is off (RDP level 0, the device key can be read with a debugger). 0 only for development. |
 | `UMCUB_CFG_USB_DFU_ALLOW_UNAUTH` | 0 | USB DFU cannot authenticate the host; with a SECURE transport it is refused at build time unless this is 1. |
-| `UMCUB_CFG_LINK_SESSION_MS` | 60000 | An umcub link session ends after this long without a valid frame. |
+| `UMCUB_CFG_LINK_SESSION_MS` | 60000 | An umcub link session ends after this long without a valid frame (20 s .. 1 h: the host library starts a new session after 20 s idle). |
 | `UMCUB_CFG_USER_LINK_*` | plain | umcub link mode of the board transport (`UMCUB_CFG_TRANSPORT_USER`), like `UMCUB_CFG_UART_LINK_*`. |
 | `UMCUB_CFG_LITE_UPLOAD` | 1 without SMP | Lite upload protocol (`umcub upload --lite`): begin / data / end frames with CRC, written with `umcub_slot_*` (test or permanent mark, in-place decryption). |
 | `UMCUB_CFG_MCUBOOT_LOG_LEVEL` | `UMCUB_CFG_LOG_LEVEL` | Level of MCUboot's own messages (`Image index: 0, Swap type: none`, ...), at most the umcub level: 1 (errors only) saves about 0.9 K on the F1/F4 and 1.1 K on the H7 next to an info log, 0 about 1.2-1.6 K. Fragment `tests/configs/feature/mcuboot_log_err.conf`. |

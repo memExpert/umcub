@@ -8,8 +8,7 @@ from .connection import Connection, _parse, can_bus, open_connection
 from .errors import LinkError, UmcubError
 from .link import Link
 
-# A SECURE session ends on the device after a while without traffic; the
-# next request then starts a new one.
+# A SECURE session idle this long starts again: the minimum of UMCUB_CFG_LINK_SESSION_MS.
 SESSION_IDLE = 20.0
 
 
@@ -47,9 +46,7 @@ class Device:
     def recv(self, kind, timeout=None):
         timeout = self.timeout if timeout is None else timeout
         if self.link:
-            r = self.link.recv_data(timeout)
-            self._last = time.monotonic()
-            return r
+            return self.link.recv_data(timeout)     # waiting is no traffic for the device's session timer
         return self.conn.recv(kind, timeout)
 
     def text(self, cmd, wait=1.0):

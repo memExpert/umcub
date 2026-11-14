@@ -957,9 +957,11 @@ config LINK_REQUIRE_RDP
 config LINK_SESSION_MS
 	int "Session timeout (ms)"
 	depends on LINK_SECURE
+	range 20000 3600000
 	default 60000
 	help
-	  A session ends after this long without a valid frame.
+	  A session ends after this long without a valid frame from the host
+	  (at least 20 s: the host library starts a new one after 20 s idle).
 
 endmenu
 

@@ -563,6 +563,75 @@ except ImportError as err:
 
 expect("link mode names exported", umcub.LINK_NAMES == {0: "plain", 1: "addressed", 2: "secure"})
 
+
+# hello(): who answers, and whether a SECURE session can be skipped.
+class BusConn:
+    """A link bus: the frames queued in `rx` arrive in order after a send."""
+
+    def __init__(self, *frames):
+        self.rx, self.noise = list(frames), 0
+
+    def send(self, kind, f):
+        pass
+
+    def recv(self, kind, timeout):
+        return self.rx.pop(0) if self.rx else None
+
+
+def announce(src, mode=1, uid=b"\x11" * 12, closed=False, short=False):
+    p = uid + struct.pack("<HIH", src, 0x46103001, 1) + bytes([mode | (link.ANNOUNCE_CLOSED if closed else 0), 1, 0, 0])
+    return link.make_frame(link.T_ANNOUNCE, 0, link.HOST_ADDR, 1, p[:20] if short else p, src=src)
+
+
+def code_of(fn):
+    try:
+        fn()
+    except umcub.UmcubError as e:
+        return e.code
+    return None
+
+
+lk = link.Link(BusConn(announce(5)), addr=5, admin_key=KEYS / "dev-admin-p256.pem",
+               device_key=KEYS / "dev-device-p256.pem")
+c = code_of(lk.hello)
+expect("keys given, the device answers without a challenge: no unprotected session", c == "link.not_secure", str(c))
+expect("keys given, a SECURE device without RDP: closed", code_of(link.Link(
+    BusConn(announce(5, mode=2, closed=True)), addr=5, admin_key="a", device_key="d").hello) == "link.closed")
+lk = link.Link(BusConn(announce(6), announce(5)), addr=5)
+expect("hello by address: another node's late ANNOUNCE is not taken", lk.hello()["addr"] == 5 and lk.peer == 5)
+lk = link.Link(BusConn(announce(6, uid=b"\x22" * 12), announce(7)), uid="11" * 12)
+expect("hello by UID: another device's ANNOUNCE is not taken", lk.hello()["uid"] == "11" * 12 and lk.peer == 7)
+expect("an ANNOUNCE too short for an identity: no answer, not a TypeError",
+       code_of(link.Link(BusConn(announce(5, short=True)), addr=5).hello) == "link.no_hello")
+lk = link.Link(BusConn(), addr=5)
+lk.session = object()
+code_of(lk.hello)
+expect("a failed hello drops the old session's keys", lk.session is None)
+
+
+class SessionLink:
+    session, ident = True, None
+
+    def __init__(self):
+        self.hellos = 0
+
+    def hello(self):
+        self.hellos += 1
+
+    def send_data(self, payload):
+        pass
+
+    def recv_data(self, timeout):
+        return None
+
+
+sl = SessionLink()
+dev = umcub.Device(BusConn(), link=sl)
+dev._last -= umcub.device.SESSION_IDLE + 1      # the last request went out long ago
+dev.recv(None, 0)                               # waiting for an answer is no traffic for the device
+dev.send(None, b"i")
+expect("a SECURE session idle on the device side starts again (waiting does not count)", sl.hellos == 1, str(sl.hellos))
+
 # Text files in UTF-8: without encoding= Python uses the locale's (cp1252 on Windows) and a non-ASCII file fails there.
 for f in sorted(Path(umcub.__file__).parent.glob("*.py")):
     for node in ast.walk(ast.parse(f.read_text(encoding="utf-8"))):

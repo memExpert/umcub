@@ -264,18 +264,26 @@ class Link:
         """Select the device; SECURE: run the challenge / AUTH handshake. Returns its identity."""
         if self.addr is None and self.uid is None:
             raise LinkError(code="link.select")
+        self.session = None                     # a new handshake: the old session's keys are gone
         if self.uid is not None:
             self.send(T_HELLO, bytes.fromhex(self.uid), flags=F_UID, dst=0)
         else:
             self.send(T_HELLO)
-        fr = self.recv((T_ANNOUNCE, T_CHALLENGE))
-        if not fr:
-            raise LinkError(code="link.no_hello")
-        self.ident = identity(fr["payload"])
-        self.peer = fr["src"]
+        end = time.monotonic() + self.timeout
+        while True:                             # only the selected device's answer (late ones of others: skipped)
+            fr = self.recv((T_ANNOUNCE, T_CHALLENGE), max(0.0, end - time.monotonic()),
+                           src=self.addr if self.uid is None else None)
+            if not fr:
+                raise LinkError(code="link.no_hello")
+            ident = identity(fr["payload"])
+            if ident and (self.uid is None or ident["uid"] == self.uid.lower()):
+                break
+        self.ident, self.peer = ident, fr["src"]
         if fr["type"] == T_ANNOUNCE:
             if self.ident["closed"]:
                 raise LinkError(code="link.closed")
+            if self.admin_key or self.device_key:   # a SECURE device always challenges: a downgrade or not SECURE
+                raise LinkError(code="link.not_secure")
             return self.ident
         if not (self.admin_key and self.device_key):
             raise LinkError(code="link.keys_needed")
