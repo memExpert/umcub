@@ -75,6 +75,11 @@ Larger changes:
     key in their bootloaders. Compromising the server equals leaking the key, though image signing still blocks
     foreign firmware while the signing key is kept elsewhere. Offline work would need short-lived certificates, a
     firmware change with a size cost: only if really required.
+- [ ] **Role server in a container** (idea, 2026-11-14): users run it themselves with their own settings (accounts,
+  roles, rights per product or device, where the admin key lives). The GUI takes its role (developer, production
+  operator, service engineer, end customer) from the login instead of the local setting, which also settles how the
+  service role is unlocked. The same server can sign the SECURE sessions above, so one login gives the role and the
+  admin rights. Open: protocol (HTTPS + tokens?), accounts (own store, LDAP / OIDC?), offline work.
 - [ ] **SECURE devices that hide their identity** (an option; asked 2026-11-09, postponed). Today DISCOVER is answered
   and HELLO's CHALLENGE carries the UID, board type and version in every link mode, so anyone on the bus sees what is
   there (but can do nothing without the admin key). Option: no answer to DISCOVER, a CHALLENGE without the identity,

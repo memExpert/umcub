@@ -54,7 +54,8 @@ bootloaders without SMP (lite upload, stream and CAN); `smpmgr` directly and thr
 
 The bench tools reach the target through `tools/hw/probe.py` (a thin SWD layer): `--probe stm32cube` uses
 STM32_Programmer_CLI (`$STM32_PROGRAMMER_CLI` or PATH), `--probe pyocd` uses pyOCD (`--target`, `--pack` for the
-part); `$UMCUB_PROBE` sets the default. `probe.py flash a.hex b.bin@0x08008000` programs and resets.
+part); `$UMCUB_PROBE` sets the default when it is run by hand (the `flash` target takes `-DUMCUB_PROBE`).
+`probe.py flash a.hex b.bin@0x08008000` programs and resets.
 
 Stack use on the board: `tests/hw/stack_usage.py paint`, run a scenario, `tests/hw/stack_usage.py measure`
 (deepest use since the paint; `loop-app` writes the raw image of an application that only loops and does not touch

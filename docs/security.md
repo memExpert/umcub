@@ -6,7 +6,8 @@ Images encrypted for one device key, and what the bootloader does and does not p
 
 `UMCUB_CFG_ENCRYPT_IMAGES` makes MCUboot accept images encrypted for the **device key** (ECIES-P256, AES-128-CTR;
 the same device key as the SECURE link). An image file then does not show the firmware, wherever it is
-stored or sent. The signature still covers the plain image, so encryption adds confidentiality, not trust.
+stored or sent. The signature still covers the plain image, so encryption adds confidentiality, not trust. Not
+available in the direct-xip modes, where images run from both slots.
 
 `umcub_sign_image()` and `umcub image sign` then write two files:
 
@@ -34,12 +35,13 @@ How an encrypted image is installed:
   updates can also go through its secondary slot: USB DFU alt 1, SMP with `UMCUB_CFG_SMP_DIRECT_UPLOAD` (`image` 4,
   then `image state-write`), the application or the lite upload.
 
-Installed images are plain text in flash, so `read` / SMP read / DFU upload (`UMCUB_CFG_READBACK`) answer only
-inside an encrypted umcub link session (`UMCUB_CFG_<transport>_LINK_SECURE` + `UMCUB_CFG_LINK_ENCRYPT`) and refuse everywhere else
+Installed images are plain text in flash, so `read` and SMP read (`UMCUB_CFG_READBACK`) answer only inside an
+encrypted umcub link session (`UMCUB_CFG_<transport>_LINK_SECURE` + `UMCUB_CFG_LINK_ENCRYPT`; DFU upload never, it has
+no session) and refuse everywhere else
 (`? readback only in an encrypted session`, SMP rc 11). `verify` checks an encrypted image in the secondary slot by
 decrypting it on the fly; `hash` is computed over what is in flash (ciphertext in the secondary slot, plain text in
 the primary slot after installation). Outside an encrypted session only whole-image hashes are answered: hashes of
-small ranges would reveal the plain code piece by piece. Not available in the direct-xip modes, where images run from both slots.
+small ranges would reveal the plain code piece by piece.
 Protect the device key like the SECURE link: RDP on, see [umcub link](link.md#limits).
 
 ## Security

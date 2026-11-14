@@ -42,11 +42,11 @@ gives `0x00010002 (Pump controller)`, or the hex alone.
 `umcub adapters` (`umcub.adapters()` in a program) lists what is plugged in now, each with a ready device string:
 
 ```
-/dev/ttyUSB0                 /dev/ttyUSB0                 FT232R USB UART (FTDI) [0403:6001 A5069RR4]
+/dev/ttyUSB0                 /dev/ttyUSB0                 FT232R USB UART (FTDI) [0403:6001 A1B2C3D4]
 /dev/ttyUSB1                 /dev/ttyUSB1                 USB Serial [1a86:7523]
-udp:192.168.0.255            enp10s0 192.168.0.109/24     broadcast 192.168.0.255
-                             enp12s0u5u2                  no link (cable?), USB 10/100/1000 LAN (Realtek) [0bda:8153 DF1300E04C151FB0]
-can:socketcan:can0           socketcan:can0               Candlelight 2.5 - Multiboard (ElmueSoft (netcult.ch/elmue)) [1d50:606f 20673392363050112]
+udp:192.168.1.255            eth0 192.168.1.20/24         broadcast 192.168.1.255
+                             eth1                         no link (cable?), USB 10/100/1000 LAN (Realtek) [0bda:8153 0123456789AB]
+can:socketcan:can0           socketcan:can0               candleLight USB to CAN adapter [1d50:606f 0011223344556677]
 ```
 
 - serial ports with hardware behind them (`--all` adds the empty `/dev/ttyS*` of Linux), with USB vendor / product

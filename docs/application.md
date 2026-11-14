@@ -94,8 +94,8 @@ keep free: 0x3800FF00..0x38010000 (bootloader handoff, kept over reset)
 - VTOR is set by the bootloader. Leave `USER_VECT_TAB_ADDRESS` undefined in `system_stm32*.c` (the CubeMX default).
 - Also needed:
   - a console that reacts to single keys, as the examples do, needs its RX pin pulled up and must drop bytes with a
-    framing or noise error: an unconnected pin reads garbage, and sooner or later that is a key (a Blue Pill went back
-    to the bootloader within seconds this way);
+    framing or noise error: an unconnected pin reads garbage, and sooner or later that is a key (the `b` key sends the
+    application back to the bootloader);
   - the application must select the same power supply as `UMCUB_CFG_PWR_SUPPLY` (on the H7 it can only be set
     once per power-up; `HAL_PWREx_ConfigSupply` otherwise fails);
   - it must feed the watchdog if `UMCUB_CFG_WATCHDOG_MS` is set.

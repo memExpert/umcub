@@ -434,7 +434,8 @@ config STATUS_LED
 	  Slow blink (1 Hz): in the bootloader, waiting.
 	  Fast flicker: data arriving.
 	  N blinks + pause: a transport did not come up (no transceiver, no PHY
-	  clock, ...), N = 1 UART, 2 USB, 4 CAN, 5 Ethernet, 7 board transport.
+	  clock, ...), N = 1 UART, 2 USB (3 in a DFU-only build), 4 CAN, 5 Ethernet,
+	  7 board transport.
 	  Untouched on a plain boot; back in reset state before the application.
 if STATUS_LED
 source "$(UMCUB_ROOT)/port/kconfig_gen/status_led.kconfig"

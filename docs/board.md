@@ -60,7 +60,7 @@ commands (`USER<n>` in `UMCUB_CFG_CMD_TABLE`), drivers for external controllers 
 (`UMCUB_CFG_TRANSPORT_USER`); see [External controllers and custom transports](#external-controllers-and-custom-transports).
 
 **7. Optional: an example application.** The console examples share
-[`examples/common/umcub_example.c`](../examples/common/umcub_example.h): keys `i c b u w r`, the info from
+[`examples/common/umcub_example.c`](../examples/common/umcub_example.c): keys `i c b u w r`, the info from
 `umcub_boot_info()`, the upload protocol of `examples/common/app_upload.py`. A board's example only brings the clock,
 the pins and five functions (`ex_putc`, `ex_getc`, `ex_millis`, `ex_led_toggle`, `ex_watchdog_feed`), then calls
 `ex_run()`: copy `examples/blackpill_app` (about 70 lines). `boards/my_board/umcub_examples.cmake` lists the
@@ -190,7 +190,7 @@ While a debugger holds the MCU in reset (`mode=UR`) D+ floats high again: flash 
 USB cable unplugged.
 
 CAN (bxCAN, classic CAN, ISO-TP like on the H7) on PB9 TX / PB8 RX with an external transceiver: fragment
-`boards/bluepill_f103c8/variants/can.conf` (+2.4 K, still in the 32 KiB region), host side `umcub -d can:...` ([host tool](host.md)). Not together with
+`boards/bluepill_f103c8/variants/can.conf` (+2.6 K, [Bootloader size](size.md); still in the 32 KiB region), host side `umcub -d can:...` ([host tool](host.md)). Not together with
 USB: on the F103 both share the same 512 bytes of SRAM (the build refuses it).
 
 **Black Pill** ([`boards/blackpill_f411ce/defconfig`](../boards/blackpill_f411ce/defconfig), WeAct; configured
@@ -268,8 +268,8 @@ Example: [`boards/blackpill_f411ce/enc28j60.c`](../boards/blackpill_f411ce/enc28
 (fragment `boards/blackpill_f411ce/variants/enc28j60.conf`; the pins are board options in
 [`boards/blackpill_f411ce/Kconfig`](../boards/blackpill_f411ce/Kconfig)).
 About 380 lines, polled, with the chip's errata handled in the driver; the bootloader with the IPv4 / DHCP / UDP stack
-is about 30 K and still fits the Black Pill's 32 KiB. On the bench: DHCP lease about 0.2 s after reset, a 110 K
-image over `umcub upload` in 1.6 s.
+is about 30 K and still fits the Black Pill's 32 KiB. Typical: DHCP lease about 0.2 s after reset, a 110 K image
+over `umcub upload` in 1.6 s.
 
 ### 2. Board transport
 
@@ -327,5 +327,5 @@ After an update over it, `umcub_boot_info()->last_transport` in the application 
 
 Checked by the build matrix (`tests/boards/custom_drivers`: board CAN + Ethernet drivers + board transport, the
 on-chip drivers left out) and by the host test `umcub_host_board` (SMP over a board CAN driver, SMP and commands
-over a board transport, DHCP through a board Ethernet driver, deinit of all three). Not yet run with a real
-external controller.
+over a board transport, DHCP through a board Ethernet driver, deinit of all three). The CAN board driver and the board
+transport have not been run with a real external controller yet (the Ethernet one has, above).

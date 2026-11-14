@@ -3,8 +3,8 @@ They need no device and none of the transport libraries."""
 import sys
 
 from . import kconfig, keys, linker
-from .config import MODES, ROOT, Config
-from .sign import DEV_DEVICE_KEY, DEV_KEY, boot_usage, sign
+from .config import MODES, Config
+from .sign import boot_usage, sign
 
 
 def _log(text):
@@ -83,7 +83,7 @@ def add_image_arguments(sub):
             p.add_argument("--version", default="0.0.0", help="x.y.z[+build]")
             p.add_argument("--key", help="signing key (default: the configuration's)")
             p.add_argument("--encrypt-key", help="UMCUB_CFG_ENCRYPT_IMAGES: device key for <out>.encrypted.bin "
-                                                  f"(default {DEV_DEVICE_KEY.relative_to(ROOT)})")
+                                                  "(default: the configuration's)")
             p.add_argument("--confirm", action="store_true", help="mark the image confirmed (image_ok)")
             p.add_argument("--pad", action="store_true", help="pad to the slot size with a trailer")
             p.add_argument("--depends", help='multi-image dependency, e.g. "(1,1.0.0)"')

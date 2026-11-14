@@ -16,7 +16,8 @@ not compiled.
   - SMP, MCUboot's serial recovery: the standard tools (`smpmgr`, `mcumgr`) or [`umcub`](docs/host.md);
   - the **lite upload protocol**: begin / data / end frames with CRC, about 3 K smaller than SMP for small parts,
     host side `umcub upload --lite` ([without SMP](docs/recovery.md#recovery-without-smp-lite-upload-and-board-protocols));
-  - text commands next to either (`i`, `b`, `verify`, ...), or a protocol of your own.
+  - text commands next to either (`i`, `b`, ...; `verify` / `hash` / `read` as text without SMP), or a protocol of
+    your own.
 - **MCUboot upgrade modes**: overwrite, swap-scratch, swap-offset, direct-xip (with or without revert).
 - **Images** signed with ECDSA-P256 (`imgtool`), optionally encrypted for the device.
 - **Several devices on one bus** (RS485, CAN, Ethernet): node addresses, a SECURE mode with authentication and
@@ -53,7 +54,7 @@ umcub -d <port> upload build/<preset>/examples/<app>/<app>.signed.bin --reset
 # the same with the standard SMP tool: smpmgr --port <port> image upload ...; smpmgr --port <port> os reset
 ```
 
-| Board | `<preset>` | `<app>` | `<port>`: SMP and log | Stay in the bootloader |
+| Board | `<preset>` | `<app>` | `<port>`: SMP and log (e.g.; `COM<n>` on Windows, `umcub adapters` lists them) | Stay in the bootloader |
 |---|---|---|---|---|
 | NUCLEO-H755ZI-Q | `h755-cm7` | `h755_cm7_app` (CM4: `h755_cm4_app`, `--image 1`; smpmgr: `--slot 1`) | ST-LINK VCP `/dev/ttyACM0` | hold B1 during reset |
 | Blue Pill (STM32F103C8T6) | `bluepill` | `bluepill_app` | USB-UART on PA9/PA10 `/dev/ttyUSB0` (smpmgr: `--line-buffers 4`) | send `b` within 300 ms after reset |
@@ -118,7 +119,8 @@ In the bootloader (recovery mode) every enabled interface accepts updates until 
 
 A status LED (`UMCUB_CFG_STATUS_LED`, about 200 bytes) shows it without a log: slow blink (1 Hz) while the bootloader
 listens, fast flicker while data arrives, N blinks and a pause when transport N did not come up (1 UART, 2 USB,
-4 CAN, 5 Ethernet, 7 board transport: no transceiver, no PHY clock, ...). On a plain boot it stays dark.
+3 USB in a DFU-only build, 4 CAN, 5 Ethernet, 7 board transport: no transceiver, no PHY clock, ...). On a plain boot
+it stays dark.
 
 ## Updating the application
 

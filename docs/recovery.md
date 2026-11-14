@@ -106,7 +106,9 @@ frames then) and encrypted images work without SMP; the SMP inspection group and
 
 ## Checking what was written (verify / hash / read)
 
-The host can confirm that flash holds exactly what it sent, over any transport (UART, USB CDC, UDP, CAN):
+The host can confirm that flash holds exactly what it sent, over any transport (UART, USB CDC, UDP, CAN). With SMP
+(the default) these are the SMP inspect group below, used by `umcub verify` / `hash` / `read`; as text commands they
+exist without SMP or with `+inspect_read` in the command table ([Text commands](#text-commands)):
 
 | Command | What it does | Option |
 |---|---|---|

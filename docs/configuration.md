@@ -77,7 +77,7 @@ and board type, `umcub_boot_version()`, `i`; part of the application ABI, the ap
   valid image, stops answering about 3 s after the reset. Each core enters recovery on its own: `umcub_enter_bootloader()`
   in its application, the entry pin at reset (both bootloaders read it), or no valid image.
 
-STM32CubeProgrammer 2.23 does not expose `BOOT_CM4_ADD0`/`BCM4` for the H755, so `tools/hw/h755_option_bytes.py` writes
+STM32CubeProgrammer (checked with 2.23) does not expose `BOOT_CM4_ADD0`/`BCM4` for the H755, so `tools/hw/h755_option_bytes.py` writes
 the FLASH option registers directly in one pyOCD session (`show` prints them). It does not run on the stm32cube
 backend, which reconnects for every register access: an option byte change must run in one debug session, otherwise
 the option bytes can end up corrupted (RDP level 1 and PCROP areas; undoing that needs an RDP regression, which erases
