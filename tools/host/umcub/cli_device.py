@@ -119,13 +119,12 @@ def cmd_verify(dev, a):
 
 
 def cmd_hash(dev, a):
-    length, local = a.len, None
-    if a.file:
+    local = None
+    if a.file:          # without --off / --len the whole stored image: ranges need UMCUB_CFG_READBACK
         data = _read(a.file)[a.off:]
-        length = length or len(data)
-        local = file_hash(data, 0, length)
+        local = file_hash(data, 0, a.len or len(data))
     with Smp(dev) as smp:
-        sha, n = smp.hash(a.image, a.slot, a.off, length)
+        sha, n = smp.hash(a.image, a.slot, a.off, a.len)
     print(f"device sha256 {sha.hex()} ({n} bytes)")
     if local is None:
         return 0

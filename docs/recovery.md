@@ -113,7 +113,7 @@ exist without SMP or with `+inspect_read` in the command table ([Text commands](
 | Command | What it does | Option |
 |---|---|---|
 | `verify <image> <slot>` | full MCUboot validation from flash: SHA-256 + signature → `ok valid` / `bad ...` | `UMCUB_CFG_INSPECT_VERIFY` (on) |
-| `hash <image> <slot> [<off> <len>]` | SHA-256 of a slot range (default: the whole stored image, i.e. the `.signed.bin` that was sent) | `UMCUB_CFG_INSPECT_HASH` (on) |
+| `hash <image> <slot> [<off> <len>]` | SHA-256 of a slot range (default: the whole stored image, i.e. the `.signed.bin` that was sent); ranges only with `UMCUB_CFG_READBACK`, a readback by other means | `UMCUB_CFG_INSPECT_HASH` (on) |
 | `read <image> <slot> <off> <len>` | hex dump, plus SMP read and `dfu-util -U` | `UMCUB_CFG_READBACK` (**off**: exposes the firmware) |
 
 Slot 0 is primary, 1 is secondary. Addressing is only by (image, slot, offset): the bootloader region is never

@@ -314,8 +314,9 @@ config VALIDATE_PRIMARY
 	  Cortex-M3, about 80 ms per image on the H7): updates through the
 	  secondary slot are still validated before they are installed, but an
 	  image written straight into the primary slot (SMP or lite upload, a
-	  debugger) then boots unchecked. Refused at build time together with SMP
-	  and a board type, a secure link or encrypted images.
+	  debugger) then boots unchecked. Refused at build time when an upload into
+	  the primary slot is possible (SMP, the lite upload, a board protocol)
+	  together with a board type, a secure link or encrypted images.
 
 config IMAGE_VECTOR_CHECK
 	bool "Check the image's reset vector"
@@ -567,13 +568,15 @@ config INSPECT_HASH
 	help
 	  "hash <image> <slot> [<off> <len>]": SHA-256 of a slot range; by default
 	  the whole stored image, the .signed.bin that was sent. Also in the SMP
-	  inspect group.
+	  inspect group. Ranges only with READBACK: hashes of small ranges are a
+	  readback by other means.
 config READBACK
 	bool "Slot readback"
 	help
 	  "read <image> <slot> <off> <len>", SMP read and USB DFU upload: raw
-	  readback of the image slots. Exposes the firmware to anybody who can put
-	  the device into recovery mode. The bootloader region is never readable.
+	  readback of the image slots, and hashes of slot ranges. Exposes the
+	  firmware to anybody who can put the device into recovery mode. The
+	  bootloader region is never readable.
 
 endmenu
 

@@ -75,8 +75,9 @@ def parser():
         p.add_argument("image", type=int)
         p.add_argument("slot", type=int, help="0 primary, 1 secondary")
         if name != "verify":
-            p.add_argument("--off", type=lambda s: int(s, 0), default=0)
-            p.add_argument("--len", type=lambda s: int(s, 0), default=0, help="0 = whole stored image")
+            p.add_argument("--off", type=lambda s: int(s, 0), default=0, help="a range needs UMCUB_CFG_READBACK")
+            p.add_argument("--len", type=lambda s: int(s, 0), default=0,
+                           help="0 = whole stored image; a range needs UMCUB_CFG_READBACK")
     sub.choices["hash"].add_argument("--file", help="compare with this file (e.g. the .signed.bin that was sent)")
     sub.choices["read"].add_argument("--out", help="output file (default stdout)")
     p = sub.add_parser("serve", help="proxy for smpmgr / mcumgr (pty or UDP)")

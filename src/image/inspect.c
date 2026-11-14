@@ -115,10 +115,15 @@ int umcub_inspect_hash(int image, int slot, uint32_t off, uint32_t len, uint8_t 
     if (rc) {
         return rc;
     }
-#if UMCUB_CFG_ENCRYPT_IMAGES
-    /* Installed images are plain text in flash. A hash over a chosen range is
-     * a readback by other means (one byte at a time, or growing prefixes):
-     * outside an encrypted session only the whole stored image is hashed. */
+    /* A hash over a chosen range is a readback by other means (one byte at a
+     * time, or growing prefixes): ranges only where reading back is allowed,
+     * with encrypted images (plain text once installed) only inside an
+     * encrypted session; otherwise only the whole stored image is hashed. */
+#if !UMCUB_CFG_READBACK
+    if (off != 0 || len != 0) {
+        return UMCUB_EPERM;
+    }
+#elif UMCUB_CFG_ENCRYPT_IMAGES
     if ((off != 0 || len != 0) && !umcub_inspect_confidential()) {
         return UMCUB_EPERM;
     }

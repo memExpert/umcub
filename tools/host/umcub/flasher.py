@@ -51,7 +51,7 @@ def _check(smp, s, img, image, slot):
         return "verify"
     if img.encrypted and slot == 0:
         return None
-    answer = ask(s.hash, 0, img.size)
+    answer = ask(s.hash)                # the whole stored image: ranges need UMCUB_CFG_READBACK
     if answer is None:
         return None
     if answer[0] != smp.file_hash(img.data):

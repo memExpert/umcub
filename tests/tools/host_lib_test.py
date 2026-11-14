@@ -439,7 +439,7 @@ expect("flash: verified by the device", flash({"verify": True}, progress=lambda 
        str(FakeSmp.calls))
 expect("flash: no verify, the hash matches",
        flash({"verify": NOT_SUPPORTED, "hash": hashlib.sha256(img.data).digest()}) == "hash"
-       and FakeSmp.calls[-1] == ("hash", 0, 0, 0, img.size), str(FakeSmp.calls))
+       and FakeSmp.calls[-1] == ("hash", 0, 0, 0, 0), str(FakeSmp.calls))
 expect("flash: neither verify nor hash: not checked", flash({"verify": NOT_SUPPORTED, "hash": NOT_SUPPORTED}) is None)
 for answers, code in (({"verify": False}, "flash.invalid"),
                       ({"verify": NOT_SUPPORTED, "hash": b"\0" * 32}, "flash.hash_mismatch")):

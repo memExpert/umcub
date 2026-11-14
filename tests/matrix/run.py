@@ -216,7 +216,14 @@ def t_cmake_args(out):
     r = configure("nosec", f"-DUMCUB_CONF={frag}")
     if r.returncode == 0 or "no secondary slot" not in r.stderr or "config menu --out" not in r.stderr:
         raise Failed(f"no secondary slot: configure did not stop with the hint: {r.stderr}")
-    return "cmake-args", "Release by default, relative UMCUB_CONF, new key warning, -DUMCUB_SIGNING_KEY and no secondary slot stop"
+    frag = d / "lite_unchecked.conf"            # a lite upload into the primary slot would boot unchecked
+    frag.write_text("# UMCUB_CFG_SMP_ENABLE is not set\nUMCUB_CFG_LITE_UPLOAD=y\n"
+                    "# UMCUB_CFG_VALIDATE_PRIMARY is not set\nUMCUB_CFG_BOARD_TYPE=0x00010001\n")
+    r = configure("lite-unchecked", f"-DUMCUB_CONF={frag}")
+    if r.returncode == 0 or "UMCUB_CFG_VALIDATE_PRIMARY 0" not in r.stderr:
+        raise Failed(f"lite upload without primary validation and with a board type: configure did not stop: {r.stderr}")
+    return "cmake-args", ("Release by default, relative UMCUB_CONF, new key warning, -DUMCUB_SIGNING_KEY and no secondary "
+                          "slot stop, unchecked lite uploads refused")
 
 
 def t_check(out, name, cmd, grep=None):

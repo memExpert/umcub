@@ -111,7 +111,7 @@ umcub -d /dev/ttyUSB0 list                                   # image slots (SMP 
 umcub -d /dev/ttyUSB0 reset                                  # (--lite on bootloaders without SMP)
 umcub -d /dev/ttyUSB0 cmd i                                  # a text command
 umcub -d 192.168.1.50 verify 0 1                             # MCUboot validation of image 0, slot 1
-umcub -d 192.168.1.50 hash 0 0 --file app.signed.bin         # MATCH / MISMATCH
+umcub -d 192.168.1.50 hash 0 0 --file app.signed.bin         # MATCH / MISMATCH (--off / --len: UMCUB_CFG_READBACK)
 umcub -d 192.168.1.50 read 0 0 --out dump.bin                # needs UMCUB_CFG_READBACK
 umcub -d can:socketcan:can0 --node 5 upload app.signed.bin   # CAN, node 5
 umcub -d /dev/ttyUSB1 discover                               # umcub link devices on an RS485 bus

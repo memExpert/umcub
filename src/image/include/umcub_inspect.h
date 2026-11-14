@@ -1,7 +1,7 @@
 /*
  * Checking what is in the image slots from the host side:
  *  - verify: full MCUboot validation (SHA-256 over flash + signature)
- *  - hash:   SHA-256 of a range of a slot, to compare with what was sent
+ *  - hash:   SHA-256 of the stored image (a range only with UMCUB_CFG_READBACK)
  *  - read:   raw readback (only with UMCUB_CFG_READBACK)
  * Addressing is always (image, slot, offset): the bootloader region and
  * anything outside the image slots cannot be reached.
@@ -29,7 +29,9 @@ int umcub_inspect_verify(int image, int slot);
  * while decrypting (encrypted images); the primary is taken as plain. */
 int umcub_inspect_validate(int image, int slot, const struct flash_area *fa);
 
-/* SHA-256 of [off, off + len) of the slot; len 0 = whole stored image. */
+/* SHA-256 of [off, off + len) of the slot; len 0 = whole stored image. A range
+ * is a readback by other means: UMCUB_EPERM without UMCUB_CFG_READBACK, and
+ * with UMCUB_CFG_ENCRYPT_IMAGES outside an encrypted session. */
 int umcub_inspect_hash(int image, int slot, uint32_t off, uint32_t len, uint8_t out[32], uint32_t *hashed_len);
 
 /* Implemented by the protocol layer (src/proto/mux.c): true while the request

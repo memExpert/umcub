@@ -156,6 +156,8 @@ def can_tools(build, py):
             check(p.returncode == 0 and "valid" in p.stdout, "umcub verify 0 0 over CAN")
             p = tool(py, can + ["hash", "0", "0", "--file", os.path.join(d, "app.signed.bin")])
             check(p.returncode == 0 and "MATCH" in p.stdout, "umcub hash --file over CAN: MATCH")
+            p = tool(py, can + ["hash", "0", "0", "--off", "16", "--len", "256"])
+            check(p.returncode != 0, "hash of a range without READBACK: refused (readback by other means)")
         p = tool(py, can + ["list"])
         check(p.returncode == 0 and "slot 0: 3.1.4" in p.stdout, "umcub list over CAN: 3.1.4 in slot 0")
     finally:
