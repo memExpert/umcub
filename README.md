@@ -24,6 +24,8 @@ not compiled.
   encryption ([umcub link](docs/link.md)).
 - **Application library** `umcub::app`: what the bootloader did, confirm / revert, enter the bootloader, write an
   update yourself ([application](docs/application.md)).
+- **Desktop flasher** [umcub-gui](https://github.com/memExpert/umcub-gui) (Windows, Linux; its own repository): finds
+  the devices, flashes several at once, checks slots - built on the [host library](docs/host.md).
 
 | Family | Reference board | Transports |
 |---|---|---|

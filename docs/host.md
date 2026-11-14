@@ -4,14 +4,18 @@
 `umcub` command line tool on top of it. It speaks every upload protocol of the bootloader - SMP, the lite upload
 protocol, umcub link (addressing on a shared bus, SECURE sessions) and the inspection group - on every transport a
 PC reaches: serial ports (UART and RS485 adapters, USB CDC), UDP and CAN (any python-can interface: SocketCAN,
-PCAN, Kvaser, Vector, IXXAT, slcan / CANable, candleLight, ...).
+PCAN, Kvaser, Vector, IXXAT, slcan / CANable, candleLight, ...). The desktop flasher
+[umcub-gui](https://github.com/memExpert/umcub-gui) (its own repository, Windows and Linux builds) is built on this
+library and holds no protocol or device logic of its own: what it lacks goes into the library, so the CLI and the GUI
+behave the same.
 
 `tools/setup.sh` installs it into `.venv` (`pip install -e tools/host`, esp-idf-kconfig from
 `tools/requirements.txt`). Elsewhere `pip install <umcub>/tools/host` is enough for devices (a flasher);
 `"<umcub>/tools/host[build]"` adds esp-idf-kconfig for `config` and `image` (`image sign` also needs imgtool's
 dependencies, `third_party/mcuboot/scripts/requirements.txt`). A program that pins the library takes the source
 archive of a release tag `host-v<version>`:
-`umcub @ https://github.com/memExpert/umcub/archive/refs/tags/host-v<version>.zip#subdirectory=tools/host`.
+`umcub @ https://github.com/memExpert/umcub/archive/refs/tags/host-v<version>.zip#subdirectory=tools/host` (a git
+URL would clone every submodule, and on Windows some of their paths are too long).
 
 ## Devices
 
