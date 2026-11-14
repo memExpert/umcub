@@ -68,7 +68,7 @@ def write(cfg, out_dir, core=""):
     Path(out_dir).mkdir(parents=True, exist_ok=True)
     for n, text in fragments(cfg, core).items():
         p = Path(out_dir) / n
-        if not p.is_file() or p.read_text() != text:
-            p.write_text(text)
+        if not p.is_file() or p.read_text(encoding="utf-8") != text:
+            p.write_text(text, encoding="utf-8")
         out.append(p)
     return out

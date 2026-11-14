@@ -134,7 +134,7 @@ def write_hex(path, data, addr):
             out.append(record(4, 0, high.to_bytes(2, "big")))
         out.append(record(0, a & 0xFFFF, data[i:i + 16]))
     out.append(record(1, 0, b""))
-    Path(path).write_text("".join(out))
+    Path(path).write_text("".join(out), encoding="utf-8")
 
 
 # --------------------------------------------------------------------------

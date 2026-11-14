@@ -96,7 +96,7 @@ def _kconfig(bdir, core):
 def _assignments(path):
     """(line, name, value) of every assignment in a defconfig / fragment."""
     out = []
-    for n, line in enumerate(Path(path).read_text().splitlines(), 1):
+    for n, line in enumerate(Path(path).read_text(encoding="utf-8").splitlines(), 1):
         line = line.strip()
         m = re.fullmatch(rf"{PREFIX}(\w+)=(.*)", line)
         if m:
@@ -185,13 +185,14 @@ def load(board, core="", fragments=(), out_dir=None):
         Path(out_dir).mkdir(parents=True, exist_ok=True)
         (Path(out_dir) / STATE).write_text(json.dumps(
             {"board": str(bdir) if bdir else "", "core": core or "", "fragments": [str(Path(f).resolve()) for f in fragments],
-             "stamp": stamp, "made": state.get("made") if same else None}, indent=1))     # made: see generate()
+             "stamp": stamp, "made": state.get("made") if same else None},     # made: see generate()
+            indent=1), encoding="utf-8")
     return kconf, bdir, inputs
 
 
 def _state(out_dir):
     try:
-        return json.loads((Path(out_dir) / STATE).read_text())
+        return json.loads((Path(out_dir) / STATE).read_text(encoding="utf-8"))
     except (OSError, ValueError, TypeError):
         return {}
 
@@ -411,8 +412,8 @@ def write_tool_files(vals, out_dir, bdir, core, key_paths):
 
 def _write_if_changed(path, text):
     path = Path(path)
-    if not path.is_file() or path.read_text() != text:
-        path.write_text(text)
+    if not path.is_file() or path.read_text(encoding="utf-8") != text:
+        path.write_text(text, encoding="utf-8")
 
 
 def generate(board, core, fragments, out_dir):
@@ -432,7 +433,7 @@ def generate(board, core, fragments, out_dir):
     state = _state(out)
     if state["made"] is None:           # just made from the inputs: what it was, to see later edits
         state["made"] = _digest(dot.read_bytes())
-        (out / STATE).write_text(json.dumps(state, indent=1))
+        (out / STATE).write_text(json.dumps(state, indent=1), encoding="utf-8")
         if made and before and before != dot.read_bytes() and _digest(before) != made:
             notes.append(_edits_dropped(dot))
     vals = values(kconf)
@@ -455,7 +456,7 @@ def generate(board, core, fragments, out_dir):
     deps = sorted({str(Path(f).resolve()) for f in kconf.kconfig_filenames} | {str(f) for f in inputs} |
                   {__file__, layout.__file__})
     _write_if_changed(out / "kconfig.deps", "\n".join(deps) + "\n")
-    (out / DONE).write_text(json.dumps([n for n in notes if not n.startswith("new ")]))
+    (out / DONE).write_text(json.dumps([n for n in notes if not n.startswith("new ")]), encoding="utf-8")
     return notes
 
 
@@ -486,9 +487,9 @@ def _unchanged(board, core, fragments, out):
         if _state(out).get("stamp") != _stamp(bdir, core, inputs):
             return None
         files = [out / ".config", out / HEADER, out / JSON, out / CMAKE, out / "keys.cmake"] + \
-            [Path(f) for f in (out / "kconfig.deps").read_text().splitlines()]
-        files += [Path(p) for p in json.loads((out / JSON).read_text())["keys"].values()]
-        return json.loads(done.read_text()) if all(f.stat().st_mtime <= when for f in files) else None
+            [Path(f) for f in (out / "kconfig.deps").read_text(encoding="utf-8").splitlines()]
+        files += [Path(p) for p in json.loads((out / JSON).read_text(encoding="utf-8"))["keys"].values()]
+        return json.loads(done.read_text(encoding="utf-8")) if all(f.stat().st_mtime <= when for f in files) else None
     except (OSError, ValueError, TypeError, KeyError):
         return None
 

@@ -563,6 +563,18 @@ except ImportError as err:
 
 expect("link mode names exported", umcub.LINK_NAMES == {0: "plain", 1: "addressed", 2: "secure"})
 
+# Text files in UTF-8: without encoding= Python uses the locale's (cp1252 on Windows) and a non-ASCII file fails there.
+for f in sorted(Path(umcub.__file__).parent.glob("*.py")):
+    for node in ast.walk(ast.parse(f.read_text(encoding="utf-8"))):
+        if not isinstance(node, ast.Call):
+            continue
+        name = getattr(node.func, "attr", "") or getattr(node.func, "id", "")   # the builtin open() is a bare name
+        mode = next((k.value for k in node.keywords if k.arg == "mode"), node.args[1] if len(node.args) > 1 else None)
+        text = name in ("read_text", "write_text") or (
+            (name == "fdopen" or isinstance(node.func, ast.Name) and name == "open")
+            and not (isinstance(mode, ast.Constant) and "b" in mode.value))
+        expect(f"{f.name}:{node.lineno} {name}() in UTF-8", not text or any(k.arg == "encoding" for k in node.keywords))
+
 # Install extras: the build-only dependency is in umcub[build]; nothing above (device side) loaded it.
 if sys.version_info >= (3, 11):
     import tomllib

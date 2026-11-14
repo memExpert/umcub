@@ -30,7 +30,7 @@ class Config:
             self._tmp = tempfile.TemporaryDirectory()
             self.notes = kconfig.generate(board, core, conf, self._tmp.name)
             self.config_dir = Path(self._tmp.name)
-        data = json.loads((self.config_dir / kconfig.JSON).read_text())
+        data = json.loads((self.config_dir / kconfig.JSON).read_text(encoding="utf-8"))
         self.board_name = data["board"]
         self.board_dir = Path(data["board_dir"]) if data["board_dir"] else None
         self.v = data["values"]

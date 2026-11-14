@@ -53,8 +53,8 @@ def c_array(name, data):
 
 def write_if_changed(path, text):
     out = Path(path)
-    if not out.exists() or out.read_text() != text:
-        out.write_text(text)
+    if not out.exists() or out.read_text(encoding="utf-8") != text:
+        out.write_text(text, encoding="utf-8")
 
 
 def device_c(device, admin):
