@@ -14,7 +14,7 @@ if(NOT CMAKE_TOOLCHAIN_FILE)
   set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_LIST_DIR}/cmake/arm-none-eabi.cmake")
 endif()
 
-project(umcub VERSION 0.1.0 LANGUAGES C ASM)
+project(umcub LANGUAGES C ASM)     # the version: src/util/include/umcub_version.h
 
 # The regions and the size tables assume -Os: without optimisation the bootloader takes twice the flash.
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)

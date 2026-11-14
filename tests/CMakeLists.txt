@@ -58,6 +58,7 @@ _umcub_test(cmake-args ${RUN} cmake-args)
 _umcub_test(layout ${RUN} check layout -- "${UMCUB_PY}" tests/tools/layout_test.py)
 _umcub_test(kconfig ${RUN} check kconfig -- "${UMCUB_PY}" tests/tools/kconfig_test.py)
 _umcub_test(host-lib ${RUN} check host-lib -- "${UMCUB_PY}" tests/tools/host_lib_test.py)
+_umcub_test(version ${RUN} check version -- "${UMCUB_PY}" tests/tools/version_test.py)
 _umcub_test(pin-check ${RUN} check pin-check -- "${UMCUB_PY}" tests/tools/check_pins_test.py)
 
 

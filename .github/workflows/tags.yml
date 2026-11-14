@@ -1,0 +1,13 @@
+name: Tags
+
+# A pushed tag matches its version: v<bootloader> (umcub_version.h) or host-v<host library> (tools/host/pyproject.toml).
+on:
+  push:
+    tags: ["v*", "host-v*"]
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: python3 tools/build/check_version.py "$GITHUB_REF_NAME"

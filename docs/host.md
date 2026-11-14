@@ -9,6 +9,8 @@ PCAN, Kvaser, Vector, IXXAT, slcan / CANable, candleLight, ...).
 `tools/setup.sh` installs it into `.venv` (`pip install -e tools/host`, esp-idf-kconfig from
 `tools/requirements.txt`). Elsewhere `pip install <umcub>/tools/host` is enough for devices (a flasher);
 `"<umcub>/tools/host[build]"` adds esp-idf-kconfig for `config`, `image` and `keys`.
+A program that pins the library takes the source archive of a release tag `host-v<version>`:
+`umcub @ https://github.com/memExpert/umcub/archive/refs/tags/host-v<version>.zip#subdirectory=tools/host`.
 
 ## Devices
 

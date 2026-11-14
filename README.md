@@ -160,6 +160,14 @@ Reference:
 | [Porting](docs/porting.md) | adding an STM32 series, the source tree |
 | [Testing](docs/testing.md) | build matrix, host tests, simulated devices, hardware tests |
 
+## Versions
+
+The bootloader and the host library have their own versions. The bootloader's is in
+`src/util/include/umcub_version.h` (the boot log, the `info` command and the link identity show it) and is tagged
+`v<version>`; the host library's is in `tools/host/pyproject.toml` and is tagged `host-v<version>`. The tags v0.1.0 to
+v0.5.1 are versions of the host library (the bootloader was 0.1.0 all along). A pushed tag that does not match its
+version fails the Tags workflow (`tools/build/check_version.py`).
+
 ## License
 
 Apache License 2.0, see `LICENSE`. Third-party components keep their own licenses, see `THIRD_PARTY_NOTICES.md`.
