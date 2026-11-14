@@ -51,7 +51,7 @@ class Image:
         try:
             return cls(open(path, "rb").read())
         except OSError as e:
-            raise UmcubError(code="file.read", path=str(path), reason=e.strerror) from e
+            raise UmcubError(code="file.read", path=str(path), reason=e.strerror or str(e)) from e
 
     def check_board(self, board_type):
         """Raise if the bootloader of `board_type` would refuse this image (umcub

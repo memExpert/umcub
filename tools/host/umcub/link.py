@@ -14,7 +14,8 @@ from dataclasses import dataclass
 
 from .board_names import board_label
 from .connection import KIND_LINK, open_serial
-from .errors import LinkError
+from . import keys
+from .errors import LinkError, UmcubError
 
 MAGIC, VERSION = 0xA5, 1
 T_DISCOVER, T_ANNOUNCE, T_HELLO, T_CHALLENGE, T_AUTH, T_AUTH_OK, T_DATA, T_CLOSE = range(1, 9)
@@ -169,23 +170,17 @@ def derive(th, shared):
 
 
 def load_key(path, private):
-    from cryptography.hazmat.primitives import serialization
+    """An EC P-256 key file: the private key, or the public half (of either)."""
+    from cryptography.hazmat.primitives.asymmetric import ec
     try:
-        data = open(path, "rb").read()
-    except OSError as e:
-        raise LinkError(code="file.read", path=path, reason=e.strerror) from e
-    try:
-        k = serialization.load_pem_private_key(data, password=None)
-        return k if private else k.public_key()
-    except (ValueError, TypeError):
-        pass
-    try:
-        pub = serialization.load_pem_public_key(data)
-    except (ValueError, TypeError):
-        raise LinkError(code="key.invalid", path=path) from None
-    if private:
-        raise LinkError(code="key.private_needed", path=path)
-    return pub
+        k = keys.load(path)
+    except UmcubError as e:
+        raise LinkError(code=e.code, **e.params) from None
+    if isinstance(k, ec.EllipticCurvePublicKey):
+        if private:
+            raise LinkError(code="key.private_needed", path=str(path))
+        return k
+    return k if private else k.public_key()
 
 
 def transcript(challenge, eph_pub, nonce):

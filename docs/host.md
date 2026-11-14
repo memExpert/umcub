@@ -28,6 +28,8 @@ A device is one string (`-d`, or `$UMCUB_DEVICE`):
 | CAN ISO-TP | `can:<python-can interface>:<channel>`, e.g. `can:socketcan:can0`, `can:pcan:PCAN_USBBUS1,bitrate=250000`, `can:slcan:/dev/ttyACM0,fd,data-bitrate=2000000`; also `tx=0x7C0`, `rx=0x7C8` (ID bases), `ext` (29-bit), `mtu=1024` |
 | plugin | `<scheme>:<target>[,option[=value]]...`, see [Transport plugins](#transport-plugins); `umcub transports` lists the schemes |
 
+Flags (`fd`, `ext`) also take a value: `=1` / `yes` / `true` / `on` sets one, `=0` / `no` / `false` / `off` clears it.
+
 `--node N` selects a device on a [umcub link](link.md) bus (serial, UDP) or, on CAN, the node's IDs (bases + N);
 `--uid` selects an unassigned link device. SECURE link transports also need `--admin-key` (private) and
 `--device-key` (the public half is enough). In a program `admin_key` can also be a signing function
@@ -164,7 +166,8 @@ Outside the checkout (an installed copy of the package) `$UMCUB_ROOT` points to 
 
 Nothing in the library prints or exits: errors are exceptions (`UmcubError`: `NoAnswer`, `DeviceError` with the
 device's `rc`, `LinkError`, `Cancelled`), progress is a callback, a `threading.Event` cancels. The calls block, so
-a GUI runs them in a worker thread.
+a GUI runs them in a worker thread; a serial write that does not finish in 5 s (the device stopped reading) raises
+`serial.io`, so none blocks for good.
 
 `tap=` on `connect()`, `discover()` and `open_connection()` (or `umcub.add_tap(conn, tap)`) calls `tap(TapEvent)`
 for every payload sent and received and every text command and its answer: time, direction, kind, bytes (link

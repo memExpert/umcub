@@ -18,6 +18,7 @@ payload per datagram / ISO-TP message and do not tell the kinds apart.
 import base64
 import collections
 import errno
+import importlib
 import ipaddress
 import re
 import select
@@ -68,11 +69,14 @@ class Connection:
         self.close()
 
 
+WRITE_TIMEOUT = 5.0         # a device that stops reading (hung) does not block the host for good
+
+
 def open_serial(port, baud, timeout):
     """A pyserial port; failures as UmcubError (serial.open)."""
     import serial
     try:
-        return serial.Serial(port, baud, timeout=timeout)
+        return serial.Serial(port, baud, timeout=timeout, write_timeout=WRITE_TIMEOUT)
     except serial.SerialException as e:
         raise UmcubError(code="serial.open", port=port, reason=str(e)) from e
 
@@ -93,12 +97,20 @@ class Serial(Connection):
     def close(self):
         self.s.close()
 
+    def _io(self, fn, *args):
+        """A port operation; the adapter gone or a write that timed out as UmcubError (serial.io)."""
+        try:
+            return fn(*args)
+        except OSError as e:                # serial.SerialException is one
+            raise UmcubError(code="serial.io", port=self.name, reason=str(e)) from e
+
     def send(self, kind, payload):
         if kind == KIND_SMP:
-            self.s.write(nlip_encode(payload))
+            data = nlip_encode(payload)
         else:
-            self.s.write(bytes([LINE_START, kind]) + base64.b64encode(payload) + b"\n")
-        self.s.flush()
+            data = bytes([LINE_START, kind]) + base64.b64encode(payload) + b"\n"
+        self._io(self.s.write, data)
+        self._io(self.s.flush)
 
     def _line(self, line):
         if len(line) >= 2 and line[0] == LINE_START:
@@ -116,8 +128,10 @@ class Serial(Connection):
             self.lines.append(line)
 
     def _read(self, timeout):
-        self.s.timeout = timeout
-        chunk = self.s.read(max(1, self.s.in_waiting))     # returns as soon as anything arrived
+        def read():
+            self.s.timeout = timeout                        # reconfigures the port: fails too when it is gone
+            return self.s.read(max(1, self.s.in_waiting))   # returns as soon as anything arrived
+        chunk = self._io(read)
         if chunk:
             self.buf += chunk
             *lines, self.buf = self.buf.split(b"\n")
@@ -140,10 +154,10 @@ class Serial(Connection):
             polled = True
 
     def text(self, cmd, wait):
-        self.s.reset_input_buffer()
+        self._io(self.s.reset_input_buffer)
         self.buf = b""
         self.lines.clear()
-        self.s.write(cmd.encode() + b"\r")
+        self._io(self.s.write, cmd.encode() + b"\r")
         end = time.monotonic() + wait
         while time.monotonic() < end:
             self._read(min(end - time.monotonic(), 0.05))
@@ -165,11 +179,21 @@ class Udp(Connection):
         self.s.close()
 
     def send(self, kind, payload):
-        self.s.sendto(payload, self.addr)
+        try:
+            self.s.sendto(payload, self.addr)
+        except OSError as e:
+            raise UmcubError(code="udp.io", target=self.name, reason=str(e)) from e
 
     def recv(self, kind, timeout):
         r, _, _ = select.select([self.s], [], [], max(timeout, 0))
-        return self.s.recv(4096) if r else None
+        if not r:
+            return None
+        try:
+            return self.s.recv(4096)
+        except ConnectionResetError:        # Windows: ICMP port unreachable from an earlier send - no answer
+            return None
+        except OSError as e:
+            raise UmcubError(code="udp.io", target=self.name, reason=str(e)) from e
 
 
 CAN_BITRATE, CAN_DATA_BITRATE = 500000, 2000000
@@ -177,18 +201,26 @@ _buses = {}                 # (interface, channel) -> _SharedBus
 _buses_lock = threading.Lock()
 
 
+def _import_can(module, interface, channel):
+    """python-can or isotp; not installed: UmcubError (can.open)."""
+    try:
+        return importlib.import_module(module)
+    except ImportError as e:
+        raise UmcubError(code="can.open", interface=interface, channel=channel, reason=str(e)) from e
+
+
 class _SharedBus:
     """One python-can bus and notifier per channel for every connection on it: drivers such as PCAN or Vector open
     a channel once; each connection adds its own ISO-TP stack (its node's IDs)."""
 
     def __init__(self, key, settings):
-        import can
         interface, channel = key
         bitrate, fd, data_bitrate = settings
+        can = _import_can("can", interface, channel)
         try:
             self.bus = can.Bus(interface=interface, channel=channel, bitrate=bitrate, fd=fd,
                                data_bitrate=data_bitrate if fd else None)
-        except (can.CanError, OSError, ValueError, ImportError) as e:
+        except (can.CanError, OSError, ValueError, ImportError) as e:      # ImportError: an interface's driver
             raise UmcubError(code="can.open", interface=interface, channel=channel, reason=str(e)) from e
         # A device that allows back-to-back consecutive frames (STmin 0) fills
         # the interface's TX queue (Linux default qlen 10): wait instead of
@@ -240,7 +272,7 @@ class IsoTp(Connection):
 
     def __init__(self, interface, channel, bitrate=CAN_BITRATE, fd=False, data_bitrate=CAN_DATA_BITRATE, tx=CAN_TX,
                  rx=CAN_RX, ext=False, node=0, mtu=1024):
-        import isotp
+        isotp = _import_can("isotp", interface, channel)
         self.name = f"{interface}:{channel}"
         self.mtu = mtu
         mode = isotp.AddressingMode.Normal_29bits if ext else isotp.AddressingMode.Normal_11bits
@@ -284,8 +316,21 @@ def _options(parts, known):
         if k not in known:
             raise UmcubError(code="spec.option", option=k, known=", ".join(sorted(known)))
         conv = known[k]
-        opts[k.replace("-", "_")] = True if conv is bool else conv(v)
+        try:
+            opts[k.replace("-", "_")] = _flag(v) if conv is bool else conv(v)
+        except ValueError:
+            raise UmcubError(code="spec.value", option=k, value=v) from None
     return opts
+
+
+def _flag(v):
+    """A flag option: `fd` or `fd=1/yes/true/on` sets it, `fd=0/no/false/off` clears it."""
+    v = v.strip().lower()
+    if v in ("", "1", "yes", "true", "on"):
+        return True
+    if v in ("0", "no", "false", "off"):
+        return False
+    raise ValueError(v)
 
 
 @dataclass
@@ -386,7 +431,10 @@ def _open_udp(target, node, port=UDP_PORT, mtu=None):
     try:
         ipaddress.ip_address(target)
     except ValueError:
-        target = socket.gethostbyname(target)
+        try:
+            target = socket.gethostbyname(target)
+        except OSError as e:                # socket.gaierror: the name does not resolve
+            raise UmcubError(code="udp.open", target=target, reason=str(e)) from e
     return Udp(target, port, mtu)
 
 

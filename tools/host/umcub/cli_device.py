@@ -4,6 +4,7 @@ import select
 import socket
 import sys
 import time
+from pathlib import Path
 
 from . import lite
 from .board_names import board_label
@@ -24,9 +25,9 @@ def _progress(done, total):
 
 def _read(path):
     try:
-        return open(path, "rb").read()
+        return Path(path).read_bytes()
     except OSError as e:
-        raise UmcubError(code="file.read", path=path, reason=e.strerror) from e
+        raise UmcubError(code="file.read", path=path, reason=e.strerror or str(e)) from e
 
 
 def _trace(ev):
@@ -90,7 +91,13 @@ def cmd_reset(dev, a):
 
 
 def cmd_mark(dev, a):
-    h = Image.load(a.image_or_hash).hash if os.path.isfile(a.image_or_hash) else bytes.fromhex(a.image_or_hash)
+    if os.path.isfile(a.image_or_hash):
+        h = Image.load(a.image_or_hash).hash
+    else:
+        try:
+            h = bytes.fromhex(a.image_or_hash)
+        except ValueError:
+            raise UmcubError(code="spec.hash", value=a.image_or_hash) from None
     with Smp(dev) as smp:
         smp.mark(h, a.permanent)
     print("marked " + ("permanent" if a.permanent else "for a test boot"))
@@ -138,7 +145,10 @@ def cmd_read(dev, a):
         out = smp.read(a.image, a.slot, a.off, a.len, _progress)
     print(file=sys.stderr)
     if a.out:
-        open(a.out, "wb").write(out)
+        try:
+            Path(a.out).write_bytes(out)
+        except OSError as e:
+            raise UmcubError(code="file.write", path=a.out, reason=e.strerror or str(e)) from e
     else:
         sys.stdout.buffer.write(out)
     return 0

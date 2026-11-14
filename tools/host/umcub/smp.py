@@ -9,6 +9,8 @@ import asyncio
 import hashlib
 import logging
 import re
+import threading
+import time
 from enum import IntEnum, unique
 
 from smp import error as smperr
@@ -112,13 +114,20 @@ class InspectRead(_InspectRequest):
 class Transport:
     """smpclient transport on a Device: NLIP lines on a plain stream, one packet
     otherwise (UDP, CAN ISO-TP, umcub link DATA). Answers of other requests
-    (sequence) are dropped; a request without an answer is sent again."""
+    (sequence) are dropped; a request without an answer is sent again, except
+    the first upload chunk: the device erases the slot meanwhile (up to 40 s),
+    and a repeat would start the upload and the erase again."""
 
     _smp_server_transport_buffer_size = None
     RECV_POLL = 0.1
 
     def __init__(self, dev):
         self.dev = dev
+        self._recv_lock = threading.Lock()  # a poll left running by a timed-out request ends before the next
+
+    def _recv(self):
+        with self._recv_lock:
+            return self.dev.recv(KIND_SMP, self.RECV_POLL)
 
     async def connect(self, address, timeout_s):
         pass
@@ -131,18 +140,19 @@ class Transport:
 
     async def receive(self):
         while True:
-            r = await asyncio.to_thread(self.dev.recv, KIND_SMP, self.RECV_POLL)
+            r = await asyncio.to_thread(self._recv)
             if r is not None:
                 return r
 
     async def send_and_receive(self, data):
         seq = data[6]
+        # image group 1, upload 1: only the first chunk carries "len" (a key before "data")
+        once = data[4:6] == b"\x00\x01" and data[7] == 1 and b"\x63len" in data[8:24]
         while True:
             await self.send(data)
-            waited = 0.0
-            while waited < self.dev.timeout:     # until smpclient's own timeout ends it
-                r = await asyncio.to_thread(self.dev.recv, KIND_SMP, self.RECV_POLL)
-                waited += self.RECV_POLL
+            end = None if once else time.monotonic() + self.dev.timeout
+            while end is None or time.monotonic() < end:     # until smpclient's own timeout ends it
+                r = await asyncio.to_thread(self._recv)
                 if r is not None and len(r) >= 8 and r[6] == seq:
                     return r
 
@@ -169,7 +179,11 @@ class Smp:
         self.timeout = dev.timeout if timeout is None else timeout
         self.loop = asyncio.new_event_loop()
         self.client = SMPClient(Transport(dev), dev.name, timeout_s=self.timeout)
-        self._run(self.client.connect())
+        try:
+            self._run(self.client.connect())
+        except BaseException:
+            self.loop.close()
+            raise
 
     def close(self):
         self.loop.close()

@@ -7,6 +7,7 @@ import base64
 import binascii
 import hashlib
 import os
+import socket
 import string
 import struct
 import sys
@@ -641,6 +642,99 @@ except ImportError as err:
     print(f"skip CAN bus tests: {err}")
 
 expect("link mode names exported", umcub.LINK_NAMES == {0: "plain", 1: "addressed", 2: "secure"})
+
+
+# Failures of the transports and the files are UmcubError with a code, never a bare Python exception.
+from umcub import connection as connmod, keys as keysmod, sign as signmod  # noqa: E402
+
+opt = {"bitrate": int, "fd": bool}
+expect("device string: a bad option value", code_of(lambda: connmod._options(["bitrate=abc"], opt)) == "spec.value")
+expect("device string: a flag's value counts",
+       [connmod._options([f], opt)["fd"] for f in ("fd", "fd=1", "fd=yes", "fd=0", "fd=false", "fd=off")]
+       == [True, True, True, False, False, False])
+expect("device string: a flag with a bad value", code_of(lambda: connmod._options(["fd=maybe"], opt)) == "spec.value")
+expect("UDP: a host name that does not resolve", code_of(lambda: connmod._open_udp("no-such-host.invalid", None))
+       == "udp.open")
+ra, rb = socket.socketpair()
+rb.send(b"x")                                   # readable, but the read fails as on Windows after ICMP unreachable
+
+
+class ResetSock:
+    fileno = ra.fileno
+
+    def recv(self, n):
+        raise ConnectionResetError(10054, "reset")
+
+    def sendto(self, data, addr):
+        raise OSError(101, "Network is unreachable")
+
+    def close(self):
+        pass
+
+
+u = Udp("127.0.0.1")
+u.s.close()
+u.s = ResetSock()
+expect("UDP: a reset (port unreachable) is no answer", u.recv(None, 0.1) is None)
+expect("UDP: a send that fails", code_of(lambda: u.send(None, b"x")) == "udp.io")
+ra.close()
+rb.close()
+if sys.platform.startswith("linux"):
+    master, slave = pty.openpty()
+    sc = umcub.open_connection(os.ttyname(slave))
+    expect("serial: writes have a timeout (a device that stops reading)", sc.s.write_timeout is not None)
+    os.close(master)                            # the adapter is gone
+    expect("serial: a port gone while reading", code_of(lambda: sc.recv(umcub.KIND_LITE, 0.2)) == "serial.io")
+    sc.close()
+    os.close(slave)
+p384 = tmp / "p384.pem"
+p384.write_bytes(ec.generate_private_key(ec.SECP384R1()).private_bytes(
+    serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()))
+expect("link key of another curve", code_of(lambda: link.load_key(p384, True)) == "key.curve")
+expect("key file of another curve", code_of(lambda: keysmod.load(p384)) == "key.curve")
+expect("key file that is not PEM", code_of(lambda: keysmod.load(junk)) == "key.invalid")
+expect("sign: an input that does not exist", code_of(lambda: signmod.load_segments(tmp / "none.elf")) == "file.read")
+saved_can = sys.modules.get("can")
+sys.modules["can"] = None                       # python-can not installed
+expect("CAN: python-can missing", code_of(lambda: connmod._SharedBus(("virtual", "x"), (500000, False, 2000000)))
+       == "can.open")
+if saved_can is None:
+    del sys.modules["can"]
+else:
+    sys.modules["can"] = saved_can
+
+
+# SMP transport: a request without an answer is sent again, but not the first upload chunk (the device erases the
+# slot for up to 40 s, and a repeat would start the upload, and the erase, again).
+import asyncio  # noqa: E402
+
+
+class SilentDev:
+    stream, mtu, timeout, name = False, 512, 0.05, "silent"
+
+    def __init__(self):
+        self.sent = 0
+
+    def send(self, kind, data):
+        self.sent += 1
+
+    def recv(self, kind, timeout):
+        time.sleep(timeout)
+        return None
+
+
+def sends(packet):
+    sd = SilentDev()
+    try:
+        asyncio.run(asyncio.wait_for(umcub.smp.Transport(sd).send_and_receive(packet), 0.4))
+    except TimeoutError:
+        pass
+    return sd.sent
+
+
+first_chunk = bytes([2, 0, 0, 11, 0, 1, 5, 1]) + b"\xa2\x63len\x19\x10\x00\x63off\x00"    # image upload, off 0
+expect("SMP: a request without an answer is sent again", sends(bytes([0, 0, 0, 1, 0, 0, 6, 0]) + b"\xa0") > 2)
+expect("SMP: the first upload chunk is not sent again while the device erases", sends(first_chunk) == 1)
 
 
 # hello(): who answers, and whether a SECURE session can be skipped.

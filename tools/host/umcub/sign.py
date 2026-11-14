@@ -11,6 +11,7 @@ import tempfile
 from pathlib import Path
 
 from .config import MODES, ROOT, die
+from .errors import UmcubError
 from .layout import smallest_region
 
 DEV_KEY = ROOT / "tools/keys/dev-ecdsa-p256.pem"
@@ -19,7 +20,10 @@ DEV_DEVICE_KEY = ROOT / "tools/keys/dev-device-p256.pem"
 
 
 def load_segments(path):
-    data = Path(path).read_bytes()
+    try:
+        data = Path(path).read_bytes()
+    except OSError as e:
+        raise UmcubError(code="file.read", path=str(path), reason=e.strerror or str(e)) from e
     ext = Path(path).suffix.lower()
     if data[:4] == b"\x7fELF":
         if data[4] != 1 or data[5] != 1:

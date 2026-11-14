@@ -14,7 +14,7 @@ def load_board_names(*paths):
         try:
             text = open(path, encoding="utf-8").read()
         except OSError as e:
-            raise UmcubError(code="file.read", path=str(path), reason=e.strerror) from e
+            raise UmcubError(code="file.read", path=str(path), reason=e.strerror or str(e)) from e
         try:
             data = json.loads(text)
             if not isinstance(data, dict):
