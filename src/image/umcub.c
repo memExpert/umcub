@@ -63,6 +63,25 @@ int umcub_image_version(int image, int slot, umcub_version_t *v)
     return 0;
 }
 
+/* The handoff stores out to the RAM, ahead of a reset. An application with the
+ * Cortex-M7 D-cache on (H7 CM7; the bootloader runs with it off) keeps them in
+ * dirty lines that the reset drops: clean those lines (DCCMVAC, privileged). */
+static void handoff_flush(void)
+{
+#ifndef UMCUB_HOST_TEST
+    __asm volatile("dsb" ::: "memory");
+#if defined(UMCUB_BUILDING_APP) && defined(UMCUB_FAMILY_STM32H7) && !defined(CORE_CM4)
+    if (*(volatile uint32_t *)0xE000ED14u & (1u << 16)) {
+        for (uint32_t a = UMCUB_CFG_SHARED_RAM_ADDR & ~31u; a < UMCUB_CFG_SHARED_RAM_ADDR + sizeof(umcub_handoff_t);
+             a += 32u) {
+            *(volatile uint32_t *)0xE000EF68u = a;
+        }
+        __asm volatile("dsb" ::: "memory");
+    }
+#endif
+#endif
+}
+
 __attribute__((noreturn)) void umcub_enter_bootloader(uint32_t arg)
 {
 #ifndef UMCUB_HOST_TEST
@@ -72,6 +91,7 @@ __attribute__((noreturn)) void umcub_enter_bootloader(uint32_t arg)
     HANDOFF->request_arg = arg;
     HANDOFF->request_check = ~UMCUB_REQUEST_MAGIC ^ UMCUB_REQ_ENTER_BOOT;
     HANDOFF->request_magic = UMCUB_REQUEST_MAGIC;
+    handoff_flush();
     umcub_port_reset();
 }
 
@@ -79,9 +99,7 @@ void umcub_set_node_address(uint16_t addr)
 {
     HANDOFF->node_addr_req = UMCUB_NODE_ADDR_WORD(addr);
     HANDOFF->node_magic = UMCUB_NODE_MAGIC;     /* 32-bit stores only (ECC SRAM) */
-#ifndef UMCUB_HOST_TEST
-    __asm volatile("dsb" ::: "memory");
-#endif
+    handoff_flush();
 }
 
 #ifdef UMCUB_BUILDING_APP
@@ -97,7 +115,7 @@ void umcub_note_app_update(void)
     } u = { .word = *w };
     u.b[(uintptr_t)&HANDOFF->last_transport & 3u] = UMCUB_TRANSPORT_APP;
     *w = u.word;
-    __asm volatile("dsb" ::: "memory");
+    handoff_flush();
 }
 #endif
 

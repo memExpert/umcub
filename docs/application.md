@@ -46,6 +46,9 @@ umcub_slot_finish(&w, true, false);             /* check the header, mark for a 
 The bootloader passes a `umcub_handoff_t` to the application (at `UMCUB_CFG_SHARED_RAM_ADDR`, protected by a CRC-32)
 and keeps an info block in the last 256 bytes of its own flash, so the bootloader version is readable even after
 the RAM was cleared.
+Requests back (`umcub_enter_bootloader()`, `umcub_set_node_address()`, the update note of `umcub_slot_finish()`) go
+through the same RAM; with the Cortex-M7 D-cache on, the library cleans those cache lines before the reset, so an
+application may keep its caches enabled. The library runs in privileged code.
 
 Writing from the application:
 - target slot `UMCUB_SLOT_SECONDARY` (default), `UMCUB_SLOT_PRIMARY` or `UMCUB_SLOT_INACTIVE` (default in the direct-xip

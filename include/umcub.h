@@ -1,7 +1,9 @@
 /*
  * umcub application library. Most applications need two calls:
  * umcub_enter_bootloader() for an update and, in the swap modes,
- * umcub_confirm(); the rest is for applications that want more.
+ * umcub_confirm(); the rest is for applications that want more. Call the
+ * library from privileged code: it resets the core, programs flash and, on the
+ * H7 CM7, cleans the D-cache lines of the handoff RAM it writes.
  *
  *   #include "umcub.h"
  *
