@@ -23,7 +23,11 @@ The board directory can live in your own repository (umcub as a submodule): `boa
 menuconfig.
 
 **2. Keys.** The first configure with the board generates the signing key in `keys/my_board/` (git-ignored, never
-replaced; keep it and a backup; a tree without a board has its own in `keys/<part>/`). Your own file or the public development key: menu *Keys*, see [Keys](configuration.md#kconfig).
+replaced; keep it and a backup; a tree without a board has its own in `keys/<part>/`). With umcub as a submodule, keep
+them with your project rather than in the umcub checkout, which is replaced with the submodule: `UMCUB_CFG_KEYS_DIR`
+in the `defconfig` (a relative path starts at the umcub root, e.g. `../keys/my_board`; git-ignore it there - a
+private key is never committed). Your own file or the public development key: menu *Keys*, see
+[Keys](configuration.md#kconfig).
 
 **3. Build the bootloader.**
 

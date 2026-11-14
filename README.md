@@ -34,12 +34,21 @@ not compiled.
 Size: from 12.5 K (F103) / 16.9 K (H743) without a transport, about 19 K with one UART on the F103 (20 K on the F411); every transport
 and feature is listed in [Bootloader size](docs/size.md).
 
+## Requirements
+
+- `arm-none-eabi-gcc` (Arm GNU Toolchain) on `PATH`, or `-DUMCUB_TOOLCHAIN_PREFIX=<path>/arm-none-eabi-`;
+- CMake 3.21 or newer (the presets; 3.20 without them) and Ninja;
+- Python 3.10 or newer and git (`tools/setup.sh` makes the virtual environment and fetches the submodules);
+- an SWD probe for the first programming: an ST-LINK with STM32CubeProgrammer (`STM32_Programmer_CLI`), or pyOCD;
+- for USB: `dfu-util` for DFU; on Linux `tools/hw/udev/70-umcub.rules` gives the logged-in user access to the
+  bootloader's USB device (DFU, CDC) without root.
+
 ## Quick start
 
 Once:
 
 ```sh
-git submodule update --init
+git clone https://github.com/memExpert/umcub && cd umcub
 tools/setup.sh                                 # .venv: imgtool, esp-idf-kconfig, the umcub tool, smpmgr, python-can, ...
 source .venv/bin/activate                      # umcub and smpmgr on PATH
 ```
@@ -49,7 +58,8 @@ over SWD, update the application over the bootloader's serial port.
 
 ```sh
 cmake --preset <preset> && cmake --build --preset <preset>
-cmake --build --preset <preset> --target flash      # bootloader + signed example(s), then reset
+cmake --build --preset <preset> --target flash      # bootloader + signed example(s), reset: the example runs
+# into the bootloader: the last column of the table, or `b` in the example's console (on <port>)
 umcub -d <port> upload build/<preset>/examples/<app>/<app>.signed.bin --reset
 # the same with the standard SMP tool: smpmgr --port <port> image upload ...; smpmgr --port <port> os reset
 ```
@@ -92,7 +102,10 @@ No preset or board needed: configure without `UMCUB_BOARD` and pick the part in 
    repository) and pass `-DUMCUB_BOARD=$PWD/boards/<your_board>` from then on. SMP is on by default; off, the transports
    use the lite upload protocol (smaller bootloader).
 2. **Keys**: the first configure with the board generates your signing key in `keys/<your_board>/` (git-ignored, never
-   replaced; a tree without a board has its own in `keys/<part>/`); keep it and a backup. Your own file or the public development key: menu *Keys*.
+   replaced; a tree without a board has its own in `keys/<part>/`); keep it and a backup. With umcub as a submodule,
+   keep them with your project rather than in the umcub checkout, which is replaced with the submodule:
+   `UMCUB_CFG_KEYS_DIR` in your `defconfig` (a relative path starts at the umcub root, e.g. `../keys/<your_board>`;
+   git-ignore it there - a private key is never committed). Your own file or the public development key: menu *Keys*.
 3. **Build the bootloader**: `cmake --build build/boot`.
 4. **Adapt the application**: link it for the primary slot (`INCLUDE umcub_app_img0_slot0.ld` from the build tree in
    your linker script) and sign it with the configuration's key - with CMake (`umcub::app`) or a post-build
