@@ -43,6 +43,11 @@ static const char *const mode_names[] __attribute__((unused)) = {
     "?", "overwrite", "swap-scratch", "?", "swap-offset", "direct-xip", "direct-xip-revert",
 };
 
+/* Board hook, see umcub_port.h. */
+__attribute__((weak)) void umcub_board_init(void)
+{
+}
+
 static bool entry_gpio_active(void)
 {
 #if UMCUB_CFG_ENTRY_GPIO
@@ -82,6 +87,7 @@ int main(void)
 #if UMCUB_CFG_WATCHDOG_MS
     umcub_port_wdg_start(UMCUB_CFG_WATCHDOG_MS);
 #endif
+    umcub_board_init();
 
     /* Bring up the log channel early (no-op without a UART transport). */
 #if UMCUB_CFG_TRANSPORT_UART
@@ -232,6 +238,9 @@ int main(void)
     umcub_port_core_signal(UMCUB_CORE_EVT_BOOT_DONE);
 #endif
     umcub_port_deinit();
+    /* A running watchdog gives the application its whole window, not what
+     * the image validation left of it. */
+    umcub_port_wdg_feed();
 #if UMCUB_CFG_DUALCORE_MODE == UMCUB_DUALCORE_SINGLE_BOOT
     /* Release the second core only now: it starts on the reset clock tree,
      * exactly like after a power-on without bootloader. */

@@ -73,6 +73,13 @@ void umcub_port_irq_restore(uint32_t state);
 /* Polling hook called from every busy loop of the bootloader. */
 void umcub_port_idle(void);
 
+/* Board hook (umcub_board.c, weak default: nothing), once per boot right
+ * after the clocks and the watchdog are up and before MCUboot looks at the
+ * slots: option bytes, board power, pins that must be set early. May reset
+ * the MCU (e.g. to load new option bytes); must keep a running watchdog
+ * fed if it takes long. */
+void umcub_board_init(void);
+
 /* ------------------------------------------------------------------------ */
 /* GPIO (entry pin, board LEDs). Pin = UMCUB_PIN(port, pin, af).             */
 /* ------------------------------------------------------------------------ */

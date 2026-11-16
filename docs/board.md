@@ -155,6 +155,11 @@ W: second core stays parked (no valid image 1)
    its own. The word must lie outside the image slots (checked at compile time); erased flash means "no address";
 3. the board hook `bool umcub_board_node_address(uint16_t *addr)` in `umcub_board.c` (DIP switches, EEPROM).
 
+A second board hook, `void umcub_board_init(void)` (`umcub_port.h`), runs once per boot right after the clocks and the
+watchdog are up and before MCUboot touches the slots: the place for option bytes (write protection of the
+bootloader, boot source, brown-out level) or board power that must be set early. It may reset the MCU, e.g. to load
+new option bytes; the default does nothing.
+
 Only umcub link and the CAN IDs use the address: a bootloader with neither has none (0, the sources above are
 not compiled). 0 means unassigned: the node is then reachable by its UID only. The bootloader reports the address it uses (`i`,
 `umcub_boot_info()->node_addr`).
