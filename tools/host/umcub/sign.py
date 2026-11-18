@@ -66,7 +66,8 @@ def boot_usage(cfg, path):
     if not code:
         die(f"{path}: nothing in the bootloader region 0x{base:08X}..0x{info:08X}")
     used = max(code) - base
-    enough = smallest_region(cfg.family.upper(), cfg["FLASH_KB"], base, used + base + size - info)
+    enough = smallest_region(cfg.family.upper(), cfg["FLASH_KB"], base, used + base + size - info,
+                             bool(cfg["FLASH_DUAL_BANK"]))      # G4 bank mode; the other families ignore it
     return {"used": used, "free": info - base - used, "enough": enough if enough != size else None}
 
 

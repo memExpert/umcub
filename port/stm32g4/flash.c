@@ -5,14 +5,16 @@
  *  - program unit: one double word (64 bits + 8 ECC bits); a double word can
  *    be programmed only while it is erased (PROGERR otherwise), so double
  *    words that are all 0xFF are skipped.
- *  - erase unit: one page, 2 KiB in dual-bank mode (DBANK = 1: bank 2 from
- *    the middle of the flash, page numbers per bank, BKER), 4 KiB in
- *    single-bank mode (one bank, 128 pages of 4 KiB on 512 KiB). The size
- *    follows the option bit at run time, umcub_flash_sector_info() reports it
- *    to MCUboot and the slot writer.
- *  - the data cache may hold the old contents of a page that was just
- *    programmed or erased: it is flushed after every operation, so the
- *    plain memory reads below see the new data.
+ *  - erase unit: one page in the bank mode the configuration sets
+ *    (UMCUB_CFG_FLASH_DUAL_BANK, RM0440 Tables 7 and 8): 2 KiB with two banks
+ *    (bank 2 from 0x08040000 whatever the flash size, page numbers per bank,
+ *    BKER), 4 KiB with one. A device whose option bit DBANK says otherwise
+ *    refuses writes and erases: its pages are not where the layout puts them.
+ *  - a double ECC error (a double word cut by a power loss) raises an NMI
+ *    (RM0440 §3.3.2): umcub_flash_read() reports it as UMCUB_EIO, anywhere
+ *    else the bootloader resets.
+ *  - the data cache is off during every program / erase and reset after it
+ *    (ES0430 §2.2.2, and so the plain memory reads below see the new data).
  */
 #include <string.h>
 #include "g4.h"
@@ -21,8 +23,8 @@
 #define WRITE_ALIGN         UMCUB_FAMILY_WRITE_ALIGN
 #define KEY1                0x45670123u
 #define KEY2                0xCDEF89ABu
-#define TIMEOUT_PROGRAM_MS  5u      /* DS12288: 82 us per double word, max */
-#define TIMEOUT_ERASE_MS    100u    /* DS12288: 22..40 ms per page */
+#define TIMEOUT_PROGRAM_MS  5u      /* DS12288 Table 47: 83.35 us per double word, max */
+#define TIMEOUT_ERASE_MS    100u    /* DS12288 Table 47: 24.47 ms per 2 KiB page, max (4 KiB: not given) */
 #define SR_ERRORS           (FLASH_SR_OPERR | FLASH_SR_PROGERR | FLASH_SR_WRPERR | FLASH_SR_PGAERR | \
                              FLASH_SR_SIZERR | FLASH_SR_PGSERR | FLASH_SR_MISERR | FLASH_SR_FASTERR | \
                              FLASH_SR_RDERR | FLASH_SR_OPTVERR)
@@ -32,20 +34,34 @@ static uint32_t flash_size(void)
     return (uint32_t)(*(const volatile uint16_t *)FLASHSIZE_BASE) * 1024u;
 }
 
-static bool dual_bank(void)
+#define PAGE                UMCUB_FAMILY_UNIFORM_SECTOR
+#define BANK2               UMCUB_FAMILY_BANK2_ADDR
+
+static uint32_t bank_size(void)
 {
-    return (FLASH->OPTR & FLASH_OPTR_DBANK) != 0;
+    return UMCUB_CFG_FLASH_DUAL_BANK ? flash_size() / 2u : flash_size();
 }
 
-static uint32_t page_size(void)
+/* The option bit DBANK matches the configured bank mode. */
+static bool mode_ok(void)
 {
-    return dual_bank() ? UMCUB_FAMILY_UNIFORM_SECTOR : UMCUB_FAMILY_SINGLE_BANK_PAGE;
+    return !(FLASH->OPTR & FLASH_OPTR_DBANK) == !UMCUB_CFG_FLASH_DUAL_BANK;
 }
 
+/* [addr, addr + len) inside one bank, or inside both where bank 2 follows
+ * bank 1 directly (512 KiB parts). */
 static bool in_flash(uint32_t addr, size_t len)
 {
-    uint32_t end = FLASH_BASE + flash_size();
-    return addr >= FLASH_BASE && addr <= end && len <= end - addr;
+    uint32_t n = bank_size(), lo = FLASH_BASE, hi = FLASH_BASE + n;
+    if (UMCUB_CFG_FLASH_DUAL_BANK) {
+        if (addr >= BANK2) {
+            lo = BANK2;
+            hi = BANK2 + n;
+        } else if (hi == BANK2) {
+            hi = BANK2 + n;
+        }
+    }
+    return addr >= lo && addr < hi && len <= hi - addr;
 }
 
 static void unlock(void)
@@ -61,17 +77,22 @@ static void lock(void)
     SET_BIT(FLASH->CR, FLASH_CR_LOCK);
 }
 
-/* Drop what the data cache holds of the flash (RM0440 §3.3.3: the cache
- * must be disabled to be reset). */
-static void flush_dcache(void)
+/* The data cache stays off while a bank is programmed or erased (ES0430
+ * §2.2.2: reading one bank while the other is written can corrupt it), and is
+ * reset before it goes back on (RM0440 FLASH_ACR: only while it is off), so
+ * reads see the new contents. */
+static uint32_t dcache_off(void)
 {
-    uint32_t acr = FLASH->ACR;
-    if (acr & FLASH_ACR_DCEN) {
-        CLEAR_BIT(FLASH->ACR, FLASH_ACR_DCEN);
-        SET_BIT(FLASH->ACR, FLASH_ACR_DCRST);
-        CLEAR_BIT(FLASH->ACR, FLASH_ACR_DCRST);
-        SET_BIT(FLASH->ACR, FLASH_ACR_DCEN);
-    }
+    uint32_t on = FLASH->ACR & FLASH_ACR_DCEN;
+    CLEAR_BIT(FLASH->ACR, FLASH_ACR_DCEN);
+    return on;
+}
+
+static void dcache_restore(uint32_t on)
+{
+    SET_BIT(FLASH->ACR, FLASH_ACR_DCRST);
+    CLEAR_BIT(FLASH->ACR, FLASH_ACR_DCRST);
+    SET_BIT(FLASH->ACR, on);
 }
 
 static int wait_done(uint32_t timeout_ms)
@@ -87,13 +108,35 @@ static int wait_done(uint32_t timeout_ms)
 
 int umcub_flash_sector_info(uint32_t addr, uint32_t *start, uint32_t *size)
 {
-    if (!in_flash(addr, 1) || addr == FLASH_BASE + flash_size()) {
+    if (!in_flash(addr, 1)) {
         return UMCUB_EINVAL;
     }
-    uint32_t page = page_size();
-    *start = addr & ~(page - 1u);
-    *size = page;
+    *start = addr & ~(PAGE - 1u);
+    *size = PAGE;
     return UMCUB_OK;
+}
+
+#ifdef UMCUB_BUILDING_APP
+int umcub_flash_read(uint32_t addr, void *dst, size_t len)
+{
+    if (!in_flash(addr, len)) {
+        return UMCUB_EINVAL;
+    }
+    memcpy(dst, (const void *)addr, len);     /* the application's own NMI handler sees ECC errors */
+    return UMCUB_OK;
+}
+#else
+static volatile uint8_t ecc_read;           /* 1: a read runs, 2: it met a double ECC error */
+
+void NMI_Handler(void)
+{
+    uint32_t ecc = FLASH->ECCR & (FLASH_ECCR_ECCD | FLASH_ECCR_ECCD2);
+    if (!ecc || !ecc_read) {
+        NVIC_SystemReset();                 /* not a guarded read: nothing to return to safely */
+    }
+    FLASH->ECCR = ecc;                      /* rc_w1 */
+    ecc_read = 2;
+    __DSB();                                /* ES0430 §2.1.3: no store right before the exception return */
 }
 
 int umcub_flash_read(uint32_t addr, void *dst, size_t len)
@@ -101,20 +144,29 @@ int umcub_flash_read(uint32_t addr, void *dst, size_t len)
     if (!in_flash(addr, len)) {
         return UMCUB_EINVAL;
     }
+    ecc_read = 1;
     memcpy(dst, (const void *)addr, len);
-    return UMCUB_OK;
+    __DSB();
+    int rc = ecc_read == 2 ? UMCUB_EIO : UMCUB_OK;
+    ecc_read = 0;
+    return rc;
 }
+#endif
 
 int umcub_flash_write(uint32_t addr, const void *src, size_t len)
 {
     if (!in_flash(addr, len) || (addr % WRITE_ALIGN) || (len % WRITE_ALIGN)) {
         return UMCUB_EINVAL;
     }
+    if (!mode_ok()) {
+        return UMCUB_EIO;
+    }
     const uint8_t *s = src;
     const uint32_t start = addr;
     const size_t total = len;
     int rc = umcub_cm_wait(&FLASH->SR, FLASH_SR_BSY, 0, TIMEOUT_ERASE_MS);
 
+    uint32_t dcache = dcache_off();
     unlock();
     FLASH->SR = FLASH_SR_EOP | SR_ERRORS;
     while (len && rc == UMCUB_OK) {
@@ -135,7 +187,7 @@ int umcub_flash_write(uint32_t addr, const void *src, size_t len)
         len -= 8u;
     }
     lock();
-    flush_dcache();
+    dcache_restore(dcache);
 
     if (rc == UMCUB_OK && memcmp((const void *)start, src, total) != 0) {
         rc = UMCUB_EIO;                 /* e.g. 0xFF.. over a programmed double word */
@@ -145,21 +197,20 @@ int umcub_flash_write(uint32_t addr, const void *src, size_t len)
 
 int umcub_flash_erase(uint32_t addr, size_t len)
 {
-    const uint32_t page = page_size();
-    const bool two = dual_bank();
-    const uint32_t bank_size = two ? flash_size() / 2u : flash_size();
-
-    if (!in_flash(addr, len) || (addr % page) || (len % page)) {
+    if (!in_flash(addr, len) || (addr % PAGE) || (len % PAGE)) {
         return UMCUB_EINVAL;
+    }
+    if (!mode_ok()) {
+        return UMCUB_EIO;
     }
     int rc = umcub_cm_wait(&FLASH->SR, FLASH_SR_BSY, 0, TIMEOUT_ERASE_MS);
 
+    uint32_t dcache = dcache_off();
     unlock();
     FLASH->SR = FLASH_SR_EOP | SR_ERRORS;
     while (len && rc == UMCUB_OK) {
-        uint32_t off = addr - FLASH_BASE;
-        uint32_t bank2 = two && off >= bank_size;
-        uint32_t pnb = (bank2 ? off - bank_size : off) / page;
+        bool bank2 = UMCUB_CFG_FLASH_DUAL_BANK && addr >= BANK2;
+        uint32_t pnb = (addr - (bank2 ? BANK2 : FLASH_BASE)) / PAGE;
         umcub_port_wdg_feed();
         MODIFY_REG(FLASH->CR, FLASH_CR_PNB | FLASH_CR_BKER,
                    FLASH_CR_PER | (pnb << FLASH_CR_PNB_Pos) | (bank2 ? FLASH_CR_BKER : 0u));
@@ -168,10 +219,10 @@ int umcub_flash_erase(uint32_t addr, size_t len)
         UMCUB_FAULT_POINT();            /* test: power cut in the middle of a page erase */
         rc = wait_done(TIMEOUT_ERASE_MS);
         CLEAR_BIT(FLASH->CR, FLASH_CR_PER | FLASH_CR_BKER);
-        addr += page;
-        len -= page;
+        addr += PAGE;
+        len -= PAGE;
     }
     lock();
-    flush_dcache();
+    dcache_restore(dcache);
     return rc;
 }

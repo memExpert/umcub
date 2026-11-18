@@ -41,6 +41,11 @@ CHIPS = [
     # Cortex-M4, in the 48 KiB region of the USB layout; no CAN and no Ethernet on the F411.
     ("STM32F411 (Black Pill, overwrite)", "cm4", "UMCUB_CFG_BOOT_SIZE=0xC000\n",
      "blackpill_f411ce", {"TRANSPORT_CAN", "CAN_FD", "TRANSPORT_ETH"}, set()),
+    # Cortex-M4F, 2 KiB pages; no USB in the port yet, no Ethernet on the G4.
+    ("STM32G474 (NUCLEO-G474RE, overwrite)", "cm4",
+     "UMCUB_CFG_BOOT_SIZE=0xC000\nUMCUB_CFG_IMG0_PRIMARY_ADDR=0x0800C000\nUMCUB_CFG_IMG0_PRIMARY_SIZE=0x34000\n"
+     "UMCUB_CFG_IMG0_SECONDARY_SIZE=0x34000\n", "nucleo_g474re",
+     {"TRANSPORT_USB_CDC", "TRANSPORT_USB_DFU", "TRANSPORT_ETH"}, set()),
 ]
 
 OFF = {"TRANSPORT_UART": 0, "TRANSPORT_USB_CDC": 0, "TRANSPORT_USB_DFU": 0, "TRANSPORT_CAN": 0,
@@ -114,6 +119,7 @@ LAYOUTS = [
     ("STM32H7 (128 KiB sectors)", 0, [128] * 16),
     ("STM32F4 (16, 16, 16, 16, 64, 128 KiB ...)", 4, [16] * 4 + [64] + [128] * 7),
     ("STM32F1 (1 KiB pages; 2 KiB on high-density parts)", 3, [1] * 1024),
+    ("STM32G4 (2 KiB pages; 4 KiB in single-bank mode)", 5, [2] * 256),
 ]
 SECTOR_SETS = ["UART lite", "UART", "USB CDC only", "CAN only", "Ethernet only", "secure", "everything"]
 SECTOR_LABELS = {"UART lite": "UART, lite (no SMP)", "UART": "UART", "USB CDC only": "USB CDC",

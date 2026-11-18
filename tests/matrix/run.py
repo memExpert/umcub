@@ -158,7 +158,16 @@ def t_app_library(out):
         done.append("clang")
     for m in ("overwrite", "swap_offset", "direct_xip", "direct_xip_revert"):
         run(["arm-none-eabi-gcc", "-mthumb"] + cpu + [f"-I{config(m, m)}"] + flags + ["-o", out / f"lib_{m}.o"], log, True)
-    return "app-library", f"umcub_app_all.c: {' '.join(done)}, all upgrade modes"
+    # another family: its flash driver in the application (STM32G4: no NMI handler of the bootloader's)
+    g4 = out / "lib_config_g4"
+    run([PY, "tools/host/umcub", "config", "generate", "--board", "nucleo_g474re", "--out", g4], log, True)
+    g4_incs = [i.replace("stm32h7", "stm32g4").replace("_h7", "_g4") for i in incs]
+    run(["arm-none-eabi-gcc", "-mthumb", "-mcpu=cortex-m4", "-mfpu=fpv4-sp-d16", "-mfloat-abi=hard", f"-I{g4}",
+         "-Os", "-Wall", "-Wextra", "-Werror", "-Wno-unused-parameter", "-DSTM32G474xx", "-DCORE_CM4"] +
+        [f"-I{i}" for i in g4_incs] + ["-c", "lib/umcub_app/umcub_app_all.c", "-o", out / "lib_g4.o"], log, True)
+    if "NMI_Handler" in subprocess.check_output(["arm-none-eabi-nm", out / "lib_g4.o"], text=True):
+        raise Failed("umcub_app_all.c for the G4 defines NMI_Handler: it would clash with the application's")
+    return "app-library", f"umcub_app_all.c: {' '.join(done)}, all upgrade modes, STM32G4"
 
 
 def t_no_slots(out):
@@ -239,8 +248,22 @@ def t_cmake_args(out):
         r = configure(tree, *h7, f"-DUMCUB_CONF={base_conf}{frag}")
         if r.returncode == 0 or want not in r.stderr:
             raise Failed(f"{tree}: configure did not stop ({want}): {r.stderr}")
+    g4 = ["-DUMCUB_BOARD=nucleo_g474re"]
+    for tree, text, want in (
+            # G474xC (256 KiB) in dual-bank mode: bank 2 from 0x08040000, nothing at 0x08020000..0x0803FFFF
+            ("g4-gap", "UMCUB_CFG_PART_STM32G474RCTX=y\nUMCUB_CFG_IMG0_PRIMARY_SIZE=0x18000\n"
+                       "UMCUB_CFG_IMG0_SECONDARY_ADDR=0x08020000\nUMCUB_CFG_IMG0_SECONDARY_SIZE=0x18000\n", "outside the flash"),
+            # single-bank mode: 4 KiB pages, a slot on a 2 KiB boundary
+            ("g4-single-bank", "# UMCUB_CFG_FLASH_DUAL_BANK is not set\nUMCUB_CFG_IMG0_PRIMARY_ADDR=0x08008800\n"
+                               "UMCUB_CFG_IMG0_PRIMARY_SIZE=0x37800\n", "erase-sector")):
+        frag = d / f"{tree}.conf"
+        frag.write_text(text)
+        r = configure(tree, *g4, f"-DUMCUB_CONF={frag}")
+        if r.returncode == 0 or want not in r.stderr:
+            raise Failed(f"{tree}: configure did not stop ({want}): {r.stderr}")
     return "cmake-args", ("Release by default, relative UMCUB_CONF, new key warning, -DUMCUB_SIGNING_KEY and no secondary "
-                          "slot stop, unchecked lite uploads, H7 header 0x200 and packets beyond UDP / ISO-TP refused")
+                          "slot stop, unchecked lite uploads, H7 header 0x200, packets beyond UDP / ISO-TP and G4 slots "
+                          "off the bank map refused")
 
 
 def t_check(out, name, cmd, grep=None):

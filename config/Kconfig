@@ -77,6 +77,18 @@ endmenu
 
 menu "Flash layout"
 
+config FLASH_DUAL_BANK
+	bool "Dual-bank flash"
+	depends on HAS_FLASH_BANK_MODE
+	default y
+	help
+	  The bank mode the device's option bytes select (STM32G4: DBANK,
+	  RM0440 3.3.1). On: two banks of 2 KiB pages, bank 2 from 0x08040000
+	  (on the 128 and 256 KiB parts a gap lies below it). Off: one bank of
+	  4 KiB pages. The layout is checked for this mode; a device in the
+	  other mode refuses every flash write and erase (the slots would not
+	  be where the layout puts them).
+
 config BOOT_ADDR
 	hex "Bootloader address"
 	default 0x08000000

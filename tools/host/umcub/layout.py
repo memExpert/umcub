@@ -21,15 +21,20 @@ def die(msg):
     raise UmcubError(msg)
 
 
-def sectors(family, flash_kb):
-    """[(address, size)] of the erase sectors of a part (port/stm32<fam>/flash.c)."""
+def sectors(family, flash_kb, dual_bank=True):
+    """[(address, size)] of the erase sectors of a part (port/stm32<fam>/flash.c); `dual_bank`: the bank mode of
+    parts that switch it with an option bit (UMCUB_CFG_FLASH_DUAL_BANK)."""
     if family == "STM32F1":
         page = 1 * KB if flash_kb <= 128 else 2 * KB        # RM0008 §3.3.3: 1 KiB up to medium density
         sizes = [page] * (flash_kb * KB // page)
     elif family == "STM32F4":
         sizes = [16 * KB] * 4 + [64 * KB] + [128 * KB] * ((flash_kb - 128) // 128)   # RM0383 Table 4
-    elif family == "STM32G4":
-        sizes = [2 * KB] * (flash_kb // 2)                  # RM0440 §3.3.1: 2 KiB pages, dual-bank mode
+    elif family == "STM32G4":                               # RM0440 Tables 7 and 8
+        if not dual_bank:
+            sizes = [4 * KB] * (flash_kb // 4)
+        else:                                               # bank 2 from 0x08040000 whatever the size
+            bank = [(FLASH_BASE + o, 2 * KB) for o in range(0, flash_kb * KB // 2, 2 * KB)]
+            return bank + [(a + 0x40000, s) for a, s in bank]
     elif family == "STM32H7":
         sizes = [128 * KB] * (flash_kb // 128)
     else:
@@ -41,26 +46,30 @@ def sectors(family, flash_kb):
     return out
 
 
-def smallest_region(family, flash_kb, start, needed):
+def smallest_region(family, flash_kb, start, needed, dual_bank=True):
     """Size of the fewest whole sectors from `start` that hold `needed` bytes, None if they do not fit."""
     size = 0
-    for addr, s in sectors(family, flash_kb):
+    for addr, s in sectors(family, flash_kb, dual_bank):
         if addr >= start:
+            if addr != start + size:
+                return None                 # a gap in the address space (G4 banks)
             size += s
             if size >= needed:
                 return size
     return None
 
 
-def sector_map(family, flash_kb):
-    """The sectors as a line of text: "4 x 16 KiB, 64 KiB, 3 x 128 KiB"."""
-    runs = []
-    for _, size in sectors(family, flash_kb):
-        if runs and runs[-1][1] == size:
+def sector_map(family, flash_kb, dual_bank=True):
+    """The sectors as a line of text: "4 x 16 KiB, 64 KiB, 3 x 128 KiB" (" from 0x..." after a gap)."""
+    runs, end = [], FLASH_BASE
+    for addr, size in sectors(family, flash_kb, dual_bank):
+        if runs and runs[-1][1] == size and addr == end:
             runs[-1][0] += 1
         else:
-            runs.append([1, size])
-    return ", ".join(f"{n} x {s // KB} KiB" if n > 1 else f"{s // KB} KiB" for n, s in runs)
+            runs.append([1, size, addr if addr != end else None])
+        end = addr + size
+    return ", ".join((f"{n} x {s // KB} KiB" if n > 1 else f"{s // KB} KiB") + (f" from 0x{a:08X}" if a else "")
+                     for n, s, a in runs)
 
 
 def compatible(pri, sec, mode, scratch=0):
@@ -110,11 +119,26 @@ def compatible(pri, sec, mode, scratch=0):
     return None
 
 
-def check(family, flash_kb, values, mode, images):
+def misplaced(family, flash_kb, values, images, dual_bank=True):
+    """The slots (IMG<n>_...) against the flash: one that is not inside it, or None (sector boundaries:
+    config/umcub_config_check.h, which cannot see gaps between banks)."""
+    secs = sectors(family, flash_kb, dual_bank)
+    for i in range(images):
+        for slot in ("PRIMARY", "SECONDARY"):
+            addr, size = values[f"IMG{i}_{slot}_ADDR"], values[f"IMG{i}_{slot}_SIZE"]
+            if not size:
+                continue
+            end, where = addr + size, f"image {i} {slot.lower()} slot 0x{addr:08X} + 0x{size:X}"
+            inside = sum(min(a + s, end) - max(a, addr) for a, s in secs if a < end and a + s > addr)
+            if inside != size:
+                return f"{where} is outside the flash ({sector_map(family, flash_kb, dual_bank)})"
+    return None
+
+
+def check(family, flash_kb, values, mode, images, dual_bank=True):
     """A set layout (IMG<n>_..., SCRATCH_SIZE) against MCUboot's rule, a primary slot needs a
-    secondary one too: what is wrong, or None. Slots off the sector boundaries:
-    config/umcub_config_check.h stops those."""
-    secs = sectors(family, flash_kb)
+    secondary one too: what is wrong, or None. Slots off the flash: misplaced()."""
+    secs = sectors(family, flash_kb, dual_bank)
 
     def sizes(addr, size):
         run = [s for a, s in secs if addr <= a < addr + size]

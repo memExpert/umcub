@@ -38,7 +38,10 @@ SMP_PARAMS, lite).
 - [ ] MCUboot v2.5.0 `boot_serial.c` includes `"../bootutil/src/bootutil_loader.h"` (direct-xip / RAM load), found
   only through the stopgap include directory `${MCUBOOT}/boot/boot_serial` in CMakeLists.txt. Fix prepared, not sent
   yet (branch boot-serial-loader-include: `"../src/bootutil_loader.h"`); drop the stopgap with the release that has it.
-- [ ] Ports for other series (G4, F7, G0, L4).
+- [ ] Ports for other series (F7, G0, L4).
+- [ ] **STM32G4 on hardware** (port and NUCLEO-G474RE board built only; FDCAN updates run on a custom G474RET6
+  board): UART, RNG (`tests/hw/entropy_test.py`), single-bank mode, a power cut during programming (ECC NMI ->
+  read error, `tests/hw/powerfail_test.py`), RS485 with the umcub link. USB FS device not ported.
 - [ ] Later: TrustZone (ARMv8-M: STM32L5, U5, H5, WBA). Bootloader, keys and crypto in the Secure world, the
   application Non-secure, so even a compromised application cannot read the device key (today RDP/WRP/PCROP only
   keep a debugger out). A new kind of port: separate Secure / Non-secure builds and linker scripts, SAU and GTZC

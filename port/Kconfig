@@ -12,6 +12,11 @@ config FAMILY_STM32H7
 	bool
 config MCU_DUALCORE
 	bool
+# The flash switches between single- and dual-bank mode with an option bit
+# (G4: DBANK), which changes the page size and the address of bank 2.
+config HAS_FLASH_BANK_MODE
+	bool
+	default y if FAMILY_STM32G4
 
 source "$(UMCUB_ROOT)/port/kconfig_gen/parts.kconfig"
 source "$(UMCUB_ROOT)/port/kconfig_gen/pins.kconfig"

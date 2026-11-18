@@ -33,9 +33,9 @@ set(UMCUB_FAMILY_BOOT_SOURCES
 set(UMCUB_FAMILY_UART_SOURCES ${UMCUB_FAMILY_DIR}/uart.c ${UMCUB_ROOT}/port/arch/stm32/usart_isr.c)
 # FDCAN1 (classic CAN and CAN FD), fixed message RAM layout (port/arch/stm32/fdcan.c).
 set(UMCUB_FAMILY_CAN_SOURCES  ${UMCUB_FAMILY_DIR}/can.c ${UMCUB_ROOT}/port/arch/stm32/fdcan.c)
-# Not ported yet: the RNG (its 48 MHz clock), the USB FS device; no Ethernet on the G4.
-set(UMCUB_FAMILY_ENTROPY_SOURCES "")
-set(UMCUB_FAMILY_UNSUPPORTED_ENTROPY 1)
+# True RNG on the HSI48 (umcub link nonces, the key unwrap of encrypted images).
+set(UMCUB_FAMILY_ENTROPY_SOURCES ${UMCUB_FAMILY_DIR}/rng.c ${UMCUB_ROOT}/port/arch/stm32/rng.c)
+# Not ported yet: the USB FS device; no Ethernet on the G4.
 set(UMCUB_FAMILY_USB_SOURCES  "")
 set(UMCUB_FAMILY_UNSUPPORTED_USB 1)
 set(UMCUB_FAMILY_ETH_SOURCES  "")

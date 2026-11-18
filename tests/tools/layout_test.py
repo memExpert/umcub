@@ -64,5 +64,25 @@ expect("region: F4 into the 64 KiB sector", layout.smallest_region("STM32F4", 51
 expect("region: H7 bank 2", layout.smallest_region("STM32H7", 2048, 0x08100000, 30000), 128 * KB)
 expect("region: does not fit", layout.smallest_region("STM32F1", 64, 0x08000000, 65 * KB), None)
 
+# STM32G4 (RM0440 Tables 7 and 8): dual-bank 2 KiB pages, bank 2 always from 0x08040000 (a gap below it on the
+# 128 / 256 KiB parts); single-bank 4 KiB pages, contiguous.
+g4c = layout.sectors("STM32G4", 256, dual_bank=True)
+expect("G4 256 KiB dual bank: 128 pages", len(g4c), 128)
+expect("G4 256 KiB dual bank: bank 1 ends at 128 KiB", g4c[63], (0x0801F800, 2 * KB))
+expect("G4 256 KiB dual bank: bank 2 from 0x08040000", g4c[64], (0x08040000, 2 * KB))
+expect("G4 512 KiB dual bank: contiguous", layout.sectors("STM32G4", 512, dual_bank=True)[128], (0x08040000, 2 * KB))
+expect("G4 256 KiB single bank: 4 KiB pages", layout.sectors("STM32G4", 256, dual_bank=False)[-1], (0x0803F000, 4 * KB))
+expect("G4 sector map, dual bank 256 KiB", layout.sector_map("STM32G4", 256, dual_bank=True),
+       "64 x 2 KiB, 64 x 2 KiB from 0x08040000")
+expect("G4 region: not across the gap", layout.smallest_region("STM32G4", 256, 0x08000000, 200 * KB, dual_bank=True), None)
+g4 = dict(IMG0_PRIMARY_ADDR=0x08008000, IMG0_PRIMARY_SIZE=0x18000, IMG0_SECONDARY_ADDR=0x08040000,
+          IMG0_SECONDARY_SIZE=0x18000)
+expect("check: G4 slots in both banks", layout.misplaced("STM32G4", 256, g4, 1, dual_bank=True), None)
+gap = dict(g4, IMG0_SECONDARY_ADDR=0x08020000)
+expect("check: G4 slot in the gap between the banks", "outside the flash" in
+       (layout.misplaced("STM32G4", 256, gap, 1, dual_bank=True) or ""), True)
+expect("check: F4 slot beyond the flash", "outside the flash" in
+       (layout.misplaced("STM32F4", 512, dict(base, IMG0_SECONDARY_ADDR=0x08080000), 1) or ""), True)
+
 print(f"layout: {'FAILED' if bad else 'all cases passed'}")
 sys.exit(1 if bad else 0)

@@ -28,7 +28,7 @@ int umcub_port_entropy(uint8_t *buf, size_t len)
     unsigned recoveries = 0;
     while (len) {
         if (RNG->SR & RNG_SR_SEIS) {
-            /* Seed error (RM0399 §36.3.7, the same on every RNG): clear SEIS, discard 12 words, check
+            /* Seed error (RM0399 §36.3.7, RM0440 §26.3.7, the same on every RNG): clear SEIS, discard 12 words, check
              * SEIS again. Bounded: a generator that keeps failing is an error. */
             if (++recoveries > 4) {
                 return UMCUB_EIO;

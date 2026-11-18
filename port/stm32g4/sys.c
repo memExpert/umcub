@@ -62,7 +62,7 @@ void umcub_port_deinit(void)
     __ISB();
 }
 
-/* --- watchdog: IWDG on LSI (32 kHz, 29.5..34 kHz, DS12288 Table 47) -------- */
+/* --- watchdog: IWDG on LSI (32 kHz, 29.5..34 kHz, DS12288 Table 45) -------- */
 
 void umcub_port_wdg_start(uint32_t timeout_ms)
 {

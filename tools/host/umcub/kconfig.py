@@ -278,9 +278,12 @@ def values(kconf):
     if out.get("ETH_DRIVER") == "0" and out.get("TRANSPORT_ETH") == "1":
         out["ETH_RMII_PINS"] = ", ".join(rmii)
     out["CMD_TABLE"] = _cmd_table(kconf.syms["CMD_TABLE"].str_value or _off_value(k, kconf.syms["CMD_TABLE"]))
-    why = layout.check(_family(kconf), int(kconf.syms["FLASH_KB"].str_value),
-                       {name: int(v, 0) for name, v in out.items() if SLOT.fullmatch(name)},
-                       int(out["UPGRADE_MODE"]), int(out["IMAGE_NUMBER"]))
+    family, flash_kb, dual = _flash(kconf)
+    slots = {name: int(v, 0) for name, v in out.items() if SLOT.fullmatch(name)}
+    why = layout.misplaced(family, flash_kb, slots, int(out["IMAGE_NUMBER"]), dual)
+    if why:
+        die(why + " (docs/board.md, Slots)")
+    why = layout.check(family, flash_kb, slots, int(out["UPGRADE_MODE"]), int(out["IMAGE_NUMBER"]), dual)
     if why and out.get("LAYOUT_NO_UPGRADE") != "1":
         die(why + " - or UMCUB_CFG_LAYOUT_NO_UPGRADE")
     out.update(derived(kconf, out))
@@ -289,6 +292,12 @@ def values(kconf):
 
 def _family(kconf):
     return next(f for f in ("STM32F1", "STM32F4", "STM32G4", "STM32H7") if kconf.syms[f"FAMILY_{f}"].str_value == "y")
+
+
+def _flash(kconf):
+    """(family, flash KiB, dual bank) - the arguments of layout.sectors()."""
+    return (_family(kconf), int(kconf.syms["FLASH_KB"].str_value),
+            kconf.syms["FLASH_DUAL_BANK"].str_value == "y" or kconf.syms["HAS_FLASH_BANK_MODE"].str_value != "y")
 
 
 def derived(kconf, c):
@@ -304,7 +313,7 @@ def derived(kconf, c):
          # TEST ONLY (power-loss emulation): kept over reset, used by nobody else
          "TEST_FAULT_ADDR": 0x3800F000 if family == "STM32H7" else shared + 240,
          "FAMILY_WRITE_ALIGN": layout.WRITE_ALIGN[family],
-         "FAMILY_MIN_SECTOR": min(s for _, s in layout.sectors(family, int(kconf.syms["FLASH_KB"].str_value))),
+         "FAMILY_MIN_SECTOR": min(s for _, s in layout.sectors(*_flash(kconf))),
          "INSPECT": n("INSPECT_VERIFY") | n("INSPECT_HASH") | n("READBACK"),
          "USB": n("TRANSPORT_USB_CDC") | n("TRANSPORT_USB_DFU"),
          "LINK_ANY": sum(n(a) * n(b) for a, b in links),                # non-zero: umcub link on some transport
@@ -444,7 +453,7 @@ def generate(board, core, fragments, out_dir):
     if no_slots:
         notes.append(f"no slots set yet: choose them in menuconfig (Flash layout) or a defconfig. "
                      f"{vals['MCU_PART'].strip(chr(34))} flash from 0x{layout.FLASH_BASE:08X}: "
-                     f"{layout.sector_map(_family(kconf), int(kconf.syms['FLASH_KB'].str_value))}; "
+                     f"{layout.sector_map(*_flash(kconf))}; "
                      f"the bootloader takes {vals['BOOT_SIZE']}")
     cmake = ["# Generated from Kconfig: the keys of the configuration (umcub.kconfig.keys)"]
     for name, (path, how) in key_paths.items():

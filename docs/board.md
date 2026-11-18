@@ -108,7 +108,7 @@ Things that are easy to get wrong:
 - **RAM.** The handoff area (`UMCUB_CFG_SHARED_RAM_ADDR`, 256 bytes) must stay out of the application's RAM. The
   generated application linker scripts already exclude it.
 - **Image header.** `UMCUB_CFG_IMAGE_HEADER_SIZE` is also the offset of the application vector table: it must meet
-  the VTOR alignment of the core. The ports set it (0x200 on the F1 / F4 with up to 128 vectors, 0x400 on the H7);
+  the VTOR alignment of the core. The ports set it (0x200 on the F1 / F4 / G4 with up to 128 vectors, 0x400 on the H7);
   a part with more vectors needs the next power of two.
 - **Watchdog.** If `UMCUB_CFG_WATCHDOG_MS` is set, the application must feed the IWDG: once started it cannot be
   stopped.
@@ -240,6 +240,27 @@ cmake --build build/blackpill-usb
 smpmgr --port /dev/ttyACM0 image upload build/blackpill/examples/blackpill_app/blackpill_app.signed.bin
 dfu-util -a 0 -D build/blackpill/examples/blackpill_app/blackpill_app.signed.bin -R
 ```
+
+**NUCLEO-G474RE** ([`boards/nucleo_g474re/defconfig`](../boards/nucleo_g474re/defconfig), MB1367, UM2505; built in the
+test matrix, not run on this board yet - the G4 port runs FDCAN updates on a custom STM32G474RET6 board): 24 MHz
+crystal, SMP over USART2 on PA2 TX / PA3 RX (where the ST-LINK virtual COM port is by default, SB17 / SB23), B1 USER
+(PC13) held at reset stays in recovery, LD2 (PA5) blinks. Overwrite mode, slots of 224 KiB at 0x08008000 and 0x08040000. FDCAN1 on PA12 TX / PA11 RX with an
+external transceiver: `variants/can.conf`.
+
+The G4 flash has two bank modes, set by the option bit DBANK: two banks of 2 KiB pages (the factory setting; bank 2
+always from 0x08040000, so on the 128 and 256 KiB parts a gap lies between the banks) or one bank of 4 KiB pages.
+`UMCUB_CFG_FLASH_DUAL_BANK` must match the device's option bit: the layout is checked for that mode (a slot in the gap
+or off the pages stops the configuration), and a device in the other mode refuses every flash write and erase.
+`variants/single_bank.conf` is the single-bank build. A double ECC error (a double word cut by a power loss) raises an
+NMI; the port turns it into a read error, so MCUboot treats the slot as damaged instead of hanging. Nonces (umcub
+link) and the key unwrap of encrypted images come from the RNG on the HSI48. RS485 with the umcub link like on the
+other boards: `variants/rs485_link.conf` (USART2 PA2 / PA3, hardware DE on PA1, a transceiver such as a MAX485);
+SECURE link with encryption and encrypted images in a 48 KiB bootloader: `variants/secure.conf`. The handoff area lies
+in the CCM SRAM (its alias at the end of the 128 KiB): keep the option bits as they leave the factory, `CCMSRAM_RST`
+= 1 (a reset that erases the CCM SRAM loses the requests to the bootloader) and SRAM parity off (`SRAM_PE` = 1; with
+parity the startup's reads of never-written SRAM raise an NMI on every power-on: a reset loop until `SRAM_PE` is set
+back over SWD). The startup reads every
+SRAM block once before its first write (erratum ES0430 2.2.6); an application's own startup needs the same.
 
 ## External controllers and custom transports
 

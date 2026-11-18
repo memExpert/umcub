@@ -49,6 +49,9 @@ __attribute__((naked, noreturn)) void Reset_Handler(void)
         "b    umcub_port_core2_park    \n"
         "1:                            \n"
 #endif
+#ifdef UMCUB_FAMILY_RESET_ASM
+        UMCUB_FAMILY_RESET_ASM                   /* family errata before the first RAM access */
+#endif
         "ldr  r0, =_estack_main        \n"
         "msr  msp, r0                  \n"
         "b    c_start                  \n");

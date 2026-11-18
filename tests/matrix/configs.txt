@@ -55,6 +55,11 @@ blackpill-f411-encrypt|cm4|Release|boards/blackpill_f411ce/variants/encrypt.conf
 blackpill-f411-usb|cm4|Release|boards/blackpill_f411ce/variants/usb.conf|blackpill_f411ce
 blackpill-f411-proto-user|cm4|Release|boards/blackpill_f411ce/variants/proto_user.conf|blackpill_f411ce
 blackpill-f411-enc28j60|cm4|Release|boards/blackpill_f411ce/variants/usart2.conf,boards/blackpill_f411ce/variants/enc28j60.conf|blackpill_f411ce
+nucleo-g474re|cm4|Release||nucleo_g474re
+nucleo-g474re-can|cm4|Release|boards/nucleo_g474re/variants/can.conf|nucleo_g474re
+nucleo-g474re-single-bank|cm4|Release|boards/nucleo_g474re/variants/single_bank.conf|nucleo_g474re
+nucleo-g474re-rs485-link|cm4|Release|boards/nucleo_g474re/variants/rs485_link.conf|nucleo_g474re
+nucleo-g474re-secure|cm4|Release|boards/nucleo_g474re/variants/secure.conf|nucleo_g474re
 custom-drivers|cm7|Release||tests/boards/custom_drivers    # board CAN / ETH drivers: the family ones left out
 noboard-default|cm3|Release|part/slots_f103c8.conf|none    # Kconfig defaults: STM32F103C8, UART
 noboard-h755|cm7|Release|part/h755.conf|none

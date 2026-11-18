@@ -32,7 +32,7 @@ not compiled.
 | STM32H7 (H742/H743/H753, dual-core H745/H755/H747/H757) | NUCLEO-H755ZI-Q (both cores) | UART, USB CDC / DFU, FDCAN (CAN FD), Ethernet |
 | STM32F1 (F103x8/xB) | Blue Pill (STM32F103C8T6) | UART, USB CDC / DFU, bxCAN (not together with USB) |
 | STM32F4 (F411xC/xE) | Black Pill (STM32F411CEU6) | UART (also RS485 with umcub link), USB CDC / DFU, Ethernet through an ENC28J60 (board driver) |
-| STM32G4 (G474xB/xC/xE, dual-bank flash) | Custom G474 board (STM32G474RET6) | FDCAN (run on hardware: image updates over CAN), UART (built, not run on hardware) |
+| STM32G4 (G474xB/xC/xE, single- or dual-bank flash) | NUCLEO-G474RE (built only; FDCAN updates run on a custom G474RET6 board) | UART (also RS485 with umcub link), FDCAN (CAN FD) |
 
 Size: from 12.5 K (F103) / 16.9 K (H743) without a transport, about 19 K with one UART on the F103 (20 K on the F411); every transport
 and feature is listed in [Bootloader size](docs/size.md).

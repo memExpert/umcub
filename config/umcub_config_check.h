@@ -11,6 +11,10 @@
 #error "umcub: image 0 primary slot not defined (UMCUB_CFG_IMG0_PRIMARY_ADDR/SIZE)"
 #endif
 
+/* Facts every port defines: undefined, the checks below would compare 0. */
+#if !defined(UMCUB_FAMILY_VTOR_ALIGN) || !defined(UMCUB_FAMILY_WRITE_ALIGN) || !defined(UMCUB_FAMILY_MIN_SECTOR)
+#error "umcub: the family facts (port/<family>/include/umcub_family_facts.h) lack UMCUB_FAMILY_VTOR_ALIGN, _WRITE_ALIGN or _MIN_SECTOR (docs/porting.md)"
+#endif
 /* The host tools' copies of the family facts (tools/host/umcub/layout.py). */
 #if UMCUB_FAMILY_WRITE_ALIGN != UMCUB_CFG_FAMILY_WRITE_ALIGN || UMCUB_FAMILY_MIN_SECTOR != UMCUB_CFG_FAMILY_MIN_SECTOR
 #error "umcub: the family facts differ from tools/host/umcub/layout.py"
