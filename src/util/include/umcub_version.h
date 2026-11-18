@@ -4,7 +4,7 @@
 /* umcub bootloader version (semantic versioning), its only source; a release is tagged v<version>
  * (tools/build/check_version.py). */
 #define UMCUB_VERSION_MAJOR     1
-#define UMCUB_VERSION_MINOR     0
+#define UMCUB_VERSION_MINOR     1
 #define UMCUB_VERSION_PATCH     0
 
 #ifndef UMCUB_GIT_HASH
