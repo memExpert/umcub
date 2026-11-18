@@ -57,7 +57,7 @@ __attribute__((noreturn, used)) void umcub_port_core2_park(void)
             HSEM_C2->ICR = bit;
             NVIC_ClearPendingIRQ(HSEM2_IRQn);
             uint32_t vtor = h->core2_vtor;
-            if (h->core2_magic == UMCUB_CORE2_MAGIC && (vtor & 0x3FFu) == 0) {
+            if (h->core2_magic == UMCUB_CORE2_MAGIC && (vtor & (UMCUB_FAMILY_VTOR_ALIGN - 1u)) == 0) {
                 h->core2_magic = 0;
                 HSEM_C2->IER &= ~bit;
                 SCB->SCR &= ~SCB_SCR_SEVONPEND_Msk;

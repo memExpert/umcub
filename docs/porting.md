@@ -8,7 +8,8 @@ Adding an STM32 series and the source tree.
    `cortexm_common.c`), the `cmsis_device_<fam>` and LL driver submodules.
 2. `port/stm32<fam>/`: `include/umcub_family_facts.h` (flash write unit, sector size - `UMCUB_FAMILY_UNIFORM_SECTOR`,
    or `UMCUB_FAMILY_SECTOR_AT(addr)` where sectors differ in size, see `port/stm32f4` - smallest sector
-   `UMCUB_FAMILY_MIN_SECTOR`, worst-case erase `UMCUB_FAMILY_SECTOR_ERASE_MS`, erased value if not 0xFF, the
+   `UMCUB_FAMILY_MIN_SECTOR`, worst-case erase `UMCUB_FAMILY_SECTOR_ERASE_MS`, erased value if not 0xFF, the vector
+   table alignment `UMCUB_FAMILY_VTOR_ALIGN` (its size rounded up to a power of two: the smallest image header), the
    verified parts with `UMCUB_FAMILY_RAM_SIZE`),
    `include/umcub_family_cmsis.h` (the device header), `include/umcub_family_app.inc` (port sources of the
    application library), register-level flash driver (LL has none), clocks (including restoring the reset state

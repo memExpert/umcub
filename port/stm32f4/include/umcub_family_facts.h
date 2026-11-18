@@ -16,6 +16,8 @@
 /* The flash programs 32-bit words (PSIZE x32, 2.7..3.6 V); 8 is the smallest
  * MCUBOOT_BOOT_MAX_ALIGN MCUboot supports. */
 #define UMCUB_FAMILY_WRITE_ALIGN        8
+/* VTOR: the vector table aligned to its size rounded up to a power of two (up to 102 vectors) */
+#define UMCUB_FAMILY_VTOR_ALIGN         0x200
 
 /* Parts the port is verified for, with their SRAM size (the handoff is at
  * its end); the sector map above holds up to 1 MiB (not the dual-bank

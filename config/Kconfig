@@ -464,13 +464,16 @@ config SMP_ENABLE
 config SMP_MTU
 	int "Largest packet (SMP, lite upload, link, CAN)"
 	range 512 4096
+	default 1442 if TRANSPORT_ETH && (ETH_LINK_ADDRESSED || ETH_LINK_SECURE)
 	default 1472 if TRANSPORT_ETH
 	default 1024
 	help
 	  Largest packet (decoded) on SMP, the lite upload, the umcub link and
 	  CAN; the buffers are this size (RAM only). By default 1472 with Ethernet
-	  (a full UDP datagram, what smpmgr sends), else 1024. Hosts must not send
-	  more: smpmgr --mtu / --line-buffers.
+	  (a full UDP datagram, what smpmgr sends; 1442 on a umcub link, whose
+	  frame adds 30 bytes), else 1024. CAN (ISO-TP) carries at most 4095
+	  bytes, 4065 on a link. Hosts must not send more: smpmgr --mtu /
+	  --line-buffers.
 
 config SMP_PARAMS
 	bool "Answer MCUMGR_PARAMETERS"

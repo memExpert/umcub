@@ -1037,6 +1037,7 @@ static unsigned can_rxq_n;
 static unsigned cf_since_fc;
 static const uint8_t fc_bs = 4;
 static uint8_t fc_stmin;                        /* STmin the fake peer asks for */
+static unsigned fc_waits;                       /* FC WAIT frames the fake peer sends before a CTS */
 extern uint64_t fake_delay_us_total;
 
 int umcub_port_can_send(uint32_t id, const uint8_t *data, uint8_t len)
@@ -1066,6 +1067,13 @@ bool umcub_port_can_recv(uint32_t *id, uint8_t *data, uint8_t *len)
         return false;
     }
     *id = 0;
+    if (fc_waits && can_rxq[0][0] == 0x30) {
+        fc_waits--;
+        static const uint8_t wait[3] = { 0x31, 0, 0 };
+        memcpy(data, wait, 3);
+        *len = 3;
+        return true;
+    }
     memcpy(data, can_rxq[0], can_rxq_len[0]);
     *len = can_rxq_len[0];
     memmove(can_rxq, can_rxq + 1, sizeof(can_rxq[0]) * --can_rxq_n);
@@ -1114,6 +1122,18 @@ static void test_isotp(void)
     }
     fc_stmin = 0;
     printf("  STmin 0 / 500 us / 5 ms / reserved (127 ms) between consecutive frames\n");
+
+    /* FC WAIT: a few are waited out, an endless stream ends the transfer */
+    uint8_t msg[300] = { 0 };
+    isotp_t tx = { .frame_len = 8, .tx_id = 0x7C8 };
+    can_sent_n = can_rxq_n = cf_since_fc = 0;
+    fc_waits = 3;
+    CHECK(isotp_send(&tx, msg, sizeof(msg)) == 0);
+    can_sent_n = can_rxq_n = cf_since_fc = 0;
+    fc_waits = 1000000;
+    CHECK(isotp_send(&tx, msg, sizeof(msg)) != 0);
+    fc_waits = 0;
+    printf("  FC WAIT: 3 waited out, an endless stream refused\n");
 }
 
 /* --- network stack over a fake MAC --------------------------------------- */

@@ -93,10 +93,9 @@ int main(void)
                   (unsigned long)UMCUB_GIT_HASH, UMCUB_BOARD_NAME,
                   mode_names[UMCUB_CFG_UPGRADE_MODE], UMCUB_CFG_IMAGE_NUMBER);
 
-    umcub_node_init();
-
     uint32_t req_arg = 0;
-    uint32_t request = umcub_handoff_take_request(&req_arg);
+    uint32_t request = umcub_handoff_take_request(&req_arg);   /* first: clears the handoff at power-on */
+    umcub_node_init();
 #if UMCUB_CFG_ENTRY_ON_REQUEST
     if (request == UMCUB_REQ_ENTER_BOOT) {
         UMCUB_LOG_INF("application request (arg 0x%08lx)", (unsigned long)req_arg);

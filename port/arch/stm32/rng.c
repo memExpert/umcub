@@ -46,8 +46,11 @@ int umcub_port_entropy(uint8_t *buf, size_t len)
             return UMCUB_ETIMEOUT;
         }
         uint32_t v = RNG->DR;
-        if (v == 0 || (RNG->SR & RNG_SR_SEIS)) {
-            continue;                               /* §36.3.5: 0 = seed error between SR and DR */
+        if (v == 0 || (RNG->SR & RNG_SR_SEIS)) {    /* §36.3.5: 0 = seed error between SR and DR */
+            if (v == 0 && ++recoveries > 4) {
+                return UMCUB_EIO;                   /* stuck at 0 without a seed error */
+            }
+            continue;
         }
         for (unsigned i = 0; i < 4 && len; i++, len--) {
             *buf++ = (uint8_t)(v >> (8 * i));

@@ -23,6 +23,15 @@
 #if UMCUB_CFG_SMP_MTU < 512
 #error "umcub: UMCUB_CFG_SMP_MTU must be at least 512"
 #endif
+/* The largest packet must fit a UDP datagram and an ISO-TP message (neither
+ * transport checks it again); a umcub link frame adds a 14-byte header and a
+ * 16-byte tag (UMCUB_TRANSPORT_LINK_PACKET_MAX). */
+#if UMCUB_CFG_TRANSPORT_ETH && UMCUB_CFG_SMP_MTU + (UMCUB_CFG_ETH_LINK ? 30 : 0) > 1472
+#error "umcub: with Ethernet a packet must fit one UDP datagram (1472 bytes): UMCUB_CFG_SMP_MTU at most 1472, 1442 on a umcub link"
+#endif
+#if UMCUB_CFG_TRANSPORT_CAN && UMCUB_CFG_SMP_MTU + (UMCUB_CFG_CAN_LINK ? 30 : 0) > 4095
+#error "umcub: CAN (ISO-TP) carries at most 4095 bytes: UMCUB_CFG_SMP_MTU at most 4095, 4065 on a umcub link"
+#endif
 
 #if UMCUB_CFG_IMAGE_NUMBER < 1 || UMCUB_CFG_IMAGE_NUMBER > 2
 #error "umcub: UMCUB_CFG_IMAGE_NUMBER must be 1 or 2"
@@ -97,8 +106,9 @@
 #error "umcub: UMCUB_CFG_ENC_INPLACE needs sectors of one size (it buffers one in RAM): set it 0"
 #endif
 
-#if (UMCUB_CFG_IMAGE_HEADER_SIZE & (UMCUB_CFG_IMAGE_HEADER_SIZE - 1)) != 0 || UMCUB_CFG_IMAGE_HEADER_SIZE < 0x200
-#error "umcub: UMCUB_CFG_IMAGE_HEADER_SIZE must be a power of two >= 0x200 (VTOR alignment)"
+#if (UMCUB_CFG_IMAGE_HEADER_SIZE & (UMCUB_CFG_IMAGE_HEADER_SIZE - 1)) != 0 || \
+    UMCUB_CFG_IMAGE_HEADER_SIZE < UMCUB_FAMILY_VTOR_ALIGN
+#error "umcub: UMCUB_CFG_IMAGE_HEADER_SIZE must be a power of two >= the family's VTOR alignment (0x200; 0x400 on the H7)"
 #endif
 
 #if defined(UMCUB_FAMILY_CAN_NO_FD) && UMCUB_CFG_TRANSPORT_CAN && UMCUB_CFG_CAN_FD && \

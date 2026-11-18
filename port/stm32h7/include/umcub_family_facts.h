@@ -20,6 +20,8 @@
 #define UMCUB_FAMILY_SECTOR_ERASE_MS    4000
 /* Flash program unit: one 256-bit flash word. */
 #define UMCUB_FAMILY_WRITE_ALIGN        32
+/* VTOR: the vector table aligned to its size rounded up to a power of two (up to 150 IRQs: 166 vectors) */
+#define UMCUB_FAMILY_VTOR_ALIGN         0x400
 
 #if defined(STM32H745xx) || defined(STM32H755xx) || defined(STM32H747xx) || \
     defined(STM32H757xx) || defined(STM32H745xG) || defined(STM32H747xG)

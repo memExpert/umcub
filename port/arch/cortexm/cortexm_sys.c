@@ -104,12 +104,6 @@ void umcub_cm_deinit(void)
     SysTick->LOAD = 0;
     SysTick->VAL = 0;
 
-    for (unsigned i = 0; i < 8; i++) {
-        NVIC->ICER[i] = 0xFFFFFFFFu;
-        NVIC->ICPR[i] = 0xFFFFFFFFu;
-    }
-    SCB->ICSR = SCB_ICSR_PENDSTCLR_Msk | SCB_ICSR_PENDSVCLR_Msk;
-
     for (unsigned i = 0; i < used_n; i++) {
         SET_BIT(*used[i].rstr, used[i].mask);
         (void)*used[i].rstr;
@@ -119,6 +113,14 @@ void umcub_cm_deinit(void)
     for (unsigned i = 0; i < en_n; i++) {
         *en_regs[i] = en_snapshot[i];
     }
+
+    /* After the peripheral resets: a line raised until then is not left
+     * pending for the application. */
+    for (unsigned i = 0; i < 8; i++) {
+        NVIC->ICER[i] = 0xFFFFFFFFu;
+        NVIC->ICPR[i] = 0xFFFFFFFFu;
+    }
+    SCB->ICSR = SCB_ICSR_PENDSTCLR_Msk | SCB_ICSR_PENDSVCLR_Msk;
 }
 
 __attribute__((noreturn)) void umcub_port_reset(void)

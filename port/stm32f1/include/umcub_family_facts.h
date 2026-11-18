@@ -20,6 +20,8 @@
 /* The flash programs half-words; 8 is the smallest MCUBOOT_BOOT_MAX_ALIGN
  * MCUboot supports, so the driver takes multiples of 8 bytes. */
 #define UMCUB_FAMILY_WRITE_ALIGN        8
+/* VTOR: the vector table aligned to its size rounded up to a power of two (up to 68 IRQs: 84 vectors) */
+#define UMCUB_FAMILY_VTOR_ALIGN         0x200
 
 /* Parts the port is verified for, with their SRAM size (the handoff is at
  * its end; sizes differ inside the F101/F102 lines). */

@@ -87,7 +87,8 @@ int bs_peruser_system_specific(const struct nmgr_hdr *hdr, const char *buffer, i
         uint8_t h[32];
         uint32_t hashed = 0;
         int rc = umcub_inspect_hash((int)image, (int)slot, off, rlen, h, &hashed);
-        put_rc(cs, map_rc(rc));
+        /* without READBACK a range is not built in (ENOTSUP), not refused by the session (EACCESS) */
+        put_rc(cs, !UMCUB_CFG_READBACK && rc == UMCUB_EPERM ? ERR_ENOTSUP : map_rc(rc));
         if (rc == 0) {
             zcbor_tstr_put_lit_cast(cs, "sha");
             zcbor_bstr_encode_ptr(cs, (const char *)h, sizeof(h));

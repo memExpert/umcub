@@ -15,6 +15,7 @@
 #define FC_WAIT 1u
 #define FC_OVFL 2u
 #define TIMEOUT_MS 1000u
+#define WFT_MAX    16u      /* FC WAIT frames per flow control (ISO 15765-2 N_WFTmax) */
 
 static int send_frame(isotp_t *t, const uint8_t *data, uint8_t len)
 {
@@ -108,12 +109,16 @@ size_t isotp_on_frame(isotp_t *t, const uint8_t *d, uint8_t len)
 static int wait_fc(isotp_t *t, uint8_t *bs, uint8_t *stmin)
 {
     uint32_t start = umcub_port_millis();
+    unsigned waits = 0;
     for (;;) {
         uint32_t id;
         uint8_t d[64], len;
         if (umcub_port_can_recv(&id, d, &len) && len >= 3 && (d[0] >> 4) == PCI_FC) {
             uint8_t st = d[0] & 0xFu;
             if (st == FC_WAIT) {
+                if (++waits > WFT_MAX) {
+                    return UMCUB_ETIMEOUT;
+                }
                 start = umcub_port_millis();
                 continue;
             }
@@ -140,9 +145,6 @@ int isotp_send(isotp_t *t, const uint8_t *msg, size_t len)
         f[1] = (uint8_t)len;
         memcpy(f + hdr, msg, len);
         return send_frame(t, f, (uint8_t)(len + hdr));
-    }
-    if (len > 4095) {
-        return UMCUB_EINVAL;
     }
     f[0] = (uint8_t)((PCI_FF << 4) | (len >> 8));
     f[1] = (uint8_t)len;

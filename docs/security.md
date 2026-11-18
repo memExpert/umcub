@@ -36,12 +36,13 @@ How an encrypted image is installed:
   then `image state-write`), the application or the lite upload.
 
 Installed images are plain text in flash, so `read` and SMP read (`UMCUB_CFG_READBACK`) answer only inside an
-encrypted umcub link session (`UMCUB_CFG_<transport>_LINK_SECURE` + `UMCUB_CFG_LINK_ENCRYPT`; DFU upload never, it has
-no session) and refuse everywhere else
+encrypted umcub link session (`UMCUB_CFG_<transport>_LINK_SECURE` + `UMCUB_CFG_LINK_ENCRYPT`; DFU upload is not built
+with encrypted images) and refuse everywhere else
 (`? readback only in an encrypted session`, SMP rc 11). `verify` checks an encrypted image in the secondary slot by
 decrypting it on the fly; `hash` is computed over what is in flash (ciphertext in the secondary slot, plain text in
 the primary slot after installation). Hashes of slot ranges need `UMCUB_CFG_READBACK` like `read` (hashes of small
-ranges reveal the code piece by piece); with encrypted images they too are answered only inside an encrypted session.
+ranges reveal the code piece by piece; without it SMP answers rc 8, not supported); with encrypted images they too are
+answered only inside an encrypted session.
 Protect the device key like the SECURE link: RDP on, see [umcub link](link.md#limits).
 
 ## Security

@@ -50,7 +50,7 @@ static const umcub_transport_t t_pkt = {
 };
 const umcub_transport_t *const umcub_transports[] = { &t_sec, &t_pkt, 0 };
 const unsigned umcub_transport_count = 2;
-/* What a USB DFU readback would get while the transports are polled
+/* What a readback from a transport's poll would get during a flush
  * (test_no_session_while_resetting). */
 static int probe_polls = -1, probe_leaks;
 void umcub_transports_poll(void)

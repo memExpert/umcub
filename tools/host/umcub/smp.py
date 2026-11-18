@@ -262,7 +262,12 @@ class Smp:
 
     def hash(self, image, slot, off=0, length=0):
         """(SHA-256, length) of the stored image or of a range."""
-        r = self.request(InspectHash(image=image, slot=slot, off=off or None, len=length or None))
+        try:
+            r = self.request(InspectHash(image=image, slot=slot, off=off or None, len=length or None))
+        except DeviceError as e:
+            if (off or length) and e.rc == InspectErr.ENOTSUP:
+                raise DeviceError(rc=e.rc, code="smp.range_readback") from e
+            raise
         return bytes(r.sha), r.len
 
     def read(self, image, slot, off=0, length=0, progress=None, cancel=None):

@@ -117,9 +117,11 @@ int umcub_flash_read(uint32_t addr, void *dst, size_t len)
     }
     /* A word interrupted by power loss while programming can carry a double
      * ECC error and fault the load. Read with FAULTMASK + BFHFNMIGN so the
-     * bus error is ignored, then report it from the status register. */
-    banks[0].ccr[0] = FLASH_CCR_CLR_DBECCERR | FLASH_CCR_CLR_SNECCERR;
-    banks[1].ccr[0] = FLASH_CCR_CLR_DBECCERR | FLASH_CCR_CLR_SNECCERR;
+     * bus error is ignored, then report it from the status register of the
+     * banks read only (ECC flags are per bank, RM0399 §4.7.7). */
+    const struct bank *first = bank_of(addr), *last = bank_of(addr + (len ? len - 1u : 0u));
+    *first->ccr = FLASH_CCR_CLR_DBECCERR | FLASH_CCR_CLR_SNECCERR;
+    *last->ccr = FLASH_CCR_CLR_DBECCERR | FLASH_CCR_CLR_SNECCERR;
     dcache_invalidate(addr, len);
     uint32_t faultmask = __get_FAULTMASK();
     __set_FAULTMASK(1);
@@ -131,9 +133,9 @@ int umcub_flash_read(uint32_t addr, void *dst, size_t len)
     SCB->CCR &= ~SCB_CCR_BFHFNMIGN_Msk;
     __set_FAULTMASK(faultmask);
     __ISB();
-    if ((*banks[0].sr | *banks[1].sr) & FLASH_SR_DBECCERR) {
-        banks[0].ccr[0] = FLASH_CCR_CLR_DBECCERR;
-        banks[1].ccr[0] = FLASH_CCR_CLR_DBECCERR;
+    if ((*first->sr | *last->sr) & FLASH_SR_DBECCERR) {
+        *first->ccr = FLASH_CCR_CLR_DBECCERR;
+        *last->ccr = FLASH_CCR_CLR_DBECCERR;
         return UMCUB_EIO;
     }
     return UMCUB_OK;

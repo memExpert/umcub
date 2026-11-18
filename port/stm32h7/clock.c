@@ -140,6 +140,7 @@ void h7_clock_deinit(void)
     CLEAR_BIT(RCC->CR, RCC_CR_PLL1ON | RCC_CR_PLL2ON | RCC_CR_PLL3ON);
     (void)spin_until(&RCC->CR, RCC_CR_PLL1RDY | RCC_CR_PLL2RDY | RCC_CR_PLL3RDY, 0);
     CLEAR_BIT(RCC->CR, RCC_CR_HSEON | RCC_CR_HSI48ON | RCC_CR_CSION);
+    (void)spin_until(&RCC->CR, RCC_CR_HSERDY, 0);   /* HSEBYP is writable only with the HSE stopped */
     CLEAR_BIT(RCC->CR, RCC_CR_HSEBYP);
     RCC->PLLCKSELR = 0x02020200u;   /* reset values (RM0399 §8.7) */
     RCC->PLLCFGR = 0x01FF0000u;

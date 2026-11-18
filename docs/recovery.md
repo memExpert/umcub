@@ -26,7 +26,8 @@ for good; not in plain direct-xip (without revert), where MCUboot picks the newe
 `upload_image_id`, the `image` value to upload each slot with. These commands, and the flags and image hash in
 `image state-read`, come only with direct upload (about 2.4 K); without it `state-read` lists the versions. The bootloader answers MCUMGR_PARAMETERS
 (`UMCUB_CFG_SMP_PARAMS`), so smpmgr sizes serial packets to `UMCUB_CFG_SMP_MTU` by itself (default 1472 with
-Ethernet - one full UDP datagram, what smpmgr sends over UDP - otherwise 1024); other hosts: `--line-buffers`
+Ethernet - one full UDP datagram, what smpmgr sends over UDP; 1442 on a umcub link, whose frame adds 30 bytes -
+otherwise 1024); other hosts: `--line-buffers`
 lines of 128 bytes within it. DFU writes into the **secondary** slot and marks the image for a test boot (as the application does with
 `umcub_slot_*`).
 
@@ -115,7 +116,7 @@ exist without SMP or with `+inspect_read` in the command table ([Text commands](
 | Command | What it does | Option |
 |---|---|---|
 | `verify <image> <slot>` | full MCUboot validation from flash: SHA-256 + signature → `ok valid` / `bad ...` | `UMCUB_CFG_INSPECT_VERIFY` (on) |
-| `hash <image> <slot> [<off> <len>]` | SHA-256 of a slot range (default: the whole stored image, i.e. the `.signed.bin` that was sent); ranges only with `UMCUB_CFG_READBACK`, a readback by other means | `UMCUB_CFG_INSPECT_HASH` (on) |
+| `hash <image> <slot> [<off> <len>]` | SHA-256 of a slot range (default: the whole stored image, i.e. the `.signed.bin` that was sent); ranges only with `UMCUB_CFG_READBACK` (SMP rc 8 otherwise), a readback by other means | `UMCUB_CFG_INSPECT_HASH` (on) |
 | `read <image> <slot> <off> <len>` | hex dump, plus SMP read and `dfu-util -U` | `UMCUB_CFG_READBACK` (**off**: exposes the firmware) |
 
 Slot 0 is primary, 1 is secondary. Addressing is only by (image, slot, offset): the bootloader region is never

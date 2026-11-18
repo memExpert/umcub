@@ -64,7 +64,9 @@ void tud_dfu_manifest_cb(uint8_t alt)
     tud_dfu_finish_flashing(rc == 0 ? DFU_STATUS_OK : DFU_STATUS_ERR_VERIFY);
 }
 
-#if UMCUB_CFG_READBACK
+/* With encrypted images never: DFU is no encrypted channel, and a request
+ * answered over an encrypted USB CDC session runs tud_task() while it is open. */
+#if UMCUB_CFG_READBACK && !UMCUB_CFG_ENCRYPT_IMAGES
 #include "umcub_inspect.h"
 /* dfu-util -a <image> -U file.bin: read back the image in the secondary
  * slot (where DFU downloads go), up to the end of the stored image. */
@@ -89,7 +91,7 @@ uint16_t tud_dfu_upload_cb(uint8_t alt, uint16_t block_num, uint8_t *data, uint1
     (void)block_num;
     (void)data;
     (void)length;
-    return 0;   /* readback disabled (UMCUB_CFG_READBACK) */
+    return 0;   /* readback disabled (UMCUB_CFG_READBACK), or encrypted images */
 }
 #endif
 

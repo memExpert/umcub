@@ -12,7 +12,6 @@
 #include "umcub_bytes.h"
 
 #define NET_MTU          1500u
-#define NET_UDP_MAX      (NET_MTU - 20u - 8u)
 #define NET_IP_BROADCAST 0xFFFFFFFFu
 
 typedef struct {

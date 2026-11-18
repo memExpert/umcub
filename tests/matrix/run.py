@@ -222,8 +222,25 @@ def t_cmake_args(out):
     r = configure("lite-unchecked", f"-DUMCUB_CONF={frag}")
     if r.returncode == 0 or "UMCUB_CFG_VALIDATE_PRIMARY 0" not in r.stderr:
         raise Failed(f"lite upload without primary validation and with a board type: configure did not stop: {r.stderr}")
+    frag = d / "h7_header.conf"                 # the H7 vector table (166 entries) needs 1 KiB alignment
+    frag.write_text("UMCUB_CFG_IMAGE_HEADER_SIZE=0x200\n")
+    r = configure("h7-header", "-DUMCUB_BOARD=nucleo_h755zi_q", "-DUMCUB_CORE=cm7", f"-DUMCUB_CONF={frag}")
+    if r.returncode == 0 or "VTOR alignment" not in r.stderr:
+        raise Failed(f"H7 image header 0x200: configure did not stop: {r.stderr}")
+    h7 = ["-DUMCUB_BOARD=nucleo_h755zi_q", "-DUMCUB_CORE=cm7"]
+    link = ROOT / "tests/configs/feature/link_addressed.conf"
+    r = configure("eth-link", *h7, f"-DUMCUB_CONF={link}")
+    cfg = d / "eth-link/umcub_kconfig/umcub_config.h"
+    if r.returncode or not re.search(r"#define UMCUB_CFG_SMP_MTU +1442\n", cfg.read_text()):
+        raise Failed(f"Ethernet on a umcub link: SMP_MTU is not 1442 by default (a link frame in one datagram): {r.stderr}")
+    for tree, base_conf, mtu, want in (("eth-link-1472", f"{link};", 1472, "UDP datagram"), ("can-4096", "", 4096, "ISO-TP")):
+        frag = d / f"{tree}.conf"
+        frag.write_text(f"UMCUB_CFG_SMP_MTU={mtu}\n")
+        r = configure(tree, *h7, f"-DUMCUB_CONF={base_conf}{frag}")
+        if r.returncode == 0 or want not in r.stderr:
+            raise Failed(f"{tree}: configure did not stop ({want}): {r.stderr}")
     return "cmake-args", ("Release by default, relative UMCUB_CONF, new key warning, -DUMCUB_SIGNING_KEY and no secondary "
-                          "slot stop, unchecked lite uploads refused")
+                          "slot stop, unchecked lite uploads, H7 header 0x200 and packets beyond UDP / ISO-TP refused")
 
 
 def t_check(out, name, cmd, grep=None):

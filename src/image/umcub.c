@@ -249,6 +249,9 @@ __attribute__((weak)) uint32_t umcub_port_millis(void)
 
     if (!(*dwt_ctrl & 1u)) {
         *demcr |= 1u << 24;
+#if defined(UMCUB_FAMILY_STM32H7) && !defined(CORE_CM4)
+        *(volatile uint32_t *)0xE0001FB0u = 0xC5ACCE55u;    /* DWT_LAR: the Cortex-M7 locks software writes */
+#endif
         *dwt_cyccnt = 0;
         *dwt_ctrl |= 1u;
         last = 0;
