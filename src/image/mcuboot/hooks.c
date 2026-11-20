@@ -42,8 +42,11 @@ static int board_type(const struct flash_area *fa, uint32_t hdr_off, struct imag
     if (rc != 0) {
         return rc > 0 ? 1 : -1;
     }
+    if (len != sizeof(*type)) {
+        return 1;                       /* malformed: refused like a missing one */
+    }
     /* little endian TLV value, little endian target */
-    return len == sizeof(*type) && flash_area_read(fa, off, type, sizeof(*type)) == 0 ? 0 : -1;
+    return flash_area_read(fa, off, type, sizeof(*type)) == 0 ? 0 : -1;
 }
 
 int umcub_image_board_type(const struct flash_area *fa, uint32_t hdr_off, uint32_t *type)
@@ -116,7 +119,7 @@ bool umcub_image_check(int img_index, int slot, const struct flash_area *fa)
                           (unsigned long)type, (unsigned long)UMCUB_CFG_BOARD_TYPE);
             bad = true;
         } else if (rc == 1) {
-            UMCUB_LOG_ERR("image %d slot %d has no board type (expected 0x%08lx)", img_index, slot,
+            UMCUB_LOG_ERR("image %d slot %d has no valid board type (expected 0x%08lx)", img_index, slot,
                           (unsigned long)UMCUB_CFG_BOARD_TYPE);
             bad = true;
         }

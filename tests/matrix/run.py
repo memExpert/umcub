@@ -248,6 +248,12 @@ def t_cmake_args(out):
         r = configure(tree, *h7, f"-DUMCUB_CONF={base_conf}{frag}")
         if r.returncode == 0 or want not in r.stderr:
             raise Failed(f"{tree}: configure did not stop ({want}): {r.stderr}")
+    frag = d / "mixed_addressed.conf"            # ADDRESSED is unauthenticated too: not next to SECURE
+    frag.write_text("UMCUB_CFG_UART_LINK_ADDRESSED=y\nUMCUB_CFG_USB_CDC_LINK_ADDRESSED=y\nUMCUB_CFG_ETH_LINK_ADDRESSED=y\n"
+                    "UMCUB_CFG_CAN_LINK_SECURE=y\n# UMCUB_CFG_TRANSPORT_USB_DFU is not set\n")
+    r = configure("mixed-addressed", *h7, f"-DUMCUB_CONF={frag}")
+    if "ADDRESSED transport next to" not in r.stdout + r.stderr:
+        raise Failed(f"ADDRESSED next to SECURE: no warning: {r.stderr}")
     g4 = ["-DUMCUB_BOARD=nucleo_g474re"]
     for tree, text, want in (
             # G474xC (256 KiB) in dual-bank mode: bank 2 from 0x08040000, nothing at 0x08020000..0x0803FFFF

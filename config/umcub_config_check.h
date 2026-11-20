@@ -175,16 +175,16 @@
 #if UMCUB_CFG_LINK_SECURE_ANY && UMCUB_CFG_WATCHDOG_MS > 0 && UMCUB_CFG_WATCHDOG_MS < 2000
 #error "umcub: with UMCUB_LINK_SECURE, UMCUB_CFG_WATCHDOG_MS must be >= 2000 (ECC checks)"
 #endif
-/* Per-transport policy: a PLAIN transport next to a SECURE one gives full
- * unauthenticated access through that transport. */
+/* Per-transport policy: a PLAIN or ADDRESSED transport next to a SECURE one
+ * gives full unauthenticated access through that transport. */
 #if UMCUB_CFG_LINK_SECURE_ANY && \
-    ((UMCUB_CFG_TRANSPORT_UART && UMCUB_CFG_UART_LINK == UMCUB_LINK_PLAIN) || \
-     (UMCUB_CFG_TRANSPORT_USB_CDC && UMCUB_CFG_USB_CDC_LINK == UMCUB_LINK_PLAIN) || \
-     (UMCUB_CFG_TRANSPORT_CAN && UMCUB_CFG_CAN_LINK == UMCUB_LINK_PLAIN) || \
-     (UMCUB_CFG_TRANSPORT_ETH && UMCUB_CFG_ETH_LINK == UMCUB_LINK_PLAIN) || \
-     (UMCUB_CFG_TRANSPORT_USER && UMCUB_CFG_USER_LINK == UMCUB_LINK_PLAIN)) && \
+    ((UMCUB_CFG_TRANSPORT_UART && UMCUB_CFG_UART_LINK != UMCUB_LINK_SECURE) || \
+     (UMCUB_CFG_TRANSPORT_USB_CDC && UMCUB_CFG_USB_CDC_LINK != UMCUB_LINK_SECURE) || \
+     (UMCUB_CFG_TRANSPORT_CAN && UMCUB_CFG_CAN_LINK != UMCUB_LINK_SECURE) || \
+     (UMCUB_CFG_TRANSPORT_ETH && UMCUB_CFG_ETH_LINK != UMCUB_LINK_SECURE) || \
+     (UMCUB_CFG_TRANSPORT_USER && UMCUB_CFG_USER_LINK != UMCUB_LINK_SECURE)) && \
     !UMCUB_CFG_LINK_MIXED_OK
-#warning "umcub: a PLAIN transport next to a SECURE one is not authenticated (set UMCUB_CFG_LINK_MIXED_OK 1 if intended)"
+#warning "umcub: a PLAIN or ADDRESSED transport next to a SECURE one is not authenticated (set UMCUB_CFG_LINK_MIXED_OK 1 if intended)"
 #endif
 
 #if !UMCUB_CFG_SMP_ENABLE && !UMCUB_CFG_LITE_UPLOAD && !UMCUB_CFG_PROTO_USER && \

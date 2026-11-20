@@ -956,11 +956,12 @@ config LINK_ENCRYPT
 	help
 	  Encrypt session payloads (AES-128-CTR) in addition to the MAC.
 config LINK_MIXED_OK
-	bool "Allow plain transports next to a secure one"
+	bool "Allow plain or addressed transports next to a secure one"
 	depends on LINK_SECURE
 	help
-	  A plain transport next to a secure one gives unauthenticated access
-	  through that transport; the build warns unless this is on.
+	  A plain or addressed transport next to a secure one gives
+	  unauthenticated access through that transport; the build warns unless
+	  this is on.
 config LINK_REQUIRE_RDP
 	bool "Secure link needs readout protection"
 	depends on LINK_SECURE

@@ -620,11 +620,13 @@ static void test_downgrade(const uint8_t *v1, size_t v1_len, const uint8_t *v2, 
 #if UMCUB_CFG_UPGRADE_MODE != UMCUB_MODE_DIRECT_XIP   /* test_xip() has its own */
 /* An image signed with the right key but for another board type is never
  * installed (MCUboot image check hook, src/image/mcuboot/hooks.c). */
-static void test_board_type(const uint8_t *foreign, size_t len)
+static void test_board_type(const uint8_t *foreign, size_t len, const uint8_t *bad, size_t bad_len)
 {
 #if UMCUB_CFG_BOARD_TYPE == 0
     (void)foreign;
     (void)len;
+    (void)bad;
+    (void)bad_len;
     printf("[board type] none configured: skipped\n");
     return;
 #endif
@@ -636,12 +638,17 @@ static void test_board_type(const uint8_t *foreign, size_t len)
     CHECK(flash_area_open(FLASH_AREA_IMAGE_PRIMARY(0), &fa) == 0);
     CHECK(umcub_image_board_type(fa, 0, &type) == 0 && type == UMCUB_CFG_BOARD_TYPE);
     flash_area_close(fa);
-    write_secondary(foreign, len);
-    CHECK(boot_ok(ver) && strcmp(ver, "1.1.0") == 0);
     struct image_header h;
-    CHECK(flash_area_open(FLASH_AREA_IMAGE_SECONDARY(0), &fa) == 0);
-    CHECK(flash_area_read(fa, 0, &h, sizeof(h)) == 0 && h.ih_magic != IMAGE_MAGIC);   /* erased by MCUboot */
-    flash_area_close(fa);
+    const uint8_t *imgs[2] = { foreign, bad };
+    const size_t lens[2] = { len, bad_len };
+    for (int i = 0; i < 2; i++) {   /* another board type; a board-type TLV of 2 bytes (malformed) */
+        write_secondary(imgs[i], lens[i]);
+        CHECK(boot_ok(ver) && strcmp(ver, "1.1.0") == 0);
+        CHECK(flash_area_open(FLASH_AREA_IMAGE_SECONDARY(0), &fa) == 0);
+        CHECK(flash_area_read(fa, 0, &h, sizeof(h)) == 0 && h.ih_magic != IMAGE_MAGIC);   /* erased by MCUboot */
+        flash_area_close(fa);
+    }
+    printf("  malformed board-type TLV (2 bytes) refused as well\n");
 }
 
 static void test_vector_slot(const uint8_t *wrong, size_t len)
@@ -1366,11 +1373,11 @@ static void test_xip(const uint8_t *wrong, size_t wrong_len, const uint8_t *v2, 
 
 int main(int argc, char **argv)
 {
-    int want_args = UMCUB_CFG_ENCRYPT_IMAGES || UMCUB_CFG_UPGRADE_MODE == UMCUB_MODE_DIRECT_XIP ? 6 : 5;
+    int want_args = UMCUB_CFG_ENCRYPT_IMAGES || UMCUB_CFG_UPGRADE_MODE == UMCUB_MODE_DIRECT_XIP ? 7 : 6;
     if (argc != want_args) {
-        fprintf(stderr, "usage: %s v1.signed.bin v2.signed.bin foreign.signed.bin%s\n", argv[0],
-                UMCUB_CFG_ENCRYPT_IMAGES ? " v1.plain.bin v2.plain.bin (first three encrypted)"
-                                         : " wrong-slot.signed.bin");
+        fprintf(stderr, "usage: %s v1.signed.bin v2.signed.bin foreign.signed.bin%s bad-board-tlv.signed.bin\n",
+                argv[0], UMCUB_CFG_ENCRYPT_IMAGES ? " v1.plain.bin v2.plain.bin (first three encrypted)"
+                                                  : " wrong-slot.signed.bin");
         return 2;
     }
     size_t v1_len, v2_len, foreign_len, plain_len;
@@ -1399,7 +1406,9 @@ int main(int argc, char **argv)
 #if UMCUB_CFG_DOWNGRADE_PREVENTION
     test_downgrade(v1, v1_len, v2, v2_len);
 #endif
-    test_board_type(foreign, foreign_len);
+    size_t bad_len;
+    uint8_t *bad = load(argv[argc - 1], &bad_len);
+    test_board_type(foreign, foreign_len, bad, bad_len);
     test_vector_slot(wrong, wrong_len);
 #endif
     test_inspect(v2_flash, v2_len);

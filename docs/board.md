@@ -123,8 +123,8 @@ by the text command `i` and to the application (`umcub_boot_info()->board_type`,
 
 With a board type other than 0, every image must carry the same value in a signed TLV (tag `0xA0`, u32 little
 endian). `umcub_sign_image()` and `umcub image sign` add it automatically from the board configuration.
-MCUboot rejects an image with another board type, or without one, before installing it. This holds even when the
-image is signed with the right key, so firmware of another product cannot be booted:
+MCUboot rejects an image with another board type, without one or with a malformed one, before installing it. This
+holds even when the image is signed with the right key, so firmware of another product cannot be booted:
 
 ```
 E: image 0 slot 0 is for board type 0x46103002, this is 0x46103001
