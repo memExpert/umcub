@@ -584,6 +584,12 @@ expect("discover / info line with the name", "board 0x46103001 (Blue Pill)" in l
        link.describe_identity(ident))
 raises("board type mismatch with names", lambda: signed_image(7).check_board(0x46103001),
        text="board type 0x00000007 (Pump controller), the device is 0x46103001 (Blue Pill)")
+# A file cut short inside its TLV area: refused, not a hash of a few bytes taken as the image's.
+whole = signed_image().data
+for cut in (1, 20, 36, 40, 60):                             # 40: the TLV area's own header gone, 60: into the body
+    got = code_of(lambda: umcub.Image(whole[:-cut]))
+    want = "image.truncated"
+    expect(f"image cut {cut} bytes short: refused", got == want, str(got))
 raises("image without board type: device name", lambda: signed_image().check_board(0x46103001),
        text="the device is 0x46103001 (Blue Pill)")
 expect("a new load replaces the catalog", umcub.load_board_names(tmp / "names2.json") == {7: "Pump controller",

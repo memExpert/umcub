@@ -8,6 +8,7 @@ from .errors import UmcubError
 IMAGE_MAGIC = 0x96F3B83D
 TLV_INFO_MAGIC, TLV_PROT_INFO_MAGIC = 0x6907, 0x6908
 TLV_SHA256, TLV_SHA384, TLV_SHA512 = 0x10, 0x11, 0x12
+HASH_LEN = {TLV_SHA256: 32, TLV_SHA384: 48, TLV_SHA512: 64}
 TLV_BOARD_TYPE = 0xA0           # UMCUB_TLV_BOARD_TYPE: u32 little endian, signed
 F_ENCRYPTED = 0x04 | 0x08     # IMAGE_F_ENCRYPTED_AES128 / _AES256
 
@@ -29,19 +30,26 @@ class Image:
         off = hdr_size + img_size
         for magic in (TLV_PROT_INFO_MAGIC, TLV_INFO_MAGIC):
             if off + 4 > len(data):
-                break
+                raise UmcubError(code="image.truncated")    # the TLV area (always written, it holds the hash) cut off
             m, total = struct.unpack_from("<HH", data, off)
             if m != magic:
                 continue
             end, off = off + total, off + 4
+            if end > len(data):
+                raise UmcubError(code="image.truncated")
             while off + 4 <= end:
                 t, n = struct.unpack_from("<HH", data, off)
+                if off + 4 + n > end:
+                    raise UmcubError(code="image.truncated")
                 self.tlvs.setdefault(t, data[off + 4:off + 4 + n])
                 off += 4 + n
             off = end
-        self.hash = next((self.tlvs[t] for t in (TLV_SHA256, TLV_SHA384, TLV_SHA512) if t in self.tlvs), None)
-        if self.hash is None:
+        t = next((t for t in HASH_LEN if t in self.tlvs), None)
+        if t is None:
             raise UmcubError(code="image.no_hash")
+        self.hash = self.tlvs[t]
+        if len(self.hash) != HASH_LEN[t]:
+            raise UmcubError(code="image.truncated")
         bt = self.tlvs.get(TLV_BOARD_TYPE)
         self.board_type = struct.unpack("<I", bt)[0] if bt and len(bt) == 4 else None
         self.size = len(data)

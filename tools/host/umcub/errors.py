@@ -65,6 +65,7 @@ MESSAGES = {
     # images
     "image.not_signed": "not a signed MCUboot image (no header magic)",
     "image.no_hash": "signed image without a hash TLV",
+    "image.truncated": "the image's TLV area is cut short or malformed (a file cut short?)",
     "image.no_board_type": "the image has no board type, the device is {device}",
     "image.board_type": "the image is for board type {image}, the device is {device}",
     "names.invalid": "{path}: not a board name catalog ({reason})",
