@@ -18,7 +18,9 @@ add_executable(bluepill_app
   ../common/umcub_example.c
   ${ST}/Source/Templates/gcc/startup_stm32f103xb.s
   ${ST}/Source/Templates/system_stm32f1xx.c)
-target_include_directories(bluepill_app PRIVATE ../common ${ST}/Include ${UMCUB_ROOT}/third_party/cmsis_core/Include)
+# umcub_cfg.h: the console follows the bootloader's UART (instance, pins, DE, baud rate)
+target_include_directories(bluepill_app PRIVATE ../common ${ST}/Include ${UMCUB_ROOT}/third_party/cmsis_core/Include
+  ${UMCUB_CONFIG_INCLUDES})
 target_compile_definitions(bluepill_app PRIVATE STM32F103xB APP_VERSION_STR="${APP_VERSION}" $<$<NOT:$<STREQUAL:${APP_NODE_ADDR},none>>:APP_NODE_ADDR=${APP_NODE_ADDR}>)
 target_compile_options(bluepill_app PRIVATE ${UMCUB_CPU_FLAGS_HARD} -Os -g -Wall -Wextra
   -ffunction-sections -fdata-sections $<$<COMPILE_LANGUAGE:ASM>:-x assembler-with-cpp>)

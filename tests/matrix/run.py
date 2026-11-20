@@ -108,8 +108,9 @@ def t_preset(out, preset):
 
 
 def t_example(out, line):
-    name, board, core, image = line.split("|")
-    d = build(out, name, [], ROOT / "examples" / name)
+    name, board, core, image, *conf = line.split("|")
+    tree = name + ("-" + Path(conf[0]).stem if conf else "")
+    d = build(out, tree, [f"-DUMCUB_CONF={ROOT / conf[0]}"] if conf else [], ROOT / "examples" / name)
     log = f"{d}.verify.log"
     run([ROOT / ".venv/bin/imgtool", "verify", "-k", signing_key(d), d / f"{name}.signed.bin"], log)
     version = re.search(r"Image version: ([0-9.]+)\+", Path(log).read_text()).group(1)
@@ -117,9 +118,10 @@ def t_example(out, line):
     # objcopy sees: signing the objcopy binary gives the same image.
     run(["arm-none-eabi-objcopy", "-O", "binary", d / f"{name}.elf", d / "objcopy.bin"], log, True)
     run([PY, "tools/host/umcub", "image", "sign", "--board", board] + (["--core", core] if core else []) +
-        ["--image", image, "--version", version, d / "objcopy.bin", "-o", d / "objcopy"], log, True)
+        ["--image", image, "--version", version] + (["--conf", ROOT / conf[0]] if conf else []) +
+        [d / "objcopy.bin", "-o", d / "objcopy"], log, True)
     run([PY, "tests/tools/compare_images.py", d / f"{name}.signed.bin", d / "objcopy.signed.bin"], log, True)
-    return name, f"signed, Image version: {version}, ELF = objcopy"
+    return tree, f"signed, Image version: {version}, ELF = objcopy"
 
 
 def t_app_library(out):

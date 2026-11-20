@@ -50,6 +50,8 @@ foreach(_e "h755_cm7_app|nucleo_h755zi_q|cm7|0" "h755_cm4_app|nucleo_h755zi_q|cm
   string(REGEX MATCH "^[^|]+" _name "${_e}")
   _umcub_test(${_name} ${RUN} example "${_e}")
 endforeach()
+# the Blue Pill example's console on the bootloader's RS485 UART (USART3, DE pin)
+_umcub_test(bluepill_app-rs485 ${RUN} example "bluepill_app|bluepill_f103c8||0|boards/bluepill_f103c8/variants/rs485.conf")
 
 _umcub_test(app-library ${RUN} app-library)
 _umcub_test(noboard-app ${RUN} noboard-app)

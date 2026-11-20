@@ -43,6 +43,8 @@ SMP_PARAMS, lite).
   only through the stopgap include directory `${MCUBOOT}/boot/boot_serial` in CMakeLists.txt. Fix prepared, not sent
   yet (branch boot-serial-loader-include: `"../src/bootutil_loader.h"`); drop the stopgap with the release that has it.
 - [ ] Ports for other series (F7, G0, L4).
+- [ ] examples/blackpill_app: console on the bootloader's UART like bluepill_app (instance, pins, baud, DE pin from
+  umcub_cfg.h); it is hard-wired to USART1 + DE on PA8, so with variants/usart2.conf it does not answer.
 - [ ] **STM32G4 on hardware** (port and NUCLEO-G474RE board built only; FDCAN updates run on a custom G474RET6
   board): UART, RNG (`tests/hw/entropy_test.py`), single-bank mode, a power cut during programming (ECC NMI ->
   read error, `tests/hw/powerfail_test.py`), RS485 with the umcub link. USB FS device not ported.

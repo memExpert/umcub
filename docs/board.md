@@ -182,6 +182,10 @@ There is no user button. Recovery mode starts on a request from the application 
 is no valid image, or when `b` arrives within 300 ms after reset (`UMCUB_CFG_ENTRY_WAIT_MS`).
 `--line-buffers 4` matches `UMCUB_CFG_SMP_MTU` = 512 (20 KiB SRAM).
 
+RS485 through a MAX485 on USART3 (PB10 TX, PB11 RX, DE on PB12): fragment `boards/bluepill_f103c8/variants/rs485.conf`.
+The example's console follows the bootloader's UART - instance, pins, baud rate, DE pin - so on an RS485 bus it
+answers there and `b` sends it back to the bootloader.
+
 USB (CDC with SMP and DFU, micro-USB connector) needs more room: preset `bluepill-usb` (fragment
 `boards/bluepill_f103c8/variants/usb.conf`: bootloader 44 KiB, two 10 KiB slots; the example in the same tree uses the same
 layout):

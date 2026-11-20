@@ -68,6 +68,13 @@ min-entropy estimates (SP 800-90B most-common-value and Markov) per conversion a
 SysTick adds, and whether the first block after start-up repeats. Blue Pill at room temperature: 60-80 bits per
 block, SysTick nothing.
 
+Every transport of a bench, end to end: `tests/hw/bench_matrix.py --rs485 <port> --node N=TREE:ELF:TRANSPORTS ...`
+signs the example application of each node with its own version, uploads it through each transport of the node
+(RS485 link, CAN, USB CDC, USB DFU, Ethernet), resets the node, reads on the RS485 bus which version runs and through
+which transport the last update came (the examples built with `-DAPP_NODE_ADDR=none`; the Blue Pill example's console
+follows the bootloader's UART and drives its DE pin), and sends the application back to the bootloader (`b`). No
+debug probe involved; one DFU device at a time on the PC.
+
 Hardware tests: `tests/hw/powerfail_test.py` resets the MCU in the middle of the K-th flash operation (build with
 `tests/configs/feature/fault_inject.conf`: `UMCUB_CFG_TEST_FAULT_INJECT`, test only) and checks that an interrupted upgrade or revert (swap modes) or an
 interrupted overwrite copy always completes. The images are signed with `umcub image sign` for the
