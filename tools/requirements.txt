@@ -7,6 +7,7 @@ can-isotp>=2.0
 cbor2>=5.6
 pyserial>=3.5
 esp-idf-kconfig>=3.14,<4    # the configuration; tools/host/umcub/kconfig.py replaces an internal of 3.x
+hypothesis>=6.100           # tests/tools/property_test.py
 
 # Optional: alternative SWD backend for tools/hw/probe.py (--probe pyocd).
 # pyocd>=0.37

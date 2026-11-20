@@ -15,6 +15,7 @@ tests/tools/check_pins_test.py              # pin check: right / wrong pins and 
 tests/tools/layout_test.py                  # MCUboot's rule on the slots
 tests/tools/kconfig_test.py                 # what `umcub config generate` writes and warns about
 tests/tools/host_lib_test.py                # host library without a device: transports, plugins, adapters, errors, tap, sniffer
+tests/tools/property_test.py                # properties (Hypothesis) of the codecs: link / lite frames, NLIP, image TLVs, names, specs
 tests/tools/version_test.py                 # the versions and their tags (tools/build/check_version.py)
 tools/build/check_docs.py                   # README and docs/ still match the repository (size tables, links, option names and help texts, ...)
 tools/build/gen_kconfig.py --check            # port/kconfig_gen/ (part and pin menus) matches ST's pin data
@@ -67,6 +68,10 @@ sampler into SRAM
 min-entropy estimates (SP 800-90B most-common-value and Markov) per conversion and per 32-byte block, what
 SysTick adds, and whether the first block after start-up repeats. Blue Pill at room temperature: 60-80 bits per
 block, SysTick nothing.
+
+Property tests (`tests/tools/property_test.py`, Hypothesis): the same examples on every run (ctest stays
+deterministic); `UMCUB_PROPS_RANDOM=1 .venv/bin/python tests/tools/property_test.py` searches with new random ones -
+pin a counterexample it finds with `@example` and fix the code.
 
 Every transport of a bench, end to end: `tests/hw/bench_matrix.py --rs485 <port> --node N=TREE:ELF:TRANSPORTS ...`
 signs the example application of each node with its own version, uploads it through each transport of the node
