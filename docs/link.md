@@ -65,7 +65,9 @@ development keys from the repository, the build warns about them.
 - The policy is per transport: a PLAIN or ADDRESSED transport next to a SECURE one is a way around it, the build warns unless
   `UMCUB_CFG_LINK_MIXED_OK` is set. A UART with a link never carries the log.
 - A bus can always be jammed; the link protects authenticity, integrity, replay and (with encryption)
-  confidentiality.
+  confidentiality. Like jamming, another bus member can disturb a login (its HELLO replaces the pending challenge)
+  or a session with a node selected by UID (a HELLO for another UID deselects it): the host retries, nobody takes a
+  session over.
 - Firmware confidentiality needs two things: `UMCUB_CFG_LINK_ENCRYPT` for the session and
   [encrypted images](security.md#encrypted-images) for what is stored and sent outside it.
 

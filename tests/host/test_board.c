@@ -59,8 +59,18 @@ bool umcub_port_can_tx_idle(void)
     return true;
 }
 
+static unsigned can_flood, can_recvs;   /* frames a busy bus still has; frames taken */
+
 bool umcub_port_can_recv(uint32_t *id, uint8_t *data, uint8_t *len)
 {
+    if (can_flood) {                    /* a node that never stops sending to us */
+        can_flood--;
+        can_recvs++;
+        *id = UMCUB_CFG_CAN_RX_ID;
+        data[0] = 0x30;                 /* a flow control frame nobody waits for: ignored */
+        *len = 8;
+        return true;
+    }
     if (!can_rx_len) {
         return false;
     }
@@ -229,6 +239,13 @@ int main(void)
     CHECK(can_tx_len > 2 && can_tx_id == UMCUB_CFG_CAN_TX_ID);
     CHECK(can_tx[0] == 0 && is_echo_rsp(can_tx + 2, can_tx[1], 7));
     CHECK(umcub_recovery_last_transport() == UMCUB_TRANSPORT_CAN);
+
+    printf("[board CAN driver] a flooding node: one poll takes a bounded number of frames\n");
+    can_flood = 100000;
+    can_recvs = 0;
+    umcub_transports[0]->poll();
+    CHECK(can_recvs == 32 && can_flood > 0);       /* can_transport.c: 32 frames per poll */
+    can_flood = 0;
 
     printf("[board transport] SMP echo and a text command over umcub_transport_user\n");
     user_in_len = smp_echo(user_in, 9);

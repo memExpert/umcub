@@ -77,7 +77,9 @@ static void can_poll(void)
 {
     uint32_t id;
     uint8_t d[64], len;
-    while (up && umcub_port_can_recv(&id, d, &len)) {
+    /* At most 32 frames per poll: a node that keeps sending cannot starve
+     * the other transports and the recovery timer. */
+    for (unsigned frames = 0; frames < 32u && up && umcub_port_can_recv(&id, d, &len); frames++) {
         size_t n = isotp_on_frame(&tp, d, len);
         if (n) {
             (void)umcub_smp_packet_rx(&umcub_transport_can, rx_msg, n);

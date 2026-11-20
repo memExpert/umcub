@@ -30,7 +30,7 @@ How an encrypted image is installed:
   not valid for this device - such an image is left as it is and not booted. A valid image is decrypted in place, sector by sector through one sector of RAM (`UMCUB_CFG_ENC_INPLACE`; 128 KiB on the H7). Like any
   upload into the primary slot this is not power-fail safe: an interrupted decryption leaves an invalid image and
   the bootloader in recovery, upload again. The H7 CM4 bootloader has no room for the buffer (`UMCUB_CFG_ENC_INPLACE`
-  is 0 there): use the secondary slot.
+  is 0 there, also on the F4): use the secondary slot - an encrypted upload into the primary slot is answered rc 3.
   With two images (H755 SINGLE_BOOT) the same holds for the primary slot of image 1 (the CM4); encrypted CM4
   updates can also go through its secondary slot: USB DFU alt 1, SMP with `UMCUB_CFG_SMP_DIRECT_UPLOAD` (`image` 4,
   then `image state-write`), the application or the lite upload.

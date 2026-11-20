@@ -470,9 +470,18 @@ static void test_packet_upload_and_boot(const uint8_t *v1, size_t v1_len, const 
     free(nokey);
     printf("  encrypted upload without its key TLV refused (rc 3), left as it is\n");
 #endif
+#if UMCUB_CFG_ENCRYPT_IMAGES && !UMCUB_CFG_ENC_INPLACE
+    /* No in-place decryption: an encrypted upload into the primary slot could
+     * never boot - refused in the last response, not answered with success. */
+    CHECK(upload_packets(v1, v1_len, 0) == 3);
+    CHECK(!boot_ok(ver));
+    printf("  encrypted upload into the primary slot refused (rc 3): no in-place decryption\n");
+    memcpy(fake_flash + (UMCUB_CFG_IMG0_PRIMARY_ADDR - 0x08000000), v1_flash, v1_len);  /* as a programmer would */
+#else
     CHECK(upload_packets(v1, v1_len, 0) == 0);
+#endif
     CHECK(memcmp(fake_flash + (UMCUB_CFG_IMG0_PRIMARY_ADDR - 0x08000000), v1_flash, v1_len) == 0);
-#if UMCUB_CFG_ENCRYPT_IMAGES
+#if UMCUB_CFG_ENCRYPT_IMAGES && UMCUB_CFG_ENC_INPLACE
     CHECK(memcmp(v1, v1_flash, v1_len) != 0);   /* it really was encrypted on the wire */
     printf("  encrypted upload decrypted in place\n");
     /* The header keeps IMAGE_F_ENCRYPTED (it is signed): in the primary slot
@@ -670,11 +679,13 @@ static void test_board_type(const uint8_t *foreign, size_t len, const uint8_t *b
     printf("  malformed board-type TLV (2 bytes) refused as well\n");
 }
 
-static void test_vector_slot(const uint8_t *wrong, size_t len)
+static void test_vector_slot(const uint8_t *wrong, size_t len, const uint8_t *good, size_t good_len)
 {
 #if UMCUB_CFG_ENCRYPT_IMAGES || !UMCUB_CFG_IMAGE_VECTOR_CHECK
     (void)wrong;
     (void)len;
+    (void)good;
+    (void)good_len;
     printf("[vector check] encrypted variant / check off: skipped\n");
     return;
 #endif
@@ -686,6 +697,41 @@ static void test_vector_slot(const uint8_t *wrong, size_t len)
     const struct flash_area *fa;
     CHECK(flash_area_open(FLASH_AREA_IMAGE_SECONDARY(0), &fa) == 0);
     CHECK(flash_area_read(fa, 0, &h, sizeof(h)) == 0 && h.ih_magic != IMAGE_MAGIC);   /* erased by MCUboot */
+    flash_area_close(fa);
+
+    /* The hook itself on a correctly built image, then with one vector word
+     * spoilt in flash: reset vector without the Thumb bit, reset vector behind
+     * the signed body (still inside the slot), initial SP not in SRAM. */
+    printf("[vector check] Thumb bit, reset vector inside the image, initial SP in SRAM\n");
+    write_secondary(good, good_len);
+    CHECK(flash_area_open(FLASH_AREA_IMAGE_SECONDARY(0), &fa) == 0);
+    uint32_t hoff = 0;
+    for (uint32_t o = 0; o <= UMCUB_CFG_FAMILY_MIN_SECTOR; o += UMCUB_CFG_FAMILY_MIN_SECTOR) {
+        if (flash_area_read(fa, o, &h, sizeof(h)) == 0 && h.ih_magic == IMAGE_MAGIC) {
+            hoff = o;                               /* swap-offset: the update one sector further */
+            break;
+        }
+    }
+    uint32_t *vt = (uint32_t *)&fake_flash[UMCUB_CFG_IMG0_SECONDARY_ADDR - 0x08000000 + hoff + h.ih_hdr_size];
+    const uint32_t sp = vt[0], reset = vt[1];
+    CHECK(umcub_image_check(0, 1, fa));
+    const uint32_t bad[][2] = {
+        { sp, reset & ~1u },                                                    /* ARM state */
+        { sp, (UMCUB_CFG_IMG0_PRIMARY_ADDR + h.ih_hdr_size + h.ih_img_size + 0x100u) | 1u },
+        { 0x08001000u, reset },                                                 /* SP in flash */
+        { sp + 2u, reset },                                                     /* SP not aligned */
+    };
+    for (unsigned i = 0; i < sizeof(bad) / sizeof(bad[0]); i++) {
+        vt[0] = bad[i][0];
+        vt[1] = bad[i][1];
+        if (umcub_image_check(0, 1, fa)) {
+            printf("  FAIL vector case %u accepted\n", i);
+            failures++;
+        }
+    }
+    vt[0] = sp;
+    vt[1] = reset;
+    CHECK(umcub_image_check(0, 1, fa));
     flash_area_close(fa);
 }
 #endif
@@ -1428,7 +1474,7 @@ int main(int argc, char **argv)
     size_t bad_len;
     uint8_t *bad = load(argv[argc - 1], &bad_len);
     test_board_type(foreign, foreign_len, bad, bad_len);
-    test_vector_slot(wrong, wrong_len);
+    test_vector_slot(wrong, wrong_len, v2, v2_len);
 #endif
     test_inspect(v2_flash, v2_len);
     test_streams_interleaved(v1, v1_len);

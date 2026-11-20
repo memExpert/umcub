@@ -55,19 +55,30 @@ fih_ret boot_image_validate_encrypted(struct boot_loader_state *state, const str
     FIH_RET(fih_rc);
 }
 
+#if UMCUB_CFG_ENC_INPLACE
 /* Primary area whose encrypted upload passed umcub_enc_upload_check(). */
 static const struct flash_area *validated;
+#endif
 
 int umcub_enc_upload_check(int image, const struct flash_area *fap)
 {
     struct image_header hdr;
+#if UMCUB_CFG_ENC_INPLACE
     validated = NULL;
+#endif
     if (!umcub_image_header(fap, 0, &hdr)) {
         return -1;
     }
     if (!IS_ENCRYPTED(&hdr)) {
         return 0;                       /* plain: checked at boot as usual */
     }
+#if !UMCUB_CFG_ENC_INPLACE
+    /* Never decrypted in the primary slot: refused before the client is told
+     * the upload succeeded (encrypted images go through the secondary slot). */
+    UMCUB_LOG_ERR("encrypted image in the primary slot: upload it to the secondary slot (UMCUB_CFG_ENC_INPLACE 0)");
+    (void)image;
+    return -1;
+#else
     if (UMCUB_CFG_IMAGE_NUMBER == 1) {
         image = 0;                      /* folds the slot id below */
     }
@@ -81,6 +92,7 @@ int umcub_enc_upload_check(int image, const struct flash_area *fap)
     }
     validated = fap;
     return 0;
+#endif
 }
 
 #if UMCUB_CFG_ENC_INPLACE
@@ -96,14 +108,13 @@ int boot_handle_enc_fw(const struct flash_area *fap)
     if (!IS_ENCRYPTED(&hdr)) {
         return 0;                       /* plain image: nothing to do */
     }
+#if !UMCUB_CFG_ENC_INPLACE
+    return -1;                          /* refused by umcub_enc_upload_check() before the answer */
+#else
     if (fap != validated) {
         return -1;                      /* not validated (or invalid): leave it */
     }
     validated = NULL;
-#if !UMCUB_CFG_ENC_INPLACE
-    UMCUB_LOG_ERR("encrypted image in the primary slot: upload it to the secondary slot (UMCUB_CFG_ENC_INPLACE 0)");
-    return -1;
-#else
     struct boot_loader_state *state = boot_get_loader_state();
     boot_state_init(state);
     int rc = -1;

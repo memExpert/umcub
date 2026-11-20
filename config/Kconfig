@@ -334,8 +334,10 @@ config IMAGE_VECTOR_CHECK
 	bool "Check the image's reset vector"
 	default y
 	help
-	  Refuse an image whose reset vector lies outside the slot it runs from
-	  (wrong image number, built for the other core), about 200 bytes.
+	  Refuse an image whose reset vector is not a Thumb address inside the
+	  image as it lies in the slot it runs from (wrong image number, built
+	  for the other core), or whose initial stack pointer is not a word
+	  aligned SRAM address; about 240 bytes.
 
 config ENCRYPT_IMAGES
 	bool "Encrypted images"
@@ -356,7 +358,8 @@ config ENC_INPLACE
 	help
 	  Decrypt an encrypted SMP upload into the primary slot in place. Buffers
 	  one flash sector in RAM (H7: 128 KiB), so the part needs sectors of one
-	  size. Without it encrypted images go through the secondary slot.
+	  size. Without it encrypted images go through the secondary slot; an
+	  encrypted upload into the primary slot is refused.
 
 config SWAP_SAVE_ENCTLV
 	bool "Keep encrypted key TLVs in the trailer"
