@@ -56,6 +56,21 @@ expect("check: no secondary slot", "no secondary slot" in (layout.check("STM32F4
 two = dict(base, IMG1_PRIMARY_ADDR=0x08060000, IMG1_PRIMARY_SIZE=0x20000, IMG1_SECONDARY_ADDR=0, IMG1_SECONDARY_SIZE=0)
 expect("check: image 1 without a secondary slot", "image 1" in (layout.check("STM32F4", 512, two, OW, 2) or ""), True)
 expect("check: image 1 not in use", layout.check("STM32F4", 512, two, OW, 1), None)
+# Every pair of regions in use: the bootloader, the slots of the images built, the scratch area.
+h7 = {"BOOT_ADDR": 0x08000000, "BOOT_SIZE": 0x20000, "IMG0_PRIMARY_ADDR": 0x08020000, "IMG0_PRIMARY_SIZE": 0x60000,
+      "IMG0_SECONDARY_ADDR": 0x08080000, "IMG0_SECONDARY_SIZE": 0x60000, "IMG1_PRIMARY_ADDR": 0x08100000,
+      "IMG1_PRIMARY_SIZE": 0x60000, "IMG1_SECONDARY_ADDR": 0x08160000, "IMG1_SECONDARY_SIZE": 0x60000,
+      "SCRATCH_ADDR": 0x080E0000, "SCRATCH_SIZE": 0x20000}
+expect("overlap: none (adjacent regions)", layout.overlap(h7, 2), None)
+for what, change, images, word in (
+        ("secondary on the bootloader", {"IMG0_SECONDARY_ADDR": 0x08000000}, 1, "bootloader"),
+        ("scratch on the bootloader", {"SCRATCH_ADDR": 0x08010000}, 1, "bootloader"),
+        ("image 1 slot on the bootloader", {"IMG1_SECONDARY_ADDR": 0x08000000}, 2, "bootloader"),
+        ("image 1 on image 0", {"IMG1_PRIMARY_ADDR": 0x08090000, "IMG1_PRIMARY_SIZE": 0x20000}, 2, "image 0 secondary"),
+        ("scratch on image 1", {"SCRATCH_ADDR": 0x08170000}, 2, "scratch")):
+    why = layout.overlap(dict(h7, **change), images) or ""
+    expect(f"overlap: {what}", "overlap" in why and word in why, True)
+expect("overlap: image 1 not built", layout.overlap(dict(h7, IMG1_SECONDARY_ADDR=0x08000000), 1), None)
 expect("sector map", layout.sector_map("STM32F4", 512), "4 x 16 KiB, 64 KiB, 3 x 128 KiB")
 expect("region: F1 pages", layout.smallest_region("STM32F1", 64, 0x08000000, 28620), 28 * KB)
 expect("region: exactly a page", layout.smallest_region("STM32F1", 64, 0x08000000, 28 * KB), 28 * KB)

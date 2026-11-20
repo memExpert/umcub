@@ -59,6 +59,19 @@ extern const unsigned umcub_transport_count;
  * returns; returns false if the mux is busy (packet dropped, host will retry). */
 bool umcub_smp_packet_rx(const umcub_transport_t *t, const uint8_t *pkt, size_t len);
 
+/* The board transport (UMCUB_CFG_TRANSPORT_USER) sets its .link itself: one that does not match
+ * UMCUB_CFG_USER_LINK stays off - not initialized, polled, read or heard (never weaker than configured). */
+static inline bool umcub_transport_allowed(const umcub_transport_t *t)
+{
+#if UMCUB_CFG_TRANSPORT_USER
+    extern const umcub_transport_t umcub_transport_user;
+    return t != &umcub_transport_user || t->link == UMCUB_CFG_USER_LINK;
+#else
+    (void)t;
+    return true;
+#endif
+}
+
 /* Lifecycle used by the boot core. */
 void umcub_transports_init(void);
 void umcub_transports_deinit(void);

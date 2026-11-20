@@ -212,6 +212,7 @@ class Link:
     def __init__(self, conn, addr=None, uid=None, admin_key=None, device_key=None, timeout=2.0):
         self.conn, self.addr, self.uid = conn, addr, uid
         self.admin_key, self.device_key = admin_key, device_key
+        self.secure = bool(admin_key or device_key)     # keys given: DATA only inside a SECURE session, never without
         self.timeout = timeout
         self.seq = int(time.time()) & 0x3FFFFFFF        # monotonic across restarts of the tool
         self.session = None
@@ -248,12 +249,10 @@ class Link:
             fr = parse_frame(raw)
             if not fr:
                 self.conn.noise += 1
-                continue
-            if fr["dst"] != HOST_ADDR or fr["type"] not in types:
-                continue
-            if src is not None and fr["src"] != src:
-                continue
-            return fr
+            elif fr["dst"] == HOST_ADDR and fr["type"] in types and (src is None or fr["src"] == src):
+                return fr
+            if time.monotonic() >= end:                 # skipped frames keep coming: the deadline still holds
+                return None
 
     def hello(self):
         """Select the device; SECURE: run the challenge / AUTH handshake. Returns its identity."""
@@ -273,6 +272,11 @@ class Link:
             ident = identity(fr["payload"])
             if ident and (self.uid is None or ident["uid"] == self.uid.lower()):
                 break
+            if time.monotonic() >= end:             # others keep answering: the deadline still holds
+                raise LinkError(code="link.no_hello")
+        if self.ident and ident["uid"] != self.ident["uid"]:
+            # another controller at this address now (a shared product key would let it authenticate)
+            raise LinkError(code="link.other_device", addr=fr["src"], uid=ident["uid"], was=self.ident["uid"])
         self.ident, self.peer = ident, fr["src"]
         if fr["type"] == T_ANNOUNCE:
             if self.ident["closed"]:
@@ -305,11 +309,17 @@ class Link:
             raise LinkError(code="link.auth_failed")
         self.session = session
 
+    def _need_session(self):
+        if self.secure and not self.session:            # e.g. a failed re-handshake: never in the clear
+            raise LinkError(code="link.no_session")
+
     def send_data(self, payload):
+        self._need_session()
         self.send(T_DATA, payload)
 
     def recv_data(self, timeout=None):
         """The next DATA payload of the selected device (None on timeout)."""
+        self._need_session()
         end = time.monotonic() + (self.timeout if timeout is None else timeout)
         while True:
             fr = self.recv((T_DATA,), timeout=max(0.0, end - time.monotonic()), src=self.peer)
@@ -317,6 +327,8 @@ class Link:
                 return None
             if self.session:
                 if not self.session.check(fr):
+                    if time.monotonic() >= end:
+                        return None             # a stream of forged frames does not hold the caller
                     continue                    # forged / replayed: ignored
                 data = fr["payload"]
                 if fr["flags"] & F_ENC:

@@ -33,23 +33,10 @@ _Static_assert(sizeof(umcub_transports) / sizeof(umcub_transports[0]) - 1u <= UM
 
 const unsigned umcub_transport_count = sizeof(umcub_transports) / sizeof(umcub_transports[0]) - 1u;
 
-/* The board file sets umcub_transport_user.link itself: it must match the
- * configured policy, or the transport stays off (never weaker than configured). */
-static bool link_ok(const umcub_transport_t *t)
-{
-#if UMCUB_CFG_TRANSPORT_USER
-    if (t == &umcub_transport_user && t->link != UMCUB_CFG_USER_LINK) {
-        return false;
-    }
-#endif
-    (void)t;
-    return true;
-}
-
 void umcub_transports_init(void)
 {
     for (unsigned i = 0; i < umcub_transport_count; i++) {
-        if (link_ok(umcub_transports[i]) && umcub_transports[i]->init() != 0) {
+        if (umcub_transport_allowed(umcub_transports[i]) && umcub_transports[i]->init() != 0) {
             umcub_led_error(umcub_transports[i]->id);
         }
     }
@@ -66,7 +53,7 @@ void umcub_transports_deinit(void)
 void umcub_transports_poll(void)
 {
     for (unsigned i = 0; i < umcub_transport_count; i++) {
-        if (umcub_transports[i]->poll) {
+        if (umcub_transports[i]->poll && umcub_transport_allowed(umcub_transports[i])) {
             umcub_transports[i]->poll();
         }
     }

@@ -30,6 +30,8 @@ MESSAGES = {
     "link.keys_unused": ("{name}: keys given, but no SECURE umcub link session here (CAN: give --node, not 0; "
                          "on serial / UDP give --node or --uid)"),
     "link.select": "select the device by node address or UID",
+    "link.no_session": "no SECURE session (the handshake failed): nothing is sent or taken in the clear",
+    "link.other_device": "node {addr} is another device now (UID {uid}, was {was}): connect again to talk to it",
     "link.no_hello": "no answer to HELLO (wrong node, not in recovery, or not a link transport)",
     "link.closed": "device refuses SECURE sessions (readout protection off, UMCUB_CFG_LINK_REQUIRE_RDP)",
     "link.keys_needed": "SECURE transport: the admin key and the device key are needed",

@@ -57,21 +57,17 @@
 #error "umcub: UMCUB_MODE_SWAP_SCRATCH needs a scratch area (UMCUB_CFG_SCRATCH_ADDR/SIZE)"
 #endif
 
-#if (UMCUB_CFG_IMG0_PRIMARY_ADDR < UMCUB_CFG_BOOT_ADDR + UMCUB_CFG_BOOT_SIZE) && \
-    (UMCUB_CFG_IMG0_PRIMARY_ADDR + UMCUB_CFG_IMG0_PRIMARY_SIZE > UMCUB_CFG_BOOT_ADDR)
-#error "umcub: image 0 primary slot overlaps the bootloader"
-#endif
-#if (UMCUB_CFG_IMG0_SECONDARY_ADDR < UMCUB_CFG_IMG0_PRIMARY_ADDR + UMCUB_CFG_IMG0_PRIMARY_SIZE) && \
-    (UMCUB_CFG_IMG0_SECONDARY_ADDR + UMCUB_CFG_IMG0_SECONDARY_SIZE > UMCUB_CFG_IMG0_PRIMARY_ADDR)
-#error "umcub: image 0 primary and secondary slots overlap"
-#endif
-
-#if UMCUB_CFG_SCRATCH_SIZE > 0 && \
-    ((UMCUB_CFG_SCRATCH_ADDR < UMCUB_CFG_IMG0_PRIMARY_ADDR + UMCUB_CFG_IMG0_PRIMARY_SIZE && \
-      UMCUB_CFG_SCRATCH_ADDR + UMCUB_CFG_SCRATCH_SIZE > UMCUB_CFG_IMG0_PRIMARY_ADDR) || \
-     (UMCUB_CFG_SCRATCH_ADDR < UMCUB_CFG_IMG0_SECONDARY_ADDR + UMCUB_CFG_IMG0_SECONDARY_SIZE && \
-      UMCUB_CFG_SCRATCH_ADDR + UMCUB_CFG_SCRATCH_SIZE > UMCUB_CFG_IMG0_SECONDARY_ADDR))
-#error "umcub: scratch area overlaps an image 0 slot"
+/* Every pair of regions in use shares no flash (an update would erase one with the other); the configure step
+ * (tools/host/umcub/layout.py, overlap) names the pair. Image 1 counts when it is built. */
+#define UMCUB_OVL(a, b) (UMCUB_CFG_##a##_SIZE && UMCUB_CFG_##b##_SIZE && \
+    UMCUB_CFG_##a##_ADDR < UMCUB_CFG_##b##_ADDR + UMCUB_CFG_##b##_SIZE && \
+    UMCUB_CFG_##b##_ADDR < UMCUB_CFG_##a##_ADDR + UMCUB_CFG_##a##_SIZE)
+#define UMCUB_OVL_IMG(n, b) (UMCUB_OVL(IMG##n##_PRIMARY, b) || UMCUB_OVL(IMG##n##_SECONDARY, b))
+#if UMCUB_OVL(BOOT, SCRATCH) || UMCUB_OVL_IMG(0, BOOT) || UMCUB_OVL_IMG(0, SCRATCH) || \
+    UMCUB_OVL(IMG0_PRIMARY, IMG0_SECONDARY) || \
+    (UMCUB_CFG_IMAGE_NUMBER > 1 && (UMCUB_OVL_IMG(1, BOOT) || UMCUB_OVL_IMG(1, SCRATCH) || \
+     UMCUB_OVL_IMG(1, IMG0_PRIMARY) || UMCUB_OVL_IMG(1, IMG0_SECONDARY) || UMCUB_OVL(IMG1_PRIMARY, IMG1_SECONDARY)))
+#error "umcub: the bootloader, the slots and the scratch area must not overlap"
 #endif
 
 #if UMCUB_CFG_UPGRADE_MODE == 3

@@ -280,6 +280,9 @@ static bool queue_packet(const umcub_transport_t *t, const uint8_t *pkt, size_t 
 
 bool umcub_smp_packet_rx(const umcub_transport_t *t, const uint8_t *pkt, size_t len)
 {
+    if (!umcub_transport_allowed(t)) {
+        return false;                       /* a board transport weaker than configured: never heard */
+    }
 #if UMCUB_CFG_LINK_ANY
     if (t->link) {
         return umcub_link_rx(t, pkt, len);  /* DATA comes back via umcub_mux_link_rx() */
@@ -427,7 +430,7 @@ static void pump_all(void)
     umcub_led_poll();
     umcub_transports_poll();
     for (unsigned i = 0; i < umcub_transport_count && i < MAX_TRANSPORTS; i++) {
-        if (is_stream(umcub_transports[i])) {
+        if (is_stream(umcub_transports[i]) && umcub_transport_allowed(umcub_transports[i])) {
             pump_stream(i);
         }
     }

@@ -75,7 +75,9 @@ static struct {
     uint32_t at;
     uint8_t payload[CHALLENGE_LEN];
 } chal;
-static uint32_t auth_blocked_until;
+static uint32_t auth_failed_at;     /* back-off after a failed AUTH: elapsed time, unsigned (no 2^31 ms wrap;
+                                     * at most one more second once the clock wraps, every 49.7 days) */
+static bool auth_failed;
 static struct {
     uint16_t peer;
     uint32_t rx_seq;                /* last accepted host seq */
@@ -330,7 +332,7 @@ static void secure_rx(const umcub_transport_t *t, int i, struct link_state *s, c
         return;
     case UMCUB_LT_AUTH: {
         if (chal_t != i || chal.peer != src || plen != AUTH_LEN || flags != 0 ||
-            now - chal.at > CHALLENGE_MS || (int32_t)(now - auth_blocked_until) < 0) {
+            now - chal.at > CHALLENGE_MS || (auth_failed && now - auth_failed_at < AUTH_BACKOFF_MS)) {
             return;
         }
         chal_t = -1;                                /* one attempt per challenge */
@@ -341,7 +343,8 @@ static void secure_rx(const umcub_transport_t *t, int i, struct link_state *s, c
         }
         memset(keys, 0, sizeof(keys));
         if (!ok) {
-            auth_blocked_until = umcub_port_millis() + AUTH_BACKOFF_MS;
+            auth_failed = true;
+            auth_failed_at = umcub_port_millis();
             return;
         }
         sess_t = (int8_t)i;

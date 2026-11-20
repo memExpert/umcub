@@ -256,6 +256,13 @@ def t_cmake_args(out):
     r = configure("mixed-addressed", *h7, f"-DUMCUB_CONF={frag}")
     if "ADDRESSED transport next to" not in r.stdout + r.stderr:
         raise Failed(f"ADDRESSED next to SECURE: no warning: {r.stderr}")
+    for tree, text in (("overlap-boot", "UMCUB_CFG_IMG0_SECONDARY_ADDR=0x08000000\n"),
+                       ("overlap-scratch", "UMCUB_CFG_SCRATCH_ADDR=0x08000000\nUMCUB_CFG_SCRATCH_SIZE=0x20000\n")):
+        frag = d / f"{tree}.conf"               # a slot or the scratch area on the bootloader: refused
+        frag.write_text(text)
+        r = configure(tree, *h7, f"-DUMCUB_CONF={frag}")
+        if r.returncode == 0 or "overlap" not in r.stderr:
+            raise Failed(f"{tree}: configure did not stop (overlap): {r.stderr}")
     g4 = ["-DUMCUB_BOARD=nucleo_g474re"]
     for tree, text, want in (
             # G474xC (256 KiB) in dual-bank mode: bank 2 from 0x08040000, nothing at 0x08020000..0x0803FFFF
@@ -271,7 +278,7 @@ def t_cmake_args(out):
             raise Failed(f"{tree}: configure did not stop ({want}): {r.stderr}")
     return "cmake-args", ("Release by default, relative UMCUB_CONF, new key warning, -DUMCUB_SIGNING_KEY and no secondary "
                           "slot stop, unchecked lite uploads, H7 header 0x200, packets beyond UDP / ISO-TP and G4 slots "
-                          "off the bank map refused")
+                          "off the bank map, regions on the bootloader refused")
 
 
 def t_check(out, name, cmd, grep=None):

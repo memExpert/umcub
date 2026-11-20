@@ -222,6 +222,23 @@ int main(void)
     CHECK(umcub_transports[1]->id == UMCUB_TRANSPORT_ETH);
     CHECK(umcub_transports[2] == &umcub_transport_user);
     umcub_transports_init();
+#if UMCUB_CFG_USER_LINK
+    printf("[board transport] .link weaker than UMCUB_CFG_USER_LINK: off - not initialized, polled or heard\n");
+    CHECK(can_inits == 1 && eth_inits == 1 && user_inits == 0);
+    user_in_len = smp_echo(user_in, 9);
+    user_out_len = 0;
+    for (int i = 0; i < 20; i++) {
+        mux_step();
+    }
+    CHECK(user_polls == 0 && user_out_len == 0);
+    CHECK(!umcub_smp_packet_rx(&umcub_transport_user, user_in, user_in_len));  /* a driver delivering by itself */
+    for (int i = 0; i < 20; i++) {
+        mux_step();
+    }
+    CHECK(user_out_len == 0);
+    printf(failures ? "\n%d FAILURE(S)\n" : "\nALL TESTS PASSED\n", failures);
+    return failures ? 1 : 0;
+#endif
     CHECK(can_inits == 1 && eth_inits == 1 && user_inits == 1);
     CHECK(can_cfg.rx_id == UMCUB_CFG_CAN_RX_ID && can_cfg.fd && can_cfg.bitrate == UMCUB_CFG_CAN_BITRATE);
     CHECK(eth_pins == NULL && eth_npins == 0);     /* no RMII pins with a board MAC */

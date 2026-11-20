@@ -45,8 +45,9 @@ would do, and how large an application can be. Signing an application tells how 
 
 Without `CMAKE_BUILD_TYPE` the build is `Release` (`-Os`), what the regions and the [size tables](size.md) assume.
 
-Configuration mistakes stop the build with a message: slots overlapping or off sector boundaries, the wrong slot
-sizes for the mode, a primary slot without a secondary one, a missing scratch area, an HSE the port cannot use, and so on.
+Configuration mistakes stop the build with a message: any two of the bootloader, the slots (image 1's when it is
+built) and the scratch area overlapping, regions off sector boundaries, the wrong slot sizes for the mode, a primary
+slot without a secondary one, a missing scratch area, an HSE the port cannot use, and so on.
 
 **4. Adapt the application.** Use the same board directory and key: CMake with `umcub::app`,
 `umcub_add_application()` (see [Application library](application.md#application-library)), or any other
@@ -337,7 +338,7 @@ static int w5500_send(const uint8_t *pkt, size_t len) { /* send to the last send
 const umcub_transport_t umcub_transport_user = {
     .id = UMCUB_TRANSPORT_USER,
     .init = w5500_init, .deinit = w5500_deinit, .poll = w5500_poll, .send_packet = w5500_send,
-    .link = UMCUB_CFG_USER_LINK,  /* must match the option, or the transport stays off */
+    .link = UMCUB_CFG_USER_LINK,  /* must match the option, or the transport stays off (not polled or heard) */
 };
 ```
 

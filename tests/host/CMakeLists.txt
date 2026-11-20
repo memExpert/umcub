@@ -249,11 +249,10 @@ umcub_host_variant(swap_scratch_enc_direct)
 
 # Board-supplied drivers (UMCUB_DRIVER_BOARD) and board transport
 # (UMCUB_CFG_TRANSPORT_USER) through the real registry, CAN/ETH transports, mux.
-function(umcub_host_board)
-  umcub_host_conf(board cfg_swap_scratch test_board_post)
+function(umcub_host_board t post)
+  umcub_host_conf(${t} cfg_swap_scratch ${post})
   umcub_load_config("${UMCUB_BOARD}" "${UMCUB_CORE}")
   umcub_check_pins(_board)
-  set(t umcub_host_board)
   add_executable(${t}
     test_board.c
     ${UMCUB_ROOT}/src/transport/registry.c
@@ -262,12 +261,17 @@ function(umcub_host_board)
     ${UMCUB_ROOT}/src/transport/net/net_transport.c
     ${UMCUB_ROOT}/src/transport/net/net.c
     ${UMCUB_ROOT}/src/transport/net/dhcp.c
+    ${ARGN}
     ${HOST_SOURCES})
   umcub_host_setup(${t})
   add_test(NAME ${t} COMMAND ${t})
 endfunction()
 
-umcub_host_board()
+umcub_host_board(umcub_host_board test_board_post)
+# The board transport declares a weaker link mode than UMCUB_CFG_USER_LINK: it stays off - not initialized, not
+# polled, its packets refused.
+umcub_host_board(umcub_host_board_policy test_board_policy_post ${UMCUB_ROOT}/src/proto/link.c
+  ${UMCUB_ROOT}/src/util/random.c)
 
 # umcub link through the mux on stream and packet transports: ADDRESSED
 # (test_link.c) and SECURE with encryption (test_link_secure.c, extra sources).

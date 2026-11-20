@@ -793,6 +793,76 @@ expect("exclusive_key: CAN without a node: parallel", umcub.connection.exclusive
 with umcub.open_connection("loop:t") as oc:
     expect("connect(Connection, tap=...): refused",
            code_of(lambda: umcub.connect(oc, tap=lambda e: None)) == "tap.open_connection")
+# --- host library 0.6.1 (re-audit 2026-11-20) ----------------------------------------------------------------------
+# SECURE (keys given) without its session - a re-handshake failed, the caller goes on - never sends or takes DATA in
+# the clear; the Device runs the handshake again first.
+sc = SentConn()
+sec = link.Link(sc, addr=5, admin_key="a.pem", device_key="d.pem")
+expect("SECURE without a session: DATA not sent", code_of(lambda: sec.send_data(b"x")) == "link.no_session" and not sc.sent)
+expect("SECURE without a session: DATA not taken",
+       code_of(lambda: link.Link(SentConn(link.make_frame(link.T_DATA, 0, link.HOST_ADDR, 2, b"forged", src=5)), addr=5,
+                                 admin_key="a.pem", device_key="d.pem").recv_data(0.1)) == "link.no_session")
+tries = []
+
+
+def failing_hello():
+    tries.append(1)
+    raise umcub.LinkError(code="link.no_hello")
+
+
+sec.hello = failing_hello
+dev = umcub.Device(sc, sec)
+expect("Device: SECURE without a session runs the handshake again",
+       code_of(lambda: dev.send(umcub.KIND_SMP, b"x")) == "link.no_hello" and tries and not sc.sent)
+expect("Device: still no DATA after a second failed handshake",
+       code_of(lambda: dev.send(umcub.KIND_SMP, b"x")) == "link.no_hello" and len(tries) == 2 and not sc.sent)
+# A zero wait still takes what is queued: two late DATA frames are both drained (lite clears late answers so).
+two = link.Link(BusConn(*(link.make_frame(link.T_DATA, 0, link.HOST_ADDR, n, b"late", src=5) for n in (2, 3))), addr=5)
+expect("recv_data(0): queued frames returned", [two.recv_data(0), two.recv_data(0), two.recv_data(0)] == [b"late", b"late", None])
+# A lite request after a failed handshake runs the handshake again too (its drain of late answers takes nothing).
+dev2 = umcub.Device(SentConn(), link.Link(SentConn(), addr=5, admin_key="a.pem", device_key="d.pem"))
+tries.clear()
+dev2.link.hello = failing_hello
+expect("lite after a failed handshake: the handshake again",
+       code_of(lambda: umcub.lite.request(dev2, umcub.lite.frame("P"), timeout=0.1)) == "link.no_hello" and tries)
+# Another controller at the address of the first one (a shared product key would let it authenticate) is refused.
+pin = link.Link(BusConn(announce(5, uid=b"\x11" * 12), announce(5, uid=b"\x22" * 12)), addr=5)
+pin.hello()
+expect("hello again: another UID at the same address refused", code_of(pin.hello) == "link.other_device")
+
+
+# A bus full of other frames does not keep a receive past its deadline.
+class Flood(BusConn):
+    def recv(self, kind, timeout):
+        return announce(9)
+
+
+t0 = time.monotonic()
+expect("hello on a flooded bus ends at its deadline",
+       code_of(link.Link(Flood(), addr=5, timeout=0.2).hello) == "link.no_hello" and time.monotonic() - t0 < 1.0,
+       f"{time.monotonic() - t0:.1f} s")
+class Forged(BusConn):
+    def recv(self, kind, timeout):
+        return link.make_frame(link.T_DATA, 0, link.HOST_ADDR, 9, b"forged", src=5)     # no valid MAC
+
+
+class OtherUid(BusConn):
+    def recv(self, kind, timeout):
+        return announce(7, uid=b"\x33" * 12)
+
+
+forged = link.Link(Forged(), addr=5, admin_key="a.pem", device_key="d.pem")
+forged.session = link.Session(bytes(96))
+t0 = time.monotonic()
+expect("recv_data: forged DATA from the peer do not keep it past its deadline",
+       forged.recv_data(0.2) is None and time.monotonic() - t0 < 1.0, f"{time.monotonic() - t0:.1f} s")
+t0 = time.monotonic()
+expect("hello by UID: other devices' answers do not keep it past its deadline",
+       code_of(link.Link(OtherUid(), uid="11" * 12, timeout=0.2).hello) == "link.no_hello"
+       and time.monotonic() - t0 < 1.0, f"{time.monotonic() - t0:.1f} s")
+t0 = time.monotonic()
+expect("recv_data on a flooded bus ends at its deadline",
+       link.Link(Flood(), addr=5).recv_data(0.2) is None and time.monotonic() - t0 < 1.0, f"{time.monotonic() - t0:.1f} s")
 # Generated C files with a private key are readable by the owner only (umcub keys c / host-c).
 with tempfile.TemporaryDirectory() as kd:
     out = Path(kd) / "keys.c"
@@ -823,7 +893,7 @@ expect("a failed hello drops the old session's keys", lk.session is None)
 
 
 class SessionLink:
-    session, ident = True, None
+    session, ident, secure = True, None, True
 
     def __init__(self):
         self.hellos = 0

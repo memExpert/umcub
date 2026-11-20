@@ -281,6 +281,10 @@ def values(kconf):
     out["CMD_TABLE"] = _cmd_table(kconf.syms["CMD_TABLE"].str_value or _off_value(k, kconf.syms["CMD_TABLE"]))
     family, flash_kb, dual = _flash(kconf)
     slots = {name: int(v, 0) for name, v in out.items() if SLOT.fullmatch(name)}
+    why = layout.overlap(dict(slots, BOOT_ADDR=int(out["BOOT_ADDR"], 0), BOOT_SIZE=int(out["BOOT_SIZE"], 0)),
+                         int(out["IMAGE_NUMBER"]))
+    if why:
+        die(why + " (docs/board.md, Slots)")
     why = layout.misplaced(family, flash_kb, slots, int(out["IMAGE_NUMBER"]), dual)
     if why:
         die(why + " (docs/board.md, Slots)")

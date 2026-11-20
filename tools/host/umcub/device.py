@@ -36,8 +36,9 @@ class Device:
 
     def send(self, kind, payload):
         if self.link:
-            if self.link.session and time.monotonic() - self._last > SESSION_IDLE:
-                self.link.hello()
+            if self.link.secure and not self.link.session or \
+                    self.link.session and time.monotonic() - self._last > SESSION_IDLE:
+                self.link.hello()                   # SECURE: a failed handshake before is tried again, never skipped
             self._last = time.monotonic()
             self.link.send_data(payload)
         else:
@@ -46,6 +47,8 @@ class Device:
     def recv(self, kind, timeout=None):
         timeout = self.timeout if timeout is None else timeout
         if self.link:
+            if self.link.secure and not self.link.session:
+                return None                         # nothing taken without the session; the next send() runs it
             return self.link.recv_data(timeout)     # waiting is no traffic for the device's session timer
         return self.conn.recv(kind, timeout)
 

@@ -95,6 +95,23 @@ static void dcache_restore(uint32_t on)
     SET_BIT(FLASH->ACR, on);
 }
 
+/* BSY is clear: unlock, clear the status and what a timed-out operation left in FLASH_CR. */
+static void start_op(void)
+{
+    unlock();
+    FLASH->SR = FLASH_SR_EOP | SR_ERRORS;
+    CLEAR_BIT(FLASH->CR, FLASH_CR_PG | FLASH_CR_PER | FLASH_CR_BKER);
+}
+
+/* After a timeout BSY may still be set: FLASH_CR stays untouched (locked again by the next operation). */
+static void end_op(int rc, uint32_t dcache)
+{
+    if (rc != UMCUB_ETIMEOUT) {
+        lock();
+    }
+    dcache_restore(dcache);
+}
+
 static int wait_done(uint32_t timeout_ms)
 {
     int rc = umcub_cm_wait(&FLASH->SR, FLASH_SR_BSY, 0, timeout_ms);
@@ -127,6 +144,17 @@ int umcub_flash_read(uint32_t addr, void *dst, size_t len)
 }
 #else
 static volatile uint8_t ecc_read;           /* 1: a read runs, 2: it met a double ECC error */
+/* All four flags: one left set - a corrected single error (ECCC) too - keeps the next error, a double one as
+ * well, from being flagged and from raising the NMI (RM0440 3.3.2 / FLASH_ECCR: set "only if ECCC/ECCC2/ECCD/
+ * ECCD2 are previously cleared"). rc_w1; ECCCIE (CMSIS: ECCIE) stays as it is. ECCC2 / ECCD2 (the upper 64 bits)
+ * exist in single-bank mode only, reserved with DBANK = 1. */
+#define ECC_FLAGS           (FLASH_ECCR_ECCC | FLASH_ECCR_ECCD | \
+                             (UMCUB_CFG_FLASH_DUAL_BANK ? 0u : FLASH_ECCR_ECCC2 | FLASH_ECCR_ECCD2))
+
+static void ecc_clear(void)
+{
+    FLASH->ECCR = (FLASH->ECCR & FLASH_ECCR_ECCIE) | ECC_FLAGS;
+}
 
 void NMI_Handler(void)
 {
@@ -134,7 +162,7 @@ void NMI_Handler(void)
     if (!ecc || !ecc_read) {
         NVIC_SystemReset();                 /* not a guarded read: nothing to return to safely */
     }
-    FLASH->ECCR = ecc;                      /* rc_w1 */
+    ecc_clear();
     ecc_read = 2;
     __DSB();                                /* ES0430 §2.1.3: no store right before the exception return */
 }
@@ -144,6 +172,7 @@ int umcub_flash_read(uint32_t addr, void *dst, size_t len)
     if (!in_flash(addr, len)) {
         return UMCUB_EINVAL;
     }
+    ecc_clear();
     ecc_read = 1;
     memcpy(dst, (const void *)addr, len);
     __DSB();
@@ -164,11 +193,14 @@ int umcub_flash_write(uint32_t addr, const void *src, size_t len)
     const uint8_t *s = src;
     const uint32_t start = addr;
     const size_t total = len;
+    /* FLASH_CR is not written while BSY is set (RM0440 3.3.5: the bus stalls until it clears): a timeout
+     * returns at once and leaves the controller as it is; the next operation clears PG / PER. */
     int rc = umcub_cm_wait(&FLASH->SR, FLASH_SR_BSY, 0, TIMEOUT_ERASE_MS);
-
+    if (rc) {
+        return rc;
+    }
     uint32_t dcache = dcache_off();
-    unlock();
-    FLASH->SR = FLASH_SR_EOP | SR_ERRORS;
+    start_op();
     while (len && rc == UMCUB_OK) {
         uint32_t lo, hi;
         memcpy(&lo, s, 4);                  /* source may be unaligned */
@@ -180,14 +212,16 @@ int umcub_flash_write(uint32_t addr, const void *src, size_t len)
             ((volatile uint32_t *)addr)[1] = hi;
             UMCUB_FAULT_POINT();        /* test: power cut while the double word is programmed */
             rc = wait_done(TIMEOUT_PROGRAM_MS);
+            if (rc == UMCUB_ETIMEOUT) {
+                break;
+            }
             CLEAR_BIT(FLASH->CR, FLASH_CR_PG);
         }
         addr += 8u;
         s += 8u;
         len -= 8u;
     }
-    lock();
-    dcache_restore(dcache);
+    end_op(rc, dcache);
 
     if (rc == UMCUB_OK && memcmp((const void *)start, src, total) != 0) {
         rc = UMCUB_EIO;                 /* e.g. 0xFF.. over a programmed double word */
@@ -204,10 +238,11 @@ int umcub_flash_erase(uint32_t addr, size_t len)
         return UMCUB_EIO;
     }
     int rc = umcub_cm_wait(&FLASH->SR, FLASH_SR_BSY, 0, TIMEOUT_ERASE_MS);
-
+    if (rc) {
+        return rc;
+    }
     uint32_t dcache = dcache_off();
-    unlock();
-    FLASH->SR = FLASH_SR_EOP | SR_ERRORS;
+    start_op();
     while (len && rc == UMCUB_OK) {
         bool bank2 = UMCUB_CFG_FLASH_DUAL_BANK && addr >= BANK2;
         uint32_t pnb = (addr - (bank2 ? BANK2 : FLASH_BASE)) / PAGE;
@@ -218,11 +253,13 @@ int umcub_flash_erase(uint32_t addr, size_t len)
         __DSB();
         UMCUB_FAULT_POINT();            /* test: power cut in the middle of a page erase */
         rc = wait_done(TIMEOUT_ERASE_MS);
+        if (rc == UMCUB_ETIMEOUT) {
+            break;
+        }
         CLEAR_BIT(FLASH->CR, FLASH_CR_PER | FLASH_CR_BKER);
         addr += PAGE;
         len -= PAGE;
     }
-    lock();
-    dcache_restore(dcache);
+    end_op(rc, dcache);
     return rc;
 }

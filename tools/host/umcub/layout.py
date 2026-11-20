@@ -119,6 +119,21 @@ def compatible(pri, sec, mode, scratch=0):
     return None
 
 
+def overlap(values, images):
+    """Two regions in use sharing flash - the bootloader, the slots of the `images` built, the scratch area: what
+    overlaps, or None (an update would erase the other; config/umcub_config_check.h stops the same in C)."""
+    names = ["BOOT", "SCRATCH"] + [f"IMG{i}_{s}" for i in range(images) for s in ("PRIMARY", "SECONDARY")]
+    label = {"BOOT": "the bootloader", "SCRATCH": "the scratch area"}
+    regions = [(n, values.get(f"{n}_ADDR", 0), values.get(f"{n}_SIZE", 0)) for n in names]
+    regions = [(label.get(n) or f"image {n[3]} {n[5:].lower()} slot", a, s) for n, a, s in regions if s]
+    for k, (n1, a1, s1) in enumerate(regions):
+        for n2, a2, s2 in regions[k + 1:]:
+            if a1 < a2 + s2 and a2 < a1 + s1:
+                return (f"{n1} (0x{a1:08X} + 0x{s1:X}) and {n2} (0x{a2:08X} + 0x{s2:X}) overlap: an update would "
+                        f"erase one with the other")
+    return None
+
+
 def misplaced(family, flash_kb, values, images, dual_bank=True):
     """The slots (IMG<n>_...) against the flash: one that is not inside it, or None (sector boundaries:
     config/umcub_config_check.h, which cannot see gaps between banks)."""

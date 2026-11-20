@@ -540,6 +540,24 @@ static void test_auth_replay(void)
     CHECK(nothing_sent());
 }
 
+/* The back-off after a failed AUTH ends: also when nothing happens for 2^31 ms (the signed time comparison would
+ * otherwise refuse AUTH for another 24.9 days). */
+static void test_backoff_long_after(void)
+{
+    printf("[secure] AUTH again 2^31 ms after a failed one\n");
+    uint8_t chal[56], auth[160], eph[32], other[32];
+    memset(other, 7, sizeof(other));
+    umcub_port_delay_ms(1100);
+    CHECK(hello(NODE, chal));
+    make_auth(auth, chal, other, eph);
+    reset_io();
+    send(UMCUB_LT_AUTH, 0, NODE, auth, sizeof(auth), false);
+    run(10);
+    CHECK(nothing_sent());                  /* failed: back-off */
+    umcub_port_delay_ms(0x80000000u);
+    CHECK(handshake(NODE));
+}
+
 static void test_close_and_timeout(void)
 {
     printf("[secure] CLOSE and the idle timeout end the session\n");
@@ -659,6 +677,7 @@ int main(void)
     test_readback_in_session();
     test_failed_auth_keeps_session();
     test_auth_replay();
+    test_backoff_long_after();
     test_close_and_timeout();
     test_packet_transport();
     test_entropy_failure();
