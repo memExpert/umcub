@@ -53,6 +53,14 @@ generates a key in `keys/<board>/`, or takes your own file, see [Kconfig](config
 For transports on a shared bus see the SECURE mode of the [umcub link](link.md)
 and its own keys.
 
+On a PLAIN or ADDRESSED transport the SMP parser sees requests before any authentication. umcub builds MCUboot's
+serial recovery with zcbor 0.8.3 (`third_party/zcbor`, not the 0.8.1 copy inside MCUboot): it skips unknown values
+at most 8 lists / maps deep (`ZCBOR_MAX_SKIP_DEPTH`), so a small, deeply nested request cannot exhaust the stack.
+
+tinyUSB 0.21.0 answers some standard and DFU GET requests from a stack variable: a host that sends one with the
+wrong direction (OUT) makes the stack write land after the function returned. Until a tinyUSB release fixes it, keep
+USB recovery (`UMCUB_CFG_TRANSPORT_USB_CDC` / `_USB_DFU`) off where untrusted hosts can reach the USB port.
+
 `UMCUB_CFG_SIGNATURE_NONE` drops the signature (about 4.6 K): images carry a SHA-256 only, so the
 bootloader still refuses damaged images and images for another board type, but boots any correctly built image -
 there is no authenticity. CMake warns when it is configured; use it only for closed devices on parts where the

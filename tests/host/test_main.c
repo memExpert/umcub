@@ -427,6 +427,25 @@ static void test_packet_upload_and_boot(const uint8_t *v1, size_t v1_len, const 
     CHECK(pkt_rsp_len > 8 && contains(pkt_rsp, pkt_rsp_len, "hello umcub"));
     CHECK(umcub_recovery_last_transport() == UMCUB_TRANSPORT_ETH);
 
+    /* An unknown key is skipped (zcbor_any_skip, recursive): nesting is bounded
+     * (zcbor ZCBOR_MAX_SKIP_DEPTH 8) so a small packet cannot exhaust the stack
+     * before any authentication. 8 levels are answered, 9 refused. */
+    for (unsigned depth = 8; depth <= 9; depth++) {
+        cbor_t n = { .n = 0 };
+        cb_map(&n, 2);
+        cb_text(&n, "x");
+        for (unsigned i = 0; i < depth; i++) {
+            cb_head(&n, 4, 1);              /* [ ... ] of one element */
+        }
+        cb_uint(&n, 0);
+        cb_text(&n, "d");
+        cb_text(&n, "hello umcub");
+        pl = smp_frame(pkt, 2, 0, 0, &n);
+        pkt_rsp_len = 0;
+        smp_packet_request(pkt, pl);
+        CHECK(contains(pkt_rsp, pkt_rsp_len, "hello umcub") == (depth == 8));
+    }
+
     char ver[16];
     CHECK(!boot_ok(ver));                   /* empty flash: nothing to boot */
 #if UMCUB_CFG_ENCRYPT_IMAGES

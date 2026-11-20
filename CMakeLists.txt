@@ -57,6 +57,9 @@ include(cmake/umcub_imgtool.cmake)
 # Sources
 # ----------------------------------------------------------------------------
 set(MCUBOOT ${UMCUB_ROOT}/third_party/mcuboot)
+# zcbor from its own repository (0.8.3: ZCBOR_MAX_SKIP_DEPTH bounds the recursion of
+# zcbor_any_skip() on untrusted SMP input) instead of the 0.8.1 copy in MCUboot.
+set(ZCBOR ${UMCUB_ROOT}/third_party/zcbor)
 set(TINYCRYPT ${MCUBOOT}/ext/tinycrypt/lib)
 
 set(BOOT_SOURCES
@@ -109,9 +112,9 @@ if(UMCUB_CFG_SMP)                 # some transport speaks SMP: MCUboot serial re
   list(APPEND MCUBOOT_SOURCES
     ${MCUBOOT}/boot/boot_serial/src/boot_serial.c
     ${MCUBOOT}/boot/boot_serial/src/zcbor_bulk.c
-    ${MCUBOOT}/boot/zcbor/src/zcbor_common.c
-    ${MCUBOOT}/boot/zcbor/src/zcbor_decode.c
-    ${MCUBOOT}/boot/zcbor/src/zcbor_encode.c
+    ${ZCBOR}/src/zcbor_common.c
+    ${ZCBOR}/src/zcbor_decode.c
+    ${ZCBOR}/src/zcbor_encode.c
   )
 endif()
 if(UMCUB_CFG_SIGNATURE EQUAL 1)   # UMCUB_SIGN_EC256
@@ -140,7 +143,7 @@ set(BOOT_INCLUDES
   # MCUboot v2.5.0 boot_serial.c (direct-xip / ram-load) includes
   # "../bootutil/src/bootutil_loader.h", found only from here. Remove with the upstream fix.
   ${MCUBOOT}/boot/boot_serial
-  ${MCUBOOT}/boot/zcbor/include
+  ${ZCBOR}/include
   ${TINYCRYPT}/include
   ${MCUBOOT}/ext/mbedtls-asn1/include
 )

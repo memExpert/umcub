@@ -21,6 +21,9 @@ umcub_check_pins()
 include(${UMCUB_ROOT}/cmake/umcub_imgtool.cmake)
 
 set(MCUBOOT ${UMCUB_ROOT}/third_party/mcuboot)
+# zcbor from its own repository (0.8.3: ZCBOR_MAX_SKIP_DEPTH bounds the recursion of
+# zcbor_any_skip() on untrusted SMP input) instead of the 0.8.1 copy in MCUboot.
+set(ZCBOR ${UMCUB_ROOT}/third_party/zcbor)
 set(TINYCRYPT ${MCUBOOT}/ext/tinycrypt/lib)
 umcub_generate_pubkey("${UMCUB_SIGNING_KEY}" "${CMAKE_BINARY_DIR}/umcub_keys.c")
 add_custom_target(pubkey DEPENDS ${CMAKE_BINARY_DIR}/umcub_keys.c)
@@ -51,8 +54,8 @@ add_custom_command(OUTPUT ${_bin_slot1} DEPENDS ${CMAKE_CURRENT_LIST_DIR}/gen_pa
   COMMAND python3 ${CMAKE_CURRENT_LIST_DIR}/gen_payload.py ${_bin_slot1} 150000 ${_reset_slot1})
 
 set_source_files_properties(${BOOTUTIL_SRCS} ${MCUBOOT}/boot/boot_serial/src/boot_serial.c
-  ${MCUBOOT}/boot/zcbor/src/zcbor_common.c ${MCUBOOT}/boot/zcbor/src/zcbor_decode.c
-  ${MCUBOOT}/boot/zcbor/src/zcbor_encode.c PROPERTIES COMPILE_OPTIONS "-w")
+  ${ZCBOR}/src/zcbor_common.c ${ZCBOR}/src/zcbor_decode.c
+  ${ZCBOR}/src/zcbor_encode.c PROPERTIES COMPILE_OPTIONS "-w")
 
 option(UMCUB_HOST_SANITIZE "Build host tests with ASan/UBSan (needs libasan/libubsan)" OFF)
 
@@ -76,9 +79,9 @@ set(HOST_SOURCES
     ${BOOTUTIL_SRCS}
     ${MCUBOOT}/boot/boot_serial/src/boot_serial.c
     ${MCUBOOT}/boot/boot_serial/src/zcbor_bulk.c
-    ${MCUBOOT}/boot/zcbor/src/zcbor_common.c
-    ${MCUBOOT}/boot/zcbor/src/zcbor_decode.c
-    ${MCUBOOT}/boot/zcbor/src/zcbor_encode.c
+    ${ZCBOR}/src/zcbor_common.c
+    ${ZCBOR}/src/zcbor_decode.c
+    ${ZCBOR}/src/zcbor_encode.c
     ${TINYCRYPT}/source/sha256.c
     ${TINYCRYPT}/source/utils.c
     ${TINYCRYPT}/source/ecc.c
@@ -100,7 +103,7 @@ function(umcub_host_setup t)
     ${MCUBOOT}/boot/boot_serial/include
     ${MCUBOOT}/boot/boot_serial/src
     ${MCUBOOT}/boot/boot_serial     # stopgap as in CMakeLists.txt: v2.5.0 "../bootutil/src/bootutil_loader.h" (direct-xip)
-    ${MCUBOOT}/boot/zcbor/include
+    ${ZCBOR}/include
     ${TINYCRYPT}/include
     ${MCUBOOT}/ext/mbedtls-asn1/include)
   target_compile_definitions(${t} PRIVATE

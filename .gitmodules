@@ -35,3 +35,6 @@
 [submodule "third_party/st/stm32g4xx_hal_driver"]
 	path = third_party/st/stm32g4xx_hal_driver
 	url = https://github.com/STMicroelectronics/stm32g4xx_hal_driver.git
+[submodule "third_party/zcbor"]
+	path = third_party/zcbor
+	url = https://github.com/nordicsemi/zcbor.git

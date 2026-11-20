@@ -8,7 +8,7 @@ their own licenses. When you ship a bootloader **binary**, include these notices
 | Component | Path | License | Used in the bootloader binary |
 |---|---|---|---|
 | MCUboot | `third_party/mcuboot` | Apache-2.0 | yes (bootutil, boot_serial) |
-| zcbor (inside MCUboot) | `third_party/mcuboot/boot/zcbor` | Apache-2.0 | yes |
+| zcbor (Nordic Semiconductor; 0.8.3, used instead of the copy inside MCUboot) | `third_party/zcbor` | Apache-2.0 | yes (SMP / serial recovery) |
 | mbed TLS ASN.1 parser (inside MCUboot) | `third_party/mcuboot/ext/mbedtls-asn1` | Apache-2.0 | yes (ECDSA key/signature parsing) |
 | TinyCrypt (Intel, inside MCUboot) | `third_party/mcuboot/ext/tinycrypt` | BSD-3-Clause | yes (SHA-256, ECDSA P-256; ECDH, HMAC with encrypted images or a SECURE link; AES-CTR with encrypted images or link encryption) |
 | tinyUSB | `third_party/tinyusb` | MIT | yes, when USB is enabled |
@@ -19,6 +19,8 @@ their own licenses. When you ship a bootloader **binary**, include these notices
 | STM32F1 HAL/LL driver (ST, LL headers only) | `third_party/st/stm32f1xx_hal_driver` | BSD-3-Clause | LL inline functions |
 | STM32F4 CMSIS device (ST) | `third_party/st/cmsis_device_f4` | Apache-2.0 | headers, startup vector table |
 | STM32F4 HAL/LL driver (ST, LL headers only) | `third_party/st/stm32f4xx_hal_driver` | BSD-3-Clause | LL inline functions |
+| STM32G4 CMSIS device (ST) | `third_party/st/cmsis_device_g4` | Apache-2.0 | headers, startup vector table |
+| STM32G4 HAL/LL driver (ST, LL headers only) | `third_party/st/stm32g4xx_hal_driver` | BSD-3-Clause | LL inline functions |
 | STM32 open pin data (ST, STM32CubeMX pin database) | `third_party/st/stm32_open_pin_data` | BSD-3-Clause | no (build-time pin check; the menus in `port/kconfig_gen/` are generated from it) |
 
 `tools/keys/dev-ecdsa-p256.pem` is a public **development** signing key: never
