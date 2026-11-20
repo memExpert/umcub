@@ -18,6 +18,7 @@ A plugin that fails to load is reported, not raised: the others still load.
 """
 import importlib.util
 import os
+import threading
 from dataclasses import dataclass
 from importlib import metadata
 from pathlib import Path
@@ -34,6 +35,8 @@ class Plugin:
 
 _loaded = {}            # source -> Plugin
 _installed_done = False
+_lock = threading.RLock()   # a second thread waits for the first load instead of seeing half of it; reentrant: a
+                            # plugin may load plugins itself
 
 
 def _register(obj, plugin):
@@ -50,9 +53,14 @@ def _register(obj, plugin):
 def load_installed():
     """Plugins of installed packages (entry points), once."""
     global _installed_done
-    if _installed_done:
-        return [p for p in _loaded.values() if p.source.startswith("package ")]
-    _installed_done = True
+    with _lock:
+        if _installed_done:
+            return [p for p in _loaded.values() if p.source.startswith("package ")]
+        _installed_done = True
+        return _load_entry_points()
+
+
+def _load_entry_points():
     found = []
     for ep in metadata.entry_points(group=ENTRY_POINT_GROUP):
         dist = ep.dist.name if ep.dist else "?"
@@ -72,6 +80,11 @@ def load_plugins(folder=None):
     """Load the installed plugins and the .py files of `folder` (default
     $UMCUB_PLUGINS, if set); a file is loaded once. Returns every Plugin
     found, with `error` set for those that failed."""
+    with _lock:
+        return _load_plugins(folder)
+
+
+def _load_plugins(folder):
     found = load_installed()
     folder = folder or os.environ.get("UMCUB_PLUGINS")
     if not folder:

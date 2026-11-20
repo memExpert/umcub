@@ -170,7 +170,8 @@ device's `rc`, `LinkError`, `Cancelled`), progress is a callback, a `threading.E
 a GUI runs them in a worker thread; a serial write that does not finish in 5 s (the device stopped reading) raises
 `serial.io`, so none blocks for good.
 
-`tap=` on `connect()`, `discover()` and `open_connection()` (or `umcub.add_tap(conn, tap)`) calls `tap(TapEvent)`
+`tap=` on `connect()`, `discover()` and `open_connection()` (or `umcub.add_tap(conn, tap)`; for a Connection the
+program opened, only `open_connection()` / `add_tap()` - `connect()` and `discover()` refuse it) calls `tap(TapEvent)`
 for every payload sent and received and every text command and its answer: time, direction, kind, bytes (link
 frames as on the wire; `umcub.link.describe_frame()` decodes them) and the connection's name, from the thread doing
 the I/O. An exception in the tap does not stop the transfer; the first one is kept in `conn.tap_error`. The tool's
@@ -219,9 +220,10 @@ SECURE session alive, and it raises when the device no longer answers.
 Several devices at once: the connections of one CAN channel share one python-can bus (drivers such as PCAN or
 Vector open a channel once), each with its node's IDs, so uploads to several CAN nodes or UDP devices can run in
 parallel threads. A serial port is one half-duplex bus (RS485: no arbitration), so its devices take turns.
-`umcub.exclusive_key(spec)` tells a program which is which: `None` when connections may run at once, else the key
-of the medium to take turns on (`"serial:/dev/ttyUSB1"`). On CAN `discover()` asks every node of `nodes` (default
-0..7, what fits the default IDs) a lite frame of no known kind (answered "not supported"), else an SMP echo, with the
+`umcub.exclusive_key(spec, node=None)` tells a program which is which: `None` when connections may run at once, else
+the key of what to take turns on (`"serial:/dev/ttyUSB1"`; on CAN `None`, with `node=` that node's key
+`"can:socketcan:can0:5"` - one ISO-TP transfer per node at a time). On CAN `discover()` asks every node of `nodes`
+(default 0..7, what fits the default IDs) a lite frame of no known kind (answered "not supported"), else an SMP echo, with the
 channel kept open for all probes (`umcub.connection.can_bus()`); it returns `{"addr": node, "protocol": "smp" |
 "lite"}` per node that answered.
 

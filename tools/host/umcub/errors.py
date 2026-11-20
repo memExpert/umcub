@@ -53,6 +53,7 @@ MESSAGES = {
     "lite.end_refused": "end refused (not a valid image for this device?): {reason}",
     "lite.end_unconfirmed": "the answer to the end frame was lost and its repeat was refused: the upload may have "
                             "ended; check the slot (umcub verify)",
+    "tap.open_connection": "a tap for a connection the program opened: give it to open_connection() or add_tap()",
     # umcub serve (proxy)
     "serve.secure_remote": ("serve: {host} is not a loopback address - a SECURE session would be open to anyone "
                             "who reaches the port (use 127.0.0.1, or the pseudo terminal)"),

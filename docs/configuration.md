@@ -125,7 +125,8 @@ cmake --build build/bp --target savedefconfig    # build/bp/defconfig: only what
 - Values: bools `=y` / `# UMCUB_CFG_<NAME> is not set`; choices by their member (`UMCUB_CFG_UPGRADE_MODE_SWAP_OFFSET=y`);
   IPv4 addresses as `"192.168.1.50"`; pins of board options (`boards/<b>/Kconfig`) as strings, `"PA4"` or `"PA5:5"`
   with the alternate function.
-- Signing: `umcub image sign --board blackpill_f411ce [--conf <fragment>]...`, or `--board build/<x>/umcub_kconfig`.
+- Signing: `umcub image sign --board blackpill_f411ce [--conf <fragment>]...`, or `--board build/<x>/umcub_kconfig`
+  (a build tree's configuration is fixed: `--conf` or another `--core` with it are refused).
 - Linker fragments: next to `umcub_config.h` the build tree has `umcub_app_img<n>_slot<m>.ld`, the MEMORY block of
   every slot (`umcub image ld` writes the same without a build tree). Applications built with `umcub_app_linker_script()`
   include it with the family's `port/<fam>/ld/app_<core>_sections.ld`; others `INCLUDE` it in their own script

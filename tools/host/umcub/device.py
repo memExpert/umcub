@@ -92,6 +92,8 @@ def connect(spec, node=None, uid=None, admin_key=None, device_key=None, timeout=
     the program opened (open_connection): the device then uses it and close()
     leaves it open, so several link nodes share one port (one at a time)."""
     owns = not isinstance(spec, Connection)
+    if tap is not None and not owns:
+        raise UmcubError(code="tap.open_connection")    # it would wrap the program's port for good: add_tap() once
     conn = open_connection(spec, node=node or 0, tap=tap) if owns else spec
     try:
         if conn.selects_node and uid is not None:
@@ -120,6 +122,8 @@ def discover(spec, rounds=8, slots=16, slot_ms=20, timeout=3.0, tap=None, nodes=
     (answered "not supported", nothing changes), else an SMP echo (Device.ping); the ones that answer as
     {"addr": node, "protocol": "smp" | "lite"}, by node."""
     if isinstance(spec, Connection):         # a port the program keeps open
+        if tap is not None:
+            raise UmcubError(code="tap.open_connection")
         return Link(spec, timeout=timeout).discover(rounds, slots, slot_ms)
     if _parse(spec)[0].scheme != "can":
         with open_connection(spec, tap=tap) as conn:

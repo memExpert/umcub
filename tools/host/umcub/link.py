@@ -341,7 +341,8 @@ class Link:
         (nothing new, nothing garbled) or after `rounds` rounds."""
         found = {}
         for _ in range(rounds):
-            known = b"".join(bytes.fromhex(u) for u in list(found)[:80])
+            # as many UIDs as fit the device's largest packet (3 bytes of slots and slot time before them)
+            known = b"".join(bytes.fromhex(u) for u in list(found)[:max(0, (self.conn.mtu - 3) // 12)])
             noise = self.conn.noise
             self.send(T_DISCOVER, struct.pack("<BH", slots, slot_ms) + known, dst=BROADCAST)
             end = time.monotonic() + slots * slot_ms / 1000.0 + 0.3

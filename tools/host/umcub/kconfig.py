@@ -18,6 +18,7 @@ import hashlib
 import json
 import os
 import re
+import secrets
 from pathlib import Path
 
 from . import layout
@@ -153,7 +154,7 @@ def _check_applied(kconf, inputs):
 
 
 def _stamp(bdir, core, inputs):
-    h = hashlib.sha256(f"{bdir}|{core}".encode())
+    h = hashlib.sha256(f"{bdir}|{core or ''}".encode())     # None (a library caller) is the same as ""
     for f in inputs:
         h.update(str(f).encode() + b"\0" + Path(f).read_bytes())
     return h.hexdigest()
@@ -361,7 +362,7 @@ def _keygen(path):
     path.parent.mkdir(parents=True, exist_ok=True)
     pem = ec.generate_private_key(ec.SECP256R1()).private_bytes(
         serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption())
-    tmp = path.with_name(f".{path.name}.{os.getpid()}")
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.{secrets.token_hex(4)}")     # unique per thread too
     fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     with os.fdopen(fd, "wb") as f:
         f.write(pem)
@@ -369,6 +370,17 @@ def _keygen(path):
         os.link(tmp, path)              # fails when the key exists: never replaced
     except FileExistsError:
         return False
+    except OSError:                     # no hard links here (FAT, some SMB / FUSE mounts): create it exclusively
+        try:
+            fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        except FileExistsError:
+            return False
+        try:
+            with os.fdopen(fd, "wb") as f:
+                f.write(pem)
+        except BaseException:
+            path.unlink()               # a cut-short key would count as "exists" and stay
+            raise
     finally:
         tmp.unlink()
     return True

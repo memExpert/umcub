@@ -762,6 +762,31 @@ def announce(src, mode=1, uid=b"\x11" * 12, closed=False, short=False):
     return link.make_frame(link.T_ANNOUNCE, 0, link.HOST_ADDR, 1, p[:20] if short else p, src=src)
 
 
+# --- host library 0.5.3 ---------------------------------------------------------------------------------------------
+# DISCOVER lists the UIDs found so far: no more than fit the device's largest packet (MTU 512: 42 UIDs).
+class SentConn(BusConn):
+    mtu = 512
+
+    def __init__(self, *frames):
+        super().__init__(*frames)
+        self.sent = []
+
+    def send(self, kind, f):
+        self.sent.append(f)
+
+
+many = [announce(100 + i, uid=bytes([i]) * 12) for i in range(60)]
+sc = SentConn(*many)
+link.Link(sc).discover(rounds=2, slots=1, slot_ms=1)
+expect("discover: the known UIDs fit the MTU", max(len(f) - link.HDR for f in sc.sent) <= 512, str([len(f) for f in sc.sent]))
+# Two operations on the same CAN node must take turns; other nodes of the channel run in parallel.
+k = umcub.connection.exclusive_key("can:virtual:x", node=5)
+expect("exclusive_key: a CAN node", k == "can:virtual:x:5", str(k))
+expect("exclusive_key: CAN without a node: parallel", umcub.connection.exclusive_key("can:virtual:x") is None)
+# A tap for a connection the program opened itself is not silently dropped.
+with umcub.open_connection("loop:t") as oc:
+    expect("connect(Connection, tap=...): refused",
+           code_of(lambda: umcub.connect(oc, tap=lambda e: None)) == "tap.open_connection")
 # Generated C files with a private key are readable by the owner only (umcub keys c / host-c).
 with tempfile.TemporaryDirectory() as kd:
     out = Path(kd) / "keys.c"

@@ -18,7 +18,6 @@ payload per datagram / ISO-TP message and do not tell the kinds apart.
 import base64
 import collections
 import errno
-import importlib
 import ipaddress
 import re
 import select
@@ -202,9 +201,14 @@ _buses_lock = threading.Lock()
 
 
 def _import_can(module, interface, channel):
-    """python-can or isotp; not installed: UmcubError (can.open)."""
+    """python-can or isotp; not installed: UmcubError (can.open). Plain import statements: packagers (PyInstaller)
+    see them, which they do not for imports by name."""
     try:
-        return importlib.import_module(module)
+        if module == "isotp":
+            import isotp
+            return isotp
+        import can
+        return can
     except ImportError as e:
         raise UmcubError(code="can.open", interface=interface, channel=channel, reason=str(e)) from e
 
@@ -480,11 +484,15 @@ def _parse(spec):
     return known[scheme], target, parts
 
 
-def exclusive_key(spec):
-    """None when connections to `spec` may work at the same time (CAN: shared bus, UDP: one socket each); else the
-    key of the medium they must take turns on ("serial:/dev/ttyUSB1": a half-duplex bus, one port)."""
+def exclusive_key(spec, node=None):
+    """None when connections to `spec` may work at the same time (UDP: one socket each; CAN when no node is given:
+    every connection has its own node's IDs); else the key of what they must take turns on ("serial:/dev/ttyUSB1":
+    a half-duplex bus, one port; with `node` on CAN "can:socketcan:can0:5": that node's IDs carry one ISO-TP
+    transfer at a time)."""
     t, target, _ = _parse(spec)
-    return None if t.parallel else f"{t.scheme}:{target}"
+    if t.parallel:
+        return f"{t.scheme}:{target}:{node}" if t.scheme == "can" and node is not None else None
+    return f"{t.scheme}:{target}"
 
 
 @contextmanager

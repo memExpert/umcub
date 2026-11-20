@@ -24,13 +24,18 @@ class Config:
         self._tmp = None
         self.notes = []                 # for the user (new keys)
         self.config_dir = Path(board) if board else None
-        if not board or not (self.config_dir / kconfig.JSON).is_file():
+        tree = bool(board) and (self.config_dir / kconfig.JSON).is_file()
+        if tree and conf:
+            die(f"{board}: a build tree's configuration is fixed - no --conf fragments with it")
+        if not tree:
             if board and not kconfig.board_dir(board):
                 die(f"{board}: no defconfig (board name under boards/ or a directory)")
             self._tmp = tempfile.TemporaryDirectory()
             self.notes = kconfig.generate(board, core, conf, self._tmp.name)
             self.config_dir = Path(self._tmp.name)
         data = json.loads((self.config_dir / kconfig.JSON).read_text(encoding="utf-8"))
+        if tree and core and data.get("core") and core != data["core"]:
+            die(f"{board}: the build tree is for the {data['core']}, not the {core}")
         self.board_name = data["board"]
         self.board_dir = Path(data["board_dir"]) if data["board_dir"] else None
         self.v = data["values"]

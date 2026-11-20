@@ -101,5 +101,37 @@ with tempfile.TemporaryDirectory() as tmp:
     frag.write_text("# four\n")
     expect("after that: no warning", edited(kconfig.generate(BOARD, "", [frag], out)), False)
 
+# host library 0.5.3: a build tree's configuration is fixed - another core or fragments are an error, not ignored.
+def refused(fn, words):
+    """die() with `words` in its message."""
+    try:
+        fn()
+    except Exception as e:   # noqa: BLE001  (die() raises UmcubError)
+        return words in str(e)
+    return False
+
+
+with tempfile.TemporaryDirectory() as kd:
+    kconfig.generate("nucleo_h755zi_q", "cm7", (), kd)
+    expect("Config(build tree, another core): refused", refused(lambda: Config(kd, "cm4"), "not the cm4"), True)
+    expect("Config(build tree, fragments): refused", refused(lambda: Config(kd, "cm7", ["x.conf"]), "no --conf"), True)
+    expect("Config(build tree, its own core)", Config(kd, "cm7").board_name, "nucleo_h755zi_q")
+# A key file on a file system without hard links (FAT, some SMB mounts) is still created, never replaced.
+with tempfile.TemporaryDirectory() as kd:
+    real_link = os.link
+
+    def no_link(*_):
+        raise PermissionError(1, "Operation not permitted")
+    os.link = no_link
+    try:
+        made = kconfig._keygen(Path(kd) / "k.pem")
+        again = kconfig._keygen(Path(kd) / "k.pem")
+    finally:
+        os.link = real_link
+    expect("keygen without hard links: made once, kept", (made, again), (True, False))
+    expect("keygen: no temporary file left", sorted(p.name for p in Path(kd).iterdir()), ["k.pem"])
+# None and "" are the same core for the stamp of a build tree (a library caller passes None).
+expect("stamp: core None and \"\"", kconfig._stamp("b", None, []), kconfig._stamp("b", "", []))
+
 print(f"kconfig: {'FAILED' if bad else 'all cases passed'}")
 sys.exit(1 if bad else 0)
