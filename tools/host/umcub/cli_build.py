@@ -142,5 +142,6 @@ def run(a):
     if a.sub == "pub":
         print(keys.raw_pub(keys.load(a.key)).hex())
     else:
-        keys.write_if_changed(a.output, (keys.device_c if a.sub == "c" else keys.host_c)(a.device, a.admin))
+        keys.write_if_changed(a.output, (keys.device_c if a.sub == "c" else keys.host_c)(a.device, a.admin),
+                              private=True)
     return 0

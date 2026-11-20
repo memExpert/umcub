@@ -47,6 +47,7 @@ function(umcub_generate_enc_key device out)
   add_custom_command(OUTPUT "${out}"
     COMMAND "${UMCUB_IMGTOOL}" getpriv -k "${device}" > "${_raw}"
     COMMAND ${CMAKE_COMMAND} -DMODE=enc -DRAW=${_raw} -DOUT=${out} -P "${UMCUB_ROOT}/cmake/umcub_keys_wrap.cmake"
+    COMMAND ${CMAKE_COMMAND} -E rm -f "${_raw}"
     DEPENDS "${device}" "${UMCUB_ROOT}/cmake/umcub_keys_wrap.cmake"
     COMMENT "umcub device key (encrypted images)"
     VERBATIM)

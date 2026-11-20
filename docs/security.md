@@ -51,7 +51,9 @@ Protect the device key like the SECURE link: RDP on, see [umcub link](link.md#li
 Builds use it only when the configuration asks for it (`UMCUB_CFG_SIGNING_KEY_DEV`): by default the first configure
 generates a key in `keys/<board>/`, or takes your own file, see [Kconfig](configuration.md#kconfig). Also write-protect the bootloader sector (WRP) and enable RDP.
 For transports on a shared bus see the SECURE mode of the [umcub link](link.md)
-and its own keys.
+and its own keys. With encrypted images or a SECURE link the bootloader embeds the device private key: the generated
+`umcub_enc_key.c` / `umcub_link_keys.c` are written readable by their owner only, and the bootloader ELF / HEX / BIN of
+such a build are secrets like the key file itself (do not publish build trees or attach them to tickets).
 
 On a PLAIN or ADDRESSED transport the SMP parser sees requests before any authentication. umcub builds MCUboot's
 serial recovery with zcbor 0.8.3 (`third_party/zcbor`, not the 0.8.1 copy inside MCUboot): it skips unknown values

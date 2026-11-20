@@ -27,6 +27,8 @@ MESSAGES = {
     "transport.type": "transport '{scheme}' returned {type}, not a umcub Connection",
     # umcub link
     "link.uid_not_addressed": "{name}: the node is selected by its address, not by UID",
+    "link.keys_unused": ("{name}: keys given, but no SECURE umcub link session here (a CAN node is selected by its IDs; "
+                         "on serial / UDP give --node or --uid)"),
     "link.select": "select the device by node address or UID",
     "link.no_hello": "no answer to HELLO (wrong node, not in recovery, or not a link transport)",
     "link.closed": "device refuses SECURE sessions (readout protection off, UMCUB_CFG_LINK_REQUIRE_RDP)",
@@ -51,6 +53,9 @@ MESSAGES = {
     "lite.end_refused": "end refused (not a valid image for this device?): {reason}",
     "lite.end_unconfirmed": "the answer to the end frame was lost and its repeat was refused: the upload may have "
                             "ended; check the slot (umcub verify)",
+    # umcub serve (proxy)
+    "serve.secure_remote": ("serve: {host} is not a loopback address - a SECURE session would be open to anyone "
+                            "who reaches the port (use 127.0.0.1, or the pseudo terminal)"),
     # cancel
     "cancelled.upload": "upload cancelled",
     "cancelled.read": "read cancelled",

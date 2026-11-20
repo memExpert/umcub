@@ -89,6 +89,10 @@ Larger changes:
   (host scans HELLO + AUTH per address, ~1.5 s per device on the F1), and a UID list for unassigned nodes. A signed
   DISCOVER instead would be replayable (no clock on the device) and costs an ECDSA verify per frame. Protocol change,
   size to be measured.
+- [ ] **umcub-gui with host library 0.5.3**: connect() refuses keys where no SECURE session can be used
+  (`link.keys_unused`), so the GUI must pass its admin / device keys only for link rows with a node or UID (not for CAN
+  rows, nor serial / UDP rows without a node), and translate the new codes (`link.keys_unused`,
+  `serve.secure_remote`) when it moves its pin.
 - [ ] Admin key with a passphrase or loaded from memory (OS key store): `load_key()` reads an unencrypted PEM by path.
   Needed once the GUI goes to operators with local key files.
 

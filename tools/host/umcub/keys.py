@@ -8,6 +8,7 @@
 The device key for encrypted images comes from `imgtool getpriv`, see
 umcub_generate_enc_key() in cmake/umcub_imgtool.cmake.
 """
+import os
 from pathlib import Path
 
 from .errors import UmcubError
@@ -53,10 +54,18 @@ def c_array(name, data):
     return f"const uint8_t {name}[{len(data)}] = {{\n    " + ",\n    ".join(rows) + ",\n};\n"
 
 
-def write_if_changed(path, text):
+def write_if_changed(path, text, private=False):
+    """`private`: the text holds a private key - the file is readable by its owner only (0600)."""
     out = Path(path)
+    if private and out.exists():
+        out.chmod(0o600)
     if not out.exists() or out.read_text(encoding="utf-8") != text:
-        out.write_text(text, encoding="utf-8")
+        if private:
+            fd = os.open(out, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                f.write(text)
+        else:
+            out.write_text(text, encoding="utf-8")
 
 
 def device_c(device, admin):

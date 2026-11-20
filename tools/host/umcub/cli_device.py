@@ -1,4 +1,5 @@
 """Device commands of the umcub tool (see umcub.cli)."""
+import ipaddress
 import os
 import select
 import socket
@@ -168,6 +169,14 @@ def cmd_serve(dev, a):
 
     if a.udp_listen:
         host, port = a.udp_listen.rsplit(":", 1)
+        secure = dev.identity and LINK_NAMES.get(dev.identity["link"]) == "secure"
+        try:
+            loopback = ipaddress.ip_address(socket.gethostbyname(host)).is_loopback
+        except OSError as e:
+            raise UmcubError(code="udp.io", target=a.udp_listen, reason=str(e)) from e
+        if secure and not loopback:
+            # every datagram is forwarded into the authenticated session: whoever reaches the port gets it
+            raise UmcubError(code="serve.secure_remote", host=host)
         srv = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         srv.bind((host, int(port)))
         print(f"SMP over UDP: mcumgr --conntype udp --connstring={host}:{port}", flush=True)

@@ -395,6 +395,11 @@ except umcub.LinkError as e:
         if p.returncode:
             print(p.stdout[-500:], p.stderr[-1500:])
 
+        p = subprocess.run([py, "-m", "umcub"] + port + ["--node", "1"] + sec + ["serve", "--udp-listen", "0.0.0.0:0"],
+                           capture_output=True, text=True, timeout=60, env=ENV)
+        check(p.returncode != 0 and "loopback" in p.stdout + p.stderr,
+              "umcub serve: a SECURE session is not offered on a network port")
+
         print("[e2e] smpmgr through `umcub serve` (SECURE, encrypted), umcub upload through the link", flush=True)
         with tempfile.TemporaryDirectory() as d:
             link = os.path.join(d, "smp")

@@ -37,6 +37,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools/host"))
 import umcub  # noqa: E402
 from serial.tools import list_ports  # noqa: E402
 from serial.tools.list_ports_common import ListPortInfo  # noqa: E402
+import umcub.keys  # noqa: E402
 import umcub.smp  # noqa: E402  (flash() tests replace umcub.smp.Smp)
 from umcub import link  # noqa: E402
 from umcub.adapter import network_adapters, socketcan_adapters  # noqa: E402
@@ -125,6 +126,11 @@ with umcub.connect("loop:x") as dev:                       # no node: the connec
     dev.send(umcub.KIND_SMP, b"ping")
     expect("device round trip", dev.recv(umcub.KIND_SMP, 0.1) == b"ping" and dev.name == "loop:x")
 raises("node by IDs refuses a UID", lambda: umcub.connect("addressed:x", uid="00"), umcub.LinkError, "not by UID")
+# Keys that cannot be used are an error, never a silent unprotected session.
+expect("keys on a connection that selects the node by IDs: refused",
+       code_of(lambda: umcub.connect("addressed:x", node=3, admin_key="a", device_key="d")) == "link.keys_unused", "")
+expect("keys without a node or UID: refused",
+       code_of(lambda: umcub.connect("loop:x", admin_key="a", device_key="d")) == "link.keys_unused", "")
 with umcub.connect("addressed:x", node=3) as dev:          # node chosen when opening: no link layer
     expect("node by IDs: no link", dev.link is None)
 
@@ -755,6 +761,17 @@ def announce(src, mode=1, uid=b"\x11" * 12, closed=False, short=False):
     p = uid + struct.pack("<HIH", src, 0x46103001, 1) + bytes([mode | (link.ANNOUNCE_CLOSED if closed else 0), 1, 0, 0])
     return link.make_frame(link.T_ANNOUNCE, 0, link.HOST_ADDR, 1, p[:20] if short else p, src=src)
 
+
+# Generated C files with a private key are readable by the owner only (umcub keys c / host-c).
+with tempfile.TemporaryDirectory() as kd:
+    out = Path(kd) / "keys.c"
+    old_umask = os.umask(0o022)
+    try:
+        umcub.keys.write_if_changed(out, umcub.keys.device_c(KEYS / "dev-device-p256.pem", KEYS / "dev-admin-p256.pem"),
+                                    private=True)
+    finally:
+        os.umask(old_umask)
+    expect("a C file with a private key: mode 0600", oct(out.stat().st_mode & 0o777), "0o600")
 
 lk = link.Link(BusConn(announce(5)), addr=5, admin_key=KEYS / "dev-admin-p256.pem",
                device_key=KEYS / "dev-device-p256.pem")

@@ -36,6 +36,7 @@ Flags (`fd`, `ext`) also take a value: `=1` / `yes` / `true` / `on` sets one, `=
 `(challenge, eph_pub, nonce) -> r || s` (64 bytes; `challenge` is the whole CHALLENGE payload, the device's identity
 with its UID and board type, then the 32-byte challenge), e.g. a request to a server that keeps the admin key and
 computes the signed hash itself (`umcub.link.transcript()`); `umcub.link.key_signer(path)` is the one of a key file.
+Keys where no SECURE session can be used (a CAN node, serial / UDP without a node or UID) raise `link.keys_unused`.
 
 `--names boards.json` shows the user's names of board types (`UMCUB_CFG_BOARD_TYPE`) next to the hex id: in
 `discover`, `info`, `sniff` and when an image is for another board. The file is a JSON object of ids and names,

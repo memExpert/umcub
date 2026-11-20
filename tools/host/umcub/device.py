@@ -94,11 +94,12 @@ def connect(spec, node=None, uid=None, admin_key=None, device_key=None, timeout=
     owns = not isinstance(spec, Connection)
     conn = open_connection(spec, node=node or 0, tap=tap) if owns else spec
     try:
-        if conn.selects_node:
-            if uid is not None:
-                raise LinkError(code="link.uid_not_addressed", name=conn.name)
-            return Device(conn, timeout=timeout, owns_conn=owns)
-        if node is None and uid is None:
+        if conn.selects_node and uid is not None:
+            raise LinkError(code="link.uid_not_addressed", name=conn.name)
+        if conn.selects_node or (node is None and uid is None):     # no umcub link session
+            if admin_key or device_key:
+                # keys no SECURE session would use: an error, never a silent unprotected device
+                raise LinkError(code="link.keys_unused", name=conn.name)
             return Device(conn, timeout=timeout, owns_conn=owns)
         link = Link(conn, node, uid, admin_key, device_key, timeout)
         link.hello()

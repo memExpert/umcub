@@ -92,6 +92,11 @@ umcub -d /dev/ttyUSB1 sniff                                   # listen only: eve
 
 SECURE transports need `--admin-key` (private) and `--device-key` (the public half is enough). With the keys given
 the tool accepts only a SECURE session: a device that answers HELLO without a challenge (another link mode, or a
-forged answer on the bus) is refused (`link.not_secure`), so a session cannot be downgraded. Your own host
-software can do the same: the frames and the handshake are in `umcub_link.h`, `tools/host/umcub/link.py` is a complete
-reference (Python `cryptography`).
+forged answer on the bus) is refused (`link.not_secure`), so a session cannot be downgraded. Keys where no SECURE
+session can be used (a CAN node selected by its IDs, serial / UDP without `--node` or `--uid`) are an error too
+(`link.keys_unused`). `serve` hands the authenticated session to every client of its pseudo terminal or UDP port: with
+a SECURE session it listens on loopback addresses only (`serve.secure_remote`); other local processes of the PC can
+still use it while it runs.
+
+Your own host software can do the same: the frames and the handshake are in `umcub_link.h`, `tools/host/umcub/link.py`
+is a complete reference (Python `cryptography`).
