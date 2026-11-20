@@ -133,5 +133,21 @@ with tempfile.TemporaryDirectory() as kd:
 # None and "" are the same core for the stamp of a build tree (a library caller passes None).
 expect("stamp: core None and \"\"", kconfig._stamp("b", None, []), kconfig._stamp("b", "", []))
 
+# DUALCORE_PER_CORE: two build trees; given the other one (--other-core-tree, CMake UMCUB_OTHER_CORE_TREE) the
+# configure checks both layouts together. Without it, or before the other tree is configured: a note.
+per_core = ROOT / "boards/nucleo_h755zi_q/variants/per_core.conf"
+with tempfile.TemporaryDirectory() as kd:
+    kd = Path(kd)
+    kconfig.generate("nucleo_h755zi_q", "cm4", [per_core], kd / "cm4/umcub_kconfig")
+    frag = kd / "cm7_on_cm4_boot.conf"
+    frag.write_text("UMCUB_CFG_IMG0_SECONDARY_ADDR=0x08100000\n")
+    expect("per core: a CM7 slot on the CM4 bootloader stops the configure",
+           refused(lambda: kconfig.generate("nucleo_h755zi_q", "cm7", [per_core, frag], kd / "bad",
+                                            other_core_tree=kd / "cm4"), "CM4 bootloader"), True)
+    notes = kconfig.generate("nucleo_h755zi_q", "cm7", [per_core], kd / "ok", other_core_tree=kd / "cm4")
+    expect("per core: apart, checked", any("checked against" in n for n in notes), True)
+    notes = kconfig.generate("nucleo_h755zi_q", "cm7", [per_core], kd / "alone")
+    expect("per core without the other tree: a note", any("UMCUB_OTHER_CORE_TREE" in n for n in notes), True)
+
 print(f"kconfig: {'FAILED' if bad else 'all cases passed'}")
 sys.exit(1 if bad else 0)

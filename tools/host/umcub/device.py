@@ -161,8 +161,8 @@ def _probe_can(spec, node, tap):
                 link.hello()
             except UmcubError:
                 pass                            # a SECURE node: link.keys_needed, its identity known
-            if link.ident:
-                return {"protocol": "link", **link.ident}
+            if link.seen:
+                return {"protocol": "link", **link.seen}
         return "smp" if _ping(dev, "smp") else None
 
 

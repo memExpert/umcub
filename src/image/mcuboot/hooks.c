@@ -68,12 +68,6 @@ int umcub_image_board_type(const struct flash_area *fa, uint32_t hdr_off, uint32
 static bool vector_ok(int img_index, int slot, const struct flash_area *fa, uint32_t hdr_off,
                       const struct image_header *hdr)
 {
-    uint32_t vt[2];
-    if (MUST_DECRYPT(fa, img_index, hdr) ||
-        flash_area_read(fa, hdr_off + hdr->ih_hdr_size, vt, sizeof(vt)) != 0) {
-        return true;
-    }
-    const uint32_t sp = vt[0], reset = vt[1];
     const struct flash_area *run = fa;
 #if !defined(MCUBOOT_DIRECT_XIP)
     if (slot != 0 && umcub_slot_area(img_index, 0, &run) != 0) {
@@ -81,14 +75,21 @@ static bool vector_ok(int img_index, int slot, const struct flash_area *fa, uint
     }
 #endif
     uint32_t start = flash_area_get_off(run) + hdr->ih_hdr_size;
-    bool ok = (reset & 1u) && (reset & ~1u) - start < hdr->ih_img_size && start % UMCUB_FAMILY_VTOR_ALIGN == 0 &&
-              (sp & 3u) == 0 && sp - 0x10000001u < 0x30000000u;
     if (run != fa) {
         flash_area_close(run);
     }
+    /* The alignment comes from the plain header: also for an encrypted update, before it is installed. */
+    uint32_t vt[2] = { 0, 0 };
+    bool ok = start % UMCUB_FAMILY_VTOR_ALIGN == 0;
+    if (ok && !MUST_DECRYPT(fa, img_index, hdr) &&
+        flash_area_read(fa, hdr_off + hdr->ih_hdr_size, vt, sizeof(vt)) == 0) {
+        const uint32_t sp = vt[0], reset = vt[1];
+        ok = (reset & 1u) && (reset & ~1u) - start < hdr->ih_img_size && (sp & 3u) == 0 &&
+             sp - 0x10000001u < 0x30000000u;
+    }
     if (!ok) {
-        UMCUB_LOG_ERR("image %d slot %d: vector table SP 0x%08lx reset 0x%08lx not for this slot", img_index, slot,
-                      (unsigned long)sp, (unsigned long)reset);
+        UMCUB_LOG_ERR("image %d slot %d: vector table at 0x%08lx SP 0x%08lx reset 0x%08lx not for this slot",
+                      img_index, slot, (unsigned long)start, (unsigned long)vt[0], (unsigned long)vt[1]);
     }
     return ok;
 }

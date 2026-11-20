@@ -752,6 +752,39 @@ static void test_vector_slot(const uint8_t *wrong, size_t len, const uint8_t *go
 }
 #endif
 
+/* An encrypted update in the secondary slot: its vectors are only checked once it is plain in the primary slot,
+ * but the plain header already tells whether the table lands on the VTOR alignment - refused before an overwrite
+ * replaces the running image with it. */
+__attribute__((unused)) static void test_vector_align_encrypted(const uint8_t *enc, size_t len)
+{
+#if !UMCUB_CFG_ENCRYPT_IMAGES || !UMCUB_CFG_IMAGE_VECTOR_CHECK
+    (void)enc;
+    (void)len;
+#else
+    printf("[vector check] encrypted update off the VTOR alignment refused in the secondary slot\n");
+    write_secondary(enc, len);
+    const struct flash_area *fa;
+    CHECK(flash_area_open(FLASH_AREA_IMAGE_SECONDARY(0), &fa) == 0);
+    struct image_header h;
+    uint32_t hoff = 0;
+    for (uint32_t o = 0; o <= UMCUB_CFG_FAMILY_MIN_SECTOR; o += UMCUB_CFG_FAMILY_MIN_SECTOR) {
+        if (flash_area_read(fa, o, &h, sizeof(h)) == 0 && h.ih_magic == IMAGE_MAGIC) {
+            hoff = o;
+            break;
+        }
+    }
+    CHECK(umcub_image_check(0, 1, fa));
+    struct image_header *hh = (struct image_header *)&fake_flash[UMCUB_CFG_IMG0_SECONDARY_ADDR - 0x08000000 + hoff];
+    hh->ih_hdr_size += 8u;
+    hh->ih_img_size -= 8u;
+    CHECK(!umcub_image_check(0, 1, fa));
+    hh->ih_hdr_size -= 8u;
+    hh->ih_img_size += 8u;
+    CHECK(umcub_image_check(0, 1, fa));
+    flash_area_close(fa);
+#endif
+}
+
 static void test_streams_interleaved(const uint8_t *img, size_t len)
 {
     printf("[stream transports] interleaved NLIP: upload on s0, echo on s1, list on s0\n");
@@ -1491,6 +1524,7 @@ int main(int argc, char **argv)
     uint8_t *bad = load(argv[argc - 1], &bad_len);
     test_board_type(foreign, foreign_len, bad, bad_len);
     test_vector_slot(wrong, wrong_len, v2, v2_len);
+    test_vector_align_encrypted(v2, v2_len);
 #endif
     test_inspect(v2_flash, v2_len);
     test_streams_interleaved(v1, v1_len);

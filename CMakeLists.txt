@@ -28,6 +28,7 @@ set(CMAKE_C_EXTENSIONS ON)
 set(UMCUB_BOARD "" CACHE STRING "Board directory name under boards/ or a path; empty: none (Kconfig defaults, menuconfig)")
 set(UMCUB_CORE "" CACHE STRING "Core to build for on dual-core parts (cm7|cm4)")
 set(UMCUB_CONF "" CACHE STRING "Configuration fragments (;-list), applied after the board's defconfig")
+set(UMCUB_OTHER_CORE_TREE "" CACHE PATH "One bootloader per core: the other core's build tree (layouts checked together)")
 set(UMCUB_IMGTOOL "" CACHE FILEPATH "imgtool executable (default: .venv/bin/imgtool or PATH)")
 
 include(cmake/umcub_config.cmake)

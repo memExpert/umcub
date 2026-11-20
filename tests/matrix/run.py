@@ -84,9 +84,12 @@ def t_config(out, line):
         board = ""
     elif "/" in board:
         board = str(ROOT / board)
-    # always given, also empty: a reused build tree keeps its cache
+    # always given, also empty: a reused build tree keeps its cache; a bootloader per core is checked against the
+    # matrix's tree of the other core
+    other = {"per-core-cm7": "per-core-cm4", "per-core-cm4": "per-core-cm7"}.get(name)
     args = [f"-DCMAKE_BUILD_TYPE={btype}", f"-DUMCUB_BOARD={board}", f"-DUMCUB_CORE={core}",
-            "-DUMCUB_CONF=" + ";".join(overlay(f) for f in conf.split(",") if f)]
+            "-DUMCUB_CONF=" + ";".join(overlay(f) for f in conf.split(",") if f),
+            f"-DUMCUB_OTHER_CORE_TREE={out / other if other else ''}"]
     d = build(out, name, args)
     size_summary(f"{d}.build.log")
     if name == "custom-drivers" and re.search(r"fdcan\.c|/eth\.c", (d / "build.ninja").read_text()):
@@ -97,7 +100,10 @@ def t_config(out, line):
 def t_preset(out, preset):
     d = out / f"preset-{preset}"
     (d / "umcub_kconfig/.config").unlink(missing_ok=True)       # as in build()
-    run(["cmake", "--preset", preset, "-B", d], f"{d}.configure.log")
+    other = {"h755-per-core-cm7": "h755-per-core-cm4", "h755-per-core-cm4": "h755-per-core-cm7"}.get(preset)
+    # the preset's UMCUB_OTHER_CORE_TREE names the developer's build/ tree: the matrix's own instead
+    run(["cmake", "--preset", preset, "-B", d] + ([f"-DUMCUB_OTHER_CORE_TREE={out / f'preset-{other}'}"] if other else []),
+        f"{d}.configure.log")
     run(["cmake", "--build", d], f"{d}.build.log")
     no_warnings(f"{d}.build.log")
     elfs = sorted(d.glob("*.elf")) + sorted(d.glob("examples/*/*.elf"))

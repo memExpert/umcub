@@ -71,6 +71,12 @@ for what, change, images, word in (
     why = layout.overlap(dict(h7, **change), images) or ""
     expect(f"overlap: {what}", "overlap" in why and word in why, True)
 expect("overlap: image 1 not built", layout.overlap(dict(h7, IMG1_SECONDARY_ADDR=0x08000000), 1), None)
+# One bootloader per core: the regions of both trees together.
+cm4 = {"BOOT_ADDR": 0x08100000, "BOOT_SIZE": 0x20000, "IMG0_PRIMARY_ADDR": 0x08120000, "IMG0_PRIMARY_SIZE": 0x60000,
+       "IMG0_SECONDARY_ADDR": 0x08180000, "IMG0_SECONDARY_SIZE": 0x60000}
+expect("cores: apart", layout.overlap_cores(h7, 1, cm4, 1, ("CM7", "CM4")), None)
+why = layout.overlap_cores(dict(h7, IMG0_SECONDARY_ADDR=0x08100000), 1, cm4, 1, ("CM7", "CM4")) or ""
+expect("cores: a CM7 slot on the CM4 bootloader", "CM7 image 0 secondary slot" in why and "CM4 bootloader" in why, True)
 expect("sector map", layout.sector_map("STM32F4", 512), "4 x 16 KiB, 64 KiB, 3 x 128 KiB")
 expect("region: F1 pages", layout.smallest_region("STM32F1", 64, 0x08000000, 28620), 28 * KB)
 expect("region: exactly a page", layout.smallest_region("STM32F1", 64, 0x08000000, 28 * KB), 28 * KB)

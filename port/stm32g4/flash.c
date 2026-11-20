@@ -103,12 +103,14 @@ static void start_op(void)
     CLEAR_BIT(FLASH->CR, FLASH_CR_PG | FLASH_CR_PER | FLASH_CR_BKER);
 }
 
-/* After a timeout BSY may still be set: FLASH_CR stays untouched (locked again by the next operation). */
+/* After a timeout BSY may still be set: FLASH_CR stays untouched (locked again by the next operation) and the
+ * data cache stays off (ES0430 2.2.2: not on while a bank may still be written; off until the next reset). */
 static void end_op(int rc, uint32_t dcache)
 {
-    if (rc != UMCUB_ETIMEOUT) {
-        lock();
+    if (rc == UMCUB_ETIMEOUT) {
+        return;
     }
+    lock();
     dcache_restore(dcache);
 }
 
@@ -147,13 +149,16 @@ static volatile uint8_t ecc_read;           /* 1: a read runs, 2: it met a doubl
 /* All four flags: one left set - a corrected single error (ECCC) too - keeps the next error, a double one as
  * well, from being flagged and from raising the NMI (RM0440 3.3.2 / FLASH_ECCR: set "only if ECCC/ECCC2/ECCD/
  * ECCD2 are previously cleared"). rc_w1; ECCCIE (CMSIS: ECCIE) stays as it is. ECCC2 / ECCD2 (the upper 64 bits)
- * exist in single-bank mode only, reserved with DBANK = 1. */
-#define ECC_FLAGS           (FLASH_ECCR_ECCC | FLASH_ECCR_ECCD | \
-                             (UMCUB_CFG_FLASH_DUAL_BANK ? 0u : FLASH_ECCR_ECCC2 | FLASH_ECCR_ECCD2))
+ * exist in single-bank mode only, reserved with DBANK = 1 - the bank mode of the part, not of the build. */
+static bool single_bank(void)
+{
+    return !(FLASH->OPTR & FLASH_OPTR_DBANK);
+}
 
 static void ecc_clear(void)
 {
-    FLASH->ECCR = (FLASH->ECCR & FLASH_ECCR_ECCIE) | ECC_FLAGS;
+    FLASH->ECCR = (FLASH->ECCR & FLASH_ECCR_ECCIE) | FLASH_ECCR_ECCC | FLASH_ECCR_ECCD |
+                  (single_bank() ? FLASH_ECCR_ECCC2 | FLASH_ECCR_ECCD2 : 0u);
 }
 
 void NMI_Handler(void)
@@ -172,10 +177,27 @@ int umcub_flash_read(uint32_t addr, void *dst, size_t len)
     if (!in_flash(addr, len)) {
         return UMCUB_EINVAL;
     }
+    /* One ECC word (64 bits; 128 in single-bank mode) at a time: a corrected error is cleared before the next word,
+     * so a double error further on is still flagged and raises the NMI. The data cache is off meanwhile: a line
+     * fill would check the words ahead before they are copied (RM0440 3.3.7: one read, one word in the buffer). */
+    const uint32_t word = single_bank() ? 16u : 8u;
+    uint8_t *d = dst;
+    uint32_t dcache = dcache_off();
     ecc_clear();
     ecc_read = 1;
-    memcpy(dst, (const void *)addr, len);
-    __DSB();
+    while (len) {
+        size_t n = word - (addr % word);
+        n = n < len ? n : len;
+        memcpy(d, (const void *)addr, n);
+        __DSB();
+        if (FLASH->ECCR & (FLASH_ECCR_ECCC | FLASH_ECCR_ECCC2)) {
+            ecc_clear();
+        }
+        addr += n;
+        d += n;
+        len -= n;
+    }
+    dcache_restore(dcache);
     int rc = ecc_read == 2 ? UMCUB_EIO : UMCUB_OK;
     ecc_read = 0;
     return rc;

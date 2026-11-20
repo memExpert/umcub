@@ -216,7 +216,8 @@ class Link:
         self.timeout = timeout
         self.seq = int(time.time()) & 0x3FFFFFFF        # monotonic across restarts of the tool
         self.session = None
-        self.ident = None
+        self.ident = None               # the device of the last successful hello() (its UID is kept: see hello)
+        self.seen = None                # the identity of the last answer to HELLO, also of a failed one
         self.peer = None
 
     def next_seq(self):
@@ -228,6 +229,8 @@ class Link:
         return 0 if self.uid is not None else self.addr
 
     def send(self, type_, payload=b"", flags=0, dst=None):
+        if type_ == T_DATA:
+            self._need_session()
         seq = self.next_seq()
         f = make_frame(type_, flags, self.dst if dst is None else dst, seq, payload)
         if self.session and type_ in (T_DATA, T_CLOSE):
@@ -274,20 +277,22 @@ class Link:
                 break
             if time.monotonic() >= end:             # others keep answering: the deadline still holds
                 raise LinkError(code="link.no_hello")
+        self.seen = ident
         if self.ident and ident["uid"] != self.ident["uid"]:
             # another controller at this address now (a shared product key would let it authenticate)
             raise LinkError(code="link.other_device", addr=fr["src"], uid=ident["uid"], was=self.ident["uid"])
-        self.ident, self.peer = ident, fr["src"]
         if fr["type"] == T_ANNOUNCE:
-            if self.ident["closed"]:
+            if ident["closed"]:
                 raise LinkError(code="link.closed")
             if self.admin_key or self.device_key:   # a SECURE device always challenges: a downgrade or not SECURE
                 raise LinkError(code="link.not_secure")
-            return self.ident
-        if not (self.admin_key and self.device_key):
+        elif not (self.admin_key and self.device_key):
             raise LinkError(code="link.keys_needed")
-        self.authenticate(fr["payload"])
-        return self.ident
+        else:
+            self.peer = fr["src"]               # authenticate() takes AUTH_OK from it
+            self.authenticate(fr["payload"])
+        self.ident, self.peer = ident, fr["src"]   # pinned only now: a failed handshake proves nothing
+        return ident
 
     def authenticate(self, challenge):
         """admin_key: a PEM file, or a function (challenge, eph_pub, nonce) -> r || s, e.g. asking a server
@@ -314,7 +319,6 @@ class Link:
             raise LinkError(code="link.no_session")
 
     def send_data(self, payload):
-        self._need_session()
         self.send(T_DATA, payload)
 
     def recv_data(self, timeout=None):

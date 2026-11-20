@@ -17,7 +17,7 @@ CAN has `_PLAIN` and `_SECURE` only: a node's CAN IDs (bases + node address) alr
 runs the link over its own IDs and needs a node address other than 0; `discover` on CAN finds it by a HELLO (its
 identity, nothing executed), and `--node N` with the keys opens the session. A UID selects nobody on CAN: unassigned
 nodes share the base IDs. The host side needs the host library 0.6.0 or later (older ones refuse the keys on CAN and
-do not find a SECURE CAN node); SECURE on any transport wants 0.6.1 or later (the failed-handshake fixes below).
+do not find a SECURE CAN node); SECURE on any transport wants 0.6.3 or later (the failed-handshake fixes below).
 
 Frames: magic, version, type, flags, destination, source, sequence number, length, payload, optional 16-byte tag.
 Packet transports (CAN ISO-TP, UDP, board packet transports) carry them as they are, stream transports (UART, USB

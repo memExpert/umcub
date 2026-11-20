@@ -236,6 +236,8 @@ int main(void)
         mux_step();
     }
     CHECK(user_out_len == 0);
+    umcub_transports_deinit();
+    CHECK(can_deinits == 1 && eth_deinits == 1 && user_deinits == 0);    /* not started: not shut down either */
     printf(failures ? "\n%d FAILURE(S)\n" : "\nALL TESTS PASSED\n", failures);
     return failures ? 1 : 0;
 #endif

@@ -826,6 +826,23 @@ tries.clear()
 dev2.link.hello = failing_hello
 expect("lite after a failed handshake: the handshake again",
        code_of(lambda: umcub.lite.request(dev2, umcub.lite.frame("P"), timeout=0.1)) == "link.no_hello" and tries)
+# Link.send() itself (not only send_data) keeps DATA inside the session.
+sc3 = SentConn()
+expect("Link.send(DATA) without a session: refused",
+       code_of(lambda: link.Link(sc3, addr=5, admin_key="a.pem", device_key="d.pem").send(link.T_DATA, b"x"))
+       == "link.no_session" and not sc3.sent)
+
+
+# A failed hello() pins nothing: the UID of an answer whose handshake did not complete is not kept for the next one.
+def challenge(src, uid):
+    p = uid + struct.pack("<HIH", src, 0x46103001, 1) + bytes([2, 1, 0, 0]) + bytes(32)
+    return link.make_frame(link.T_CHALLENGE, 0, link.HOST_ADDR, 1, p, src=src)
+
+
+unpinned = link.Link(BusConn(challenge(5, b"\x44" * 12), announce(5, uid=b"\x55" * 12)), addr=5)
+expect("hello: a SECURE answer without keys fails", code_of(unpinned.hello) == "link.keys_needed")
+expect("hello after a failed one: another UID is no error", unpinned.hello()["uid"] == "55" * 12)
+expect("discover's view: the failed answer's identity is still seen", unpinned.seen["uid"] == "55" * 12)
 # Another controller at the address of the first one (a shared product key would let it authenticate) is refused.
 pin = link.Link(BusConn(announce(5, uid=b"\x11" * 12), announce(5, uid=b"\x22" * 12)), addr=5)
 pin.hello()

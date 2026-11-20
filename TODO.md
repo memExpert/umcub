@@ -42,9 +42,6 @@ SMP_PARAMS, lite).
 - [ ] MCUboot v2.5.0 `boot_serial.c` includes `"../bootutil/src/bootutil_loader.h"` (direct-xip / RAM load), found
   only through the stopgap include directory `${MCUBOOT}/boot/boot_serial` in CMakeLists.txt. Fix prepared, not sent
   yet (branch boot-serial-loader-include: `"../src/bootutil_loader.h"`); drop the stopgap with the release that has it.
-- [ ] **DUALCORE_PER_CORE: the two bootloaders' regions are checked per build only** - a CM7 slot over the CM4
-  bootloader (or the reverse) is not caught by configure (each tree sees its own layout). Check them together, e.g.
-  the CM7 configure reads the CM4 tree's layout (the H755 preset builds both).
 - [ ] Ports for other series (F7, G0, L4).
 - [ ] examples/blackpill_app: console on the bootloader's UART like bluepill_app (instance, pins, baud, DE pin from
   umcub_cfg.h); it is hard-wired to USART1 + DE on PA8, so with variants/usart2.conf it does not answer.
@@ -60,6 +57,10 @@ SMP_PARAMS, lite).
 - [ ] Bootloader build with Arm Compiler 6 / Keil (now GCC only: startup, linker templates, newlib overrides).
 
 ## Code review leftovers (refactoring, size, speed)
+
+- [ ] **Matrix harness: a config whose tree is up to date fails** ("no size summary": ninja did nothing, so the
+  build log has no memory usage lines). Take the sizes from the ELF instead (tests/matrix/run.py `size_summary`);
+  a change of the checks, so a commit of its own.
 
 Larger changes:
 - [ ] Zero-copy receive paths: ISO-TP reassembles straight into the mux packet buffer (saves an MTU of RAM:

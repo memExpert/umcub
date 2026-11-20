@@ -441,12 +441,42 @@ def _write_if_changed(path, text):
         path.write_text(text, encoding="utf-8")
 
 
-def generate(board, core, fragments, out_dir):
+PER_CORE = "per core: "     # notes of the check against the other core's tree, made on every run
+PER_CORE_UNCHECKED = PER_CORE + "give "      # a warning: the two layouts are not checked together
+
+
+def _other_core(out, core, tree):
+    """DUALCORE_PER_CORE: the regions of this tree (out/umcub_config.json) against those of the other core's build
+    tree `tree`. Dies on an overlap; returns the notes. Not cached: the other tree changes on its own."""
+    mine = json.loads((out / JSON).read_text(encoding="utf-8"))["values"]
+    if mine.get("DUALCORE_MODE") != 2 or core not in ("cm7", "cm4"):
+        return []
+    other = "cm4" if core == "cm7" else "cm7"
+    if not tree:
+        return [f"{PER_CORE_UNCHECKED}the {other.upper()} build tree (UMCUB_OTHER_CORE_TREE) to check both flash layouts "
+                f"together"]
+    path = Path(tree) / "umcub_kconfig" / JSON
+    if not path.is_file():
+        return [f"{PER_CORE}{path} not configured yet - the {other.upper()} tree checks both layouts when it is"]
+    theirs = json.loads(path.read_text(encoding="utf-8"))["values"]
+    why = layout.overlap_cores(mine, mine["IMAGE_NUMBER"], theirs, theirs["IMAGE_NUMBER"],
+                               (core.upper(), other.upper()))
+    if why:
+        die(why + " (docs/board.md, Slots)")
+    return [f"{PER_CORE}flash layout checked against the {other.upper()} tree {tree}"]
+
+
+def generate(board, core, fragments, out_dir, other_core_tree=None):
+    """_generate(), then (every time) the check against the other core's tree of a per-core bootloader."""
+    notes = _generate(board, core, fragments, Path(out_dir))
+    return [n for n in notes if not n.startswith(PER_CORE)] + _other_core(Path(out_dir), core, other_core_tree)
+
+
+def _generate(board, core, fragments, out):
     """.config, umcub_config.h, keys.cmake (the key files, made when they are to
     be generated and the slots are set) and kconfig.deps (the Kconfig files read, for CMake's
     reconfigure) in out_dir. Returns notes for the user: slots not set, and starting
     with "new ", warnings given once: new keys, a .config whose edits were dropped."""
-    out = Path(out_dir)
     notes = _unchanged(board, core, fragments, out)
     if notes is not None:
         return notes

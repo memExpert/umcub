@@ -45,7 +45,9 @@ void umcub_transports_init(void)
 void umcub_transports_deinit(void)
 {
     for (unsigned i = umcub_transport_count; i-- > 0;) {
-        umcub_transports[i]->deinit();
+        if (umcub_transport_allowed(umcub_transports[i])) {     /* not started: not stopped either */
+            umcub_transports[i]->deinit();
+        }
     }
     umcub_led_off();            /* the LED shows the listening phase only */
 }

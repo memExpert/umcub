@@ -119,19 +119,33 @@ def compatible(pri, sec, mode, scratch=0):
     return None
 
 
+def regions(values, images, who="the"):
+    """(label, addr, size) of the regions in use: the bootloader, the scratch area, the slots of the `images` built."""
+    names = ["BOOT", "SCRATCH"] + [f"IMG{i}_{s}" for i in range(images) for s in ("PRIMARY", "SECONDARY")]
+    label = {"BOOT": "bootloader", "SCRATCH": "scratch area"}
+    out = [(n, values.get(f"{n}_ADDR", 0), values.get(f"{n}_SIZE", 0)) for n in names]
+    return [(f"{who} {label.get(n) or f'image {n[3]} {n[5:].lower()} slot'}", a, s) for n, a, s in out if s]
+
+
+def _clash(pairs):
+    for (n1, a1, s1), (n2, a2, s2) in pairs:
+        if a1 < a2 + s2 and a2 < a1 + s1:
+            return (f"{n1} (0x{a1:08X} + 0x{s1:X}) and {n2} (0x{a2:08X} + 0x{s2:X}) overlap: an update would "
+                    f"erase one with the other")
+    return None
+
+
 def overlap(values, images):
     """Two regions in use sharing flash - the bootloader, the slots of the `images` built, the scratch area: what
     overlaps, or None (an update would erase the other; config/umcub_config_check.h stops the same in C)."""
-    names = ["BOOT", "SCRATCH"] + [f"IMG{i}_{s}" for i in range(images) for s in ("PRIMARY", "SECONDARY")]
-    label = {"BOOT": "the bootloader", "SCRATCH": "the scratch area"}
-    regions = [(n, values.get(f"{n}_ADDR", 0), values.get(f"{n}_SIZE", 0)) for n in names]
-    regions = [(label.get(n) or f"image {n[3]} {n[5:].lower()} slot", a, s) for n, a, s in regions if s]
-    for k, (n1, a1, s1) in enumerate(regions):
-        for n2, a2, s2 in regions[k + 1:]:
-            if a1 < a2 + s2 and a2 < a1 + s1:
-                return (f"{n1} (0x{a1:08X} + 0x{s1:X}) and {n2} (0x{a2:08X} + 0x{s2:X}) overlap: an update would "
-                        f"erase one with the other")
-    return None
+    r = regions(values, images)
+    return _clash((a, b) for k, a in enumerate(r) for b in r[k + 1:])
+
+
+def overlap_cores(mine, mine_images, other, other_images, who):
+    """One bootloader per core (DUALCORE_PER_CORE, two build trees): a region of this core's tree on one of the
+    other core's, or None."""
+    return _clash((x, y) for x in regions(mine, mine_images, who[0]) for y in regions(other, other_images, who[1]))
 
 
 def misplaced(family, flash_kb, values, images, dual_bank=True):

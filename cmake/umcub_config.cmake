@@ -128,8 +128,12 @@ macro(_umcub_kconfig board)
   else()
     set(_board "${UMCUB_BOARD_DIR}")
   endif()
+  set(_other)
+  if(UMCUB_OTHER_CORE_TREE)
+    set(_other --other-core-tree "${UMCUB_OTHER_CORE_TREE}")
+  endif()
   execute_process(COMMAND ${_umcub_config_cmd} generate --board "${_board}" --core "${UMCUB_CORE}"
-                          ${_conf_args} --out "${UMCUB_CONFIG_DIR}"
+                          ${_conf_args} --out "${UMCUB_CONFIG_DIR}" ${_other}
                   OUTPUT_VARIABLE _out ERROR_VARIABLE _err RESULT_VARIABLE _rc)
   if(NOT _rc EQUAL 0)
     set(_hint)

@@ -95,8 +95,9 @@ def add_image_arguments(sub):
 
 def cmd_config(a):
     if a.sub == "generate":
-        for note in kconfig.generate(a.board, a.core, a.conf or (), a.out):
-            print(f"umcub: {note}", file=sys.stderr if note.startswith("new ") else sys.stdout)    # CMake: a warning
+        for note in kconfig.generate(a.board, a.core, a.conf or (), a.out, a.other_core_tree):
+            warn = note.startswith(("new ", kconfig.PER_CORE_UNCHECKED))
+            print(f"umcub: {note}", file=sys.stderr if warn else sys.stdout)    # stderr: CMake shows a warning
         linker.write(Config(a.out, a.core), a.out, a.core)
     elif a.sub == "menu":
         kconfig.menuconfig(a.out)
@@ -112,6 +113,8 @@ def add_config_arguments(sub):
     p.add_argument("--core", default="", help="dual-core parts: cm7 or cm4")
     p.add_argument("--conf", action="append", help="configuration fragment (repeatable, applied in order)")
     p.add_argument("--out", required=True, help="output directory (the build tree's umcub_kconfig)")
+    p.add_argument("--other-core-tree", help="one bootloader per core: the other core's build tree (both flash "
+                                             "layouts checked together)")
     p = sub.add_parser("menu", help="menuconfig on a build tree's configuration")
     p.add_argument("--out", required=True, help="the build tree's umcub_kconfig directory")
     p = sub.add_parser("save", help="a build tree's configuration as a minimal defconfig")

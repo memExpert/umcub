@@ -70,7 +70,9 @@ and board type, `umcub_boot_version()`, `i`; part of the application ABI, the ap
   image is missing or broken the CM7 still boots and the CM4 stays parked.
 - **`UMCUB_CFG_DUALCORE_PER_CORE`**: two independent bootloaders (`--preset h755-per-core-cm7` and `h755-per-core-cm4`),
   the CM4 one in bank 2 (`BOOT_CM4_ADD0 = 0x0810`). Only the CM7 configures power and clocks; the two cores must not
-  share transports.
+  share transports. `-DUMCUB_OTHER_CORE_TREE=<the other core's build tree>` (the presets set it) checks both flash
+  layouts together: a region of one core on one of the other stops the configure (checked by whichever tree is
+  configured second; without the option a warning).
   **The CM4 can be updated over CAN only while the CM7 stays in its own recovery.** FDCAN runs on PLL1Q, set up by the CM7
   bootloader. That one waits `UMCUB_CFG_CORE2_DONE_TIMEOUT_MS` for the CM4 and starts its application, and `SystemInit()`
   there (CMSIS, every CubeMX application) switches off the PLLs and the HSE: a CM4 in recovery, on request or without a

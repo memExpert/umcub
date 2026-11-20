@@ -140,11 +140,12 @@ when the reset vector of its vector table is not a Thumb address inside the imag
 `--header-size` of the signing) is not on the family's VTOR alignment (0x200; H7 0x400), or when the initial stack
 pointer is not a word-aligned address in the SRAM region (0x10000000-0x3FFFFFFF). This catches a valid, signed image
 under the wrong image number - e.g. the CM7 application uploaded as image 1 of a dual-core part - and applications not
-linked for the slot. An encrypted image is checked once it is plain in the primary slot. On the dual-core H7 the CM4
-then stays parked and the CM7 application runs:
+linked for the slot. An encrypted update is checked for the alignment (its header is plain) already in the secondary
+slot, its vectors once it is plain in the primary slot. On the dual-core H7 the CM4 then stays parked and the CM7
+application runs:
 
 ```
-E: image 1 slot 0: vector table SP 0x24080000 reset 0x08020ba5 not for this slot
+E: image 1 slot 0: vector table at 0x08100400 SP 0x24080000 reset 0x08020ba5 not for this slot
 W: boot_go failed, trying image 0 alone
 W: second core stays parked (no valid image 1)
 ```
