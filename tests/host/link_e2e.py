@@ -10,7 +10,8 @@ device, device lines are merged back. Checks discovery, addressing (only the
 addressed device answers), selection by UID, the SECURE handshake, a wrong admin
 key, SMP upload through the link, and standard smpmgr through `umcub serve`.
 Then SMP on a plain device (umcub_sim_plain: smpmgr and umcub), on the CAN
-transport (umcub_sim_can, python-can "serial" bus on a pty) and lite upload.
+transport (umcub_sim_can, python-can "serial" bus on a pty), a SECURE session
+over CAN (umcub_sim_can_secure) and lite upload.
 """
 import argparse
 import base64
@@ -131,16 +132,19 @@ class ByteHub(threading.Thread):
 def can_tools(build, py):
     """umcub over CAN ISO-TP (smpclient on the umcub connection) against the real umcub CAN transport."""
     print("[e2e] CAN: umcub echo / upload / list / verify / hash over ISO-TP", flush=True)
-    sim = subprocess.Popen([os.path.join(build, "umcub_sim_can")], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+    # node 5: discover sends it a link HELLO before the SMP echo (a plain node must still answer that)
+    sim = subprocess.Popen([os.path.join(build, "umcub_sim_can")], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                           env=dict(os.environ, UMCUB_SIM_ADDR="5"))
     hub = ByteHub(sim)
     hub.start()
-    can = ["-d", f"can:serial:{hub.path}", "--timeout", "10"]
+    can = ["-d", f"can:serial:{hub.path}", "--timeout", "10", "--node", "5"]
     try:
         p = tool(py, can + ["echo", "hello-can"])
         check(p.returncode == 0 and "hello-can" in p.stdout, "umcub echo over CAN")
-        p = tool(py, can + ["discover"], timeout=60)
-        check(p.returncode == 0 and "node     0  smp" in p.stdout and "1 device(s)" in p.stdout,
-              "umcub discover over CAN: node 0 answers SMP, the others are silent")
+        for _ in range(2):                      # twice: probes of the other nodes leave nothing behind
+            p = tool(py, can + ["discover"], timeout=60)
+            check(p.returncode == 0 and "node     5  smp" in p.stdout and "1 device(s)" in p.stdout,
+                  "umcub discover over CAN: node 5 answers SMP (after a link HELLO), the others are silent")
         with tempfile.TemporaryDirectory() as d:
             subprocess.run([py, os.path.join(ROOT, "tools/host/umcub"), "image", "sign", "--board", "nucleo_h755zi_q",
                             "--core", "cm7", *host_conf("sim_can_post"), "--version", "3.1.4",
@@ -161,6 +165,56 @@ def can_tools(build, py):
                   "hash of a range without READBACK: refused (readback by other means), READBACK named")
         p = tool(py, can + ["list"])
         check(p.returncode == 0 and "slot 0: 3.1.4" in p.stdout, "umcub list over CAN: 3.1.4 in slot 0")
+    finally:
+        hub.stop = True
+        sim.stdin.close()
+        sim.wait(5)
+
+
+def can_secure_tools(build, py):
+    """A SECURE umcub link session over a CAN node's ISO-TP IDs (CAN_LINK_SECURE): the node is selected by its IDs,
+    the keys open the session; discover shows its identity."""
+    print("[e2e] CAN SECURE: handshake, upload, refusals, discover", flush=True)
+    adm = os.path.join(KEYS, "dev-admin-p256.pem")
+    dev = os.path.join(KEYS, "dev-device-p256.pem")
+    sim = subprocess.Popen([os.path.join(build, "umcub_sim_can_secure")], stdin=subprocess.PIPE,
+                           stdout=subprocess.PIPE, env=dict(os.environ, UMCUB_SIM_ADDR="3"))
+    hub = ByteHub(sim)
+    hub.start()
+    can = ["-d", f"can:serial:{hub.path}", "--timeout", "10"]
+    sec = ["--admin-key", adm, "--device-key", dev]
+    try:
+        p = tool(py, can + ["--node", "3"] + sec + ["info"])
+        check(p.returncode == 0 and "authenticated" in p.stdout and "secure (encrypted)" in p.stdout,
+              "info over CAN node 3 with keys: authenticated SECURE session")
+        p = tool(py, can + ["--node", "3"] + sec + ["cmd", "i"])
+        check(p.returncode == 0 and "board type" in p.stdout, "cmd i over a CAN SECURE session (encrypted DATA)")
+        with tempfile.TemporaryDirectory() as d:
+            subprocess.run([py, os.path.join(ROOT, "tools/host/umcub"), "image", "sign", "--board", "nucleo_h755zi_q",
+                            "--core", "cm7", *host_conf("sim_can_secure_post"), "--version", "2.7.1",
+                            os.path.join(build, "payload.bin"), "-o", os.path.join(d, "app")],
+                           check=True, capture_output=True)
+            p = tool(py, can + ["--node", "3"] + sec + ["upload", os.path.join(d, "app.signed.bin")], timeout=300)
+            check(p.returncode == 0 and "uploaded" in p.stdout and "checked: valid" in p.stdout,
+                  "upload over a CAN SECURE session, checked by the device")
+        p = tool(py, can + ["--node", "3"] + sec + ["list"])
+        check(p.returncode == 0 and "slot 0: 2.7.1" in p.stdout, "list over a CAN SECURE session: 2.7.1")
+        p = tool(py, ["-d", f"can:serial:{hub.path}", "--timeout", "2", "--node", "3", "echo", "x"])
+        check(p.returncode != 0, "plain SMP to a SECURE CAN node: no answer")
+        p = tool(py, can + sec + ["info"])
+        check(p.returncode != 0 and "keys given" in p.stderr, "keys on CAN without a node: refused")
+        p = tool(py, can + ["--node", "0"] + sec + ["info"])
+        check(p.returncode != 0 and "keys given" in p.stderr, "keys on CAN node 0 (never SECURE): refused")
+        with tempfile.TemporaryDirectory() as d:
+            bad = os.path.join(d, "bad.pem")
+            subprocess.run([os.path.join(os.path.dirname(py), "imgtool"), "keygen", "-t", "ecdsa-p256", "-k", bad],
+                           check=True, capture_output=True)
+            p = tool(py, can + ["--node", "3", "--admin-key", bad, "--device-key", dev, "info"])
+            check(p.returncode != 0 and "authentication failed" in p.stdout + p.stderr,
+                  "CAN SECURE with another admin key: authentication failed")
+        p = tool(py, can + ["discover"], timeout=60)
+        check(p.returncode == 0 and "node     3  uid " in p.stdout and "secure enc" in p.stdout
+              and "1 device(s)" in p.stdout, "discover over CAN: the SECURE node 3 with its identity")
     finally:
         hub.stop = True
         sim.stdin.close()
@@ -446,6 +500,7 @@ except umcub.LinkError as e:
 
 SCENARIOS = {"secure": secure_tools, "plain": plain_tools,
              "can": lambda build, py, smpmgr: can_tools(build, py),
+             "can-secure": lambda build, py, smpmgr: can_secure_tools(build, py),
              "lite": lambda build, py, smpmgr: lite_tools(build, py)}
 
 

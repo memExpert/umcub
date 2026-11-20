@@ -13,6 +13,12 @@ on the bus could drive them. The umcub link puts an envelope around SMP and text
 | `_ADDRESSED` | only umcub link frames: a device answers frames for its node address (or, unassigned, for its UID after a `HELLO` with that UID), discovery with random back-off |
 | `_SECURE` | addressed, and nothing is executed before the host has authenticated; every frame of the session carries a MAC |
 
+CAN has `_PLAIN` and `_SECURE` only: a node's CAN IDs (bases + node address) already select it. A SECURE CAN node
+runs the link over its own IDs and needs a node address other than 0; `discover` on CAN finds it by a HELLO (its
+identity, nothing executed), and `--node N` with the keys opens the session. A UID selects nobody on CAN: unassigned
+nodes share the base IDs. The host side needs the host library 0.6.0 or later (older ones refuse the keys on CAN and
+do not find a SECURE CAN node).
+
 Frames: magic, version, type, flags, destination, source, sequence number, length, payload, optional 16-byte tag.
 Packet transports (CAN ISO-TP, UDP, board packet transports) carry them as they are, stream transports (UART, USB
 CDC) as a line `0x05 0x0B <base64> \n`. The format and the handshake are described in
@@ -95,7 +101,7 @@ umcub -d /dev/ttyUSB1 sniff                                   # listen only: eve
 SECURE transports need `--admin-key` (private) and `--device-key` (the public half is enough). With the keys given
 the tool accepts only a SECURE session: a device that answers HELLO without a challenge (another link mode, or a
 forged answer on the bus) is refused (`link.not_secure`), so a session cannot be downgraded. Keys where no SECURE
-session can be used (a CAN node selected by its IDs, serial / UDP without `--node` or `--uid`) are an error too
+session can be used (CAN without `--node` or with node 0, serial / UDP without `--node` or `--uid`) are an error too
 (`link.keys_unused`). `serve` hands the authenticated session to every client of its pseudo terminal or UDP port: with
 a SECURE session it listens on loopback addresses only (`serve.secure_remote`); other local processes of the PC can
 still use it while it runs.

@@ -20,10 +20,11 @@ extern uint16_t fake_node_addr;
 
 static uint8_t rx[64];
 static size_t rx_len;
+static uint32_t rx_id;
 
 int umcub_port_can_init(const umcub_can_cfg_t *cfg)
 {
-    (void)cfg;
+    rx_id = cfg->rx_id;                 /* the port contract: one RX filter, like the bxCAN / FDCAN ports */
     return 0;
 }
 
@@ -72,9 +73,10 @@ bool umcub_port_can_recv(uint32_t *id, uint8_t *data, uint8_t *len)
             size_t dlc = rx[5];
             bool ok = dlc <= 8 && rx[10 + dlc] == 0xBB;
             rx_len = 0;
-            if (ok) {
-                *id = ((uint32_t)rx[6] | (uint32_t)rx[7] << 8 | (uint32_t)rx[8] << 16 |
-                       (uint32_t)rx[9] << 24) & 0x1FFFFFFFu;
+            uint32_t got = ((uint32_t)rx[6] | (uint32_t)rx[7] << 8 | (uint32_t)rx[8] << 16 |
+                            (uint32_t)rx[9] << 24) & 0x1FFFFFFFu;
+            if (ok && got == rx_id) {           /* other nodes' frames: filtered out */
+                *id = got;
                 memcpy(data, &rx[10], dlc);
                 *len = (uint8_t)dlc;
                 return true;

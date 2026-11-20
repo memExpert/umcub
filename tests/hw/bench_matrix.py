@@ -14,6 +14,7 @@ host side is missing (no port, interface down, no answer to ping) is reported as
 failed steps.
 """
 import argparse
+import json
 import os
 import re
 import subprocess
@@ -68,10 +69,20 @@ def console(a, cmd, wait, expect):
         return out.decode(errors="replace")
 
 
+def secure_keys(tree, transport):
+    """The keys of a SECURE link transport of the tree (its configuration names them), else none."""
+    cfg = json.loads((ROOT / tree / "umcub_kconfig" / "umcub_config.json").read_text())
+    name = {"rs485": "UART_LINK", "can": "CAN_LINK", "usb-cdc": "USB_CDC_LINK", "eth": "ETH_LINK"}.get(transport)
+    if cfg["values"].get(name) != 2:
+        return []
+    return ["--admin-key", cfg["keys"]["HOST"], "--device-key", cfg["keys"]["DEVICE"]]
+
+
 def step(a, node, tree, elf, transport, version, tmp):
     dev = device(a, node, transport)
     if dev is None:
         return "skipped", "host side not available"
+    dev += secure_keys(tree, transport)
     base = Path(tmp) / f"n{node}_{transport}"
     rc, out = run(UMCUB + ["image", "sign", "--board", str(ROOT / tree / "umcub_kconfig"), "--version", version,
                            "--quiet", "-o", str(base), str(ROOT / tree / elf)], 60)
@@ -97,7 +108,7 @@ def step(a, node, tree, elf, transport, version, tmp):
     got = (m.group(1).split("+")[0] if m else "?", via.group(1) if via else "?")
     back = console(a, b"b", 1.0, expect="bootloader")
     time.sleep(1.5)
-    rc, out = run(UMCUB + ["-d", a.rs485, "--node", str(node), "cmd", "i"], 30)
+    rc, out = run(UMCUB + ["-d", a.rs485, "--node", str(node)] + secure_keys(tree, "rs485") + ["cmd", "i"], 30)
     if got != (version, VIA[transport]):
         return "FAIL", f"application reports {got[0]} via {got[1]}, expected {version} via {VIA[transport]}"
     if "-> bootloader" not in back or rc:

@@ -354,4 +354,7 @@ umcub_host_link(umcub_sim_can_lite sim_can.c sim_can_lite_post ${UMCUB_ROOT}/src
   ${UMCUB_ROOT}/src/transport/can/can_transport.c ${UMCUB_ROOT}/src/transport/can/isotp.c)
 umcub_host_link(umcub_sim_addressed sim_device.c test_link_post)
 umcub_host_link(umcub_sim_secure sim_device.c test_link_secure_post ${LINK_SECURE_SOURCES})
+# CAN SECURE: a umcub link session over the node's ISO-TP IDs.
+umcub_host_link(umcub_sim_can_secure sim_can.c sim_can_secure_post ${UMCUB_ROOT}/src/transport/registry.c
+  ${UMCUB_ROOT}/src/transport/can/can_transport.c ${UMCUB_ROOT}/src/transport/can/isotp.c ${LINK_SECURE_SOURCES})
 unset(UMCUB_SIM)

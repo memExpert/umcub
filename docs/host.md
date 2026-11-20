@@ -30,13 +30,15 @@ A device is one string (`-d`, or `$UMCUB_DEVICE`):
 
 Flags (`fd`, `ext`) also take a value: `=1` / `yes` / `true` / `on` sets one, `=0` / `no` / `false` / `off` clears it.
 
-`--node N` selects a device on a [umcub link](link.md) bus (serial, UDP) or, on CAN, the node's IDs (bases + N);
-`--uid` selects an unassigned link device. SECURE link transports also need `--admin-key` (private) and
+`--node N` selects a device on a [umcub link](link.md) bus (serial, UDP) or, on CAN, the node's IDs (bases + N),
+where the keys open a SECURE session with it (CAN_LINK_SECURE; not node 0); `--uid` selects an unassigned link device
+(not on CAN). SECURE link transports also need `--admin-key` (private) and
 `--device-key` (the public half is enough). In a program `admin_key` can also be a signing function
 `(challenge, eph_pub, nonce) -> r || s` (64 bytes; `challenge` is the whole CHALLENGE payload, the device's identity
 with its UID and board type, then the 32-byte challenge), e.g. a request to a server that keeps the admin key and
 computes the signed hash itself (`umcub.link.transcript()`); `umcub.link.key_signer(path)` is the one of a key file.
-Keys where no SECURE session can be used (a CAN node, serial / UDP without a node or UID) raise `link.keys_unused`.
+Keys where no SECURE session can be used (CAN without a node or node 0, serial / UDP without a node or UID) raise
+`link.keys_unused`.
 
 `--names boards.json` shows the user's names of board types (`UMCUB_CFG_BOARD_TYPE`) next to the hex id: in
 `discover`, `info`, `sniff` and when an image is for another board. The file is a JSON object of ids and names,
@@ -95,7 +97,8 @@ def register():
 ```
 
 `umcub -d myadapter:0,speed=500000 upload app.signed.bin` then works like any other transport, link nodes included.
-A connection that already selects the node when it opens (like CAN by its IDs) sets `selects_node = True`. Serial
+A connection that already selects the node when it opens (like CAN by its IDs) sets `selects_node = True`: no UID
+there, and the keys run a SECURE link session over it with node N (not 0). Serial
 style transports that frame payloads as lines set `stream = True` and must split the kinds like `Serial` does. For
 a CAN adapter a python-can interface plugin is usually less work: `can:<that interface>:<channel>` then works.
 `parallel=True` tells programs that several connections to one target may work at once (see below).
@@ -222,10 +225,14 @@ Vector open a channel once), each with its node's IDs, so uploads to several CAN
 parallel threads. A serial port is one half-duplex bus (RS485: no arbitration), so its devices take turns.
 `umcub.exclusive_key(spec, node=None)` tells a program which is which: `None` when connections may run at once, else
 the key of what to take turns on (`"serial:/dev/ttyUSB1"`; on CAN `None`, with `node=` that node's key
-`"can:socketcan:can0:5"` - one ISO-TP transfer per node at a time). On CAN `discover()` asks every node of `nodes`
-(default 0..7, what fits the default IDs) a lite frame of no known kind (answered "not supported"), else an SMP echo, with the
-channel kept open for all probes (`umcub.connection.can_bus()`); it returns `{"addr": node, "protocol": "smp" |
-"lite"}` per node that answered.
+`"can:socketcan:can0:5"` - one ISO-TP transfer per node at a time).
+On CAN `discover()` asks every node of `nodes` (default 0..7, what fits the default IDs) a lite frame of no known kind
+(answered "not supported"), else a link HELLO (nodes 1..: a SECURE node answers its identity, nothing executed), else
+an SMP echo, with the channel kept open for all probes (`umcub.connection.can_bus()`); it returns `{"addr": node,
+"protocol": "smp" | "lite"}`, or `{"protocol": "link", ...}` with the identity of a SECURE node (as serial / UDP
+`discover()`), per node that answered. A plain node gets the lite and HELLO probes as frames that are not SMP: an
+unknown text command, or a frame for a board protocol (`UMCUB_CFG_PROTO_USER`), which must ignore frames it does not
+know.
 
 A board protocol (`UMCUB_CFG_PROTO_USER`) uses the connection directly: `dev.send(umcub.KIND_USER, frame)` and
 `dev.recv(umcub.KIND_USER, timeout)` (see `boards/blackpill_f411ce/proto_upload.py`).

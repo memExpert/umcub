@@ -885,21 +885,19 @@ choice CAN_LINK_CHOICE
 	depends on TRANSPORT_CAN
 	default CAN_LINK_PLAIN
 	help
-	  plain: SMP and text as they are, one device on the line. addressed: only
-	  umcub link frames (node address, discovery, standard SMP inside); on the
-	  host the umcub tool, which also serves mcumgr / smpmgr. secure:
-	  addressed, and a host must authenticate before anything runs, a MAC on
-	  every frame. docs/link.md.
+	  The node's CAN ids (bases + node address) already select it, so there
+	  is no addressed mode. plain: SMP and text as they are. secure: umcub
+	  link frames over the node's ids, a host must authenticate before
+	  anything runs, a MAC on every frame; the node address must not be 0.
+	  On the host the umcub tool, which also serves mcumgr / smpmgr.
+	  docs/link.md.
 config CAN_LINK_PLAIN
 	bool "plain"
-config CAN_LINK_ADDRESSED
-	bool "addressed"
 config CAN_LINK_SECURE
 	bool "secure"
 endchoice
 config CAN_LINK
 	int
-	default 1 if CAN_LINK_ADDRESSED
 	default 2 if CAN_LINK_SECURE
 	default 0
 

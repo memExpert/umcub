@@ -228,18 +228,22 @@ class _SharedBus:
             raise UmcubError(code="can.open", interface=interface, channel=channel, reason=str(e)) from e
         # A device that allows back-to-back consecutive frames (STmin 0) fills
         # the interface's TX queue (Linux default qlen 10): wait instead of
-        # failing on ENOBUFS.
+        # failing on ENOBUFS. One frame at a time: the ISO-TP stacks of the
+        # channel's connections send from their own threads, and a bus's send()
+        # is not thread-safe (the serial interface interleaves the bytes).
         send = self.bus.send
+        lock = threading.Lock()
 
         def send_retry(msg, timeout=None):
-            for _ in range(1000):
-                try:
-                    return send(msg, timeout)
-                except can.CanOperationError as e:
-                    if getattr(e, "error_code", None) != errno.ENOBUFS:
-                        raise
-                    time.sleep(0.001)
-            return send(msg, timeout)
+            with lock:
+                for _ in range(1000):
+                    try:
+                        return send(msg, timeout)
+                    except can.CanOperationError as e:
+                        if getattr(e, "error_code", None) != errno.ENOBUFS:
+                            raise
+                        time.sleep(0.001)
+                return send(msg, timeout)
         self.bus.send = send_retry
         self.notifier = can.Notifier(self.bus, [])
         self.key, self.settings, self.users = key, settings, 0

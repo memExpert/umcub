@@ -154,6 +154,9 @@
     UMCUB_CFG_USER_LINK > UMCUB_LINK_SECURE
 #error "umcub: UMCUB_CFG_<transport>_LINK must be UMCUB_LINK_PLAIN, _ADDRESSED or _SECURE"
 #endif
+#if UMCUB_CFG_CAN_LINK == UMCUB_LINK_ADDRESSED
+#error "umcub: UMCUB_CFG_CAN_LINK: no ADDRESSED on CAN (the node's ids select it) - PLAIN or SECURE"
+#endif
 #if UMCUB_CFG_LINK_SECURE_ANY && UMCUB_CFG_TRANSPORT_USB_DFU && !UMCUB_CFG_USB_DFU_ALLOW_UNAUTH
 #error "umcub: USB DFU cannot authenticate the host - disable it next to UMCUB_LINK_SECURE or set UMCUB_CFG_USB_DFU_ALLOW_UNAUTH"
 #endif

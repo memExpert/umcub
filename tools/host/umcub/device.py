@@ -87,7 +87,8 @@ def connect(spec, node=None, uid=None, admin_key=None, device_key=None, timeout=
     """Open `spec` (see umcub.connection). On serial and UDP, `node` or `uid`
     selects a device on a umcub link bus (SECURE: with `admin_key`, a PEM file
     or a signing function (umcub.link.key_signer), and `device_key`, a PEM
-    file); on CAN `node` selects the node's IDs. `tap` sees every payload on
+    file); on CAN `node` selects the node's IDs, and the keys open a SECURE
+    session with that node. `tap` sees every payload on
     the connection (umcub.connection.add_tap). `spec` can also be a Connection
     the program opened (open_connection): the device then uses it and close()
     leaves it open, so several link nodes share one port (one at a time)."""
@@ -98,8 +99,9 @@ def connect(spec, node=None, uid=None, admin_key=None, device_key=None, timeout=
     try:
         if conn.selects_node and uid is not None:
             raise LinkError(code="link.uid_not_addressed", name=conn.name)
-        if conn.selects_node or (node is None and uid is None):     # no umcub link session
-            if admin_key or device_key:
+        keys = bool(admin_key or device_key)
+        if (conn.selects_node and not (keys and node)) or (node is None and uid is None):  # no link session
+            if keys:
                 # keys no SECURE session would use: an error, never a silent unprotected device
                 raise LinkError(code="link.keys_unused", name=conn.name)
             return Device(conn, timeout=timeout, owns_conn=owns)
@@ -119,8 +121,9 @@ CAN_PROBE_TIMEOUT = 1.0     # seconds per probe of a node (all nodes are probed 
 def discover(spec, rounds=8, slots=16, slot_ms=20, timeout=3.0, tap=None, nodes=CAN_NODES):
     """The devices on the bus of `spec` (a device string, or an open Connection of a link bus). Serial or UDP
     broadcast: the identities of the umcub link devices. CAN: each of `nodes` is asked a lite frame of no known kind
-    (answered "not supported", nothing changes), else an SMP echo (Device.ping); the ones that answer as
-    {"addr": node, "protocol": "smp" | "lite"}, by node."""
+    (answered "not supported", nothing changes), else a link HELLO (a SECURE node answers its identity, nothing is
+    executed), else an SMP echo (Device.ping); the ones that answer as {"addr": node, "protocol": "smp" | "lite"},
+    or {"protocol": "link", **identity}, by node."""
     if isinstance(spec, Connection):         # a port the program keeps open
         if tap is not None:
             raise UmcubError(code="tap.open_connection")
@@ -138,17 +141,31 @@ def discover(spec, rounds=8, slots=16, slot_ms=20, timeout=3.0, tap=None, nodes=
             found = list(pool.map(lambda n: _probe_can(spec, n, tap), nodes))
     finally:
         log.setLevel(level)
-    return [{"addr": n, "protocol": p} for n, p in zip(nodes, found) if p]
+    return [p if isinstance(p, dict) else {"addr": n, "protocol": p} for n, p in zip(nodes, found) if p]
 
 
 def _probe_can(spec, node, tap):
     # lite first: one single frame. An SMP echo is several ISO-TP frames, and a device left waiting for the rest of
     # it after the probe gives up takes no new frame for a while.
+    # A link frame is several ISO-TP frames too; a plain device takes it whole, as a frame that is no SMP (a text
+    # command it does not know, or a board protocol's frame - such protocols ignore what they do not know).
     with connect(spec, node=node, timeout=CAN_PROBE_TIMEOUT, tap=tap) as dev:
-        for protocol in ("lite", "smp"):
+        if _ping(dev, "lite"):
+            return "lite"
+        if node:                                # node 0 is never a link node
+            link = Link(dev.conn, node, timeout=CAN_PROBE_TIMEOUT)
             try:
-                dev.ping(protocol)
-                return protocol
+                link.hello()
             except UmcubError:
-                pass
-        return None
+                pass                            # a SECURE node: link.keys_needed, its identity known
+            if link.ident:
+                return {"protocol": "link", **link.ident}
+        return "smp" if _ping(dev, "smp") else None
+
+
+def _ping(dev, protocol):
+    try:
+        dev.ping(protocol)
+        return True
+    except UmcubError:
+        return False

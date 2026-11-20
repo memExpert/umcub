@@ -27,7 +27,7 @@ MESSAGES = {
     "transport.type": "transport '{scheme}' returned {type}, not a umcub Connection",
     # umcub link
     "link.uid_not_addressed": "{name}: the node is selected by its address, not by UID",
-    "link.keys_unused": ("{name}: keys given, but no SECURE umcub link session here (a CAN node is selected by its IDs; "
+    "link.keys_unused": ("{name}: keys given, but no SECURE umcub link session here (CAN: give --node, not 0; "
                          "on serial / UDP give --node or --uid)"),
     "link.select": "select the device by node address or UID",
     "link.no_hello": "no answer to HELLO (wrong node, not in recovery, or not a link transport)",

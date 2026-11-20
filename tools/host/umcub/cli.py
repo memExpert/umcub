@@ -29,7 +29,7 @@ def parser():
     ap.add_argument("-d", "--device", default=os.environ.get("UMCUB_DEVICE"),
                     help="serial port, IP address or can:<interface>:<channel> (default $UMCUB_DEVICE)")
     sel = ap.add_mutually_exclusive_group()
-    sel.add_argument("--node", type=int, help="node address: umcub link device (serial, UDP) or CAN IDs")
+    sel.add_argument("--node", type=int, help="node address: umcub link device (serial, UDP) or CAN IDs (with keys: SECURE)")
     sel.add_argument("--uid", help="UID of an unassigned umcub link device (hex)")
     ap.add_argument("--admin-key", help="link SECURE: private admin key (PEM)")
     ap.add_argument("--device-key", help="link SECURE: device key (PEM, the public half is enough)")
@@ -41,7 +41,7 @@ def parser():
                     help="folder of transport plugins (.py files) to load (default $UMCUB_PLUGINS)")
     sub = ap.add_subparsers(dest="cmd", required=True, metavar="command")
 
-    p = sub.add_parser("discover", help="umcub link devices on the bus; on CAN the nodes 0..7 that answer")
+    p = sub.add_parser("discover", help="umcub link devices on the bus; on CAN the nodes 0..7 that answer (SECURE ones with identity)")
     p.add_argument("--rounds", type=int, default=8, help="at most; stops after a quiet round")
     p.add_argument("--slots", type=int, default=16)
     p.add_argument("--slot-ms", type=int, default=20)

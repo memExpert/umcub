@@ -126,9 +126,15 @@ with umcub.connect("loop:x") as dev:                       # no node: the connec
     dev.send(umcub.KIND_SMP, b"ping")
     expect("device round trip", dev.recv(umcub.KIND_SMP, 0.1) == b"ping" and dev.name == "loop:x")
 raises("node by IDs refuses a UID", lambda: umcub.connect("addressed:x", uid="00"), umcub.LinkError, "not by UID")
-# Keys that cannot be used are an error, never a silent unprotected session.
-expect("keys on a connection that selects the node by IDs: refused",
-       code_of(lambda: umcub.connect("addressed:x", node=3, admin_key="a", device_key="d")) == "link.keys_unused", "")
+# Keys on a node selected by its IDs (CAN) open a SECURE link session over them: HELLO to that node (the loopback
+# only echoes it, so nobody answers). Node 0 (unassigned, never SECURE) or no node: keys that cannot be used are an
+# error, never a silent unprotected session.
+expect("keys on a node selected by its IDs: a link HELLO",
+       code_of(lambda: umcub.connect("addressed:x", node=3, admin_key="a", device_key="d", timeout=0.2))
+       == "link.no_hello")
+for n in (None, 0):
+    expect(f"keys on a connection selecting node {n} by IDs: refused",
+           code_of(lambda: umcub.connect("addressed:x", node=n, admin_key="a", device_key="d")) == "link.keys_unused")
 expect("keys without a node or UID: refused",
        code_of(lambda: umcub.connect("loop:x", admin_key="a", device_key="d")) == "link.keys_unused", "")
 with umcub.connect("addressed:x", node=3) as dev:          # node chosen when opening: no link layer
