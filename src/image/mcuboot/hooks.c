@@ -58,12 +58,13 @@ int umcub_image_board_type(const struct flash_area *fa, uint32_t hdr_off, uint32
 #if UMCUB_CFG_IMAGE_VECTOR_CHECK
 /* The vector table after the header: the reset vector (word 1) is a Thumb
  * address inside the signed body as it lies in the slot the image executes
- * from (the primary slot, or the slot itself with direct-xip); the initial SP
- * (word 0) is word aligned in the SRAM region of the Cortex-M memory map
- * (0x10000000.. covers CCM SRAM aliases). Encrypted content (an encrypted
- * image read as secondary: the secondary slot, or an upload in the primary
- * slot before its in-place decryption) is checked once it is plain in the
- * primary slot. */
+ * from (the primary slot, or the slot itself with direct-xip), the table
+ * starts on the VTOR alignment of the family (the jump sets VTOR there), and
+ * the initial SP (word 0) is word aligned in the SRAM region of the Cortex-M
+ * memory map (0x10000000.. covers CCM SRAM aliases). Encrypted content (an
+ * encrypted image read as secondary: the secondary slot, or an upload in the
+ * primary slot before its in-place decryption) is checked once it is plain
+ * in the primary slot. */
 static bool vector_ok(int img_index, int slot, const struct flash_area *fa, uint32_t hdr_off,
                       const struct image_header *hdr)
 {
@@ -80,7 +81,7 @@ static bool vector_ok(int img_index, int slot, const struct flash_area *fa, uint
     }
 #endif
     uint32_t start = flash_area_get_off(run) + hdr->ih_hdr_size;
-    bool ok = (reset & 1u) && (reset & ~1u) - start < hdr->ih_img_size &&
+    bool ok = (reset & 1u) && (reset & ~1u) - start < hdr->ih_img_size && start % UMCUB_FAMILY_VTOR_ALIGN == 0 &&
               (sp & 3u) == 0 && sp - 0x10000001u < 0x30000000u;
     if (run != fa) {
         flash_area_close(run);

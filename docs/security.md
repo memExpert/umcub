@@ -27,10 +27,14 @@ How an encrypted image is installed:
   interrupted swap resumes - flash never holds a plain image key (H7: +116 bytes, +256 bytes of RAM);
 - **SMP upload into the primary slot** (recovery, the default): after the last chunk the bootloader first checks the
   image (signature over the decrypted payload, board type) and answers the last chunk with an error (rc 3) if it is
-  not valid for this device - such an image is left as it is and not booted. A valid image is decrypted in place, sector by sector through one sector of RAM (`UMCUB_CFG_ENC_INPLACE`; 128 KiB on the H7). Like any
-  upload into the primary slot this is not power-fail safe: an interrupted decryption leaves an invalid image and
-  the bootloader in recovery, upload again. The H7 CM4 bootloader has no room for the buffer (`UMCUB_CFG_ENC_INPLACE`
-  is 0 there, also on the F4): use the secondary slot - an encrypted upload into the primary slot is answered rc 3.
+  not valid for this device - such an image is left as it is and not booted. A valid image is decrypted in place,
+  sector by sector through one sector of RAM (`UMCUB_CFG_ENC_INPLACE`; 128 KiB on the H7), after that answer (a
+  large image takes longer than SMP clients wait for one): a flash error while decrypting is not in the answer.
+  Check the slot afterwards - `umcub upload` asks the device to validate it, with other clients run an image list
+  or `umcub verify`. Like any upload into the primary slot this is not power-fail safe: an interrupted decryption
+  leaves an invalid image and the bootloader in recovery, upload again. The H7 CM4 bootloader has no room for the
+  buffer (`UMCUB_CFG_ENC_INPLACE` is 0 there, also on the F4): use the secondary slot - an encrypted upload into the
+  primary slot is answered rc 3.
   With two images (H755 SINGLE_BOOT) the same holds for the primary slot of image 1 (the CM4); encrypted CM4
   updates can also go through its secondary slot: USB DFU alt 1, SMP with `UMCUB_CFG_SMP_DIRECT_UPLOAD` (`image` 4,
   then `image state-write`), the application or the lite upload.

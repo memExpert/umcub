@@ -171,14 +171,15 @@ def cmd_serve(dev, a):
         host, port = a.udp_listen.rsplit(":", 1)
         secure = dev.identity and LINK_NAMES.get(dev.identity["link"]) == "secure"
         try:
-            loopback = ipaddress.ip_address(socket.gethostbyname(host)).is_loopback
+            addr = socket.gethostbyname(host)       # resolved once: bind() gets the address that was checked
+            loopback = ipaddress.ip_address(addr).is_loopback
         except OSError as e:
             raise UmcubError(code="udp.io", target=a.udp_listen, reason=str(e)) from e
         if secure and not loopback:
             # every datagram is forwarded into the authenticated session: whoever reaches the port gets it
             raise UmcubError(code="serve.secure_remote", host=host)
         srv = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        srv.bind((host, int(port)))
+        srv.bind((addr, int(port)))
         print(f"SMP over UDP: mcumgr --conntype udp --connstring={host}:{port}", flush=True)
         while True:
             pkt, peer = srv.recvfrom(4096)

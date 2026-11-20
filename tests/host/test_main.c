@@ -732,6 +732,22 @@ static void test_vector_slot(const uint8_t *wrong, size_t len, const uint8_t *go
     vt[0] = sp;
     vt[1] = reset;
     CHECK(umcub_image_check(0, 1, fa));
+
+    /* A header size that puts the vector table off the VTOR alignment: the vectors moved with it, the TLV block
+     * where it was (ih_img_size 8 smaller) - only the alignment is wrong. */
+    printf("[vector check] vector table off the VTOR alignment refused\n");
+    struct image_header *hh = (struct image_header *)&fake_flash[UMCUB_CFG_IMG0_SECONDARY_ADDR - 0x08000000 + hoff];
+    uint32_t *moved = vt + 2, keep[2] = { moved[0], moved[1] };
+    hh->ih_hdr_size += 8u;
+    hh->ih_img_size -= 8u;
+    moved[0] = sp;
+    moved[1] = reset;
+    CHECK(!umcub_image_check(0, 1, fa));
+    hh->ih_hdr_size -= 8u;
+    hh->ih_img_size += 8u;
+    moved[0] = keep[0];
+    moved[1] = keep[1];
+    CHECK(umcub_image_check(0, 1, fa));
     flash_area_close(fa);
 }
 #endif

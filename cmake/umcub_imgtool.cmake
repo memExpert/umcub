@@ -43,11 +43,9 @@ function(umcub_generate_enc_key device out)
     message(WARNING "umcub: using the development device key ${device} from the repository "
                     "(image decryption / link). For production: UMCUB_CFG_DEVICE_KEY_GENERATE or _FILE (menu Keys).")
   endif()
-  set(_raw "${out}.raw")
-  add_custom_command(OUTPUT "${out}"
-    COMMAND "${UMCUB_IMGTOOL}" getpriv -k "${device}" > "${_raw}"
-    COMMAND ${CMAKE_COMMAND} -DMODE=enc -DRAW=${_raw} -DOUT=${out} -P "${UMCUB_ROOT}/cmake/umcub_keys_wrap.cmake"
-    COMMAND ${CMAKE_COMMAND} -E rm -f "${_raw}"
+  add_custom_command(OUTPUT "${out}"      # the private key only in memory: imgtool runs inside the script
+    COMMAND ${CMAKE_COMMAND} -DMODE=enc -DIMGTOOL=${UMCUB_IMGTOOL} -DKEY=${device} -DOUT=${out}
+            -P "${UMCUB_ROOT}/cmake/umcub_keys_wrap.cmake"
     DEPENDS "${device}" "${UMCUB_ROOT}/cmake/umcub_keys_wrap.cmake"
     COMMENT "umcub device key (encrypted images)"
     VERBATIM)

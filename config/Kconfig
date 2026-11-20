@@ -336,8 +336,9 @@ config IMAGE_VECTOR_CHECK
 	help
 	  Refuse an image whose reset vector is not a Thumb address inside the
 	  image as it lies in the slot it runs from (wrong image number, built
-	  for the other core), or whose initial stack pointer is not a word
-	  aligned SRAM address; about 240 bytes.
+	  for the other core), whose vector table (after the image header) is not
+	  on the family's VTOR alignment, or whose initial stack pointer is not a
+	  word aligned SRAM address; about 250 bytes.
 
 config ENCRYPT_IMAGES
 	bool "Encrypted images"

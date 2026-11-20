@@ -10,6 +10,7 @@ import os
 import socket
 import string
 import struct
+import subprocess
 import sys
 import tempfile
 import textwrap
@@ -863,6 +864,32 @@ expect("hello by UID: other devices' answers do not keep it past its deadline",
 t0 = time.monotonic()
 expect("recv_data on a flooded bus ends at its deadline",
        link.Link(Flood(), addr=5).recv_data(0.2) is None and time.monotonic() - t0 < 1.0, f"{time.monotonic() - t0:.1f} s")
+# serve --udp-listen with a SECURE session binds the address it checked (a host name resolving to loopback for the
+# check and to another address for bind() must not open the session to the network).
+class ServeSock:
+    bound = []
+
+    def __init__(self, *a):
+        pass
+
+    def bind(self, addr):
+        ServeSock.bound.append(addr[0])
+        raise OSError("stop here")
+
+
+answers = iter(["127.0.0.1", "10.1.2.3"])
+real_resolve, real_socket = socket.gethostbyname, cli_device.socket.socket
+socket.gethostbyname = lambda host: next(answers)
+cli_device.socket.socket = ServeSock
+try:
+    sdev = type("D", (), {"identity": {"addr": 1, "uid": "00" * 12, "link": 2, "enc": True}})()
+    try:
+        cli_device.cmd_serve(sdev, type("A", (), {"udp_listen": "myhost:5000", "timeout": 1.0})())
+    except OSError:
+        pass                                    # the stand-in socket stops after bind()
+finally:
+    socket.gethostbyname, cli_device.socket.socket = real_resolve, real_socket
+expect("serve: binds the checked address", ServeSock.bound == ["127.0.0.1"], str(ServeSock.bound))
 # Generated C files with a private key are readable by the owner only (umcub keys c / host-c).
 with tempfile.TemporaryDirectory() as kd:
     out = Path(kd) / "keys.c"
@@ -873,6 +900,21 @@ with tempfile.TemporaryDirectory() as kd:
     finally:
         os.umask(old_umask)
     expect("a C file with a private key: mode 0600", oct(out.stat().st_mode & 0o777), "0o600")
+# The build's device key for encrypted images (cmake/umcub_keys_wrap.cmake, MODE enc) takes imgtool's dump in memory:
+# no intermediate file with the private key, the result owner-only.
+with tempfile.TemporaryDirectory() as kd:
+    out = Path(kd) / "enc_key.c"
+    old_umask = os.umask(0o022)
+    try:
+        r = subprocess.run(["cmake", "-DMODE=enc", f"-DIMGTOOL={Path(sys.executable).parent / 'imgtool'}",
+                            f"-DKEY={KEYS / 'dev-device-p256.pem'}", f"-DOUT={out}", "-P",
+                            str(KEYS.parents[1] / "cmake/umcub_keys_wrap.cmake")], capture_output=True, text=True)
+    finally:
+        os.umask(old_umask)
+    expect("enc key wrap: the key in it", r.returncode == 0 and "enc_priv_key[] = {" in out.read_text(), r.stderr[-300:])
+    expect("enc key wrap: no other file, mode 0600",
+           [p.name for p in Path(kd).iterdir()] == ["enc_key.c"] and oct(out.stat().st_mode & 0o777) == "0o600",
+           str(list(Path(kd).iterdir())))
 
 lk = link.Link(BusConn(announce(5)), addr=5, admin_key=KEYS / "dev-admin-p256.pem",
                device_key=KEYS / "dev-device-p256.pem")
