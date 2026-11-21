@@ -154,6 +154,23 @@ static void test_hello_and_addressing(void)
     CHECK(umcub_link_take_wakeup());
 }
 
+static void test_cut_line_resync(void)
+{
+    printf("[link] a line cut short (its newline lost in a collision): the next frame line still counts\n");
+    reset_io();
+    static const uint8_t cut[] = { UMCUB_LINK_LINE_START1, UMCUB_LINK_LINE_START2, 'p', 'Q', 'E', 'C', 'A', 'P' };
+    memcpy(&s_link.in[s_link.in_len], cut, sizeof(cut));
+    s_link.in_len += sizeof(cut);
+    stream_send(UMCUB_LT_HELLO, 0, 5, NULL, 0);
+    run(10);
+    uint8_t f[2048];
+    CHECK(out_frame(0, f) == 14 + 24 && f[2] == UMCUB_LT_ANNOUNCE);
+    s_link.in[s_link.in_len++] = UMCUB_LINK_LINE_START1;           /* a lone start byte right before a line */
+    stream_send(UMCUB_LT_HELLO, 0, 5, NULL, 0);
+    run(10);
+    CHECK(out_frame(1, f) == 14 + 24 && f[2] == UMCUB_LT_ANNOUNCE);
+}
+
 static void test_data_smp_and_text(void)
 {
     printf("[link] DATA: SMP echo and text command over a stream and a packet transport\n");
@@ -285,6 +302,7 @@ int main(void)
     fake_node_addr = 5;
     test_ignores_non_frames();
     test_hello_and_addressing();
+    test_cut_line_resync();
     test_data_smp_and_text();
     test_plain_transport_unchanged();
     test_board_protocol_stream();

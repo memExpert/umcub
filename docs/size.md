@@ -49,7 +49,7 @@ F103 one) - round them up to that part's sector layout and check the real size a
 | + verify + hash | +1.0 K | +0.9 K | +0.9 K | +0.9 K | +0.9 K | +0.9 K |
 | + readback (on top of verify + hash) | +0.2 K | +0.2 K | +0.2 K | +0.2 K | +0.2 K | +0.2 K |
 | + umcub link (addressed) | +2.0 K | +2.0 K | +2.0 K | +1.9 K | +1.9 K | +2.0 K |
-| + umcub link SECURE | +4.9 K | +4.9 K | +4.9 K | +4.9 K | +4.8 K | +4.9 K |
+| + umcub link SECURE | +4.9 K | +4.9 K | +4.9 K | +4.9 K | +4.9 K | +4.9 K |
 | + link encryption (on top of SECURE) | +1.5 K | +1.5 K | +1.5 K | +1.5 K | +1.5 K | +1.5 K |
 | + encrypted images | +7.2 K | +6.3 K | +6.8 K | +6.4 K | +5.8 K | +5.9 K |
 | **all on** | 52.9 K | 50.2 K | 51.0 K | 37.3 K | 39.2 K | 29.4 K |

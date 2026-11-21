@@ -21,11 +21,11 @@ do not find a SECURE CAN node); SECURE on any transport wants 0.6.3 or later (th
 
 Frames: magic, version, type, flags, destination, source, sequence number, length, payload, optional 16-byte tag.
 Packet transports (CAN ISO-TP, UDP, board packet transports) carry them as they are, stream transports (UART, USB
-CDC) as a line `0x05 0x0B <base64> \n`. The format and the handshake are described in
-[`src/proto/include/umcub_link.h`](../src/proto/include/umcub_link.h). RS485 needs the driver-enable pin
-(`UMCUB_CFG_UART_DE_*`; hardware DE on the H7, software on the F1 and F4) and no log on that UART. A 5 V transceiver
-(MAX485 and alike) does not drive the bus properly from 3.3 V: power it from 5 V and put its RO output on a
-5 V-tolerant RX pin, or use a 3.3 V part (MAX3485, SP3485).
+CDC) as a line `0x05 0x0B <base64> \n` (0x05 always starts a line: one cut short by a collision costs only itself).
+The format and the handshake are described in [`src/proto/include/umcub_link.h`](../src/proto/include/umcub_link.h).
+RS485 needs the driver-enable pin (`UMCUB_CFG_UART_DE_*`; hardware DE on the H7, software on the F1 and F4) and no
+log on that UART. A 5 V transceiver (MAX485 and alike) does not drive the bus properly from 3.3 V: power it from 5 V
+and put its RO output on a 5 V-tolerant RX pin, or use a 3.3 V part (MAX3485, SP3485).
 
 ## SECURE mode
 

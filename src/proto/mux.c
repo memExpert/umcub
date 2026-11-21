@@ -332,6 +332,7 @@ static void pump_stream(unsigned i)
     while (l && !l->ready && t->read(&c, 1) == 1) {
 #if UMCUB_CFG_LINK_ANY
         if (link) {
+            l->len *= c != UMCUB_LINK_LINE_START1;     /* 05 never occurs in base64: it starts a new line */
             if ((l->len == 0 && c != UMCUB_LINK_LINE_START1) || (l->len == 1 && c != UMCUB_LINK_LINE_START2)) {
                 l->len = 0;             /* not a frame: ignored in link mode */
                 continue;
