@@ -43,6 +43,11 @@ SMP_PARAMS, lite).
   only through the stopgap include directory `${MCUBOOT}/boot/boot_serial` in CMakeLists.txt. Fix prepared, not sent
   yet (branch boot-serial-loader-include: `"../src/bootutil_loader.h"`); drop the stopgap with the release that has it.
 - [ ] Ports for other series (F7, G0, L4).
+- [ ] `src/transport/can/isotp.c` off ISO 15765-2 (found by `tests/host/diff_test.py`): a CAN-FD single frame over 8
+  bytes with its length in the first byte is taken, a first frame whose length fits into itself is refused with an
+  overflow flow control - the standard ignores both (python-can-isotp ignores the single frame, takes the first
+  frame). Decide: follow the standard (a few bytes in CAN builds) or keep it as a documented deviation; then drop the
+  masking in `off_standard()` of the test.
 - [ ] examples/blackpill_app: console on the bootloader's UART like bluepill_app (instance, pins, baud, DE pin from
   umcub_cfg.h); it is hard-wired to USART1 + DE on PA8, so with variants/usart2.conf it does not answer.
 - [ ] **STM32G4 on hardware** (port and NUCLEO-G474RE board built only; FDCAN updates run on a custom G474RET6

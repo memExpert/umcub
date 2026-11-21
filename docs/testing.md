@@ -11,6 +11,7 @@ ctest --test-dir build/matrix -j4 --rerun-failed --output-on-failure   # the sam
 ctest --test-dir build/<preset>             # one build tree: every signed image verifies with its key
 ctest --test-dir build/matrix/host    # host tests only
 tests/host/link_e2e.py build/matrix/host   # simulated devices: umcub link bus, smpmgr, host tools, lite upload
+tests/host/diff_test.py build/matrix/host   # firmware C against the host library: codecs, link, lite, ISO-TP, images
 tests/tools/check_pins_test.py              # pin check: right / wrong pins and AF numbers, AF filled in, packages
 tests/tools/layout_test.py                  # MCUboot's rule on the slots
 tests/tools/kconfig_test.py                 # what `umcub config generate` writes and warns about
@@ -72,6 +73,14 @@ block, SysTick nothing.
 Property tests (`tests/tools/property_test.py`, Hypothesis): the same examples on every run (ctest stays
 deterministic); `UMCUB_PROPS_RANDOM=1 .venv/bin/python tests/tools/property_test.py` searches with new random ones -
 pin a counterexample it finds with `@example` and fix the code.
+
+Differential tests (`tests/host/diff_test.py`, the same profile): the firmware's own C code -
+`tests/host/diff_harness.c`, built with the host tests (ASan/UBSan where the toolchain has the libraries) and run
+once with the cases on stdin - against the host library on the same bytes: CRC-16 and base64, the frames an
+ADDRESSED node takes (and the ANNOUNCE it answers), a lite upload through a channel that loses and damages frames,
+ISO-TP in both directions and with damaged frames (against python-can-isotp; frames outside ISO 15765-2, which the
+two stacks treat differently, are only fed in), and signed images with changed TLV areas (what MCUboot validates,
+`umcub.Image` reads with the same hash, version and board type).
 
 Every transport of a bench, end to end: `tests/hw/bench_matrix.py --rs485 <port> --node N=TREE:ELF:TRANSPORTS ...`
 (or `--console <port>` on a bench without an RS485 bus) signs the example application of each node with its own

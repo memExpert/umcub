@@ -58,6 +58,7 @@ set_source_files_properties(${BOOTUTIL_SRCS} ${MCUBOOT}/boot/boot_serial/src/boo
   ${ZCBOR}/src/zcbor_encode.c PROPERTIES COMPILE_OPTIONS "-w")
 
 option(UMCUB_HOST_SANITIZE "Build host tests with ASan/UBSan (needs libasan/libubsan)" OFF)
+set(SANITIZE -fsanitize=address,undefined)
 
 # What every host test target links: the fake port, the mux and the image
 # side with MCUboot (boot_serial, ECDSA); each target adds its transports.
@@ -111,8 +112,8 @@ function(umcub_host_setup t)
   target_compile_options(${t} PRIVATE -g -O1 -Wall -Wextra -Wno-unused-parameter -ffunction-sections -fdata-sections)
   target_link_options(${t} PRIVATE -Wl,--gc-sections)
   if(UMCUB_HOST_SANITIZE)
-    target_compile_options(${t} PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
-    target_link_options(${t} PRIVATE -fsanitize=address,undefined)
+    target_compile_options(${t} PRIVATE ${SANITIZE} -fno-omit-frame-pointer)
+    target_link_options(${t} PRIVATE ${SANITIZE})
   endif()
 endfunction()
 
@@ -361,4 +362,29 @@ umcub_host_link(umcub_sim_secure sim_device.c test_link_secure_post ${LINK_SECUR
 # CAN SECURE: a umcub link session over the node's ISO-TP IDs.
 umcub_host_link(umcub_sim_can_secure sim_can.c sim_can_secure_post ${UMCUB_ROOT}/src/transport/registry.c
   ${UMCUB_ROOT}/src/transport/can/can_transport.c ${UMCUB_ROOT}/src/transport/can/isotp.c ${LINK_SECURE_SOURCES})
+
+# Differential tests (tests/host/diff_test.py): codecs, link, lite, ISO-TP and image validation on cases from
+# stdin, with ASan/UBSan where the toolchain has them; a small signed image for the lite and image cases.
+umcub_host_link(umcub_diff diff_harness.c diff_post ${UMCUB_ROOT}/src/transport/can/isotp.c)
+target_include_directories(umcub_diff PRIVATE ${UMCUB_ROOT}/src/transport/can)
+include(CheckCSourceCompiles)
+set(CMAKE_REQUIRED_FLAGS ${SANITIZE})
+set(CMAKE_REQUIRED_LINK_OPTIONS ${SANITIZE})
+check_c_source_compiles("int main(void) { return 0; }" UMCUB_HAVE_SANITIZERS)
+unset(CMAKE_REQUIRED_FLAGS)
+unset(CMAKE_REQUIRED_LINK_OPTIONS)
+if(UMCUB_HAVE_SANITIZERS)
+  target_compile_options(umcub_diff PRIVATE ${SANITIZE} -fno-sanitize-recover=all -fno-omit-frame-pointer)
+  target_link_options(umcub_diff PRIVATE ${SANITIZE})
+else()
+  message(STATUS "umcub: no ASan/UBSan libraries (e.g. libasan, libubsan): umcub_diff runs without them")
+endif()
+set(_d ${CMAKE_BINARY_DIR}/diff_image)
+math(EXPR _reset "${UMCUB_CFG_IMG0_PRIMARY_ADDR} + 0x400 + 0x200" OUTPUT_FORMAT HEXADECIMAL)
+add_custom_command(OUTPUT ${_d}.signed.bin
+  DEPENDS ${CMAKE_CURRENT_LIST_DIR}/gen_payload.py ${UMCUB_ROOT}/tools/host/umcub/sign.py
+  COMMAND ${_py} ${CMAKE_CURRENT_LIST_DIR}/gen_payload.py ${_d}.payload.bin 6000 ${_reset}
+  COMMAND ${_py} ${UMCUB_ROOT}/tools/host/umcub image sign --board ${UMCUB_CONFIG_DIR} --core ${UMCUB_CORE} --quiet
+          --imgtool ${UMCUB_IMGTOOL} --version 1.2.3+4 ${_d}.payload.bin -o ${_d})
+add_custom_target(umcub_diff_image ALL DEPENDS ${_d}.signed.bin)
 unset(UMCUB_SIM)

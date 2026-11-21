@@ -74,6 +74,8 @@ set_tests_properties(host-tests PROPERTIES FIXTURES_SETUP host)
 _umcub_test(link-e2e ${RUN} check link-e2e -- "${UMCUB_PY}" tests/host/link_e2e.py "${CMAKE_BINARY_DIR}/host"
   --python "${UMCUB_PY}")
 set_tests_properties(link-e2e PROPERTIES FIXTURES_REQUIRED host)
+_umcub_test(host-diff ${RUN} check host-diff -- "${UMCUB_PY}" tests/host/diff_test.py "${CMAKE_BINARY_DIR}/host")
+set_tests_properties(host-diff PROPERTIES FIXTURES_REQUIRED host)
 
 list(JOIN _order "\n" _order)
 file(WRITE "${CMAKE_BINARY_DIR}/summary_order.txt" "${_order}\n")
