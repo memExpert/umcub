@@ -9,7 +9,8 @@ agree.
   link    umcub link frames: what src/proto/link.c accepts against link.parse_frame (+ the routing of an ADDRESSED
           node); the ANNOUNCE it answers a HELLO with parsed by the host
   lite    the host's lite upload (lite.upload) through a lossy channel into src/proto/lite.c: the slot holds the image
-  isotp   src/transport/can/isotp.c against python-can-isotp (the host's ISO-TP stack), both directions
+  isotp   src/transport/can/isotp.c against python-can-isotp (the host's ISO-TP stack), both directions; damaged
+          frames as a receiver following ISO 15765-2 takes them
   image   signed images with a changed TLV area: what MCUboot validates, umcub.Image reads with the same hash,
           version and board type
 
@@ -284,29 +285,35 @@ def isotp_round_trip(msg, fd):
     assert back == [msg], (len(back), sent[0][:80])
 
 
-def off_standard(frames, fl):
-    """Frames ISO 15765-2 rules out, which the two stacks treat differently - neither sends them:
-    a CAN-FD single frame over 8 bytes with its length in the first byte (isotp.c takes it, the standard and
-    python-can-isotp ignore it); a first frame whose length fits into itself (isotp.c refuses it with an overflow,
-    python-can-isotp takes it)."""
-    for f in frames:
-        pci = f[0] >> 4
-        if pci == 0 and len(f) > 8 and f[0] & 0xF:
+def ignored(f):
+    """A frame ISO 15765-2 has the receiver ignore, which python-can-isotp takes (isotp.c follows the standard):
+    a single frame with the escape length on a classic-size CAN frame; a first frame shorter than 8 bytes, with
+    the escape length under 4096, or whose length fits a single frame."""
+    pci = f[0] >> 4
+    if pci == 0:
+        return len(f) <= 8 and f[0] & 0xF == 0
+    if pci != 1:
+        return False
+    if len(f) < 8:
+        return True
+    total = (f[0] & 0xF) << 8 | f[1]
+    if total == 0:
+        total = int.from_bytes(f[2:6], "big")
+        if total <= 0xFFF:
             return True
-        if pci == 1 and len(f) >= 2:
-            total, hdr = (f[0] & 0xF) << 8 | f[1], 2
-            if total == 0 and len(f) >= 6:
-                total, hdr = int.from_bytes(f[2:6], "big"), 6
-            if total < len(f) - hdr or total <= (len(f) - (2 if fl > 8 else 1)):
-                return True
-    return False
+    return total < (len(f) - 1 if len(f) > 8 else 8)
+
+
+def standard_receive(frames, fl):
+    """What a receiver following ISO 15765-2 delivers: python-can-isotp without the frames it should ignore."""
+    return py_receive([f for f in frames if not ignored(f)], fl)
 
 
 @prop
 @given(msg=st.binary(min_size=1, max_size=300), fd=st.booleans(), drop=st.sets(st.integers(0, 50), max_size=2),
        flips=st.lists(st.tuples(st.integers(0, 50), st.integers(0, 63), u8), max_size=3))
 def isotp_damaged_same_message(msg, fd, drop, flips):
-    """Frames lost or changed: whatever isotp.c delivers, the host's stack delivers too (and the other way)."""
+    """Frames lost or changed: isotp.c delivers what a receiver following the standard does."""
     fl = 64 if fd else 8
     frames = [bytearray(f) for i, f in enumerate(py_frames(msg, fl)) if i not in drop]
     for i, j, v in flips:
@@ -316,8 +323,32 @@ def isotp_damaged_same_message(msg, fd, drop, flips):
     frames = [bytes(f) for f in frames if f]
     got = H.ask("isotp", fl, ",".join(f.hex() for f in frames) or "-")
     c_msgs = [bytes.fromhex(x) for x in got if x != "-"]
-    if not off_standard(frames, fl):
-        assert c_msgs == py_receive(frames, fl), (c_msgs, [f.hex() for f in frames])
+    assert c_msgs == standard_receive(frames, fl), (c_msgs, [f.hex() for f in frames])
+
+
+OFF_STANDARD = [
+    "0005010203040506",                     # single frame, escape length on a classic frame
+    "05010203040506" + "cc" * 5,            # CAN-FD frame over 8 bytes, length in the first byte
+    "100701020304050607",                   # first frame of 7 bytes: fits a single frame
+    "1009010203",                           # first frame shorter than 8 bytes
+    "1000000000080102",                     # escape first-frame length under 4096 (here 8)
+    "103e" + "ab" * 62,                     # CAN-FD first frame of 62 bytes in 64: fits a single frame
+]
+
+
+@prop
+@given(case=st.sampled_from(OFF_STANDARD), msg=st.binary(min_size=1, max_size=200), fd=st.booleans())
+def isotp_off_standard_frame_ignored(case, msg, fd):
+    """A frame the standard has the receiver ignore delivers nothing and does not disturb the message after it
+    (nor one it lands in the middle of)."""
+    fl = 64 if fd else 8
+    f = bytes.fromhex(case)
+    frames = py_frames(msg, fl)
+    got = H.ask("isotp", fl, f.hex())
+    assert got == ["-"], (case, got)
+    mid = frames[:1] + [f] + frames[1:]
+    got = H.ask("isotp", fl, ",".join(x.hex() for x in mid))
+    assert [bytes.fromhex(x) for x in got if x != "-"] == [msg], (case, got)
 
 
 # --- images --------------------------------------------------------------------------------------------------------------

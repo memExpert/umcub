@@ -46,10 +46,15 @@ size_t isotp_on_frame(isotp_t *t, const uint8_t *d, uint8_t len)
         t->rx_active = false;
     }
 
+    /* ISO 15765-2 has the receiver ignore malformed SF / FF: here, before the
+     * reception in progress is touched. */
     if (type == PCI_SF) {
         size_t n = d[0] & 0xFu;
         size_t hdr = 1;
-        if (n == 0 && len > 2) {        /* CAN-FD escape: length in byte 1 */
+        if (len > 8) {                  /* CAN-FD: the length in byte 1 (escape), and only there */
+            if (n != 0) {
+                return 0;
+            }
             n = d[1];
             hdr = 2;
         }
@@ -61,16 +66,22 @@ size_t isotp_on_frame(isotp_t *t, const uint8_t *d, uint8_t len)
         return n;
     }
     if (type == PCI_FF) {
-        if (len < 2) {
+        if (len < 8) {                  /* a first frame fills its CAN frame */
             return 0;
         }
         size_t total = ((size_t)(d[0] & 0xFu) << 8) | d[1];
         size_t hdr = 2;
-        if (total == 0 && len >= 6) {   /* > 4095 bytes escape */
+        if (total == 0) {               /* > 4095 bytes escape */
             total = umcub_get_be32(d + 2);
             hdr = 6;
+            if (total <= 0xFFFu) {
+                return 0;
+            }
         }
-        if (total > t->rx_cap || total < len - hdr) {
+        if (total < (len > 8 ? len - 1u : 8u)) {
+            return 0;                   /* fits a single frame */
+        }
+        if (total > t->rx_cap) {
             send_fc(t, FC_OVFL);
             t->rx_active = false;
             return 0;

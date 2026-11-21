@@ -76,11 +76,11 @@ pin a counterexample it finds with `@example` and fix the code.
 
 Differential tests (`tests/host/diff_test.py`, the same profile): the firmware's own C code -
 `tests/host/diff_harness.c`, built with the host tests (ASan/UBSan where the toolchain has the libraries) and run
-once with the cases on stdin - against the host library on the same bytes: CRC-16 and base64, the frames an
-ADDRESSED node takes (and the ANNOUNCE it answers), a lite upload through a channel that loses and damages frames,
-ISO-TP in both directions and with damaged frames (against python-can-isotp; frames outside ISO 15765-2, which the
-two stacks treat differently, are only fed in), and signed images with changed TLV areas (what MCUboot validates,
-`umcub.Image` reads with the same hash, version and board type).
+once with the cases on stdin - against the host library on the same bytes: CRC-16 and base64, the frames an ADDRESSED
+node takes (and the ANNOUNCE it answers), a lite upload through a channel that loses and damages frames, ISO-TP in
+both directions and with damaged frames (against python-can-isotp, less the frames ISO 15765-2 has a receiver ignore
+and python-can-isotp takes), and signed images with changed TLV areas (what MCUboot validates, `umcub.Image` reads
+with the same hash, version and board type).
 
 Every transport of a bench, end to end: `tests/hw/bench_matrix.py --rs485 <port> --node N=TREE:ELF:TRANSPORTS ...`
 (or `--console <port>` on a bench without an RS485 bus) signs the example application of each node with its own
