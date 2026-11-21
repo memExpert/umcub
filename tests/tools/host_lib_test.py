@@ -434,6 +434,17 @@ if sys.platform.startswith("linux"):
     time.sleep(0.1)
     expect("serial: recv(timeout 0) reads what arrived", sc.recv(umcub.KIND_LITE, 0) == f)
     expect("serial: recv(timeout 0) keeps a line half there", sc.recv(umcub.KIND_LITE, 0) is None and sc.buf)
+    # A line cut short by a collision (its newline lost) runs into the next one: 0x05 starts that one.
+    sc.buf = b""
+    noise = sc.noise
+    g = link.make_frame(link.T_ANNOUNCE, 0, link.HOST_ADDR, 1, bytes(24), src=6)
+    os.write(master, b"\x05\x0b" + base64.b64encode(g)[:10] + b"\x05\x0b" + base64.b64encode(g) + b"\n")
+    expect("serial: the frame after a cut line", sc.recv(umcub.KIND_LINK, 0.5) == g)
+    expect("serial: the cut line counted as noise", sc.noise == noise + 1, str(sc.noise - noise))
+    os.write(master, b"text \x05 inside\n")
+    sc.recv(umcub.KIND_LINK, 0.2)
+    expect("serial: a text line with 0x05 (no frame start) kept whole", sc.lines[-1] == b"text \x05 inside",
+           str(list(sc.lines)[-1:]))
     sc.close()
     os.close(master)
     os.close(slave)
@@ -447,8 +458,9 @@ if sys.platform.startswith("linux"):
     time.sleep(0.3)
     f = link.make_frame(link.T_HELLO, 0, 5, 1, b"")
     os.write(master, b"\x05\x0b" + base64.b64encode(f) + b"\nnoise line\n")
+    os.write(master, b"\x05\x0b" + base64.b64encode(f)[:7] + b"\x05\x0b" + base64.b64encode(f) + b"\n")   # one cut short
     for _ in range(50):
-        if len(got) >= 2:
+        if len(got) >= 4:
             break
         time.sleep(0.05)
     stop.set()
@@ -457,6 +469,8 @@ if sys.platform.startswith("linux"):
     expect("sniff: link frame parsed", got and got[0].frame and got[0].frame["dst"] == 5 and got[0].data == f,
            str(got[:1]))
     expect("sniff: raw line", len(got) > 1 and got[1].frame is None and got[1].text.startswith("raw "), str(got[1:]))
+    expect("sniff: a cut line raw, the frame after it parsed", len(got) == 4 and got[2].frame is None and
+           got[3].frame and got[3].data == f, str(got[2:]))
     os.close(master)
     os.close(slave)
 raises("sniff: port that does not exist", lambda: link.sniff("/dev/umcub-no-such-port", print), text="umcub-no-such-port")

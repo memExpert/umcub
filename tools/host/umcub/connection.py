@@ -35,6 +35,7 @@ KIND_LINK = 0x0B        # umcub link frame (src/proto/include/umcub_link.h)
 KIND_LITE = 0x0C        # lite upload frame (src/proto/include/umcub_lite.h)
 KIND_USER = 0x0E        # board protocol frame (UMCUB_CFG_PROTO_USER)
 LINE_START = 0x05
+FRAME_STARTS = tuple(bytes([LINE_START, k]) for k in (KIND_LINK, KIND_LITE, KIND_USER))
 
 UDP_PORT = 1337
 CAN_TX, CAN_RX = 0x7C0, 0x7C8
@@ -112,6 +113,11 @@ class Serial(Connection):
         self._io(self.s.flush)
 
     def _line(self, line):
+        # a frame line inside: the one before it cut short (collision; 0x05 is never in base64)
+        cut = max(line.rfind(start, 1) for start in FRAME_STARTS)
+        if cut > 0:
+            self.noise += 1                         # a broken rest counts once more below: noise only grows
+            line = line[cut:]
         if len(line) >= 2 and line[0] == LINE_START:
             try:
                 self.queues[line[1]].append(base64.b64decode(line[2:].strip(), validate=True))

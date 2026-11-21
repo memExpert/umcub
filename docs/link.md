@@ -85,10 +85,12 @@ development keys from the repository, the build warns about them.
 Standard SMP clients do not speak the link. The [`umcub` tool](host.md) finds the devices, selects one, uploads to
 it and, as a proxy, serves `mcumgr` / `smpmgr` unchanged.
 
-`discover` broadcasts DISCOVER with a number of slots; every device answers ANNOUNCE in a random slot. Two devices
-in one slot collide and the host receives garbage; the next round lists the UIDs found so far (those stay silent)
-and the rest draw new slots. Rounds end after a quiet one - nothing new and nothing garbled - or after `--rounds`
-(default 8). Fewer `--slots` make discovery faster and collisions more likely.
+`discover` broadcasts DISCOVER with a number of slots; every device answers ANNOUNCE in a random slot. Two devices in
+one slot collide and the host receives garbage; the next round lists the UIDs found so far (those stay silent) and
+the rest draw new slots. Rounds end after a quiet one - nothing new and nothing garbled - or after `--rounds`
+(default 8). Fewer `--slots` make discovery faster and collisions more likely. From host library 0.6.5 the host
+(and `sniff`, for link frames) also starts a line at a frame start (`05 0B`, `05 0C`, `05 0E`), so a line cut short
+by a collision costs only itself there too.
 
 ```sh
 umcub -d /dev/ttyUSB0 discover                                # all devices on the bus (random back-off rounds)

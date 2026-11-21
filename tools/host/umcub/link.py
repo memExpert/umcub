@@ -114,10 +114,14 @@ def sniff(port, out, baud=115200, raw=False, stop=None):
             while b"\n" in buf:
                 line, buf = buf.split(b"\n", 1)
                 ts = time.monotonic() - t0
-                i = line.find(start)
+                i = line.rfind(start)                  # the last: one before it was cut short (collision)
+                if i > 0:
+                    if raw and line[:i].strip():
+                        out(SniffEvent(ts, None, line[:i], f"raw {line[:i][:64].hex()}"))
+                    line, i = line[i:], 0
                 if i >= 0:
                     try:
-                        data = base64.b64decode(line[i + 2:].strip(), validate=True)
+                        data = base64.b64decode(line[2:].strip(), validate=True)
                     except ValueError:
                         pass
                     else:
