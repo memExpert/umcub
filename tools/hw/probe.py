@@ -3,7 +3,8 @@
 
 Backends (--probe or $UMCUB_PROBE):
   stm32cube  STM32_Programmer_CLI ($STM32_PROGRAMMER_CLI or PATH). Erasing an
-             address range needs --sector-size (uniform sectors from --flash-base).
+             address range needs --sector-size (uniform sectors from --flash-base), or .sectors
+             set by the caller (the part's table: sectors of different sizes).
   pyocd      pyOCD (pip install pyocd): --target / $PYOCD_TARGET (e.g. stm32f103c8),
              --pack / $PYOCD_PACK (CMSIS-Pack file with the part).
 
@@ -43,6 +44,7 @@ class Stm32Cube:
             raise ProbeError("STM32_Programmer_CLI not found: set $STM32_PROGRAMMER_CLI or add it to PATH")
         self.mode = {"attach": "HOTPLUG", "under-reset": "UR"}[connect]
         self.sector_size, self.flash_base = sector_size, flash_base
+        self.sectors = None             # [(address, size)] of the part, in order: sector numbers of any layout
         self.port = ["port=SWD", f"mode={self.mode}"] + ([f"sn={serial}"] if serial else [])
 
     def _run(self, *args, tries=5):
@@ -109,11 +111,14 @@ class Stm32Cube:
             addr, size = step[1], step[2]
             if addr is None:
                 return ["-e", "all"]
-            if not self.sector_size:
+            if self.sectors:
+                nums = [i for i, (s, n) in enumerate(self.sectors) if s < addr + size and addr < s + n]
+            elif self.sector_size:
+                nums = range((addr - self.flash_base) // self.sector_size,
+                             (addr + size - 1 - self.flash_base) // self.sector_size + 1)
+            else:
                 raise ProbeError("stm32cube: erasing a range needs --sector-size")
-            first = (addr - self.flash_base) // self.sector_size
-            last = (addr + size - 1 - self.flash_base) // self.sector_size
-            return ["-e", *[str(s) for s in range(first, last + 1)]]
+            return ["-e", *[str(i) for i in nums]]
         if op == "write32":
             return ["-w32", hex(step[1]), *[hex(w) for w in step[2]]]
         if op == "reset":

@@ -16,19 +16,19 @@ Overwrite (--mode overwrite): steps 1-3, check primary == v2 only.
 
 Images are signed with `umcub image sign` for the bootloader's configuration
 (--board / --core / --conf, as for the build), so header size, alignment
-and the board-type TLV match.
+and the board-type TLV match. The mode, the slots and the flash to erase come
+from that configuration too (--mode / --primary / --secondary / --erase override).
 
   NUCLEO-H755ZI-Q (swap-scratch):
   tests/hw/powerfail_test.py --boot build/hw/boot_fault/umcub_nucleo_h755zi_q_cm7.hex \\
       --app build/hw/sb_app_cm7/h755_cm7_app.bin --board nucleo_h755zi_q --core cm7 \\
-      --erase 0x08020000+0xE0000 --sector-size 0x20000 --points 40
+      --points 40
   swap-offset (the update sits one sector into the secondary slot, the revert copy at its start):
-  ... --conf tests/configs/feature/fault_inject.conf --conf tests/configs/mode/swap_offset.conf --secondary 0x080A0000 --revert-copy 0x08080000
+  ... --conf tests/configs/feature/fault_inject.conf --conf tests/configs/mode/swap_offset.conf
   Blue Pill (overwrite, 16 KiB slots, 1 KiB pages, no NRST on the SWD header):
   tests/hw/powerfail_test.py --boot build/bp_fault/umcub_bluepill_f103c8_cm3.hex \\
       --app build/bluepill/examples/bluepill_app/bluepill_app.bin --board bluepill_f103c8 \\
-      --mode overwrite --primary 0x08008000 --secondary 0x0800C000 --erase 0x08008000+0x8000 \\
-      --size 12288 --sector-size 0x400 --connect under-reset --reset rst --points 40
+      --connect under-reset --reset rst --points 40
   Encrypted update (--encrypted; bootloader built with tests/configs/feature/encrypt_only.conf as well and the
   same --conf here): v2 goes into the secondary slot encrypted, so resuming an interrupted swap needs the key
   MCUboot kept in the trailer (the AES key, or the key TLV with UMCUB_CFG_SWAP_SAVE_ENCTLV). Upgrade: primary
@@ -47,11 +47,33 @@ import probe  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(ROOT, "tools/host"))
+from umcub import layout  # noqa: E402
 from umcub.config import Config  # noqa: E402
 
-PY = os.path.join(ROOT, ".venv/bin/python")
 FAULT_MAGIC = 0xFA017E57
 HANDOFF_MAGIC = 0x42434D55      # umcub_handoff_t.magic, written right before the jump
+
+
+def part_sectors(cfg):
+    """{address: size} of the erase sectors of the bootloader's part (as kconfig.py passes the bank mode)."""
+    dual = bool(cfg["FLASH_DUAL_BANK"]) or not cfg["HAS_FLASH_BANK_MODE"]
+    return dict(layout.sectors(cfg.family.upper(), cfg["FLASH_KB"], dual))
+
+
+def slot_defaults(cfg, sectors):
+    """(mode, primary slot, update address, secondary slot = revert copy, [(address, size)] to erase, payload size)
+    of image 0 from the configuration."""
+    mode = cfg["UPGRADE_MODE"]
+    if mode not in (1, 2, 4):
+        sys.exit(f"powerfail_test: upgrade mode {mode} - no copies to interrupt (overwrite or swap only)")
+    pri, pri_size = cfg.slot(0, 0)
+    sec, sec_size = cfg.slot(0, 1)
+    upd = sec + sectors[sec] if mode == 4 else sec  # swap-offset: the update one sector into the secondary slot
+    erase = [(pri, pri_size), (sec, sec_size)]
+    if cfg["SCRATCH_SIZE"]:
+        erase.append((cfg["SCRATCH_ADDR"], cfg["SCRATCH_SIZE"]))
+    size = min(200 * 1024, cfg.window(0, 0)[1] - 2048)     # room for the TLVs
+    return ("overwrite" if mode == 1 else "swap"), pri, upd, sec, erase, size
 
 
 def main():
@@ -62,16 +84,17 @@ def main():
     ap.add_argument("--core", help="dual-core parts: cm7 / cm4")
     ap.add_argument("--conf", action="append",
                     help="configuration fragments of the bootloader build (default: fault_inject.conf)")
-    ap.add_argument("--mode", choices=("swap", "overwrite"), default="swap")
+    ap.add_argument("--mode", choices=("swap", "overwrite"), help="default: the bootloader's upgrade mode")
     ap.add_argument("--encrypted", action="store_true", help="v2 encrypted (bootloader with UMCUB_CFG_ENCRYPT_IMAGES)")
-    ap.add_argument("--primary", type=lambda s: int(s, 0), default=0x08020000)
-    ap.add_argument("--secondary", type=lambda s: int(s, 0), default=0x08080000)
+    ap.add_argument("--primary", type=lambda s: int(s, 0), help="default: image 0's primary slot")
+    ap.add_argument("--secondary", type=lambda s: int(s, 0),
+                    help="where the update is written; default: the secondary slot (swap-offset: one sector into it)")
     ap.add_argument("--revert-copy", type=lambda s: int(s, 0),
-                    help="where the previous image lands in the secondary slot after an upgrade (swap-offset: "
-                         "the slot start, one sector before --secondary); default --secondary")
-    ap.add_argument("--erase", default="0x08020000+0xE0000",
-                    help="flash to erase before each run as ADDR+SIZE (whole sectors)")
-    ap.add_argument("--size", type=int, default=200 * 1024, help="payload size")
+                    help="where the previous image lands in the secondary slot after an upgrade; default: the slot")
+    ap.add_argument("--erase", action="append",
+                    help="flash to erase before each run as ADDR+SIZE (whole sectors), repeatable; "
+                         "default: the slots and scratch")
+    ap.add_argument("--size", type=int, help="payload size (default: 200 KiB, less in a smaller slot)")
     ap.add_argument("--fault-addr", type=lambda s: int(s, 0),
                     help="UMCUB_CFG_TEST_FAULT_ADDR of the bootloader (default: from its configuration)")
     ap.add_argument("--reset", choices=("hardRst", "rst"), default="hardRst",
@@ -84,18 +107,29 @@ def main():
     ap.add_argument("--seed", type=int, default=1)
     a = ap.parse_args()
 
-    p = probe.open_probe(a)
-    read_words = p.read32
-    read_mem = p.read_mem
-    e_addr, _, e_size = a.erase.partition("+")
-    e_addr, e_size = int(e_addr, 0), int(e_size, 0)
     a.conf = a.conf or [os.path.join(ROOT, "tests/configs/feature/fault_inject.conf")]
     cfg = Config(a.board, a.core, a.conf)
+    sectors = part_sectors(cfg)
+    mode, primary, update, revert_copy, erase, size = slot_defaults(cfg, sectors)
+    a.mode = a.mode or mode
+    a.primary = a.primary if a.primary is not None else primary
+    a.secondary = a.secondary if a.secondary is not None else update
+    a.size = a.size or size
+    if len(set(sectors.values())) == 1:         # stm32cube: uniform sectors numbered from the flash base
+        a.sector_size = a.sector_size or next(iter(sectors.values()))
+    p = probe.open_probe(a)
+    if len(set(sectors.values())) > 1:          # stm32cube: sectors of different sizes numbered by the table
+        p.sectors = list(sectors.items())
+    read_words = p.read32
+    read_mem = p.read_mem
+    revert_copy = a.revert_copy if a.revert_copy is not None else revert_copy
+    if a.erase:
+        erase = [(int(x, 0), int(n, 0)) for x, _, n in (e.partition("+") for e in a.erase)]
     fault_addr = a.fault_addr if a.fault_addr is not None else cfg["TEST_FAULT_ADDR"]
     handoff_magic = cfg["SHARED_RAM_ADDR"] + 16  # umcub_handoff_t.magic (UMCUB_HANDOFF_INFO_OFFSET)
 
     def sign(payload, version, out, pad):
-        args = [PY, os.path.join(ROOT, "tools/host/umcub"), "image", "sign", "--board", a.board, "--version", version]
+        args = [sys.executable, os.path.join(ROOT, "tools/host/umcub"), "image", "sign", "--board", a.board, "--version", version]
         if a.core:
             args += ["--core", a.core]
         for f in a.conf:
@@ -108,6 +142,8 @@ def main():
     tmp = tempfile.mkdtemp(prefix="powerfail_")
     rnd = random.Random(a.seed)
     app = open(a.app, "rb").read()
+    if len(app) + 2 > a.size:
+        sys.exit(f"powerfail_test: the application ({len(app)} B) does not fit the payload size {a.size} (--size)")
     payloads = []
     for tag in (b"v1", b"v2"):
         pl = app + tag + bytes(rnd.getrandbits(8) for _ in range(a.size - len(app) - 2))
@@ -134,23 +170,16 @@ def main():
     # Programming erases the sectors it writes: erase only the rest of
     # --erase (the primary slot's trailer, scratch, ...), not twice.
     written = [(a.primary, os.path.getsize(v1)), (a.secondary, os.path.getsize(v2_file))]
-    sector = a.sector_size
+    to_erase = [(s, n) for s, n in sectors.items() if any(s < e + m and e < s + n for e, m in erase)
+                and not any(s < w + m and w < s + n for w, m in written)]
 
     def prepare():
-        if not sector:
-            return [("erase", e_addr, e_size), ("program", v1, a.primary), ("program", v2_file, a.secondary)]
-        steps = []
-        for s in range(e_addr, e_addr + e_size, sector):
-            if not any(s < w + n and w < s + sector for w, n in written):
-                steps.append(("erase", s, sector))
-        return steps + [("program", v1, a.primary), ("program", v2_file, a.secondary)]
+        return [("erase", s, n) for s, n in to_erase] + [("program", v1, a.primary), ("program", v2_file, a.secondary)]
 
     def arm(k):
         # the fault record, and the handoff magic cleared: set again only when
         # the bootloader has finished and jumps to the application
         return [("write32", fault_addr, [FAULT_MAGIC, k, 0, 0]), ("write32", handoff_magic, [0])]
-
-    revert_copy = a.revert_copy if a.revert_copy is not None else a.secondary
 
     def boot_and_check(expect_primary, expect_secondary, steps):
         p.run_steps(steps + [("reset", a.reset == "hardRst")])     # one probe connect for all of it

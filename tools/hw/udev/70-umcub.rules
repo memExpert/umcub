@@ -1,3 +1,4 @@
 # umcub bootloader USB device (DFU via dfu-util, CDC) - give the logged-in user access.
+#   (1209:0001: the defaults of UMCUB_CFG_USB_VID / USB_PID - with ids of your own, change them here too)
 #   sudo cp tools/hw/udev/70-umcub.rules /etc/udev/rules.d/ && sudo udevadm control --reload && sudo udevadm trigger
 SUBSYSTEM=="usb", ATTR{idVendor}=="1209", ATTR{idProduct}=="0001", TAG+="uaccess", MODE="0660", GROUP="dialout"

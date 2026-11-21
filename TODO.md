@@ -48,6 +48,9 @@ SMP_PARAMS, lite).
 - [ ] **STM32G4 on hardware** (port and NUCLEO-G474RE board built only; FDCAN updates run on a custom G474RET6
   board): UART, RNG (`tests/hw/entropy_test.py`), single-bank mode, a power cut during programming (ECC NMI ->
   read error, `tests/hw/powerfail_test.py`), RS485 with the umcub link. USB FS device not ported.
+- [ ] `tests/hw/powerfail_test.py` with the defaults from the configuration (slots, erase, payload size) on
+  hardware: H755 swap-scratch and swap-offset, Blue Pill overwrite, and a part with sectors of different sizes
+  (F4: erase by the sector table through STM32_Programmer_CLI).
 - [ ] Later: TrustZone (ARMv8-M: STM32L5, U5, H5, WBA). Bootloader, keys and crypto in the Secure world, the
   application Non-secure, so even a compromised application cannot read the device key (today RDP/WRP/PCROP only
   keep a debugger out). A new kind of port: separate Secure / Non-secure builds and linker scripts, SAU and GTZC
