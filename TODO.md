@@ -61,10 +61,6 @@ SMP_PARAMS, lite).
 
 ## Code review leftovers (refactoring, size, speed)
 
-- [ ] **Matrix harness: a config whose tree is up to date fails** ("no size summary": ninja did nothing, so the
-  build log has no memory usage lines). Take the sizes from the ELF instead (tests/matrix/run.py `size_summary`);
-  a change of the checks, so a commit of its own.
-
 Larger changes:
 - [ ] Zero-copy receive paths: ISO-TP reassembles straight into the mux packet buffer (saves an MTU of RAM:
   ~0.5 K on the F1, ~1.5 K on the H7); Ethernet RX parses in the DMA buffer and TX builds in it (~3.3 K RAM on

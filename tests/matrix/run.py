@@ -67,6 +67,8 @@ def build(out, name, args, src=ROOT):
     # Kconfig: from the defconfig + fragments every time (a reused tree keeps its
     # .config otherwise, also across changes of the Kconfig files)
     (d / "umcub_kconfig/.config").unlink(missing_ok=True)
+    for elf in d.glob("*.elf"):     # linked every time: the size summaries are in the log of an up-to-date tree too
+        elf.unlink()
     run(["cmake", "-S", src, "-B", d, "-G", "Ninja"] + args, f"{d}.configure.log")
     run(["cmake", "--build", d], f"{d}.build.log")
     no_warnings(f"{d}.build.log")
