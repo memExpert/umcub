@@ -460,7 +460,11 @@ def _other_core(out, core, tree):
     path = Path(tree) / "umcub_kconfig" / JSON
     if not path.is_file():
         return [f"{PER_CORE}{path} not configured yet - the {other.upper()} tree checks both layouts when it is"]
-    theirs = json.loads(path.read_text(encoding="utf-8"))["values"]
+    their = json.loads(path.read_text(encoding="utf-8"))
+    theirs = their["values"]
+    if their.get("core") != other or theirs.get("MCU") != mine.get("MCU"):    # else "checked" names the wrong pair
+        die(f"UMCUB_OTHER_CORE_TREE {tree} is a {(their.get('core') or '?').upper()} tree of the {theirs.get('MCU')}, "
+            f"not the {other.upper()} of the {mine.get('MCU')}")
     why = layout.overlap_cores(mine, mine["IMAGE_NUMBER"], theirs, theirs["IMAGE_NUMBER"],
                                (core.upper(), other.upper()))
     if why:

@@ -148,6 +148,19 @@ with tempfile.TemporaryDirectory() as kd:
     expect("per core: apart, checked", any("checked against" in n for n in notes), True)
     notes = kconfig.generate("nucleo_h755zi_q", "cm7", [per_core], kd / "alone")
     expect("per core without the other tree: a note", any("UMCUB_OTHER_CORE_TREE" in n for n in notes), True)
+    # the other tree must be the other core's, of the same part: else "checked" would name the wrong pair
+    kconfig.generate("nucleo_h755zi_q", "cm7", [per_core], kd / "cm7b/umcub_kconfig")
+    expect("per core: the other tree is of the same core: refused",
+           refused(lambda: kconfig.generate("nucleo_h755zi_q", "cm7", [per_core], kd / "same",
+                                            other_core_tree=kd / "cm7b"), "CM7 tree"), True)
+    other = kd / "otherpart/umcub_kconfig"
+    other.mkdir(parents=True)
+    j = json.loads((kd / "cm4/umcub_kconfig" / kconfig.JSON).read_text())
+    j["values"]["MCU"] = "STM32H747xx"
+    (other / kconfig.JSON).write_text(json.dumps(j))
+    expect("per core: the other tree is of another part: refused",
+           refused(lambda: kconfig.generate("nucleo_h755zi_q", "cm7", [per_core], kd / "part",
+                                            other_core_tree=kd / "otherpart"), "STM32H747xx"), True)
     # no core given: the build would default to the CM7 and skip the check - refused instead
     for core in ("", None):
         expect(f"per core without a core ({core!r}): refused",
