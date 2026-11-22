@@ -13,7 +13,7 @@ import time
 from dataclasses import dataclass
 
 from .board_names import board_label
-from .connection import KIND_LINK, open_serial
+from .connection import KIND_LINK, bound_line, open_serial
 from . import keys
 from .errors import LinkError, UmcubError
 
@@ -129,6 +129,7 @@ def sniff(port, out, baud=115200, raw=False, stop=None):
                         continue
                 if raw and line.strip():
                     out(SniffEvent(ts, None, line, f"raw {line[:64].hex()}"))
+            buf = bound_line(buf)[0]               # no newline for long: the line being collected stays bounded
     finally:
         s.close()
 

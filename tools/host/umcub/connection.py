@@ -36,6 +36,16 @@ KIND_LITE = 0x0C        # lite upload frame (src/proto/include/umcub_lite.h)
 KIND_USER = 0x0E        # board protocol frame (UMCUB_CFG_PROTO_USER)
 LINE_START = 0x05
 FRAME_STARTS = tuple(bytes([LINE_START, k]) for k in (KIND_LINK, KIND_LITE, KIND_USER))
+LINE_MAX = 8192         # longest line kept while collecting: a link frame with a 4096-byte SMP packet is ~5.5 KiB
+
+
+def bound_line(buf):
+    """A line being collected cut to LINE_MAX: (the rest from its last 0x05 - perhaps the next frame's start -,
+    whether bytes were dropped)."""
+    if len(buf) <= LINE_MAX:
+        return buf, False
+    i = buf.rfind(bytes([LINE_START]))
+    return (buf[i:] if i >= 0 and len(buf) - i <= LINE_MAX else b""), True
 
 UDP_PORT = 1337
 CAN_TX, CAN_RX = 0x7C0, 0x7C8
@@ -142,6 +152,8 @@ class Serial(Connection):
             *lines, self.buf = self.buf.split(b"\n")
             for line in lines:
                 self._line(line)
+            self.buf, dropped = bound_line(self.buf)
+            self.noise += dropped
 
     def recv(self, kind, timeout):
         end = time.monotonic() + timeout

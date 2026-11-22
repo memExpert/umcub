@@ -424,6 +424,14 @@ c = umcub.open_connection("loop:t", tap=lambda ev: 1 / 0)
 c.send(None, b"x")
 expect("tap error kept, transfer goes on", isinstance(c.tap_error, ZeroDivisionError) and c.recv(None, 0) == b"x")
 
+# A line being collected (serial, sniff) stays bounded; what may be the next frame's start is kept.
+from umcub.connection import LINE_MAX, bound_line  # noqa: E402
+expect("bound_line: short line kept", bound_line(b"\x05\x0bAB") == (b"\x05\x0bAB", False))
+expect("bound_line: overlong garbage dropped", bound_line(b"x" * (LINE_MAX + 1)) == (b"", True))
+expect("bound_line: the start of a frame after it kept",
+       bound_line(b"x" * LINE_MAX + b"\x05\x0bAB") == (b"\x05\x0bAB", True))
+expect("bound_line: a lone 0x05 at the end kept", bound_line(b"x" * LINE_MAX + b"\x05") == (b"\x05", True))
+
 # Serial: a poll without waiting (timeout 0) takes what the OS already has, and keeps a line still arriving.
 if sys.platform.startswith("linux"):
     import pty
@@ -445,6 +453,15 @@ if sys.platform.startswith("linux"):
     sc.recv(umcub.KIND_LINK, 0.2)
     expect("serial: a text line with 0x05 (no frame start) kept whole", sc.lines[-1] == b"text \x05 inside",
            str(list(sc.lines)[-1:]))
+    # Bytes without a newline (a stuck or noisy bus): the line being collected stays bounded, a frame after it counts.
+    sc.buf, noise = b"", sc.noise
+    for _ in range(4):
+        os.write(master, b"x" * 4000)
+        sc.recv(umcub.KIND_LINK, 0.1)
+    expect("serial: a line without newline stays bounded", len(sc.buf) <= umcub.connection.LINE_MAX and
+           sc.noise > noise, str(len(sc.buf)))
+    os.write(master, b"\x05\x0b" + base64.b64encode(g) + b"\n")
+    expect("serial: the frame after the overlong line", sc.recv(umcub.KIND_LINK, 0.5) == g)
     sc.close()
     os.close(master)
     os.close(slave)
@@ -477,12 +494,21 @@ raises("sniff: port that does not exist", lambda: link.sniff("/dev/umcub-no-such
 
 
 # flash(): board type check, upload, check without readback (verify, else hash), mark, reset; SMP and lite faked.
-def signed_image(board_type=None, encrypted=False, payload=b"\x11" * 64):
+def image_bytes(board_type=None, encrypted=False, payload=b"\x11" * 64, unprot_board_type=None):
+    """A signed image as imgtool lays it out: the board type in the protected TLV area, the hash in the other."""
     tlvs = struct.pack("<HH", 0x10, 32) + hashlib.sha256(payload).digest()
+    if unprot_board_type is not None:
+        tlvs += struct.pack("<HHI", 0xA0, 4, unprot_board_type)
+    prot = b""
     if board_type is not None:
-        tlvs += struct.pack("<HHI", 0xA0, 4, board_type)
-    hdr = struct.pack("<IIHHIIBBHI", 0x96F3B83D, 0, 32, 0, len(payload), 0x04 if encrypted else 0, 1, 2, 3, 0)
-    return umcub.Image(hdr.ljust(32, b"\0") + payload + struct.pack("<HH", 0x6907, 4 + len(tlvs)) + tlvs)
+        bt = struct.pack("<HHI", 0xA0, 4, board_type)
+        prot = struct.pack("<HH", 0x6908, 4 + len(bt)) + bt
+    hdr = struct.pack("<IIHHIIBBHI", 0x96F3B83D, 0, 32, len(prot), len(payload), 0x04 if encrypted else 0, 1, 2, 3, 0)
+    return hdr.ljust(32, b"\0") + payload + prot + struct.pack("<HH", 0x6907, 4 + len(tlvs)) + tlvs
+
+
+def signed_image(board_type=None, encrypted=False, payload=b"\x11" * 64):
+    return umcub.Image(image_bytes(board_type, encrypted, payload))
 
 
 NOT_SUPPORTED = DeviceError(rc=umcub.smp.InspectErr.ENOTSUP, code="smp.device", reason="not supported")
@@ -604,6 +630,27 @@ for cut in (1, 20, 36, 40, 60):                             # 40: the TLV area's
     got = code_of(lambda: umcub.Image(whole[:-cut]))
     want = "image.truncated"
     expect(f"image cut {cut} bytes short: refused", got == want, str(got))
+# The TLV areas as MCUboot reads them: the board type only from the protected one (the bootloader checks only that
+# one), the protected area's size as the header states it, areas ending exactly with their last TLV.
+expect("board type only in the unprotected area: none", umcub.Image(image_bytes(unprot_board_type=7)).board_type
+       is None)
+expect("board type in the protected area", umcub.Image(image_bytes(7, unprot_board_type=9)).board_type == 7)
+good = image_bytes(7)             # header 32, payload 64, protected area 12 (at 96), unprotected area 40 (at 108)
+
+
+def patched(data, off, fmt, *values):
+    data = bytearray(data)
+    struct.pack_into(fmt, data, off, *values)
+    return bytes(data)
+
+
+malformed = {"a protected area the header does not state": patched(good, 10, "<H", 0),
+             "the header states another protected size": patched(good, 10, "<H", 16),
+             "bytes left after the last TLV": patched(good, 110, "<H", 42) + b"\0\0",
+             "no unprotected area after the protected one": good[:108] + b"\0" * 40}
+for what, data in malformed.items():
+    got = code_of(lambda: umcub.Image(data))
+    expect(f"image: {what}: refused", got == "image.truncated", str(got))
 raises("image without board type: device name", lambda: signed_image().check_board(0x46103001),
        text="the device is 0x46103001 (Blue Pill)")
 expect("a new load replaces the catalog", umcub.load_board_names(tmp / "names2.json") == {7: "Pump controller",

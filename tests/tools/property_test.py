@@ -183,8 +183,10 @@ def _image(hdr=32, body=b"\0" * 16, tlvs=((0x10, b"\x11" * 32),), prot=()):
 @given(body=st.binary(max_size=200), board=st.one_of(st.none(), u32), extra=st.lists(
     st.tuples(st.integers(0x40, 0x9F), st.binary(max_size=40)), max_size=3))
 def image_round_trip(body, board, extra):
-    tlvs = [(0x10, b"\x22" * 32)] + extra + ([(0xA0, struct.pack("<I", board))] if board is not None else [])
-    img = Image(_image(body=body, tlvs=tlvs))
+    """The board type read from the protected area (signed; what the bootloader checks), never from the other."""
+    prot = [(0xA0, struct.pack("<I", board))] if board is not None else ()
+    tlvs = [(0x10, b"\x22" * 32)] + extra + [(0xA0, struct.pack("<I", 0x12345678))]
+    img = Image(_image(body=body, tlvs=tlvs, prot=prot))
     assert img.hash == b"\x22" * 32 and img.board_type == board and img.version == "1.2.3" and not img.encrypted
 
 

@@ -249,7 +249,7 @@ A board protocol (`UMCUB_CFG_PROTO_USER`) uses the connection directly: `dev.sen
 | `smp` | `Smp` (smpclient on a `Device`), the inspection group requests |
 | `lite` | lite upload frames, `upload()`, `reset()` |
 | `flasher` | `flash()`: the whole upload of `umcub upload` (checks, marks, reset) |
-| `image` | `Image`: a signed image file - version, hash, board type TLV |
+| `image` | `Image`: a signed image file, its TLV areas read as MCUboot reads them - version, hash, board type (from the protected area) |
 | `link` | link frames, DISCOVER, the SECURE handshake (mirrors `src/proto/link.c`), `sniff()` |
 | `trace` | `describe()`: a tap event as one log line (kind, node, summary) |
 | `kconfig`, `layout` | the configuration from Kconfig (defconfig + fragments), the generated files, keys, MCUboot's rule on the slots |
