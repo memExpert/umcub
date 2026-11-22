@@ -205,8 +205,11 @@ def main():
         # jump), however long the (interrupted, resumed, encrypted) swap took.
         jumped = False
         for _ in range(900):
-            if read_words(handoff_magic, 1)[0] == HANDOFF_MAGIC:
-                jumped = True
+            try:
+                jumped = read_words(handoff_magic, 1)[0] == HANDOFF_MAGIC
+            except probe.ProbeError:    # the bus stalls while the part erases (H7): not done yet
+                pass
+            if jumped:
                 break
             time.sleep(0.2)
         f = read_words(fault_addr, 4)

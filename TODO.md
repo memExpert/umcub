@@ -49,8 +49,13 @@ SMP_PARAMS, lite).
 - [ ] **STM32G4 on hardware** (port and NUCLEO-G474RE board built only; FDCAN updates run on a custom G474RET6
   board): UART, RNG (`tests/hw/entropy_test.py`), single-bank mode, a power cut during programming (ECC NMI ->
   read error, `tests/hw/powerfail_test.py`), RS485 with the umcub link. USB FS device not ported.
-- [ ] `tests/hw/powerfail_test.py` with the defaults from the configuration (slots, erase, payload size) on
-  hardware: H755 swap-scratch and swap-offset.
+- [ ] **swap-offset loses an update cut at its 8th flash operation** (H755, `tests/hw/powerfail_test.py`
+  2026-11-22: 113 of 114 points OK; swap-scratch 114 of 114). After the cut MCUboot reports swap type none and
+  boots the old image; the update is gone (the secondary trailer erased), the device works. The host emulation
+  (cuts after an erase) does not reproduce it: probably a half-programmed status word right after
+  `swap_status_init()` / the secondary trailer erase in `swap_run()` (swap_offset.c). Next: dump both trailers
+  after a cut at operation 8, find the word, then an MCUboot issue. Also seen in the emulation: a secondary
+  trailer that cannot be read makes `swap_status_source()` assert (swap_offset.c:402), i.e. a reset loop.
 - [ ] Later: TrustZone (ARMv8-M: STM32L5, U5, H5, WBA). Bootloader, keys and crypto in the Secure world, the
   application Non-secure, so even a compromised application cannot read the device key (today RDP/WRP/PCROP only
   keep a debugger out). A new kind of port: separate Secure / Non-secure builds and linker scripts, SAU and GTZC
