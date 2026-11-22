@@ -28,7 +28,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 
 from .errors import UmcubError
-from .nlip import NlipDecoder, nlip_encode
+from .nlip import LINE_MAX, NlipDecoder, nlip_encode
 
 KIND_SMP = "smp"
 KIND_LINK = 0x0B        # umcub link frame (src/proto/include/umcub_link.h)
@@ -36,7 +36,6 @@ KIND_LITE = 0x0C        # lite upload frame (src/proto/include/umcub_lite.h)
 KIND_USER = 0x0E        # board protocol frame (UMCUB_CFG_PROTO_USER)
 LINE_START = 0x05
 FRAME_STARTS = tuple(bytes([LINE_START, k]) for k in (KIND_LINK, KIND_LITE, KIND_USER))
-LINE_MAX = 8192         # longest line kept while collecting: a link frame with a 4096-byte SMP packet is ~5.5 KiB
 
 
 def bound_line(buf):

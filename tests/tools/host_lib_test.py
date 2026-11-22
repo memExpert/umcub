@@ -650,6 +650,25 @@ expect("session identity: board revision and version from cmd i",
 d = _InfoDev("")
 umcub.device.session_identity(d)
 expect("session identity: no answer leaves them hidden", d.identity["version"] is None, str(d.identity))
+d = _InfoDev("umcub 1.1.0 x overwrite images 1\nboard type 0x46103001 rev 3 node 5\n")
+d.identity["enc"] = False
+umcub.device.session_identity(d)
+expect("session identity without encryption: not asked (the answer would cross the bus in clear text)",
+       d.identity["version"] is None, str(d.identity))
+
+# NLIP: a start line too short for the length field, then a good packet; a line without an end, then a good packet
+good_pkt = umcub.nlip.nlip_encode(b"\x00" * 8 + b"\xa0")
+dec = umcub.nlip.NlipDecoder()
+for start in (b"\x06\x09\n", b"\x06\x09AA==\n"):
+    try:
+        got = dec.feed(start + good_pkt)
+    except Exception as e:                  # noqa: BLE001 - any exception is the failure here
+        got = e
+    expect(f"NLIP: start line {start!r}, then a packet: decoded", got == [bytearray(b"\x00" * 8 + b"\xa0")], repr(got))
+dec = umcub.nlip.NlipDecoder()
+dec.feed(b"x" * 100_000)
+expect("NLIP: a line without an end stays bounded", len(dec.line) <= umcub.connection.LINE_MAX, len(dec.line))
+expect("NLIP: then a packet: decoded", dec.feed(b"\n" + good_pkt) == [bytearray(b"\x00" * 8 + b"\xa0")])
 raises("board type mismatch with names", lambda: signed_image(7).check_board(0x46103001),
        text="board type 0x00000007 (Pump controller), the device is 0x46103001 (Blue Pill)")
 # A file cut short inside its TLV area: refused, not a hash of a few bytes taken as the image's.
@@ -679,6 +698,10 @@ malformed = {"a protected area the header does not state": patched(good, 10, "<H
 for what, data in malformed.items():
     got = code_of(lambda: umcub.Image(data))
     expect(f"image: {what}: refused", got == "image.truncated", str(got))
+# A header size below MCUboot's (32), the TLV areas still where the image size says: MCUboot refuses it, so does Image
+short_hdr = patched(good, 8, "<HHI", 16, 12, 64 + 16)
+expect("image: header size below 32: refused", code_of(lambda: umcub.Image(short_hdr)) == "image.bad_header",
+       str(code_of(lambda: umcub.Image(short_hdr))))
 raises("image without board type: device name", lambda: signed_image().check_board(0x46103001),
        text="the device is 0x46103001 (Blue Pill)")
 expect("a new load replaces the catalog", umcub.load_board_names(tmp / "names2.json") == {7: "Pump controller",

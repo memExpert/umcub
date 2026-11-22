@@ -1,11 +1,13 @@
 """SMP over a stream (NLIP): packets as base64 lines, as MCUboot's boot_serial expects them."""
 import binascii
+import struct
 
 from smp import packet as smppacket
 from smp.exceptions import SMPBadContinueDelimiter, SMPBadCRC, SMPBadStartDelimiter
 
 # boot_serial accepts lines of 2 delimiter bytes + 124 base64 characters + '\n'.
 LINE_LENGTH = 128
+LINE_MAX = 8192         # longest line kept while collecting (no NLIP line, nor a link frame line of ~5.5 KiB, is longer)
 
 
 def nlip_encode(pkt):
@@ -23,6 +25,8 @@ class NlipDecoder:
     def feed(self, chunk):
         pkts = []
         *lines, self.line = (self.line + bytes(chunk)).split(b"\n")
+        if len(self.line) > LINE_MAX:       # no NLIP line: dropped (a PTY client can send anything)
+            self.line = b""
         for line in lines:
             line = line.replace(b"\r", b"") + b"\n"
             if line[:2] == smppacket.START_DELIMITER:
@@ -35,6 +39,7 @@ class NlipDecoder:
             except StopIteration as done:
                 pkts.append(done.value)
                 self.dec = None
-            except (SMPBadStartDelimiter, SMPBadContinueDelimiter, SMPBadCRC, binascii.Error, ValueError):
+            except (SMPBadStartDelimiter, SMPBadContinueDelimiter, SMPBadCRC, binascii.Error, ValueError,
+                    struct.error):                  # struct.error: a start line too short for the length
                 self.dec = None
         return pkts

@@ -122,10 +122,10 @@ def connect(spec, node=None, uid=None, admin_key=None, device_key=None, timeout=
 
 
 def session_identity(dev):
-    """The board revision and version a SECURE device keeps out of its identity: from `i` inside the session (they
-    stay None without an answer)."""
+    """The board revision and version a SECURE device keeps out of its identity: from `i` inside an encrypted session
+    (they stay None without an answer, and without encryption: the answer would cross the bus in clear text)."""
     i = dev.identity
-    if i["version"] is None:
+    if i["version"] is None and i["enc"]:
         m = re.search(r"umcub (\d+\.\d+\.\d+) .*\nboard type 0x[0-9a-f]+ rev (\d+)", dev.text("i", dev.timeout))
         if m:
             i["version"], i["board_rev"] = m.group(1), int(m.group(2))

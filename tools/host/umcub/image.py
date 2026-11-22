@@ -42,6 +42,8 @@ class Image:
         if len(data) < 32 or struct.unpack_from("<I", data)[0] != IMAGE_MAGIC:
             raise UmcubError(code="image.not_signed")
         hdr_size, prot_size, img_size, flags = struct.unpack_from("<HHII", data, 8)
+        if hdr_size < 32:                       # MCUboot refuses it (IMAGE_HEADER_SIZE)
+            raise UmcubError(code="image.bad_header", size=hdr_size)
         major, minor, rev, build = struct.unpack_from("<BBHI", data, 20)
         self.data = bytes(data)
         self.version = f"{major}.{minor}.{rev}" + (f"+{build}" if build else "")

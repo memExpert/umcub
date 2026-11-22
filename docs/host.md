@@ -197,7 +197,7 @@ import umcub
 cancel = threading.Event()
 with umcub.connect("/dev/ttyUSB1", node=5) as dev:           # same strings and options as the tool
     print(dev.identity)                                       # link nodes: uid, board type, version, mode
-                                                              # (SECURE: revision and version read in the session)
+                                                              # (SECURE: revision and version from an encrypted session, else None)
     print(umcub.LINK_NAMES[dev.identity["link"]])             # the mode's name: plain / addressed / secure
     print(dev.text("i"))                                      # a text command
     img = umcub.Image.load("app.signed.bin")                  # version, hash, board_type

@@ -64,6 +64,7 @@ MESSAGES = {
     "cancelled.read": "read cancelled",
     # images
     "image.not_signed": "not a signed MCUboot image (no header magic)",
+    "image.bad_header": "the image header size {size} is below MCUboot's 32 bytes",
     "image.no_hash": "signed image without a hash TLV",
     "image.truncated": "the image's TLV area is cut short or malformed (a file cut short?)",
     "image.no_board_type": "the image has no board type, the device is {device}",
