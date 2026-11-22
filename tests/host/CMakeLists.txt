@@ -341,6 +341,13 @@ function(umcub_host_dual name)
   set(_d ${CMAKE_BINARY_DIR}/${name})
   add_test(NAME ${t} COMMAND ${t} ${_d}_img0.signed.bin ${_d}_img0.encrypted.bin ${_d}_img1v0.signed.bin
            ${_d}_img1v1.signed.bin ${_d}_img1v1.encrypted.bin ${_d}_img0v1.signed.bin)
+  if(name STREQUAL "dual_enc")          # the application library (umcub::app) on the same two images
+    set(a umcub_host_app_${name})
+    add_executable(${a} test_app.c fake_port.c)
+    umcub_host_setup(${a})
+    add_dependencies(${a} ${t}_images)
+    add_test(NAME ${a} COMMAND ${a} ${_d}_img0v1.signed.bin ${_d}_img1v1.signed.bin)
+  endif()
 endfunction()
 
 umcub_host_dual(dual_enc)

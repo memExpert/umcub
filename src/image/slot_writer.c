@@ -42,6 +42,14 @@ static bool slot_in_use(const struct flash_area *fa)
     if (umcub_executing_from(fa)) {
         return true;
     }
+#if defined(UMCUB_BUILDING_APP) && UMCUB_CFG_IMAGE_NUMBER > 1
+    /* Without a valid handoff the other core's slot is unknown: any slot it may run from counts (a primary one;
+     * either one in the direct-xip modes). */
+    bool secondary = ((unsigned)fa->fa_id - FLASH_AREA_IMAGE_0) & 1u;
+    if (!umcub_boot_info() && (UMCUB_CFG_UPGRADE_MODE >= UMCUB_MODE_DIRECT_XIP || !secondary)) {
+        return true;
+    }
+#endif
     for (int i = 0; i < UMCUB_CFG_IMAGE_NUMBER; i++) {
         uint32_t a = running_image_addr(i);
         if (a && a - fa->fa_off < fa->fa_size) {

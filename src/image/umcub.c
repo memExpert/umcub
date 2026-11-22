@@ -104,10 +104,13 @@ void umcub_set_node_address(uint16_t addr)
 
 #ifdef UMCUB_BUILDING_APP
 /* The next boot reports "last update via app" (umcub_handoff_t.last_transport,
- * carried over the reset like the recovery mux does it). 32-bit store only:
- * ECC SRAM loses narrower writes on reset. */
+ * carried over the reset like the recovery mux does it). The field lies in the
+ * CRC-protected info part: a valid handoff gets its CRC again, so the image
+ * addresses stay usable (slot_writer.c). 32-bit stores only: ECC SRAM loses
+ * narrower writes on reset. */
 void umcub_note_app_update(void)
 {
+    bool valid = umcub_boot_info() != NULL;
     volatile uint32_t *w = (volatile uint32_t *)((uintptr_t)&HANDOFF->last_transport & ~3u);
     union {
         uint32_t word;
@@ -115,6 +118,9 @@ void umcub_note_app_update(void)
     } u = { .word = *w };
     u.b[(uintptr_t)&HANDOFF->last_transport & 3u] = UMCUB_TRANSPORT_APP;
     *w = u.word;
+    if (valid) {
+        HANDOFF->crc32 = umcub_crc32((const uint8_t *)HANDOFF + UMCUB_HANDOFF_INFO_OFFSET, UMCUB_HANDOFF_INFO_LEN);
+    }
     handoff_flush();
 }
 #endif

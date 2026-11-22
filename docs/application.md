@@ -55,7 +55,9 @@ Writing from the application:
   modes: the slot the application is not running from); it can be overridden per call;
 - writing a slot code is running from is refused (`UMCUB_EBUSY`): the application's own, and any slot the bootloader
   started an image from according to the handoff - on dual-core parts the CM7 application cannot erase the running
-  CM4 image and vice versa (`UMCUB_SLOT_INACTIVE` picks the other slot of that image);
+  CM4 image and vice versa (`UMCUB_SLOT_INACTIVE` picks the other slot of that image); with two images and no valid
+  handoff (an application not started by the bootloader) every primary slot counts as running (in the direct-xip
+  modes every slot);
 - in swap modes the secondary slot is refused (`UMCUB_EBUSY`) while the running image is still on test, and with
   the error when its state cannot be read: the secondary then holds the previous image, the only way back (SMP
   direct upload in recovery follows the same rule);
