@@ -59,13 +59,6 @@ SMP_PARAMS, lite).
   update (CAN, RS485 link, Ethernet) with hardware key isolation - start with one H5 or U5 board.
 - [ ] Bootloader build with Arm Compiler 6 / Keil (now GCC only: startup, linker templates, newlib overrides).
 
-## Code review leftovers (refactoring, size, speed)
-
-Larger changes:
-- [ ] Zero-copy receive paths: ISO-TP reassembles straight into the mux packet buffer (saves an MTU of RAM:
-  ~0.5 K on the F1, ~1.5 K on the H7); Ethernet RX parses in the DMA buffer and TX builds in it (~3.3 K RAM on
-  the H7, two frame copies per packet); link DATA frames decrypt into the mux buffer (~0.5 K on SECURE builds).
-
 ## GUI flasher
 
 - [ ] **SECURE link sessions signed by a server**, for users who log in instead of holding key files. The admin
