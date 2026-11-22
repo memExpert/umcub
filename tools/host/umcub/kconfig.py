@@ -449,8 +449,10 @@ def _other_core(out, core, tree):
     """DUALCORE_PER_CORE: the regions of this tree (out/umcub_config.json) against those of the other core's build
     tree `tree`. Dies on an overlap; returns the notes. Not cached: the other tree changes on its own."""
     mine = json.loads((out / JSON).read_text(encoding="utf-8"))["values"]
-    if mine.get("DUALCORE_MODE") != 2 or core not in ("cm7", "cm4"):
+    if mine.get("DUALCORE_MODE") != 2:
         return []
+    if core not in ("cm7", "cm4"):      # the build would take the CM7 and its layout unchecked
+        die("DUALCORE_PER_CORE: give the core (UMCUB_CORE / --core cm7 or cm4), each core has its own bootloader")
     other = "cm4" if core == "cm7" else "cm7"
     if not tree:
         return [f"{PER_CORE_UNCHECKED}the {other.upper()} build tree (UMCUB_OTHER_CORE_TREE) to check both flash layouts "

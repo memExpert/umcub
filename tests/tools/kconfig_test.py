@@ -148,6 +148,11 @@ with tempfile.TemporaryDirectory() as kd:
     expect("per core: apart, checked", any("checked against" in n for n in notes), True)
     notes = kconfig.generate("nucleo_h755zi_q", "cm7", [per_core], kd / "alone")
     expect("per core without the other tree: a note", any("UMCUB_OTHER_CORE_TREE" in n for n in notes), True)
+    # no core given: the build would default to the CM7 and skip the check - refused instead
+    for core in ("", None):
+        expect(f"per core without a core ({core!r}): refused",
+               refused(lambda: kconfig.generate("nucleo_h755zi_q", core, [per_core], kd / "nocore",
+                                                other_core_tree=kd / "cm4"), "UMCUB_CORE"), True)
 
 print(f"kconfig: {'FAILED' if bad else 'all cases passed'}")
 sys.exit(1 if bad else 0)
