@@ -43,7 +43,8 @@ def run(cmd, timeout):
 def device(a, node, transport):
     """umcub arguments that reach `node` through `transport`, or None when the host side is missing."""
     if transport == "rs485":
-        return ["-d", a.rs485, "--node", str(node)] if a.rs485 and os.path.exists(a.rs485) else None
+        return ["-d", f"serial:{a.rs485},baud={a.baud}", "--node", str(node)] if a.rs485 and \
+            os.path.exists(a.rs485) else None
     if transport == "can":
         iface = a.can.split(":")[-1]
         up = Path(f"/sys/class/net/{iface}/operstate")
@@ -51,7 +52,7 @@ def device(a, node, transport):
     if transport == "usb-cdc":
         return ["-d", a.usb] if os.path.exists(a.usb) else None
     if transport == "usb-dfu":
-        return [] if "Found DFU" in run(["dfu-util", "-l"], 20)[1] else None
+        return [] if has_dfu() else None
     if transport == "eth":
         rc, _ = run(["ping", "-c", "1", "-W", "1", a.eth], 5) if a.eth else (1, "")
         return ["-d", a.eth] if rc == 0 else None
@@ -71,24 +72,41 @@ def console(a, cmd, wait, expect):
         return out.decode(errors="replace")
 
 
-def secure_keys(tree, transport):
-    """The keys of a SECURE link transport of the tree (its configuration names them), else none."""
+def link_args(tree, transport, node, dev):
+    """What a umcub link transport of the tree needs on top of dev: the node (where dev has none) and, SECURE, the
+    keys its configuration names."""
     cfg = json.loads((ROOT / tree / "umcub_kconfig" / "umcub_config.json").read_text())
     name = {"rs485": "UART_LINK", "can": "CAN_LINK", "usb-cdc": "USB_CDC_LINK", "eth": "ETH_LINK"}.get(transport)
-    if cfg["values"].get(name) != 2:
-        return []
-    return ["--admin-key", cfg["keys"]["HOST"], "--device-key", cfg["keys"]["DEVICE"]]
+    mode = cfg["values"].get(name, 0)
+    args = ["--node", str(node)] if mode and "--node" not in dev else []
+    if mode == 2:
+        args += ["--admin-key", cfg["keys"]["HOST"], "--device-key", cfg["keys"]["DEVICE"]]
+    return args
+
+
+def has_dfu():
+    return "Found DFU" in run(["dfu-util", "-l"], 20)[1]
+
+
+def dfu_back(wait=10):
+    """The bootloader's DFU interface is there again (the application has none)."""
+    end = time.monotonic() + wait
+    while time.monotonic() < end:
+        if has_dfu():
+            return True
+        time.sleep(0.5)
+    return False
 
 
 def step(a, node, tree, elf, transport, on_bus, version, tmp):
     dev = device(a, node, transport)
     if dev is None:
         return "skipped", "host side not available"
-    dev += secure_keys(tree, transport)
+    dev += link_args(tree, transport, node, dev)
     # where the bootloader answers a text command afterwards: the RS485 bus if the node is on it, else this
-    # transport; none after DFU without the bus (then only the console's "-> bootloader" counts)
+    # transport; after DFU without the bus its DFU interface coming back counts
     back_dev = device(a, node, "rs485") if on_bus else None
-    back_dev = back_dev + secure_keys(tree, "rs485") if back_dev is not None else \
+    back_dev = back_dev + link_args(tree, "rs485", node, back_dev) if back_dev is not None else \
         (dev if transport != "usb-dfu" else None)
     base = Path(tmp) / f"n{node}_{transport}"
     rc, out = run(UMCUB + ["image", "sign", "--board", str(ROOT / tree / "umcub_kconfig"), "--version", version,
@@ -115,7 +133,10 @@ def step(a, node, tree, elf, transport, on_bus, version, tmp):
     got = (m.group(1).split("+")[0] if m else "?", via.group(1) if via else "?")
     back = console(a, b"b", 1.0, expect="bootloader")
     time.sleep(1.5)
-    rc, out = run(UMCUB + back_dev + ["cmd", "i"], 30) if back_dev is not None else (0, "")
+    if back_dev is not None:
+        rc, out = run(UMCUB + back_dev + ["cmd", "i"], 30)
+    else:
+        rc, out = (0, "") if dfu_back() else (1, "no DFU interface again")
     if got != (version, VIA[transport]):
         return "FAIL", f"application reports {got[0]} via {got[1]}, expected {version} via {VIA[transport]}"
     if "-> bootloader" not in back or rc:

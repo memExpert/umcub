@@ -88,8 +88,8 @@ version, uploads it through each transport of the node (RS485 link, CAN, USB CDC
 node, reads on the application's console which version runs and through which transport the last update came (the
 examples built with `-DAPP_NODE_ADDR=none`; the Blue Pill example's console follows the bootloader's UART and drives
 its DE pin), and sends the application back to the bootloader (`b`): the bootloader then has to answer `cmd i` on the
-RS485 bus (a node on it) or through the transport just used (after USB DFU without the bus only the console's reply
-counts). A SECURE transport (e.g. CAN SECURE) gets the keys named in the tree's `umcub_config.json`. No debug probe
+RS485 bus (a node on it) or through the transport just used (after USB DFU without the bus: its DFU interface coming
+back). A SECURE transport (e.g. CAN SECURE) gets the keys named in the tree's `umcub_config.json`. No debug probe
 involved; one DFU device at a time on the PC.
 
 Hardware tests: `tests/hw/powerfail_test.py` resets the MCU in the middle of the K-th flash operation (build with
@@ -99,7 +99,8 @@ image sign` for the bootloader's board and fragments; the fault record (`UMCUB_C
 survives a reset) and the handoff area come from that configuration too, and so do the upgrade mode, the slots and
 the flash erased before each run (`--mode`, `--primary`, `--secondary`, `--erase` override them; an image that would
 lie outside its slot stops the test before anything is flashed). A run ends when the bootloader publishes the handoff
-(right before the jump); only the sectors that programming does not rewrite are erased explicitly, by the part's
-sector table (no `--sector-size` needed). `--encrypted` (bootloader with encrypted images) installs an encrypted
+(right before the jump). It counts only when the fault fired and the application started from the expected slot.
+Only the sectors that programming does not rewrite are erased explicitly, by the part's sector table (no
+`--sector-size` needed). `--encrypted` (bootloader with encrypted images) installs an encrypted
 update, so every resumed swap has to recover the image key from the trailer.
 `TODO.md` lists what is still open on hardware.

@@ -48,8 +48,12 @@ static void put_hex(char *out, size_t *o, size_t cap, const uint8_t *b, size_t n
 
 static int capture(const uint8_t *p, size_t l)
 {
-    if (sent_len && sent_len + 1 < sizeof(sent)) {
+    if (sent_len + 4 > sizeof(sent)) {
+        return 0;                               /* full: the rest dropped, the string stays terminated */
+    }
+    if (sent_len) {
         sent[sent_len++] = ',';
+        sent[sent_len] = '\0';
     }
     put_hex(sent, &sent_len, sizeof(sent), p, l);
     return 0;
@@ -114,6 +118,13 @@ static void slot_clear(void)
 }
 
 /* ---- cases ------------------------------------------------------------------------------------------------------- */
+/* The frame length of an isotp case: 8 (classic) or 64 (CAN-FD), else 0 (refused). */
+static unsigned can_dl(const char *s)
+{
+    unsigned fl = (unsigned)strtoul(s, NULL, 10);
+    return fl == 8 || fl == 64 ? fl : 0;
+}
+
 static void isotp_rx(unsigned fl, char *list)
 {
     static uint8_t rx[4096];
@@ -123,9 +134,10 @@ static void isotp_rx(unsigned fl, char *list)
         uint8_t d[64];
         size_t n = unhex(f, d, sizeof(d));
         size_t m = isotp_on_frame(&t, d, (uint8_t)n);
-        if (m) {
+        if (m && o + 4 <= sizeof(out)) {
             if (o) {
                 out[o++] = ' ';
+                out[o] = '\0';
             }
             put_hex(out, &o, sizeof(out), rx, m);
         }
@@ -137,6 +149,7 @@ static void handle(char *line)
 {
     char *cmd = strtok(line, " \n"), *a1 = strtok(NULL, " \n"), *a2 = strtok(NULL, " \n");
     size_t n = a1 ? unhex(a1, buf, sizeof(buf) - 1) : 0;
+    unsigned fl;
     sent_len = 0;
     sent[0] = '\0';
     if (!cmd) {
@@ -162,12 +175,14 @@ static void handle(char *line)
     } else if (!strcmp(cmd, "lite")) {
         puts(umcub_lite_rx(&t_lite, buf, n) && sent_len ? sent : "-");
     } else if (!strcmp(cmd, "slot")) {
-        answer_hex(&fake_flash[UMCUB_CFG_IMG0_PRIMARY_ADDR - 0x08000000u], strtoul(a1, NULL, 10), "");
-    } else if (!strcmp(cmd, "isotp") && a2) {
-        isotp_rx((unsigned)strtoul(a1, NULL, 10), a2);
-    } else if (!strcmp(cmd, "isotps") && a2) {
+        size_t len = strtoul(a1, NULL, 10);
+        answer_hex(&fake_flash[UMCUB_CFG_IMG0_PRIMARY_ADDR - 0x08000000u],
+                   len < UMCUB_CFG_IMG0_PRIMARY_SIZE ? len : UMCUB_CFG_IMG0_PRIMARY_SIZE, "");
+    } else if (!strcmp(cmd, "isotp") && a2 && (fl = can_dl(a1))) {
+        isotp_rx(fl, a2);
+    } else if (!strcmp(cmd, "isotps") && a2 && (fl = can_dl(a1))) {
         size_t m = unhex(a2, buf, sizeof(buf));
-        isotp_t t = { .frame_len = (uint8_t)strtoul(a1, NULL, 10) };
+        isotp_t t = { .frame_len = fl };
         int rc = isotp_send(&t, buf, m);
         puts(rc ? "ERR" : sent);
     } else if (!strcmp(cmd, "img")) {

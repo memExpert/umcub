@@ -456,6 +456,9 @@ def main():
     H = Harness(build / "umcub_diff")
     assert H.node == NODE, f"diff_harness.c node {H.node}, the strategies use {NODE}"
     IMAGE = (build / "diff_image.signed.bin").read_bytes()
+    # image_same_reading checks only what MCUboot validates: the original must, or the property holds vacuously
+    assert H.ask("img", IMAGE)[0] == "0", "MCUboot refuses diff_image.signed.bin"
+    assert Image(IMAGE).board_type == H.board, "diff_image.signed.bin has no board type of the harness"
     bad = 0
     for p in PROPS:
         try:

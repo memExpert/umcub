@@ -123,11 +123,15 @@ def main():
     a.primary = a.primary if a.primary is not None else primary
     a.secondary = a.secondary if a.secondary is not None else update
     a.size = a.size or size
-    if len(set(sectors.values())) == 1:         # stm32cube: uniform sectors numbered from the flash base
-        a.sector_size = a.sector_size or next(iter(sectors.values()))
+    # stm32cube numbers sectors: from the flash base when they are of one size and without a gap, else by their
+    # position in the part's table (sizes differ: F4; a gap between the banks: dual-bank G4 below 512 KiB)
+    table = list(sectors.items())
+    uniform = len(set(sectors.values())) == 1 and all(x + n == y for (x, n), (y, _) in zip(table, table[1:]))
+    if uniform:
+        a.sector_size = a.sector_size or table[0][1]
     p = probe.open_probe(a)
-    if len(set(sectors.values())) > 1:          # stm32cube: sectors of different sizes numbered by the table
-        p.sectors = list(sectors.items())
+    if not uniform:
+        p.sectors = table
     read_words = p.read32
     read_mem = p.read_mem
     revert_copy = a.revert_copy if a.revert_copy is not None else revert_copy
@@ -198,8 +202,10 @@ def main():
         time.sleep(a.settle)
         # Done when the bootloader publishes the handoff (right before the
         # jump), however long the (interrupted, resumed, encrypted) swap took.
+        jumped = False
         for _ in range(900):
             if read_words(handoff_magic, 1)[0] == HANDOFF_MAGIC:
+                jumped = True
                 break
             time.sleep(0.2)
         f = read_words(fault_addr, 4)
@@ -207,7 +213,8 @@ def main():
         # after an upgrade the secondary holds v1 (revert copy), after a revert v2 (the update again)
         sec_addr = revert_copy if expect_secondary == v1b else a.secondary
         sec = read_mem(sec_addr, len(expect_secondary)) if expect_secondary else None
-        return f, pri == expect_primary, expect_secondary is None or sec == expect_secondary
+        # the slots as expected and the application started (a copy that never finished does not count)
+        return f, pri == expect_primary and jumped, expect_secondary is None or sec == expect_secondary
 
     swap = a.mode == "swap"
     # Sizing: count flash operations of a full upgrade (and of a full revert).
@@ -244,9 +251,10 @@ def main():
                     continue
                 steps = []
             f, ok_p, ok_s = boot_and_check(exp_p, exp_s, steps + arm(k))
-            fired = f[3] == 1
-            status = "OK " if (ok_p and ok_s) else "BAD"
-            if not (ok_p and ok_s):
+            fired = f[3] == 1                   # a run whose fault never fired tested nothing
+            good = ok_p and ok_s and fired
+            status = "OK " if good else "BAD"
+            if not good:
                 failures += 1
             print(f"  {status} {phase:7s} fault at op {k:6d}/{n:<6d} fired={fired} "
                   f"primary={'ok' if ok_p else 'WRONG'}" +

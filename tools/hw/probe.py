@@ -4,7 +4,8 @@
 Backends (--probe or $UMCUB_PROBE):
   stm32cube  STM32_Programmer_CLI ($STM32_PROGRAMMER_CLI or PATH). Erasing an
              address range needs --sector-size (uniform sectors from --flash-base), or .sectors
-             set by the caller (the part's table: sectors of different sizes).
+             set by the caller (the part's table: sectors of different sizes
+             or gaps between banks).
   pyocd      pyOCD (pip install pyocd): --target / $PYOCD_TARGET (e.g. stm32f103c8),
              --pack / $PYOCD_PACK (CMSIS-Pack file with the part).
 
