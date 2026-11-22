@@ -15,6 +15,7 @@ import json
 import os
 import re
 import shutil
+import stat
 import subprocess
 import sys
 from pathlib import Path
@@ -222,6 +223,8 @@ def t_cmake_args(out):
         raise Failed(f"a relative UMCUB_CONF with the examples: {r.stderr}")
     if "CMake Warning" not in r.stderr or "new signing key" not in r.stderr:
         raise Failed(f"a new key is no warning: {r.stderr}")
+    if "tinyUSB" not in r.stderr:                 # USB recovery: the known tinyUSB defect named at configure
+        raise Failed(f"USB recovery without the tinyUSB warning: {r.stderr}")
     if "CMAKE_BUILD_TYPE:STRING=Release" not in (d / "relative/CMakeCache.txt").read_text():
         raise Failed("no build type given: not Release")
     r = configure("stale", "-DUMCUB_SIGNING_KEY=/nonexistent/prod.pem")
@@ -241,6 +244,15 @@ def t_cmake_args(out):
     r = configure("lite-unchecked", f"-DUMCUB_CONF={frag}")
     if r.returncode == 0 or "UMCUB_CFG_VALIDATE_PRIMARY 0" not in r.stderr:
         raise Failed(f"lite upload without primary validation and with a board type: configure did not stop: {r.stderr}")
+    for tree, text, stops in (                  # signed images: an unvalidated primary slot would boot any upload
+            ("smp-unchecked", "# UMCUB_CFG_VALIDATE_PRIMARY is not set\nUMCUB_CFG_BOARD_TYPE=0x0\n", True),
+            ("unsigned-unchecked", "# UMCUB_CFG_VALIDATE_PRIMARY is not set\nUMCUB_CFG_BOARD_TYPE=0x0\n"
+                                   "UMCUB_CFG_SIGNATURE_NONE=y\n", False)):
+        frag = d / f"{tree}.conf"
+        frag.write_text(text)
+        r = configure(tree, f"-DUMCUB_CONF={frag}")
+        if (r.returncode != 0) != stops or stops and "UMCUB_CFG_VALIDATE_PRIMARY 0" not in r.stderr:
+            raise Failed(f"{tree}: configure {'did not stop' if stops else 'stopped'}: {r.stderr}")
     frag = d / "h7_header.conf"                 # the H7 vector table (166 entries) needs 1 KiB alignment
     frag.write_text("UMCUB_CFG_IMAGE_HEADER_SIZE=0x200\n")
     r = configure("h7-header", "-DUMCUB_BOARD=nucleo_h755zi_q", "-DUMCUB_CORE=cm7", f"-DUMCUB_CONF={frag}")
@@ -264,6 +276,8 @@ def t_cmake_args(out):
     r = configure("mixed-addressed", *h7, f"-DUMCUB_CONF={frag}")
     if "ADDRESSED transport next to" not in r.stdout + r.stderr:
         raise Failed(f"ADDRESSED next to SECURE: no warning: {r.stderr}")
+    if stat.S_IMODE((d / "mixed-addressed").stat().st_mode) != 0o700:   # the bootloader embeds the device key
+        raise Failed(f"a SECURE build tree is not private: {oct((d / 'mixed-addressed').stat().st_mode)}")
     for tree, text in (("overlap-boot", "UMCUB_CFG_IMG0_SECONDARY_ADDR=0x08000000\n"),
                        ("overlap-scratch", "UMCUB_CFG_SCRATCH_ADDR=0x08000000\nUMCUB_CFG_SCRATCH_SIZE=0x20000\n")):
         frag = d / f"{tree}.conf"               # a slot or the scratch area on the bootloader: refused
@@ -285,7 +299,7 @@ def t_cmake_args(out):
         if r.returncode == 0 or want not in r.stderr:
             raise Failed(f"{tree}: configure did not stop ({want}): {r.stderr}")
     return "cmake-args", ("Release by default, relative UMCUB_CONF, new key warning, -DUMCUB_SIGNING_KEY and no secondary "
-                          "slot stop, unchecked lite uploads, H7 header 0x200, packets beyond UDP / ISO-TP and G4 slots "
+                          "slot stop, unchecked lite / SMP uploads, tinyUSB warning, SECURE tree private, H7 header 0x200, packets beyond UDP / ISO-TP and G4 slots "
                           "off the bank map, regions on the bootloader refused")
 
 

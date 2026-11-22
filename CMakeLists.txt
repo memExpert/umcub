@@ -200,6 +200,10 @@ if(UMCUB_CFG_LINK_SECURE_ANY)      # host authentication, session MAC (and encry
   list(REMOVE_DUPLICATES MCUBOOT_SOURCES)
   umcub_generate_link_keys("${UMCUB_DEVICE_KEY}" "${UMCUB_HOST_KEY}" "${CMAKE_BINARY_DIR}/umcub_link_keys.c")
 endif()
+if(UMCUB_CFG_ENCRYPT_IMAGES OR UMCUB_CFG_LINK_SECURE_ANY)
+  # The bootloader embeds the device private key: its objects and ELF / BIN / HEX are secrets, the tree too.
+  file(CHMOD "${CMAKE_BINARY_DIR}" DIRECTORY_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE)
+endif()
 # Peripherals the family port does not drive (yet): a board driver
 # (UMCUB_DRIVER_BOARD) or another transport is needed.
 foreach(_t CAN ETH)
@@ -219,6 +223,9 @@ if(UMCUB_CFG_TRANSPORT_UART)
   list(APPEND BOOT_SOURCES src/transport/uart/uart_transport.c ${UMCUB_FAMILY_UART_SOURCES})
 endif()
 if(UMCUB_CFG_TRANSPORT_USB_CDC OR UMCUB_CFG_TRANSPORT_USB_DFU)
+  message(WARNING "umcub: USB recovery with tinyUSB 0.21.0: a malformed control request from the USB host can "
+                  "corrupt the stack before any authentication - keep the USB port away from untrusted hosts "
+                  "(docs/security.md)")
   set(TUSB ${UMCUB_ROOT}/third_party/tinyusb/src)
   list(APPEND BOOT_SOURCES
     src/transport/usb/usb_transport.c

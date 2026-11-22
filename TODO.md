@@ -27,7 +27,8 @@ SMP_PARAMS, lite).
 
 - [ ] **tinyUSB: update the submodule** once a release contains the fix of the GET requests answered from stack
   variables with an OUT data stage (usbd.c GET_CONFIGURATION / GET_STATUS / GET_INTERFACE, DFU GETSTATUS; upstream
-  pull request 4542, open 2026-11-20); then drop the warning in docs/security.md. USB recovery builds only.
+  pull request 4542, open 2026-11-20); then drop the warnings in docs/security.md and CMakeLists.txt and the tinyUSB
+  check of cmake-args (tests/matrix/run.py). USB recovery builds only.
 
 - [ ] Security review leftovers: one device key per product - per-device keys. Not derived on the device from
   the UID + a master key (the master would then sit in every device): each device gets its own key at provisioning

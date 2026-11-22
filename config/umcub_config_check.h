@@ -165,9 +165,10 @@
 
 /* Without validation of the primary slot, an upload into it (SMP, lite, a
  * board protocol) is booted unchecked (MCUboot): no signature, no board type,
- * no decryption check. */
+ * no decryption check. Only an unsigned build has nothing to bypass. */
 #if !UMCUB_CFG_VALIDATE_PRIMARY && (UMCUB_CFG_SMP || UMCUB_CFG_LITE_UPLOAD || UMCUB_CFG_PROTO_USER) && \
-    (UMCUB_CFG_BOARD_TYPE != 0 || UMCUB_CFG_LINK_SECURE_ANY || UMCUB_CFG_ENCRYPT_IMAGES)
+    (UMCUB_CFG_SIGNATURE != UMCUB_SIGN_NONE || UMCUB_CFG_BOARD_TYPE != 0 || UMCUB_CFG_LINK_SECURE_ANY || \
+     UMCUB_CFG_ENCRYPT_IMAGES)
 #error "umcub: UMCUB_CFG_VALIDATE_PRIMARY 0 lets uploads into the primary slot bypass signature / board type checks"
 #endif
 /* SECURE AUTH costs two ECC operations (~0.65 s each on a 72 MHz Cortex-M3). */

@@ -328,7 +328,8 @@ config VALIDATE_PRIMARY
 	  image written straight into the primary slot (SMP or lite upload, a
 	  debugger) then boots unchecked. Refused at build time when an upload into
 	  the primary slot is possible (SMP, the lite upload, a board protocol)
-	  together with a board type, a secure link or encrypted images.
+	  and images are signed (or carry a board type, or a secure link or
+	  encrypted images are on): the signature would mean nothing.
 
 config IMAGE_VECTOR_CHECK
 	bool "Check the image's reset vector"

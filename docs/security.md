@@ -56,8 +56,9 @@ Builds use it only when the configuration asks for it (`UMCUB_CFG_SIGNING_KEY_DE
 generates a key in `keys/<board>/`, or takes your own file, see [Kconfig](configuration.md#kconfig). Also write-protect the bootloader sector (WRP) and enable RDP.
 For transports on a shared bus see the SECURE mode of the [umcub link](link.md)
 and its own keys. With encrypted images or a SECURE link the bootloader embeds the device private key: the generated
-`umcub_enc_key.c` / `umcub_link_keys.c` are written readable by their owner only, and the bootloader ELF / HEX / BIN of
-such a build are secrets like the key file itself (do not publish build trees or attach them to tickets).
+`umcub_enc_key.c` / `umcub_link_keys.c` are written readable by their owner only, configure makes the whole build tree
+private (0700: the objects and the bootloader ELF / HEX / BIN hold the key), and those files are secrets like the key
+file itself (do not publish build trees, attach them to tickets or keep them as CI artifacts).
 
 On a PLAIN or ADDRESSED transport the SMP parser sees requests before any authentication. umcub builds MCUboot's
 serial recovery with zcbor 0.8.3 (`third_party/zcbor`, not the 0.8.1 copy inside MCUboot): it skips unknown values
@@ -65,9 +66,34 @@ at most 8 lists / maps deep (`ZCBOR_MAX_SKIP_DEPTH`), so a small, deeply nested 
 
 tinyUSB 0.21.0 answers some standard and DFU GET requests from a stack variable: a host that sends one with the
 wrong direction (OUT) makes the stack write land after the function returned. Until a tinyUSB release fixes it, keep
-USB recovery (`UMCUB_CFG_TRANSPORT_USB_CDC` / `_USB_DFU`) off where untrusted hosts can reach the USB port.
+USB recovery (`UMCUB_CFG_TRANSPORT_USB_CDC` / `_USB_DFU`) off where untrusted hosts can reach the USB port (CMake
+warns when it is on).
 
 `UMCUB_CFG_SIGNATURE_NONE` drops the signature (about 4.6 K): images carry a SHA-256 only, so the
 bootloader still refuses damaged images and images for another board type, but boots any correctly built image -
 there is no authenticity. CMake warns when it is configured; use it only for closed devices on parts where the
 ECDSA code does not fit (host test variant `sign_none`, build matrix `bluepill-sign-none`).
+
+## Production checklist
+
+The development defaults (generated keys, PLAIN transports, USB recovery, the log) are made for the bench. Before
+devices leave it:
+
+- **Keys**: your own signing key (not `tools/keys/`), kept with a backup; with a SECURE link or encrypted images also
+  the device and admin keys ([umcub link](link.md#secure-mode)). Build trees with an embedded device key stay private.
+- **Transports**: every transport reachable by others SECURE (`UMCUB_CFG_<transport>_LINK_SECURE`, with
+  `UMCUB_CFG_LINK_ENCRYPT` when the firmware or the bootloader version is confidential). A PLAIN or ADDRESSED transport
+  lets anybody on its bus write the slots: a signed image is still required to boot, but the running one can be
+  overwritten (the device then stays in recovery).
+- **USB recovery** off where untrusted hosts reach the port (tinyUSB, above); USB DFU cannot authenticate at all.
+- **Updates through the secondary slot** (`UMCUB_CFG_SMP_DIRECT_UPLOAD`, uploads to the secondary slot, `image
+  state-write`): MCUboot validates the image before it replaces the running one, and keeps it for a revert in the swap
+  modes. `UMCUB_CFG_DOWNGRADE_PREVENTION` covers this path only: an upload written straight into the primary slot
+  (plain SMP, or slot 0/1 with `SMP_DIRECT_UPLOAD`) is not version-checked, so where a rollback must be impossible
+  devices take updates through the secondary slot over a SECURE transport only.
+- **`UMCUB_CFG_VALIDATE_PRIMARY`** stays on (the build refuses it off with signed images and uploads into the primary
+  slot).
+- **Readout and write protection**: RDP level 1 or higher (a SECURE transport stays closed at level 0), the bootloader
+  sectors write-protected (WRP), see [board.md](board.md).
+- **Log**: no log on a UART reachable from outside; `UMCUB_CFG_READBACK` only where reading the firmware back is
+  wanted.
