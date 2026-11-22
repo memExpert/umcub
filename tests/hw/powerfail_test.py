@@ -25,10 +25,11 @@ from that configuration too (--mode / --primary / --secondary / --erase override
       --points 40
   swap-offset (the update sits one sector into the secondary slot, the revert copy at its start):
   ... --conf tests/configs/feature/fault_inject.conf --conf tests/configs/mode/swap_offset.conf
-  Blue Pill (overwrite, 16 KiB slots, 1 KiB pages, no NRST on the SWD header):
+  Blue Pill (overwrite, 16 KiB slots, 1 KiB pages, no NRST on the SWD header; attach, as under reset every
+  poll would restart the bootloader):
   tests/hw/powerfail_test.py --boot build/bp_fault/umcub_bluepill_f103c8_cm3.hex \\
       --app build/bluepill/examples/bluepill_app/bluepill_app.bin --board bluepill_f103c8 \\
-      --connect under-reset --reset rst --points 40
+      --connect attach --reset rst --points 40
   Encrypted update (--encrypted; bootloader built with tests/configs/feature/encrypt_only.conf as well and the
   same --conf here): v2 goes into the secondary slot encrypted, so resuming an interrupted swap needs the key
   MCUboot kept in the trailer (the AES key, or the key TLV with UMCUB_CFG_SWAP_SAVE_ENCTLV). Upgrade: primary

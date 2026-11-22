@@ -49,7 +49,7 @@ SMP_PARAMS, lite).
   board): UART, RNG (`tests/hw/entropy_test.py`), single-bank mode, a power cut during programming (ECC NMI ->
   read error, `tests/hw/powerfail_test.py`), RS485 with the umcub link. USB FS device not ported.
 - [ ] `tests/hw/powerfail_test.py` with the defaults from the configuration (slots, erase, payload size) on
-  hardware: H755 swap-scratch and swap-offset, Blue Pill overwrite, and a part with sectors of different sizes
+  hardware: H755 swap-scratch and swap-offset, and a part with sectors of different sizes
   (F4: erase by the sector table through STM32_Programmer_CLI).
 - [ ] Later: TrustZone (ARMv8-M: STM32L5, U5, H5, WBA). Bootloader, keys and crypto in the Secure world, the
   application Non-secure, so even a compromised application cannot read the device key (today RDP/WRP/PCROP only
