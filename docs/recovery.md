@@ -23,7 +23,9 @@ SMP serial recovery writes straight into the **primary** slot (this is how MCUbo
 the field names a slot instead: 0/1 image 0 primary, 2 image 0 secondary, 3 image 1 primary, 4 image 1 secondary;
 `smpmgr image state-write <hash>` then marks an image in the secondary slot for a test boot (`--confirm <hash>`:
 for good; not in plain direct-xip (without revert), where MCUboot picks the newest version), and the next reset installs it (`umcub upload --slot secondary --test` does both, see [host tool](host.md)); MCUboot's slot info command (image group, id 6; smpmgr has none) reports
-`upload_image_id`, the `image` value to upload each slot with. These commands, and the flags and image hash in
+`upload_image_id`, the `image` value to upload each slot with. In the swap modes an upload into the secondary slot
+is refused while that image is on test (not confirmed, or its state unreadable): the secondary slot then holds the
+previous image, the only way back - confirm it, or reset once to revert, first. These commands, and the flags and image hash in
 `image state-read`, come only with direct upload (about 2.4 K); without it `state-read` lists the versions. The bootloader answers MCUMGR_PARAMETERS
 (`UMCUB_CFG_SMP_PARAMS`), so smpmgr sizes serial packets to `UMCUB_CFG_SMP_MTU` by itself (default 1472 with
 Ethernet - one full UDP datagram, what smpmgr sends over UDP; 1442 on a umcub link, whose frame adds 30 bytes -

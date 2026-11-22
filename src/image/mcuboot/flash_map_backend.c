@@ -10,6 +10,7 @@
 #include "sysflash/sysflash.h"
 #include "bootutil/image.h"
 #include "umcub_handoff.h"
+#include "umcub.h"
 
 _Static_assert(sizeof(umcub_version_t) == sizeof(struct image_version) &&
                __builtin_offsetof(umcub_version_t, revision) == __builtin_offsetof(struct image_version, iv_revision) &&
@@ -103,11 +104,21 @@ int flash_area_write(const struct flash_area *fa, uint32_t off, const void *src,
     return umcub_flash_write(fa->fa_off + off, src, len) ? -EIO : 0;
 }
 
+#ifdef UMCUB_RECOVERY_GUARD
+bool umcub_recovery_mode;
+#endif
+
 int flash_area_erase(const struct flash_area *fa, uint32_t off, uint32_t len)
 {
     if (!in_area(fa, off, len) || fa->fa_id == FLASH_AREA_BOOTLOADER) {
         return -EINVAL;
     }
+#ifdef UMCUB_RECOVERY_GUARD
+    unsigned a = (unsigned)fa->fa_id - FLASH_AREA_IMAGE_0;
+    if (umcub_recovery_mode && (a & 1u) && umcub_is_confirmed((int)(a / 2u)) != 1) {
+        return -EBUSY;
+    }
+#endif
     return umcub_flash_erase(fa->fa_off + off, len) ? -EIO : 0;
 }
 

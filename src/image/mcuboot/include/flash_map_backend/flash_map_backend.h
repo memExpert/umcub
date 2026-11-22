@@ -8,6 +8,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <sys/types.h>
+#include "umcub_cfg.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -59,6 +60,15 @@ bool umcub_image_header(const struct flash_area *fa, uint32_t off, struct image_
 /* Failed flash reads (ECC errors...) so far: a check that saw one refuses what it checked, MCUboot's own reads
  * return -1 for a read error and a missing structure alike. */
 extern unsigned umcub_flash_read_errors;
+
+#if UMCUB_CFG_SMP_DIRECT_UPLOAD && UMCUB_CFG_UPGRADE_MODE >= UMCUB_MODE_SWAP_SCRATCH && \
+    UMCUB_CFG_UPGRADE_MODE <= UMCUB_MODE_SWAP_OFFSET
+/* Set by the bootloader when it enters recovery: every erase then comes from SMP (boot_serial). The secondary
+ * slot of an image is erased only when that image is confirmed: after a test swap the secondary slot holds the
+ * previous image, the only way back (umcub_slot_begin() applies the same rule to the other update paths). */
+#define UMCUB_RECOVERY_GUARD 1
+extern bool umcub_recovery_mode;
+#endif
 
 #ifdef __cplusplus
 }

@@ -9,6 +9,7 @@ all-overwrite|cm7|Release|mode/overwrite.conf|
 all-swap-offset|cm7|Release|mode/swap_offset.conf|
 all-direct-xip|cm7|Release|mode/direct_xip.conf|
 all-direct-xip-revert|cm7|Release|mode/direct_xip_revert.conf|
+smp-direct-upload|cm7|Release|feature/smp_direct_upload.conf|
 uart-only|cm7|Release|transport/uart_only.conf|
 uart-tx-ring|cm7|Release|feature/uart_tx_ring.conf|
 uart-usb|cm7|Release|transport/uart_usb.conf|

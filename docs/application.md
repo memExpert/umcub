@@ -56,8 +56,9 @@ Writing from the application:
 - writing a slot code is running from is refused (`UMCUB_EBUSY`): the application's own, and any slot the bootloader
   started an image from according to the handoff - on dual-core parts the CM7 application cannot erase the running
   CM4 image and vice versa (`UMCUB_SLOT_INACTIVE` picks the other slot of that image);
-- in swap modes the secondary slot is refused (`UMCUB_EBUSY`) while the running image is still on test: the secondary
-  then holds the previous image, the only way back;
+- in swap modes the secondary slot is refused (`UMCUB_EBUSY`) while the running image is still on test, and with
+  the error when its state cannot be read: the secondary then holds the previous image, the only way back (SMP
+  direct upload in recovery follows the same rule);
 - if the slot is in the same flash bank as the running code, the CPU stalls during a sector erase (up to 4 s on the
   H7). Applications that write their own updates should keep the secondary slot in the other bank.
 

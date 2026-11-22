@@ -593,6 +593,19 @@ static void test_swap_revert_confirm(const uint8_t *v2, size_t v2_len)
     printf("[slot writer + swap-scratch] test boot, revert, confirm\n");
     write_secondary(v2, v2_len);
     CHECK(umcub_is_confirmed(0) == 1);      /* v1 was installed permanently */
+    {   /* the primary trailer cannot be read: the state is unknown, the secondary stays */
+        static uint8_t before[UMCUB_CFG_IMG0_SECONDARY_SIZE];
+        const uint8_t *sec = fake_flash + (UMCUB_CFG_IMG0_SECONDARY_ADDR - 0x08000000u);
+        memcpy(before, sec, sizeof(before));
+        fake_read_fail_addr = UMCUB_CFG_IMG0_PRIMARY_ADDR + UMCUB_CFG_IMG0_PRIMARY_SIZE - 0x2000u;
+        fake_read_fail_len = 0x2000u;
+        umcub_slot_writer_t w;
+        CHECK(umcub_is_confirmed(0) < 0);
+        CHECK(umcub_slot_begin(&w, 0, UMCUB_SLOT_SECONDARY, (uint32_t)v2_len) == UMCUB_EIO);
+        fake_read_fail_len = 0;
+        CHECK(memcmp(before, sec, sizeof(before)) == 0);
+        printf("  primary trailer unreadable: secondary slot refused, unchanged\n");
+    }
     CHECK(boot_ok(ver) && strcmp(ver, "1.1.0") == 0);
     printf("  after test upgrade: %s\n", ver);
 #if UMCUB_CFG_ENCRYPT_IMAGES
@@ -1159,10 +1172,28 @@ static void test_smp_direct_upload(const uint8_t *v1, size_t v1_len, const uint8
     CHECK(boot_ok(ver) && strcmp(ver, "1.1.0") == 0);   /* test boot */
     CHECK(memcmp(fake_flash + (UMCUB_CFG_IMG0_PRIMARY_ADDR - 0x08000000), v2_flash, v2_len) == 0);
     CHECK(umcub_is_confirmed(0) == 0);
+#ifdef UMCUB_RECOVERY_GUARD
+    {   /* recovery during the test boot: the secondary holds the only way back */
+        static uint8_t before[UMCUB_CFG_IMG0_SECONDARY_SIZE];
+        const uint8_t *sec = fake_flash + (UMCUB_CFG_IMG0_SECONDARY_ADDR - 0x08000000u);
+        memcpy(before, sec, sizeof(before));
+        umcub_recovery_mode = true;
+        CHECK(upload_packets(v2, v2_len, 2) != 0);
+        umcub_recovery_mode = false;
+        CHECK(memcmp(before, sec, sizeof(before)) == 0);
+        printf("  recovery before a confirm: upload into the secondary slot refused, unchanged\n");
+    }
+#endif
     CHECK(boot_ok(ver) && strcmp(ver, "1.0.0") == 0);   /* not confirmed: revert */
     printf("  uploaded to slot 1, marked for test: 1.1.0, reverted to %s\n", ver);
 
+#ifdef UMCUB_RECOVERY_GUARD
+    umcub_recovery_mode = true;                         /* confirmed again (reverted): allowed */
+#endif
     CHECK(upload_packets(v2, v2_len, 2) == 0);
+#ifdef UMCUB_RECOVERY_GUARD
+    umcub_recovery_mode = false;
+#endif
     CHECK(smp_state_write(hash, true) == 0);
     CHECK(boot_ok(ver) && strcmp(ver, "1.1.0") == 0);
     CHECK(umcub_is_confirmed(0) == 1);

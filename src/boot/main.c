@@ -64,6 +64,9 @@ static bool entry_gpio_active(void)
 static __attribute__((noreturn)) void recovery(const char *why)
 {
     UMCUB_LOG_INF("entering recovery: %s", why);
+#ifdef UMCUB_RECOVERY_GUARD
+    umcub_recovery_mode = true;
+#endif
     umcub_transports_init();
     umcub_recovery_run();
 }

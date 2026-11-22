@@ -92,9 +92,13 @@ int umcub_slot_begin(umcub_slot_writer_t *w, int image, int slot, uint32_t total
     }
 #if UMCUB_CFG_UPGRADE_MODE >= UMCUB_MODE_SWAP_SCRATCH && UMCUB_CFG_UPGRADE_MODE <= UMCUB_MODE_SWAP_OFFSET
     /* After a test swap the secondary slot holds the previous image - the
-     * only way back. Confirm (or let it revert) before writing a new one. */
-    if (s == 1 && umcub_is_confirmed(image) == 0) {
-        return UMCUB_EBUSY;
+     * only way back. Confirm (or let it revert) before writing a new one; an
+     * unknown state (trailer unreadable) refuses too. */
+    if (s == 1) {
+        int c = umcub_is_confirmed(image);
+        if (c != 1) {
+            return c < 0 ? c : UMCUB_EBUSY;
+        }
     }
 #endif
     if (total_size > fa->fa_size) {

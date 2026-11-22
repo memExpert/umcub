@@ -65,7 +65,7 @@ F103 one) - round them up to that part's sector layout and check the real size a
 |---|---:|---:|---:|---:|---:|---:|
 | base | 16.0 K (-3.0 K) | 13.4 K (-2.9 K) | 14.1 K (-2.9 K) | 10.1 K (-2.5 K) | 10.8 K (-2.7 K) | 11.2 K (-2.7 K) |
 | base + SMP + UART | 22.1 K (-4.0 K) | 19.4 K (-3.9 K) | 20.1 K (-3.9 K) | 15.9 K (-3.7 K) | 16.6 K (-3.6 K) | 17.1 K (-3.6 K) |
-| all on | 47.0 K (-6.1 K) | 44.2 K (-6.2 K) | 44.9 K (-6.1 K) | 32.1 K (-5.2 K) | 34.1 K (-5.2 K) | 25.9 K (-3.6 K) |
+| all on | 47.0 K (-6.1 K) | 44.2 K (-6.1 K) | 44.9 K (-6.1 K) | 32.1 K (-5.2 K) | 34.1 K (-5.2 K) | 25.9 K (-3.6 K) |
 
 | Smallest UART bootloader → `UMCUB_CFG_BOOT_SIZE` | SMP, verify + hash | SMP | SMP, no `SMP_PARAMS` | SMP, no `SMP_PARAMS`, LTO | lite | lite, LTO | lite, LTO, no signature |
 |---|---:|---:|---:|---:|---:|---:|---:|
