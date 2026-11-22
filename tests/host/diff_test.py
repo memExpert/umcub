@@ -285,13 +285,26 @@ def isotp_round_trip(msg, fd):
     assert back == [msg], (len(back), sent[0][:80])
 
 
+FD_LENGTHS = (8, 12, 16, 20, 24, 32, 48, 64)
+
+
+def sf_min(can_dl):
+    """The shortest single frame a CAN-FD frame of can_dl bytes (> 8) may carry: longer than what the next smaller
+    frame holds (ISO 15765-2 table 13: 8 in 12 bytes, 11 in 16, ...)."""
+    below = max(d for d in FD_LENGTHS if d < can_dl)
+    return 8 if below == 8 else below - 1
+
+
 def ignored(f):
     """A frame ISO 15765-2 has the receiver ignore, which python-can-isotp takes (isotp.c follows the standard):
-    a single frame with the escape length on a classic-size CAN frame; a first frame shorter than 8 bytes, with
-    the escape length under 4096, or whose length fits a single frame."""
+    a single frame with the escape length on a classic-size CAN frame, or shorter than its CAN-FD frame size
+    allows; a first frame shorter than 8 bytes, with the escape length under 4096, or whose length fits a single
+    frame."""
     pci = f[0] >> 4
     if pci == 0:
-        return len(f) <= 8 and f[0] & 0xF == 0
+        if len(f) <= 8:
+            return f[0] & 0xF == 0
+        return f[0] & 0xF == 0 and 0 < f[1] < sf_min(len(f))
     if pci != 1:
         return False
     if len(f) < 8:
@@ -304,9 +317,35 @@ def ignored(f):
     return total < (len(f) - 1 if len(f) > 8 else 8)
 
 
+def standard_frames(frames):
+    """The frames a receiver following ISO 15765-2 takes: without ignored() ones and without consecutive frames
+    of another size than the first frame's (RX_DL), the last one of a message excepted, which may be shorter."""
+    out, left, rx_dl, sn = [], 0, 0, 0
+    for f in frames:
+        if ignored(f):
+            continue
+        pci = f[0] >> 4
+        if pci == 0:
+            left = 0
+        elif pci == 1:
+            total = (f[0] & 0xF) << 8 | f[1]
+            hdr = 2 if total else 6
+            total = total or int.from_bytes(f[2:6], "big")
+            left, rx_dl, sn = total - (len(f) - hdr), len(f), 1
+        elif pci == 2 and left:
+            if len(f) > rx_dl or (len(f) != rx_dl and len(f) - 1 < left):
+                continue
+            if f[0] & 0xF != sn & 0xF:
+                left = 0
+            else:
+                left, sn = max(0, left - (len(f) - 1)), sn + 1
+        out.append(f)
+    return out
+
+
 def standard_receive(frames, fl):
     """What a receiver following ISO 15765-2 delivers: python-can-isotp without the frames it should ignore."""
-    return py_receive([f for f in frames if not ignored(f)], fl)
+    return py_receive(standard_frames(frames), fl)
 
 
 @prop
@@ -333,7 +372,23 @@ OFF_STANDARD = [
     "1009010203",                           # first frame shorter than 8 bytes
     "1000000000080102",                     # escape first-frame length under 4096 (here 8)
     "103e" + "ab" * 62,                     # CAN-FD first frame of 62 bytes in 64: fits a single frame
+    "0005" + "01" * 5 + "cc" * 5,           # CAN-FD single frame of 5 bytes in 12: fits a classic frame
+    "0010" + "01" * 16 + "cc" * 14,         # 16 bytes in 32: fits a 20-byte frame
 ]
+
+
+@prop
+@given(msg=st.binary(min_size=20, max_size=300), fd=st.booleans(), cut=st.integers(1, 6))
+def isotp_short_consecutive_frame_ignored(msg, fd, cut):
+    """A consecutive frame shorter than the first frame, with the next sequence number, in the middle of a message:
+    ignored (only the last may be shorter) - the full one with that number completes the message."""
+    fl = 64 if fd else 8
+    frames = py_frames(msg, fl)
+    if len(frames) < 3 or len(frames[1]) <= cut + 1:
+        return
+    short = frames[1][:FD_LENGTHS[cut - 1] if fd else len(frames[1]) - cut]   # CAN-FD: a real frame size
+    got = H.ask("isotp", fl, ",".join(x.hex() for x in frames[:1] + [short] + frames[1:]))
+    assert [bytes.fromhex(x) for x in got if x != "-"] == [msg], got
 
 
 @prop

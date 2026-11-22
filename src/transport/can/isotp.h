@@ -18,6 +18,7 @@ typedef struct {
     size_t rx_cap;
     size_t rx_len;              /* expected total */
     size_t rx_off;
+    uint8_t rx_dl;              /* CAN frame size of the first frame: of every consecutive frame but the last */
     uint8_t rx_sn;
     bool rx_active;
     uint32_t rx_last;

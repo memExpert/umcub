@@ -2,6 +2,7 @@
  * ISO-TP subset, see isotp.h.
  */
 #include <string.h>
+#include "umcub_cfg.h"
 #include "isotp.h"
 #include "umcub_bytes.h"
 #include "umcub_port.h"
@@ -51,12 +52,17 @@ size_t isotp_on_frame(isotp_t *t, const uint8_t *d, uint8_t len)
     if (type == PCI_SF) {
         size_t n = d[0] & 0xFu;
         size_t hdr = 1;
-        if (len > 8) {                  /* CAN-FD: the length in byte 1 (escape), and only there */
+        if (UMCUB_CFG_CAN_FD && len > 8) {      /* CAN-FD: the length in byte 1 (escape), and only there */
             if (n != 0) {
                 return 0;
             }
             n = d[1];
             hdr = 2;
+            /* more than the next smaller CAN-FD frame holds (ISO 15765-2 table 13: at least 8 bytes in 12, 11 in
+             * 16, 15 in 20, 19 in 24, 23 in 32, 31 in 48, 47 in 64); len is one of these sizes (the DLC) */
+            if (n + (len <= 12 ? 4u : len <= 24 ? 5u : len <= 32 ? 9u : 17u) < len) {
+                return 0;
+            }
         }
         if (n == 0 || n + hdr > len || n > t->rx_cap) {
             return 0;
@@ -87,6 +93,7 @@ size_t isotp_on_frame(isotp_t *t, const uint8_t *d, uint8_t len)
             return 0;
         }
         t->rx_len = total;
+        t->rx_dl = len;
         t->rx_off = len - hdr;
         memcpy(t->rx_buf, d + hdr, t->rx_off);
         t->rx_sn = 1;
@@ -96,13 +103,16 @@ size_t isotp_on_frame(isotp_t *t, const uint8_t *d, uint8_t len)
         return 0;
     }
     if (type == PCI_CF && t->rx_active) {
+        size_t n = (size_t)len - 1u, left = t->rx_len - t->rx_off;
+        if (len > t->rx_dl || (len != t->rx_dl && n < left)) {
+            return 0;                   /* the first frame's size; only the last may be shorter */
+        }
         if ((d[0] & 0xFu) != (t->rx_sn & 0xFu)) {
             t->rx_active = false;       /* lost frame: drop message */
             return 0;
         }
-        size_t n = (size_t)len - 1u;
-        if (n > t->rx_len - t->rx_off) {
-            n = t->rx_len - t->rx_off;
+        if (n > left) {
+            n = left;
         }
         memcpy(t->rx_buf + t->rx_off, d + 1, n);
         t->rx_off += n;
