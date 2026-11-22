@@ -45,14 +45,14 @@ F103 one) - round them up to that part's sector layout and check the real size a
 | + lite upload (instead of SMP) | +2.6 K | +2.6 K | +2.5 K | +2.7 K | +2.6 K | +2.6 K |
 | + log (level 3) | +3.7 K | +3.5 K | +3.5 K | +3.1 K | +3.1 K | +3.1 K |
 | + text commands | +2.2 K | +2.2 K | +2.2 K | +2.0 K | +2.0 K | +2.0 K |
-| + status LED | +0.2 K | +0.2 K | +0.2 K | +0.2 K | +0.2 K | +0.2 K |
+| + status LED | +0.3 K | +0.3 K | +0.3 K | +0.3 K | +0.3 K | +0.3 K |
 | + verify + hash | +0.7 K | +0.9 K | +0.9 K | +0.9 K | +0.9 K | +0.9 K |
 | + readback (on top of verify + hash) | +0.2 K | +0.2 K | +0.2 K | +0.2 K | +0.2 K | +0.2 K |
 | + umcub link (addressed) | +2.0 K | +2.0 K | +2.0 K | +2.0 K | +1.9 K | +2.0 K |
 | + umcub link SECURE | +4.9 K | +4.9 K | +4.9 K | +4.8 K | +4.8 K | +4.9 K |
 | + link encryption (on top of SECURE) | +1.6 K | +1.6 K | +1.6 K | +1.6 K | +1.6 K | +1.6 K |
 | + encrypted images | +7.1 K | +6.3 K | +6.8 K | +6.4 K | +5.8 K | +5.9 K |
-| **all on** | 53.1 K | 50.3 K | 51.0 K | 37.3 K | 39.2 K | 29.5 K |
+| **all on** | 53.1 K | 50.3 K | 51.1 K | 37.3 K | 39.2 K | 29.5 K |
 
 | Bootloader size → `UMCUB_CFG_BOOT_SIZE` | UART, lite (no SMP) | UART | USB CDC | CAN | Ethernet | UART, link SECURE | all on |
 |---|---:|---:|---:|---:|---:|---:|---:|
@@ -65,7 +65,7 @@ F103 one) - round them up to that part's sector layout and check the real size a
 |---|---:|---:|---:|---:|---:|---:|
 | base | 16.0 K (-3.0 K) | 13.4 K (-2.9 K) | 14.1 K (-2.9 K) | 10.1 K (-2.5 K) | 10.8 K (-2.7 K) | 11.2 K (-2.7 K) |
 | base + SMP + UART | 22.1 K (-4.0 K) | 19.4 K (-3.9 K) | 20.1 K (-3.9 K) | 15.9 K (-3.7 K) | 16.6 K (-3.6 K) | 17.1 K (-3.6 K) |
-| all on | 47.0 K (-6.1 K) | 44.1 K (-6.2 K) | 44.9 K (-6.1 K) | 32.1 K (-5.2 K) | 34.0 K (-5.2 K) | 25.9 K (-3.6 K) |
+| all on | 47.0 K (-6.1 K) | 44.2 K (-6.2 K) | 44.9 K (-6.1 K) | 32.1 K (-5.2 K) | 34.1 K (-5.2 K) | 25.9 K (-3.6 K) |
 
 | Smallest UART bootloader → `UMCUB_CFG_BOOT_SIZE` | SMP, verify + hash | SMP | SMP, no `SMP_PARAMS` | SMP, no `SMP_PARAMS`, LTO | lite | lite, LTO | lite, LTO, no signature |
 |---|---:|---:|---:|---:|---:|---:|---:|

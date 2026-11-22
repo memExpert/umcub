@@ -99,7 +99,8 @@ class Stm32Cube:
 
     def run_steps(self, steps):
         """Several operations in one CLI call (one connect): ("erase", addr, size),
-        ("program", path, addr), ("write32", addr, words), ("reset", hw)."""
+        ("program", path, addr), ("write32", addr, words), ("reset", hw), ("pc", addr): halt, set the
+        program counter, run."""
         args = [x for step in steps for x in self._args(step)]
         if args:
             self._run(*args)
@@ -124,6 +125,8 @@ class Stm32Cube:
             return ["-w32", hex(step[1]), *[hex(w) for w in step[2]]]
         if op == "reset":
             return ["-hardRst" if step[1] else "-rst"]
+        if op == "pc":
+            return ["-halt", "-coreReg", f"PC={step[1]:#x}", "-run"]
         raise ProbeError(f"unknown step {op}")
 
     def close(self):
@@ -199,7 +202,13 @@ class PyOcd:
     def run_steps(self, steps):
         """Same steps as Stm32Cube.run_steps(), one after the other in this session."""
         for op, *args in steps:
-            {"erase": self.erase, "program": self.program, "write32": self.write32, "reset": self.reset}[op](*args)
+            {"erase": self.erase, "program": self.program, "write32": self.write32, "reset": self.reset,
+             "pc": self.set_pc}[op](*args)
+
+    def set_pc(self, addr):
+        self.target.halt()
+        self.target.write_core_register("pc", addr)
+        self.target.resume()
 
     def close(self):
         if self.under_reset:

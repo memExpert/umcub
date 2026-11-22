@@ -5,6 +5,7 @@
  *   slow blink (1 Hz)        listening: recovery mode or the wait window
  *   fast flicker             data arriving
  *   N blinks, pause          transport N (UMCUB_TRANSPORT_*) did not come up
+ *   steady ~2 s, then reset  a fault (HardFault_Handler, port/arch/cortexm/cortexm_sys.c)
  */
 #ifndef UMCUB_LED_H
 #define UMCUB_LED_H

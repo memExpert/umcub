@@ -1,6 +1,6 @@
 /*
  * Cortex-M system services of the bootloader shared by the family ports:
- * SysTick time base, deinit before the jump, reset, jump, UID.
+ * SysTick time base, deinit before the jump, reset (also on a fault), jump, UID.
  */
 #include "umcub_cfg.h"
 #include "umcub_family_cmsis.h"
@@ -123,18 +123,29 @@ void umcub_cm_deinit(void)
     SCB->ICSR = SCB_ICSR_PENDSTCLR_Msk | SCB_ICSR_PENDSVCLR_Msk;
 }
 
-__attribute__((noreturn)) void umcub_port_reset(void)
+__attribute__((noreturn, noinline)) void umcub_port_reset(void)   /* NVIC_SystemReset() inlined once */
 {
     NVIC_SystemReset();
 }
 
-#if UMCUB_CFG_ASSERT_TRAP
-/* MCUboot assertions trap (mcuboot_assert.h): reset instead of the startup
- * file's endless default handler - for every other fault as well. */
+/* Any fault (and an MCUboot assertion with ASSERT_TRAP, mcuboot_assert.h) resets
+ * instead of the startup file's endless default handler: an interrupted swap
+ * resumes on the next boot. With the status LED it is lit for about 2 s first,
+ * counted in SysTick wraps (its interrupt cannot preempt this handler); a fault
+ * before SysTick runs resets at once. */
+#if UMCUB_CFG_STATUS_LED
 void HardFault_Handler(void)
 {
-    NVIC_SystemReset();
+    umcub_port_gpio_output(UMCUB_CFG_STATUS_LED_PIN, UMCUB_CFG_STATUS_LED_ACTIVE != 0);
+    if (SysTick->CTRL & SysTick_CTRL_ENABLE_Msk) {
+        for (unsigned ms = 0; ms < 2000u;) {
+            ms += (SysTick->CTRL & SysTick_CTRL_COUNTFLAG_Msk) != 0u;
+        }
+    }
+    umcub_port_reset();
 }
+#else
+__attribute__((noreturn, alias("umcub_port_reset"))) void HardFault_Handler(void);
 #endif
 
 __attribute__((noreturn)) void umcub_port_jump(uint32_t vtor)

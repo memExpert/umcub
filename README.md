@@ -133,10 +133,11 @@ The bootloader starts the application unless one of these says otherwise:
 In the bootloader (recovery mode) every enabled interface accepts updates until a reset (or, with
 `UMCUB_CFG_RECOVERY_TIMEOUT_MS`, until it has been idle that long).
 
-A status LED (`UMCUB_CFG_STATUS_LED`, about 200 bytes) shows it without a log: slow blink (1 Hz) while the bootloader
+A status LED (`UMCUB_CFG_STATUS_LED`, about 250 bytes) shows it without a log: slow blink (1 Hz) while the bootloader
 listens, fast flicker while data arrives, N blinks and a pause when transport N did not come up (1 UART, 2 USB,
-3 USB in a DFU-only build, 4 CAN, 5 Ethernet, 7 board transport: no transceiver, no PHY clock, ...). On a plain boot
-it stays dark.
+3 USB in a DFU-only build, 4 CAN, 5 Ethernet, 7 board transport: no transceiver, no PHY clock, ...), steady on for
+about 2 s before the reset after a fault in the bootloader (every fault resets: an interrupted update resumes). On a
+plain boot it stays dark.
 
 ## Updating the application
 

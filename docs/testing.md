@@ -103,4 +103,7 @@ lie outside its slot stops the test before anything is flashed). A run ends when
 Only the sectors that programming does not rewrite are erased explicitly, by the part's sector table (no
 `--sector-size` needed). `--encrypted` (bootloader with encrypted images) installs an encrypted
 update, so every resumed swap has to recover the image key from the trailer.
+`tests/hw/hardfault_test.py --tree <bootloader tree>` keeps the bootloader in recovery, sends the core to an
+address without memory over SWD (HardFault) and checks that the board resets within 4 s and, with the status LED,
+that the LED is lit meanwhile (three rounds).
 `TODO.md` lists what is still open on hardware.

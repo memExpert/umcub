@@ -73,7 +73,7 @@ in the build matrix):
 Kconfig              top of the configuration: port/Kconfig, the board's Kconfig, config/Kconfig
 include/         L0  ABI shared with the application: umcub.h (app API), umcub_handoff.h
 config/          L0  Kconfig (the options), types, what C derives, compile-time checks
-port/            L1  hardware: include/ (port API umcub_port*.h), arch/cortexm/ (SysTick, deinit, jump, waits,
+port/            L1  hardware: include/ (port API umcub_port*.h), arch/cortexm/ (SysTick, deinit, jump, waits, fault reset,
                      common linker sections), arch/stm32/ (drivers of ST peripherals that several series share: USART
                      (usart_sr.c, usart_isr.c), bxCAN, FDCAN, RNG; IWDG, UART rings),
                      port/stm32h7/, port/stm32f1/, port/stm32f4/, port/stm32g4/ (family ports + linker templates),
@@ -100,7 +100,7 @@ tools/build/     build_matrix.sh, size_table.py (size tables), check_docs.py (RE
                  gen_kconfig.py (part and pin menus from ST's pin data)
 tools/hw/        SWD through probe.py (STM32_Programmer_CLI or pyOCD): probe.py (flash / read / write / erase /
                  reset), h755_option_bytes.py, udev/
-tests/hw/        hardware tests on the bench: powerfail_test.py, stack_usage.py, entropy_test.py
+tests/hw/        hardware tests on the bench: powerfail_test.py, hardfault_test.py, stack_usage.py, entropy_test.py
                  (+ entropy_sampler_f1.c / _f4.c: ADC entropy measured from SRAM), dhcp_server.py (DHCP server
                  for one direct link)
 tests/host/      host tests
