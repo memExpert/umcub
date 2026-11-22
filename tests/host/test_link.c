@@ -18,6 +18,7 @@
 #include "umcub_cmd.h"
 #include "umcub_lite.h"
 #include "umcub_proto.h"
+#include "umcub_version.h"
 #include "boot_serial/boot_serial.h"
 
 extern const struct boot_uart_funcs *boot_uf;
@@ -151,6 +152,8 @@ static void test_hello_and_addressing(void)
     uint32_t bt = (uint32_t)f[14 + 14] | (uint32_t)f[14 + 15] << 8 | (uint32_t)f[14 + 16] << 16 |
                   (uint32_t)f[14 + 17] << 24;
     CHECK(bt == UMCUB_CFG_BOARD_TYPE && f[14 + 12] == 5 && f[14 + 20] == UMCUB_LINK_ADDRESSED);
+    CHECK(f[14 + 18] == (UMCUB_CFG_BOARD_REV & 0xFF) && f[14 + 19] == UMCUB_CFG_BOARD_REV >> 8 &&    /* shown */
+          f[14 + 21] == UMCUB_VERSION_MAJOR && f[14 + 22] == UMCUB_VERSION_MINOR && f[14 + 23] == UMCUB_VERSION_PATCH);
     CHECK(umcub_link_take_wakeup());
 }
 

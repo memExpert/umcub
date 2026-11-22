@@ -32,7 +32,9 @@
  * DATA payloads are AES-128-CTR (FLAG_ENC; counter block seq u32 LE | 8 x 0 |
  * block u32 BE from 0) before the MAC is computed. A challenge is good for one
  * AUTH. Unauthenticated hosts get only ANNOUNCE / CHALLENGE answers. ANNOUNCE
- * and CHALLENGE identity byte 20: UMCUB_LINK_* | ANNOUNCE_ENC | ANNOUNCE_CLOSED.
+ * and CHALLENGE identity byte 20: UMCUB_LINK_* | ANNOUNCE_ENC | ANNOUNCE_CLOSED;
+ * a SECURE transport sends the board revision (18..19) and the bootloader
+ * version (21..23) as zeros, the session reads them (text command i).
  */
 #ifndef UMCUB_LINK_H
 #define UMCUB_LINK_H

@@ -181,7 +181,7 @@ Reference:
 ## Versions
 
 The bootloader and the host library have their own versions. The bootloader's is in
-`src/util/include/umcub_version.h` (the boot log, the `info` command and the link identity show it) and is tagged
+`src/util/include/umcub_version.h` (the boot log, the `info` command and, outside SECURE, the link identity show it) and is tagged
 `v<version>`; the host library's is in `tools/host/pyproject.toml` and is tagged `host-v<version>`. The tags v0.1.0 to
 v0.5.1 are versions of the host library (the bootloader was 0.1.0 all along). A pushed tag that does not match its
 version fails the Tags workflow (`tools/build/check_version.py`).

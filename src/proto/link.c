@@ -201,22 +201,25 @@ static bool secure_closed(const umcub_transport_t *t)
 #endif
 }
 
+/* SECURE: no board revision and version (zeros) for whoever asks - an old bootloader is not advertised; the
+ * session reads them (text command i). */
 static void identity(const umcub_transport_t *t, uint8_t *p)
 {
+    bool shown = t->link != UMCUB_LINK_SECURE;
     umcub_port_uid(p);                              /* 0..11 UID */
     umcub_put_le16(p + 12, umcub_node_address());            /* 12 node address */
     umcub_put_le32(p + 14, UMCUB_CFG_BOARD_TYPE);            /* 14 board type */
-    umcub_put_le16(p + 18, UMCUB_CFG_BOARD_REV);             /* 18 board revision */
+    umcub_put_le16(p + 18, shown ? UMCUB_CFG_BOARD_REV : 0); /* 18 board revision */
     p[20] = t->link;                                /* 20 UMCUB_LINK_* of this transport + flags */
-    if (t->link == UMCUB_LINK_SECURE && UMCUB_CFG_LINK_ENCRYPT) {
+    if (!shown && UMCUB_CFG_LINK_ENCRYPT) {
         p[20] |= UMCUB_LINK_ANNOUNCE_ENC;
     }
     if (secure_closed(t)) {
         p[20] |= UMCUB_LINK_ANNOUNCE_CLOSED;
     }
-    p[21] = UMCUB_VERSION_MAJOR;                    /* 21..23 bootloader version */
-    p[22] = UMCUB_VERSION_MINOR;
-    p[23] = UMCUB_VERSION_PATCH;
+    p[21] = shown ? UMCUB_VERSION_MAJOR : 0;        /* 21..23 bootloader version */
+    p[22] = shown ? UMCUB_VERSION_MINOR : 0;
+    p[23] = shown ? UMCUB_VERSION_PATCH : 0;
 }
 
 static void announce(const umcub_transport_t *t, struct link_state *s, uint16_t to)

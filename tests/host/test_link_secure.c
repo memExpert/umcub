@@ -325,11 +325,14 @@ static void test_closed_without_auth(void)
 
 static void test_challenge(void)
 {
-    printf("[secure] HELLO -> CHALLENGE: identity (SECURE | ENC), fresh nonce every time\n");
+    printf("[secure] HELLO -> CHALLENGE: identity (SECURE | ENC) without board revision and version, fresh nonce "
+           "every time\n");
     uint8_t c1[56], c2[56];
     CHECK(hello(NODE, c1) == 56);
     CHECK(hello(NODE, c2) == 56);
     CHECK(c1[12] == NODE && c1[20] == (UMCUB_LINK_SECURE | UMCUB_LINK_ANNOUNCE_ENC));
+    static const uint8_t hidden[2 + 3];     /* bytes 18-19 board revision, 21-23 bootloader version */
+    CHECK(memcmp(c1 + 18, hidden, 2) == 0 && memcmp(c1 + 21, hidden, 3) == 0);
     CHECK(memcmp(c1, c2, 24) == 0 && memcmp(c1 + 24, c2 + 24, 32) != 0);
     CHECK(!umcub_link_take_wakeup());       /* no stay in the bootloader for strangers */
 }
@@ -626,7 +629,7 @@ static void test_entropy_failure(void)
 
 static void test_rdp_closed(void)
 {
-    printf("[secure] RDP level 0: HELLO answered with ANNOUNCE (closed), no challenge\n");
+    printf("[secure] RDP level 0: HELLO answered with ANNOUNCE (closed, revision and version hidden), no challenge\n");
     fake_rdp_level = 0;
     reset_io();
     send(UMCUB_LT_HELLO, 0, NODE, NULL, 0, false);
@@ -634,6 +637,7 @@ static void test_rdp_closed(void)
     uint8_t f[256];
     size_t n = out_frame(0, f);
     CHECK(n == HDR + 24 && f[2] == UMCUB_LT_ANNOUNCE && (f[HDR + 20] & UMCUB_LINK_ANNOUNCE_CLOSED));
+    CHECK(f[HDR + 18] == 0 && f[HDR + 19] == 0 && f[HDR + 21] == 0 && f[HDR + 22] == 0 && f[HDR + 23] == 0);
     fake_rdp_level = 1;
 }
 

@@ -87,12 +87,12 @@ Larger changes:
   service role is unlocked. The same server can sign the SECURE sessions above, so one login gives the role and the
   admin rights. Open: protocol (HTTPS + tokens?), accounts (own store, LDAP / OIDC?), offline work.
 - [ ] **SECURE devices that hide their identity** (an option; asked 2026-11-09, postponed). Today DISCOVER is answered
-  and HELLO's CHALLENGE carries the UID, board type and version in every link mode, so anyone on the bus sees what is
-  there (but can do nothing without the admin key). Option: no answer to DISCOVER, a CHALLENGE without the identity,
-  the identity sent inside the session after AUTH. Finding devices then needs the admin key and the address range
-  (host scans HELLO + AUTH per address, ~1.5 s per device on the F1), and a UID list for unassigned nodes. A signed
-  DISCOVER instead would be replayable (no clock on the device) and costs an ECDSA verify per frame. Protocol change,
-  size to be measured.
+  and HELLO's CHALLENGE carries the UID, node address and board type in every link mode (SECURE keeps only the board
+  revision and the version for the session), so anyone on the bus sees what is there (but can do nothing without the
+  admin key). Option: no answer to DISCOVER, a CHALLENGE without the identity, the identity sent inside the session
+  after AUTH. Finding devices then needs the admin key and the address range (host scans HELLO + AUTH per address,
+  ~1.5 s per device on the F1), and a UID list for unassigned nodes. A signed DISCOVER instead would be replayable (no
+  clock on the device) and costs an ECDSA verify per frame. Protocol change, size to be measured.
 - [ ] Admin key with a passphrase or loaded from memory (OS key store): `load_key()` reads an unencrypted PEM by path.
   Needed once the GUI goes to operators with local key files.
 
