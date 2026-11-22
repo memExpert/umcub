@@ -956,6 +956,12 @@ static void test_commands(void)
     CHECK(contains(pkt_rsp, pkt_rsp_len, "umcub ") && contains(pkt_rsp, pkt_rsp_len, "image 0 slot 1"));
     memset(streams, 0, sizeof(streams));
     CHECK(umcub_recovery_wait(5) == false);            /* nothing pending */
+#if UMCUB_CFG_TRANSPORT_USB_DFU
+    /* a transport without SMP (USB DFU) reports a received block: the window ends with "stay" */
+    umcub_transport_activity();
+    CHECK(umcub_recovery_wait(5) == true);
+    CHECK(umcub_recovery_wait(5) == false);            /* reported once */
+#endif
 }
 
 /* --- slot inspection: verify / hash / read (text + SMP group) ------------- */

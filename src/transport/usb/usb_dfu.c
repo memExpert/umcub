@@ -13,6 +13,7 @@
 #include "umcub.h"
 #include "umcub_handoff.h"
 #include "umcub_state.h"
+#include "umcub_transport.h"
 
 static umcub_slot_writer_t writer;
 static bool active;
@@ -52,6 +53,7 @@ void tud_dfu_download_cb(uint8_t alt, uint16_t block_num, uint8_t const *data, u
         tud_dfu_finish_flashing(DFU_STATUS_ERR_WRITE);
         return;
     }
+    umcub_transport_activity();
     tud_dfu_finish_flashing(DFU_STATUS_OK);
 }
 

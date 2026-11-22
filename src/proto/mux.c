@@ -195,6 +195,17 @@ static bool smp_packet(const uint8_t *p, size_t len)
 
 static void touch(const umcub_transport_t *t);
 
+#if UMCUB_CFG_TRANSPORT_USB_DFU
+static bool activity_seen;
+
+void umcub_transport_activity(void)
+{
+    last_activity = umcub_port_millis();
+    umcub_led_activity();
+    activity_seen = true;
+}
+#endif
+
 #if FRAMES
 /* A recovery protocol (lite upload, board protocol) took a frame: stay in
  * the bootloader (entry window). */
@@ -583,6 +594,12 @@ bool umcub_recovery_wait(uint32_t ms)
         if (frame_seen) {
             frame_seen = false;
             return true;        /* an upload started: stay in the bootloader */
+        }
+#endif
+#if UMCUB_CFG_TRANSPORT_USB_DFU
+        if (activity_seen) {
+            activity_seen = false;
+            return true;        /* a DFU download started */
         }
 #endif
 #if UMCUB_CFG_CMD_ENABLE

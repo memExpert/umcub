@@ -125,10 +125,10 @@ The bootloader starts the application unless one of these says otherwise:
 - **a button** held during reset (`UMCUB_CFG_ENTRY_GPIO`);
 - **a request from the application** (`umcub_enter_bootloader()`), e.g. on a command it receives;
 - **no valid image** - nothing to start, so it waits for one;
-- **a wait after reset** (`UMCUB_CFG_ENTRY_WAIT_MS`, off by default): every enabled interface listens that long for
-  an SMP request or a text command such as `b`. Pick the length for the slowest interface you want to use: UART and
-  CAN answer at once, Ethernet needs about 2 s for the link plus DHCP, USB needs the host to enumerate the device
-  (several seconds, or leave the window off with USB); every boot is delayed by the window.
+- **a wait after reset** (`UMCUB_CFG_ENTRY_WAIT_MS`, off by default): every enabled interface listens that long for an
+  SMP request, a USB DFU download or a text command such as `b`. Pick the length for the slowest interface you want to
+  use: UART and CAN answer at once, Ethernet needs about 2 s for the link plus DHCP, USB needs the host to enumerate
+  the device (several seconds, or leave the window off with USB); every boot is delayed by the window.
 
 In the bootloader (recovery mode) every enabled interface accepts updates until a reset (or, with
 `UMCUB_CFG_RECOVERY_TIMEOUT_MS`, until it has been idle that long).

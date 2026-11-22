@@ -59,6 +59,10 @@ extern const unsigned umcub_transport_count;
  * returns; returns false if the mux is busy (packet dropped, host will retry). */
 bool umcub_smp_packet_rx(const umcub_transport_t *t, const uint8_t *pkt, size_t len);
 
+/* Called by a transport without SMP (USB DFU) for every block it accepted; implemented by src/proto/mux.c:
+ * ends the entry window with "stay" and restarts the recovery idle timeout, like a packet does. */
+void umcub_transport_activity(void);
+
 /* The board transport (UMCUB_CFG_TRANSPORT_USER) sets its .link itself: one that does not match
  * UMCUB_CFG_USER_LINK stays off - not initialized, polled, read or heard (never weaker than configured). */
 static inline bool umcub_transport_allowed(const umcub_transport_t *t)

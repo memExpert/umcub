@@ -428,21 +428,23 @@ config ENTRY_WAIT_MS
 	int "Wait window on every boot (ms)"
 	default 0
 	help
-	  Listen this long on every boot for an SMP request or a text command such
-	  as "b" before starting the application (0 = don't wait); each boot is
-	  delayed by it. Every enabled transport listens and is switched off again
-	  after the window, so pick the length for the slowest one you want to
-	  use: UART and CAN answer at once; Ethernet needs the link (about 2 s)
-	  and a DHCP lease or a static address; USB needs the host to enumerate
-	  and open the device (seconds). USB attaches and detaches on every boot
-	  then, and a device that vanishes in the middle of enumeration upsets
-	  some host controllers: with USB prefer 0 or a window of several seconds.
+	  Listen this long on every boot for an SMP request, a USB DFU download or
+	  a text command such as "b" before starting the application (0 = don't
+	  wait); each boot is delayed by it. Every enabled transport listens and
+	  is switched off again after the window, so pick the length for the
+	  slowest one you want to use: UART and CAN answer at once; Ethernet needs
+	  the link (about 2 s) and a DHCP lease or a static address; USB needs the
+	  host to enumerate and open the device (seconds). USB attaches and
+	  detaches on every boot then, and a device that vanishes in the middle of
+	  enumeration upsets some host controllers: with USB prefer 0 or a window
+	  of several seconds.
 
 config RECOVERY_TIMEOUT_MS
 	int "Leave recovery after inactivity (ms)"
 	default 0
 	help
-	  Leave recovery mode (reset) after this much inactivity. 0 = never.
+	  Leave recovery mode (reset) after this much inactivity (no request, no
+	  USB DFU block). 0 = never.
 
 config STATUS_LED
 	bool "Status LED"
