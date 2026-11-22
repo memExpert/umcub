@@ -76,12 +76,18 @@ int umcub_slot_area(int image, int slot, const struct flash_area **fa)
     return flash_area_open((uint8_t)(FLASH_AREA_IMAGE_0 + 2 * image + slot), fa) ? UMCUB_EINVAL : 0;
 }
 
+unsigned umcub_flash_read_errors;
+
 int flash_area_read(const struct flash_area *fa, uint32_t off, void *dst, uint32_t len)
 {
     if (!in_area(fa, off, len)) {
         return -EINVAL;
     }
-    return umcub_flash_read(fa->fa_off + off, dst, len) ? -EIO : 0;
+    if (umcub_flash_read(fa->fa_off + off, dst, len)) {
+        umcub_flash_read_errors++;
+        return -EIO;
+    }
+    return 0;
 }
 
 bool umcub_image_header(const struct flash_area *fa, uint32_t off, struct image_header *hdr)

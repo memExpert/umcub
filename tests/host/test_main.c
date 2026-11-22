@@ -671,6 +671,13 @@ static void test_board_type(const uint8_t *foreign, size_t len, const uint8_t *b
     CHECK(flash_area_read(fa, 0, &ph, sizeof(ph)) == 0 && ph.ih_protect_tlv_size > 0);
     const uint32_t entry = UMCUB_CFG_IMG0_PRIMARY_ADDR + ph.ih_hdr_size + ph.ih_img_size + 4u;
     CHECK(fake_flash[entry - 0x08000000] == (UMCUB_TLV_BOARD_TYPE & 0xFF));
+    /* also the image header and the protected area's own header, read again by MCUboot's TLV iterator */
+    const uint32_t reads[] = { UMCUB_CFG_IMG0_PRIMARY_ADDR, entry - 4u };
+    for (unsigned r = 0; r < 2; r++) {
+        fake_read_fail_addr = reads[r];
+        fake_read_fail_len = 4;
+        CHECK(!umcub_image_check(0, 0, fa));
+    }
     for (uint32_t at = entry; at <= entry + 4u; at += 4u) {
         fake_read_fail_addr = at;
         fake_read_fail_len = 4;

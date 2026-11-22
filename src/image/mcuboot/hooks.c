@@ -38,7 +38,7 @@ static int board_type(const struct flash_area *fa, uint32_t hdr_off, struct imag
     if (bootutil_tlv_iter_begin(&it, hdr, fa, UMCUB_TLV_BOARD_TYPE, true) != 0) {
         return -1;
     }
-    /* missing, malformed or unreadable once the TLV area is found: refused (a read error must not skip the check) */
+    /* missing, malformed or unreadable once the TLV area is found: refused */
     if (bootutil_tlv_iter_next(&it, &off, &len, &tag) != 0 || len != sizeof(*type)) {
         return 1;
     }
@@ -79,9 +79,9 @@ static bool vector_ok(int img_index, int slot, const struct flash_area *fa, uint
     uint32_t vt[2] = { 0, 0 };
     bool ok = start % UMCUB_FAMILY_VTOR_ALIGN == 0;
     if (ok && !MUST_DECRYPT(fa, img_index, hdr)) {
-        ok = flash_area_read(fa, hdr_off + hdr->ih_hdr_size, vt, sizeof(vt)) == 0;   /* unreadable: refused */
+        (void)flash_area_read(fa, hdr_off + hdr->ih_hdr_size, vt, sizeof(vt));  /* a read error: umcub_image_check */
         const uint32_t sp = vt[0], reset = vt[1];
-        ok = ok && (reset & 1u) && (reset & ~1u) - start < hdr->ih_img_size && (sp & 3u) == 0 &&
+        ok = (reset & 1u) && (reset & ~1u) - start < hdr->ih_img_size && (sp & 3u) == 0 &&
              sp - 0x10000001u < 0x30000000u;
     }
     if (!ok) {
@@ -96,8 +96,9 @@ static bool vector_ok(int img_index, int slot, const struct flash_area *fa, uint
  * secondary slot holds an image at offset 0 (previous image, revert copy) and/or
  * one sector further (the update) - which one MCUboot uses depends on the swap
  * state, so both must pass. Headers whose TLV area is not found (stale,
- * half-erased copies) are left to MCUboot's own validation; a read error in
- * the vectors or the board type after that refuses the slot. */
+ * half-erased copies) are left to MCUboot's own validation; a flash read
+ * error anywhere in the check refuses the slot (a transient one must not
+ * skip it while MCUboot's later reads succeed). */
 bool umcub_image_check(int img_index, int slot, const struct flash_area *fa)
 {
     uint32_t offs[2] = { 0, 0 };
@@ -108,11 +109,12 @@ bool umcub_image_check(int img_index, int slot, const struct flash_area *fa)
         offs[n++] = size;
     }
 #endif
+    const unsigned read_errors = umcub_flash_read_errors;
     bool bad = false;
     for (unsigned i = 0; i < n && !bad; i++) {
         struct image_header hdr;
         if (!umcub_image_header(fa, offs[i], &hdr)) {
-            continue;               /* unreadable header: left to MCUboot */
+            continue;               /* no image header (a read error: the count below) */
         }
 #if UMCUB_CFG_IMAGE_VECTOR_CHECK
         bad = !vector_ok(img_index, slot, fa, offs[i], &hdr);
@@ -132,7 +134,8 @@ bool umcub_image_check(int img_index, int slot, const struct flash_area *fa)
 #endif
     }
     (void)img_index;
-    return !bad;
+    /* any failed read: a header, a TLV area MCUboot's iterator gave up on, the vectors, the board type */
+    return !bad && umcub_flash_read_errors == read_errors;
 }
 
 fih_ret boot_image_check_hook(int img_index, int slot)

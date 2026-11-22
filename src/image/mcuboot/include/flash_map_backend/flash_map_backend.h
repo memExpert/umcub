@@ -56,6 +56,9 @@ int umcub_slot_area(int image, int slot, const struct flash_area **fa);
  * Its ih_ver has the layout of umcub_version_t (copied as is). */
 struct image_header;
 bool umcub_image_header(const struct flash_area *fa, uint32_t off, struct image_header *hdr);
+/* Failed flash reads (ECC errors...) so far: a check that saw one refuses what it checked, MCUboot's own reads
+ * return -1 for a read error and a missing structure alike. */
+extern unsigned umcub_flash_read_errors;
 
 #ifdef __cplusplus
 }
