@@ -67,7 +67,9 @@ and board type, `umcub_boot_version()`, `i`; part of the application ABI, the ap
   the CM7 application (bank 1), image 1 the CM4 application (bank 2). Option bytes:
   `BOOT_CM4_ADD0 = BOOT_CM7_ADD0 = 0x0800`. Both cores start from the bootloader vector table; the CM4 parks in WFE
   until the CM7 has validated its image, put its vector table address into SRAM4 and released an HSEM. If the CM4
-  image is missing or broken the CM7 still boots and the CM4 stays parked.
+  image is missing or broken the CM7 still boots and the CM4 stays parked (not in the direct-xip modes: there no
+  image boots then); an update of image 0 is installed, tested and reverted as usual (also when a power loss
+  interrupted it).
 - **`UMCUB_CFG_DUALCORE_PER_CORE`**: two independent bootloaders (`--preset h755-per-core-cm7` and `h755-per-core-cm4`),
   the CM4 one in bank 2 (`BOOT_CM4_ADD0 = 0x0810`). Only the CM7 configures power and clocks; the two cores must not
   share transports. `-DUMCUB_OTHER_CORE_TREE=<the other core's build tree>` (the presets set it) checks both flash

@@ -3,8 +3,12 @@
  * swap-scratch). An encrypted upload into the primary slot of either image is
  * decrypted in place (image 1+: MCUboot v2.5.0, mcu-tools/mcuboot#2912); with
  * direct upload image 1 also goes through its secondary slot (state-write, swap).
+ * A test upgrade of image 0 next to a missing or broken image 1 starts the
+ * new image 0 and is reverted on the next boot, not at once.
  *   test_dual_enc <image0 signed> <image0 encrypted> <image1 2.0.0 signed> <image1 2.1.0 signed> <image1 2.1.0 encrypted>
+ *                 <image0 2.1.0 signed>
  */
+#include <setjmp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -18,7 +22,9 @@
 #include "bootutil/bootutil.h"
 #include "bootutil/image.h"
 #include "bootutil/fault_injection_hardening.h"
+#include "bootutil/bootutil_public.h"
 #include "boot_serial/boot_serial.h"
+#include "umcub_image_info.h"
 
 extern const struct boot_uart_funcs *boot_uf;
 const struct boot_uart_funcs *umcub_mux_funcs_for_test(void);
@@ -212,6 +218,44 @@ static unsigned primary_minor(uint32_t slot_addr)
 }
 #endif
 
+/* Image 0 2.0.0 running, 2.1.0 in its secondary slot for a test boot, image 1 as `img1` (NULL: none): the first boot
+ * starts 2.1.0 (image 1 not), the next one without a confirmation reverts to 2.0.0. */
+static void image0_test_alone(const char *what, const uint8_t *p0, size_t p0n, const uint8_t *v1, size_t v1n,
+                              const uint8_t *img1, size_t img1n, unsigned cut)
+{
+    printf("[two images] test upgrade of image 0, image 1 %s: 2.1.0 starts, the next boot reverts\n", what);
+    fake_flash_reset();
+    memcpy(fake_flash + (UMCUB_CFG_IMG0_PRIMARY_ADDR - 0x08000000u), p0, p0n);
+    memcpy(fake_flash + (UMCUB_CFG_IMG0_SECONDARY_ADDR - 0x08000000u), v1, v1n);
+    if (img1) {
+        memcpy(fake_flash + (UMCUB_CFG_IMG1_PRIMARY_ADDR - 0x08000000u), img1, img1n);
+    }
+    CHECK(boot_set_pending_multi(0, 0) == 0);
+    umcub_image0_updated = false;                       /* power on */
+    struct boot_rsp r;
+    bool all = true;
+    FIH_DECLARE(rc, FIH_FAILURE);
+    if (cut) {                                          /* the power cut in the middle of the swap */
+        jmp_buf jb;
+        fake_erase_cut = cut;
+        fake_reset_jmp = &jb;
+        if (!setjmp(jb)) {
+            FIH_CALL(umcub_boot_go, rc, &r, &all);
+            CHECK(!"the swap was not cut");
+        }
+        fake_reset_jmp = NULL;
+        fake_erase_cut = 0;
+    }
+    umcub_image0_updated = false;                       /* a fresh boot: it completes the cut swap */
+    FIH_CALL(umcub_boot_go, rc, &r, &all);
+    CHECK(FIH_EQ(rc, FIH_SUCCESS) && !all && r.br_hdr->ih_ver.iv_minor == 1 && umcub_image0_updated);
+    CHECK(r.br_image_off == UMCUB_CFG_IMG0_PRIMARY_ADDR);
+    all = true;
+    umcub_image0_updated = false;
+    FIH_CALL(umcub_boot_go, rc, &r, &all);              /* reset, not confirmed */
+    CHECK(FIH_EQ(rc, FIH_SUCCESS) && !all && r.br_hdr->ih_ver.iv_minor == 0 && umcub_image0_updated);
+}
+
 static bool both_boot(void)
 {
     struct boot_rsp r;
@@ -222,15 +266,23 @@ static bool both_boot(void)
 
 int main(int argc, char **argv)
 {
-    if (argc != 6) {
-        fprintf(stderr, "usage: %s image0 image0.encrypted image1-2.0 image1-2.1 image1-2.1.encrypted\n", argv[0]);
+    if (argc != 7) {
+        fprintf(stderr, "usage: %s image0 image0.encrypted image1-2.0 image1-2.1 image1-2.1.encrypted image0-2.1\n",
+                argv[0]);
         return 2;
     }
     size_t p0n, e0n, p1n, q1n, e1n;
     uint8_t *p0 = load(argv[1], &p0n), *e0 = load(argv[2], &e0n), *p1 = load(argv[3], &p1n);
     uint8_t *q1 = load(argv[4], &q1n), *e1 = load(argv[5], &e1n);   /* 2.1.0: plain reference, encrypted */
     (void)q1n;
+    size_t v0n;
+    uint8_t *v0 = load(argv[6], &v0n);                 /* image 0 2.1.0 */
     setvbuf(stdout, NULL, _IONBF, 0);
+    image0_test_alone("missing", p0, p0n, v0, v0n, NULL, 0, 0);
+    image0_test_alone("missing, the swap cut by a power loss", p0, p0n, v0, v0n, NULL, 0, 4);  /* of 9 */
+    p1[umcub_get_le16(p1 + 8) + 100] ^= 0xFFu;          /* image 1 present, its hash wrong */
+    image0_test_alone("broken", p0, p0n, v0, v0n, p1, p1n, 0);
+    p1[umcub_get_le16(p1 + 8) + 100] ^= 0xFFu;
     fake_flash_reset();
     boot_uf = umcub_mux_funcs_for_test();
 #if !UMCUB_CFG_SMP_DIRECT_UPLOAD

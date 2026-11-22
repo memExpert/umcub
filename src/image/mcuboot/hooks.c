@@ -16,6 +16,8 @@
 #include "umcub_port.h"
 #include "umcub_log.h"
 #include "umcub_image_info.h"
+#include "umcub_inspect.h"
+#include "bootutil_priv.h"      /* boot_state_init(), boot_get_loader_state() */
 #include "bootutil/image.h"
 #include "bootutil/bootutil_public.h"
 #include "bootutil/boot_hooks.h"
@@ -164,17 +166,46 @@ bool umcub_image0_updated;
 
 int boot_perform_update_hook(int img_index, struct image_header *img_head, const struct flash_area *area)
 {
-    if (img_index == 0) {
-        umcub_image0_updated = true;    /* MCUboot installs (or reverts) image 0 now */
-    }
+    (void)img_index;
     (void)img_head;
     (void)area;
     return BOOT_HOOK_REGULAR;
 }
 
+#if UMCUB_CFG_IMAGE_NUMBER > 1 && !defined(MCUBOOT_DIRECT_XIP)
+/* (Not in direct-xip(-revert): there a second loader pass would scramble slots the first pass just marked.) */
+fih_ret umcub_boot_go(struct boot_rsp *rsp, bool *all)
+{
+    FIH_DECLARE(fih_rc, FIH_FAILURE);
+    *all = true;
+    FIH_CALL(boot_go, fih_rc, rsp);
+    if (FIH_NOT_EQ(fih_rc, FIH_SUCCESS)) {
+        UMCUB_LOG_WRN("boot_go failed, trying image 0 alone");
+        *all = false;
+        static struct image_header hdr0;
+        const struct flash_area *fa;
+        if (umcub_image0_updated && umcub_inspect_verify(0, 0) == 0 && umcub_slot_area(0, 0, &fa) == 0) {
+            bool ok = umcub_image_header(fa, 0, &hdr0);
+            rsp->br_flash_dev_id = flash_area_get_device_id(fa);
+            rsp->br_image_off = flash_area_get_off(fa);
+            rsp->br_hdr = &hdr0;
+            flash_area_close(fa);
+            if (ok) {
+                FIH_RET(FIH_SUCCESS);
+            }
+        }
+        boot_state_init(boot_get_loader_state());
+        FIH_CALL(boot_go_for_image_id, fih_rc, rsp, 0);
+    }
+    FIH_RET(fih_rc);
+}
+#endif
+
 int boot_copy_region_post_hook(int img_index, const struct flash_area *area, size_t size)
 {
-    (void)img_index;
+    if (img_index == 0) {
+        umcub_image0_updated = true;    /* installed or reverted, also a swap an earlier boot began */
+    }
     (void)area;
     (void)size;
     return 0;

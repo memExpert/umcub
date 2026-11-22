@@ -7,6 +7,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "flash_map_backend/flash_map_backend.h"
+#include "bootutil/bootutil.h"
+#include "bootutil/fault_injection_hardening.h"
 
 /* Board type from the protected TLV UMCUB_TLV_BOARD_TYPE of the image whose
  * header is at `hdr_off` in `fa` (0, or one sector in a swap-offset secondary
@@ -20,10 +22,17 @@ int umcub_image_board_type(const struct flash_area *fa, uint32_t hdr_off, uint32
  * through `fa`. true = passed (or nothing to check). */
 bool umcub_image_check(int img_index, int slot, const struct flash_area *fa);
 
-/* Set when MCUboot performs an upgrade or revert of image 0 in boot_go()
- * (boot_perform_update_hook): not when it refuses one (invalid image, other
- * board type, downgrade). */
+/* Set when MCUboot copies image 0 in boot_go() (boot_copy_region_post_hook): an
+ * upgrade or revert, also one an earlier boot began; not when it refuses one
+ * (invalid image, other board type, downgrade). */
 extern bool umcub_image0_updated;
+
+/* Two images, not direct-xip: MCUboot's boot_go() for every image; when that
+ * fails (a second image missing or broken), image 0 alone - `all` tells
+ * which. Image 0 installed or reverted by this very boot is validated and
+ * started as it is: a second MCUboot pass would take a fresh test upgrade for
+ * one to revert. */
+fih_ret umcub_boot_go(struct boot_rsp *rsp, bool *all);
 
 /* Encrypted images (UMCUB_CFG_ENCRYPT_IMAGES): after an SMP upload into the
  * primary slot, before it is decrypted in place. 0 = plain image, or an

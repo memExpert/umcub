@@ -5,6 +5,7 @@
 extern uint8_t fake_flash[];
 extern jmp_buf *fake_reset_jmp;
 extern unsigned fake_flash_erase_count;
+extern unsigned fake_erase_cut;     /* != 0: the power is cut (umcub_port_reset()) before the erase of the n-th sector from now */
 extern int fake_realtime;            /* umcub_port_millis() from CLOCK_MONOTONIC */
 extern uint32_t fake_uid_seed;       /* varies umcub_port_uid() between simulated devices */
 extern int fake_rdp_level;           /* umcub_port_rdp_level(), default 1 */

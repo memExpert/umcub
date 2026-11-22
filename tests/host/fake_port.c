@@ -137,10 +137,18 @@ int umcub_flash_write(uint32_t addr, const void *src, size_t len)
     return 0;
 }
 
+unsigned fake_erase_cut;
+
 int umcub_flash_erase(uint32_t addr, size_t len)
 {
     if (!range(addr, len) || addr % SECTOR || len % SECTOR) {
         return UMCUB_EINVAL;
+    }
+    if (fake_erase_cut) {
+        if (len / SECTOR >= fake_erase_cut) {
+            umcub_port_reset();
+        }
+        fake_erase_cut -= (unsigned)(len / SECTOR);
     }
     memset(&fake_flash[addr - BASE], 0xFF, len);
     memset(&written[(addr - BASE) / WORD], 0, len / WORD);

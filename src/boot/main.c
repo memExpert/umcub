@@ -153,26 +153,21 @@ int main(void)
     struct boot_rsp rsp;
     FIH_DECLARE(fih_rc, FIH_FAILURE);
     bool core2_ok = UMCUB_CFG_IMAGE_NUMBER > 1 && UMCUB_CFG_DUALCORE_MODE == UMCUB_DUALCORE_SINGLE_BOOT;
-    FIH_CALL(boot_go, fih_rc, &rsp);
-    if (FIH_NOT_EQ(fih_rc, FIH_SUCCESS)) {
 #if UMCUB_CFG_IMAGE_NUMBER > 1 && !DIRECT_XIP
-        /* Second image broken or missing: still start the first one.
-         * (Not in direct-xip(-revert): a second loader pass would scramble
-         * slots the first pass just marked.) */
-        UMCUB_LOG_WRN("boot_go failed, trying image 0 alone");
-        core2_ok = false;
-        boot_state_init(boot_get_loader_state());
-        FIH_CALL(boot_go_for_image_id, fih_rc, &rsp, 0);
-#endif
-        if (FIH_NOT_EQ(fih_rc, FIH_SUCCESS)) {
-            UMCUB_LOG_ERR("no bootable image");
-#if UMCUB_CFG_ENTRY_ON_NO_IMAGE
-            recovery("no bootable image");
+    bool all;                                       /* false: the second image broken or missing */
+    FIH_CALL(umcub_boot_go, fih_rc, &rsp, &all);
+    core2_ok = core2_ok && all;
 #else
-            umcub_port_delay_ms(1000);
-            umcub_port_reset();
+    FIH_CALL(boot_go, fih_rc, &rsp);
 #endif
-        }
+    if (FIH_NOT_EQ(fih_rc, FIH_SUCCESS)) {
+        UMCUB_LOG_ERR("no bootable image");
+#if UMCUB_CFG_ENTRY_ON_NO_IMAGE
+        recovery("no bootable image");
+#else
+        umcub_port_delay_ms(1000);
+        umcub_port_reset();
+#endif
     }
 
 #if !DIRECT_XIP
