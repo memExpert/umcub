@@ -97,8 +97,9 @@ Hardware tests: `tests/hw/powerfail_test.py` resets the MCU in the middle of the
 upgrade or revert (swap modes) or an interrupted overwrite copy always completes. The images are signed with `umcub
 image sign` for the bootloader's board and fragments; the fault record (`UMCUB_CFG_TEST_FAULT_ADDR`, a RAM word that
 survives a reset) and the handoff area come from that configuration too, and so do the upgrade mode, the slots and
-the flash erased before each run (`--mode`, `--primary`, `--secondary`, `--erase` override them). A run ends when the
-bootloader publishes the handoff (right before the jump); only the sectors that programming does not rewrite are
-erased explicitly, by the part's sector table (no `--sector-size` needed). `--encrypted` (bootloader with encrypted
-images) installs an encrypted update, so every resumed swap has to recover the image key from the trailer.
+the flash erased before each run (`--mode`, `--primary`, `--secondary`, `--erase` override them; an image that would
+lie outside its slot stops the test before anything is flashed). A run ends when the bootloader publishes the handoff
+(right before the jump); only the sectors that programming does not rewrite are erased explicitly, by the part's
+sector table (no `--sector-size` needed). `--encrypted` (bootloader with encrypted images) installs an encrypted
+update, so every resumed swap has to recover the image key from the trailer.
 `TODO.md` lists what is still open on hardware.

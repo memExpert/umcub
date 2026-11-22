@@ -76,6 +76,14 @@ def slot_defaults(cfg, sectors):
     return ("overwrite" if mode == 1 else "swap"), pri, upd, sec, erase, size
 
 
+def outside_slot(cfg, written):
+    """The first (address, size) of written - one per slot of image 0, primary first - that does not lie inside its
+    slot, or None: a padded update written one sector into a swap-offset secondary slot of the primary's size would
+    run past its end."""
+    return next(((w, n) for slot, (w, n) in enumerate(written)
+                 if not (cfg.slot(0, slot)[0] <= w and w + n <= sum(cfg.slot(0, slot)))), None)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--boot", required=True, help="fault-injection bootloader .hex")
@@ -164,12 +172,16 @@ def main():
         v2_installed = v2e[:hdr_size] + v2b[hdr_size:]  # header of the encrypted image, decrypted payload
         v2b = v2e[:n_cmp]                       # encrypted again in the secondary slot after a revert
 
+    written = [(a.primary, os.path.getsize(v1)), (a.secondary, os.path.getsize(v2_file))]
+    bad = outside_slot(cfg, written)
+    if bad:
+        sys.exit(f"powerfail_test: {bad[1]} bytes at {bad[0]:#x} lie outside their slot of image 0 (--primary / "
+                 "--secondary, or a swap-offset secondary slot without its extra sector)")
     print("flashing fault-injection bootloader")
     p.program(a.boot)
 
     # Programming erases the sectors it writes: erase only the rest of
     # --erase (the primary slot's trailer, scratch, ...), not twice.
-    written = [(a.primary, os.path.getsize(v1)), (a.secondary, os.path.getsize(v2_file))]
     to_erase = [(s, n) for s, n in sectors.items() if any(s < e + m and e < s + n for e, m in erase)
                 and not any(s < w + m and w < s + n for w, m in written)]
 
