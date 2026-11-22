@@ -127,15 +127,14 @@ def cmd_verify(dev, a):
 
 
 def cmd_hash(dev, a):
-    local = None
-    if a.file:          # without --off / --len the whole stored image: ranges need UMCUB_CFG_READBACK
-        data = _read(a.file)[a.off:]
-        local = file_hash(data, 0, a.len or len(data))
-    with Smp(dev) as smp:
+    data = _read(a.file)[a.off:] if a.file else None
+    with Smp(dev) as smp:   # without --off / --len the stored image (up to its TLV end): ranges need UMCUB_CFG_READBACK
         sha, n = smp.hash(a.image, a.slot, a.off, a.len)
     print(f"device sha256 {sha.hex()} ({n} bytes)")
-    if local is None:
+    if data is None:
         return 0
+    # the same bytes of the file: a --pad file has erased bytes after the TLVs the device does not count
+    local = file_hash(data, 0, n)
     print(f"file   sha256 {local.hex()}")
     print("MATCH" if local == sha else "MISMATCH")
     return 0 if local == sha else 1

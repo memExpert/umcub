@@ -279,7 +279,11 @@ class Smp:
             if cancel is not None and cancel.is_set():
                 raise Cancelled(code="cancelled.read")
             n = min(128, length - len(out))     # the bootloader returns what fits its response buffer
-            out += self.request(InspectRead(image=image, slot=slot, off=off + len(out), len=n)).data
+            at = off + len(out)
+            r = self.request(InspectRead(image=image, slot=slot, off=at, len=n))
+            if r.off != at or not 0 < len(r.data) <= n:     # another block: a wrong dump; none: no progress
+                raise UmcubError(code="smp.bad_read", off=at, want=n, got=len(r.data))
+            out += r.data
             if progress:
                 progress(len(out), length)
         return bytes(out)

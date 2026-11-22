@@ -544,7 +544,7 @@ class FakeSmp:
 
     def hash(self, image, slot, off=0, length=0):
         FakeSmp.calls.append(("hash", image, slot, off, length))
-        return self._answer("hash"), length
+        return self._answer("hash")                     # (SHA-256, length) as the device answers
 
     def mark(self, image_hash, permanent=False):
         FakeSmp.calls.append(("mark", image_hash, permanent))
@@ -553,6 +553,7 @@ class FakeSmp:
         FakeSmp.calls.append(("reset",))
 
 
+RealSmp = umcub.smp.Smp
 umcub.smp.Smp = FakeSmp
 lite_calls = []
 umcub.lite.upload = lambda *a, **kw: lite_calls.append(("upload", a[1:], kw))
@@ -571,11 +572,18 @@ expect("flash: verified by the device", flash({"verify": True}, progress=lambda 
        and FakeSmp.calls == [("upload", 0, None), ("verify", 0, 0)] and done == [(img.size, img.size)],
        str(FakeSmp.calls))
 expect("flash: no verify, the hash matches",
-       flash({"verify": NOT_SUPPORTED, "hash": hashlib.sha256(img.data).digest()}) == "hash"
+       flash({"verify": NOT_SUPPORTED, "hash": (hashlib.sha256(img.data).digest(), img.size)}) == "hash"
        and FakeSmp.calls[-1] == ("hash", 0, 0, 0, 0), str(FakeSmp.calls))
+padded = umcub.Image(img.data + b"\xff" * 512)      # `umcub image sign --pad`: erased bytes up to the trailer
+expect("flash: padded image, the device hashes up to the end of the TLVs",
+       flash({"verify": NOT_SUPPORTED, "hash": (hashlib.sha256(img.data).digest(), img.size)}, image_=padded) == "hash",
+       str(FakeSmp.calls))
+expect("flash: the device's hash length differs: mismatch",
+       code_of(lambda: flash({"verify": NOT_SUPPORTED, "hash": (hashlib.sha256(img.data[:-4]).digest(), img.size - 4)}))
+       == "flash.hash_mismatch")
 expect("flash: neither verify nor hash: not checked", flash({"verify": NOT_SUPPORTED, "hash": NOT_SUPPORTED}) is None)
 for answers, code in (({"verify": False}, "flash.invalid"),
-                      ({"verify": NOT_SUPPORTED, "hash": b"\0" * 32}, "flash.hash_mismatch")):
+                      ({"verify": NOT_SUPPORTED, "hash": (b"\0" * 32, img.size)}, "flash.hash_mismatch")):
     try:
         flash(answers, reset=True)
         expect(f"flash: {code}", False, "- no error")
@@ -584,7 +592,7 @@ for answers, code in (({"verify": False}, "flash.invalid"),
                f"{err.code} {FakeSmp.calls}")
 enc = signed_image(0x46103001, encrypted=True)
 expect("flash: encrypted image in the primary slot is not hashed (decrypted there)",
-       flash({"verify": NOT_SUPPORTED, "hash": b"\0" * 32}, image_=enc) is None
+       flash({"verify": NOT_SUPPORTED, "hash": (b"\0" * 32, enc.size)}, image_=enc) is None
        and not any(c[0] == "hash" for c in FakeSmp.calls), str(FakeSmp.calls))
 cancel = threading.Event()
 expect("flash: secondary slot, test boot, reset",
@@ -609,6 +617,28 @@ expect("flash: lite, secondary slot, permanent, reset: not checked",
        flash({}, protocol="lite", slot="secondary", permanent=True, reset=True, chunk=64, cancel=cancel) is None
        and lite_calls == [("upload", (img.data, 0, 1, False, True, 64, None, cancel), {}), ("reset",)]
        and not FakeSmp.calls, str(lite_calls))
+
+# Readback: every answer must be the requested block (offset, 1..len bytes), else the dump would be wrong or loop.
+def readback(answers, total=200):
+    s = RealSmp.__new__(RealSmp)
+    reqs = []
+    def request(r):
+        reqs.append((r.off, r.len))
+        a = answers(r.off, r.len)
+        return types.SimpleNamespace(off=a[0], data=a[1])
+    s.request = request
+    s.hash = lambda image, slot: (b"", total)
+    return s.read(0, 0), reqs
+
+
+blob = bytes(range(200))
+got, _ = readback(lambda off, n: (off, blob[off:off + n]))
+expect("readback: blocks in order", got == blob)
+for what, answer in (("another offset", lambda off, n: (off + 1, blob[off:off + n])),
+                     ("empty block", lambda off, n: (off, b"")),
+                     ("more than asked", lambda off, n: (off, blob[off:off + n] + b"x"))):
+    expect(f"readback: {what} refused", code_of(lambda: readback(answer)) == "smp.bad_read")
+
 
 # Board names: JSON files merge (the later one wins), a new load replaces the catalog; shown wherever a board type is.
 (tmp / "names1.json").write_text('{"0x46103001": "Blue Pill", "0x00000007": "old name"}')

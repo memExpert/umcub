@@ -304,6 +304,11 @@ def plain_tools(build, py, smpmgr):
             check(p.returncode == 0 and "valid" in p.stdout, "umcub verify 0 0")
             p = tool(py, port + ["hash", "0", "0", "--file", img])
             check(p.returncode == 0 and "MATCH" in p.stdout, "umcub hash --file: MATCH")
+            padded = os.path.join(d, "app.padded.bin")      # as `umcub image sign --pad` leaves it
+            with open(padded, "wb") as f:
+                f.write(open(img, "rb").read() + b"\xff" * 4096)
+            p = tool(py, port + ["hash", "0", "0", "--file", padded])
+            check(p.returncode == 0 and "MATCH" in p.stdout, "umcub hash --file of a padded image: MATCH")
             p = tool(py, port + ["verify", "0", "1"])
             check(p.returncode != 0 and "no image" in p.stdout + p.stderr, "umcub verify of an empty slot")
             dump = os.path.join(d, "dump.bin")

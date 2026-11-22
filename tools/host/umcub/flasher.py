@@ -51,9 +51,9 @@ def _check(smp, s, img, image, slot):
         return "verify"
     if img.encrypted and slot == 0:
         return None
-    answer = ask(s.hash)                # the whole stored image: ranges need UMCUB_CFG_READBACK
+    answer = ask(s.hash)                # the stored image up to its TLV end: ranges need UMCUB_CFG_READBACK
     if answer is None:
         return None
-    if answer[0] != smp.file_hash(img.data):
+    if answer[1] != img.end or answer[0] != smp.file_hash(img.data, length=img.end):
         raise UmcubError(code="flash.hash_mismatch")
     return "hash"

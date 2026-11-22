@@ -140,7 +140,8 @@ SMP), the tool does not probe for it. SMP uploads take the packet size from the 
 one mark per upload, so `mark` does not turn a test mark into a permanent one. On a link node the board type of
 the image (TLV `0xA0`) is checked against the node's before anything is sent; elsewhere the bootloader refuses a
 wrong image after the transfer. After an SMP upload the device checks the image without sending it back: MCUboot's
-validation (`UMCUB_CFG_INSPECT_VERIFY`), else the SHA-256 of the slot against the file (`UMCUB_CFG_INSPECT_HASH`;
+validation (`UMCUB_CFG_INSPECT_VERIFY`), else the SHA-256 of the stored image against the file up to the end of its
+TLVs, the length the device reports (`UMCUB_CFG_INSPECT_HASH`; the erased tail of a `--pad` file does not count;
 not for an encrypted image in the primary slot, which is decrypted there); `upload` prints which check passed, or
 "not checked" when the bootloader cannot check the image (and after a lite upload). A failed check stops before
 `--test` / `--permanent` and `--reset`. The standard tools (`smpmgr`, `mcumgr`,

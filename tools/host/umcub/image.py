@@ -36,7 +36,8 @@ def _area(data, off, magic):
 class Image:
     """A signed image (`.signed.bin` / `.encrypted.bin`): version, hash (what SMP
     `image state-read` lists and `state-write` selects), board_type (None without
-    the signed, protected TLV), size, encrypted."""
+    the signed, protected TLV), size, end (of the TLVs: what the bootloader stores
+    and hashes; `--pad` adds erased bytes after it), encrypted."""
 
     def __init__(self, data):
         if len(data) < 32 or struct.unpack_from("<I", data)[0] != IMAGE_MAGIC:
@@ -56,7 +57,8 @@ class Image:
             prot, off = _area(data, off, TLV_PROT_INFO_MAGIC)
             if off - start != prot_size:
                 raise UmcubError(code="image.truncated")
-        self.tlvs = {**_area(data, off, TLV_INFO_MAGIC)[0], **prot}       # the protected one wins
+        unprot, self.end = _area(data, off, TLV_INFO_MAGIC)
+        self.tlvs = {**unprot, **prot}                                      # the protected one wins
         t = next((t for t in HASH_LEN if t in self.tlvs), None)
         if t is None:
             raise UmcubError(code="image.no_hash")

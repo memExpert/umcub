@@ -45,6 +45,7 @@ MESSAGES = {
     "smp.no_answer": "no SMP answer (not in recovery, no SMP in this build, wrong port / node?)",
     "smp.client": "SMP: {reason}",
     "smp.device": "device: {reason} (rc {rc})",
+    "smp.bad_read": "readback answer does not fit the request (offset {off}: {got} bytes for {want})",
     "smp.range_readback": ("a hash of a range needs UMCUB_CFG_READBACK (and UMCUB_CFG_INSPECT_HASH) "
                            "in the bootloader (rc {rc})"),
     "smp.upload_refused": "upload refused: {reason} (rc {rc})",
