@@ -46,7 +46,15 @@ uint32_t umcub_port_millis(void)
 }
 void umcub_port_delay_ms(uint32_t ms) { now_ms += ms; }
 uint64_t fake_delay_us_total;
-void umcub_port_delay_us(uint32_t us) { fake_delay_us_total += us; }
+uint64_t fake_unfed_us, fake_unfed_us_max;     /* busy waits since the last watchdog feed, the longest stretch */
+void umcub_port_delay_us(uint32_t us)
+{
+    fake_delay_us_total += us;
+    fake_unfed_us += us;
+    if (fake_unfed_us > fake_unfed_us_max) {
+        fake_unfed_us_max = fake_unfed_us;
+    }
+}
 uint32_t fake_gpio_pin;
 int fake_gpio_level, fake_gpio_outputs, fake_gpio_resets;
 void umcub_port_gpio_output(uint32_t pin, bool level)
@@ -65,7 +73,7 @@ void umcub_port_gpio_reset(uint32_t pin)
     fake_gpio_pin = pin;
     fake_gpio_resets++;
 }
-void umcub_port_wdg_feed(void) {}
+void umcub_port_wdg_feed(void) { fake_unfed_us = 0; }
 void umcub_port_idle(void) {}
 uint32_t umcub_port_irq_save(void) { return 0; }
 void umcub_port_irq_restore(uint32_t s) { (void)s; }

@@ -1294,12 +1294,13 @@ static void test_isotp(void)
         isotp_t tx = { .frame_len = 8, .tx_id = 0x7C8 };
         can_sent_n = can_rxq_n = cf_since_fc = 0;
         fc_stmin = gaps[g].stmin;
-        fake_delay_us_total = 0;
+        fake_delay_us_total = fake_unfed_us = fake_unfed_us_max = 0;
         CHECK(isotp_send(&tx, msg, sizeof(msg)) == 0);
         CHECK(fake_delay_us_total == 41ull * gaps[g].us);
+        CHECK(fake_unfed_us_max <= gaps[g].us);     /* the watchdog is fed per frame sent, not once per message */
     }
     fc_stmin = 0;
-    printf("  STmin 0 / 500 us / 5 ms / reserved (127 ms) between consecutive frames\n");
+    printf("  STmin 0 / 500 us / 5 ms / reserved (127 ms) between consecutive frames, watchdog fed per frame\n");
 
     /* FC WAIT: a few are waited out, an endless stream ends the transfer */
     uint8_t msg[300] = { 0 };

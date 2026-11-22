@@ -188,6 +188,7 @@ int isotp_send(isotp_t *t, const uint8_t *msg, size_t len)
         if (rc) {
             return rc;
         }
+        umcub_port_wdg_feed();          /* progress: STmin can stretch a long answer over seconds */
         off += n;
         sn++;
         if (off < len) {
