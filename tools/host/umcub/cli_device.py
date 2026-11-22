@@ -14,7 +14,7 @@ from .device import connect, discover
 from .errors import UmcubError
 from .flasher import flash
 from .image import Image
-from .link import LINK_NAMES, describe_identity, sniff
+from .link import LINK_NAMES, describe_identity, shown, sniff
 from .nlip import NlipDecoder, nlip_encode
 from .smp import Smp, file_hash
 from .trace import describe
@@ -51,7 +51,7 @@ def cmd_info(dev, a):
         sys.stdout.write(dev.text("i", a.wait))
         return 0
     for k in ("addr", "uid", "board_type", "board_rev", "version"):
-        print(f"{k:10s} {board_label(i[k]) if k == 'board_type' else i[k]}")
+        print(f"{k:10s} {board_label(i[k]) if k == 'board_type' else shown(i[k])}")
     print(f"{'link':10s} {LINK_NAMES.get(i['link'], '?')}{' (encrypted)' if i['enc'] else ''}"
           f"{' (authenticated)' if dev.link.session else ''}")
     return 0

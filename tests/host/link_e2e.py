@@ -42,6 +42,10 @@ from umcub import link as ulink  # noqa: E402  (frame format)
 LINK_LINE = bytes([0x05, 0x0B])
 ENV = dict(os.environ, PYTHONPATH=os.path.join(ROOT, "tools/host"))
 KEYS = os.path.join(ROOT, "tools/keys")
+# the bootloader version (cmd i, ANNOUNCE / CHALLENGE outside SECURE)
+VERSION = ".".join(l.split()[2] for l in open(os.path.join(ROOT, "src/util/include/umcub_version.h"))
+                   if l.startswith(("#define UMCUB_VERSION_MAJOR", "#define UMCUB_VERSION_MINOR",
+                                    "#define UMCUB_VERSION_PATCH")))
 
 failures = 0
 
@@ -187,6 +191,8 @@ def can_secure_tools(build, py):
         p = tool(py, can + ["--node", "3"] + sec + ["info"])
         check(p.returncode == 0 and "authenticated" in p.stdout and "secure (encrypted)" in p.stdout,
               "info over CAN node 3 with keys: authenticated SECURE session")
+        check(f"version    {VERSION}" in p.stdout and "hidden" not in p.stdout,
+              "info over CAN SECURE: board revision and version read inside the session")
         p = tool(py, can + ["--node", "3"] + sec + ["cmd", "i"])
         check(p.returncode == 0 and "board type" in p.stdout, "cmd i over a CAN SECURE session (encrypted DATA)")
         with tempfile.TemporaryDirectory() as d:
@@ -215,6 +221,8 @@ def can_secure_tools(build, py):
         p = tool(py, can + ["discover"], timeout=60)
         check(p.returncode == 0 and "node     3  uid " in p.stdout and "secure enc" in p.stdout
               and "1 device(s)" in p.stdout, "discover over CAN: the SECURE node 3 with its identity")
+        check("rev hidden" in p.stdout and "umcub hidden" in p.stdout and VERSION not in p.stdout,
+              "discover over CAN: a SECURE node shows no board revision and version")
     finally:
         hub.stop = True
         sim.stdin.close()
@@ -350,6 +358,8 @@ def secure_tools(build, py, smpmgr):
         print("[e2e] discovery of 3 devices on one bus", flush=True)
         rc, out = run(py, port + ["discover", "--slots", "8", "--slot-ms", "30"])
         check(rc == 0 and "3 device(s)" in out, "discover finds 3 devices")
+        check(out.count("rev hidden") == 3 and out.count("umcub hidden") == 3,
+              "discover: SECURE nodes show no board revision and version")
         out_discover = out
         uids = [l.split("uid ")[1].split()[0] for l in out.splitlines() if l.startswith("node ") and
                 l.split()[1] == "0"]
@@ -360,11 +370,13 @@ def secure_tools(build, py, smpmgr):
             hub.sent[k].clear()
         rc, out = run(py, port + ["--node", "1"] + sec + ["info"])
         check(rc == 0 and "authenticated" in out, "info --addr 1: authenticated session")
+        check(f"version    {VERSION}" in out and "hidden" not in out, "info --addr 1: version read inside the session")
         rc, out = run(py, port + ["--node", "2"] + sec + ["cmd", "i"])
         check(rc == 0 and "board type" in out, "cmd i --addr 2 (encrypted DATA)")
         data_from = {k: sum(1 for t, _ in v if t == 7) for k, v in hub.sent.items()}
-        check(data_from[0] == 0 and data_from[1] == 1 and data_from[2] == 0,
-              f"only node 2 answered the DATA ({data_from})")
+        # each session reads the board revision and version first (one DATA): node 1 for info, node 2 for cmd i too
+        check(data_from[0] == 1 and data_from[1] == 2 and data_from[2] == 0,
+              f"only the selected nodes answered the DATA ({data_from})")
         if uids:
             rc, out = run(py, port + ["--uid", uids[0]] + sec + ["cmd", "i"])
             check(rc == 0 and "node 0" in out, "cmd i --uid <unassigned>")

@@ -622,6 +622,34 @@ ident = dict(addr=5, uid="00" * 12, board_type=0x46103001, board_rev=1, link=1, 
              version="1.0.0")
 expect("discover / info line with the name", "board 0x46103001 (Blue Pill)" in link.describe_identity(ident),
        link.describe_identity(ident))
+# SECURE: board revision and version are not in ANNOUNCE / CHALLENGE, the session reads them (cmd i)
+payload = b"\x11" * 12 + struct.pack("<HIH", 5, 0x46103001, 0) + bytes([link.SECURE | link.ANNOUNCE_ENC, 0, 0, 0])
+hid = link.identity(payload)
+expect("SECURE identity: board revision and version hidden", hid["board_rev"] is None and hid["version"] is None,
+       str(hid))
+expect("SECURE identity line: hidden", "rev hidden" in link.describe_identity(hid) and
+       "umcub hidden" in link.describe_identity(hid), link.describe_identity(hid))
+expect("SECURE frame line: hidden", "rev hidden" in link.describe_frame(
+    link.make_frame(link.T_ANNOUNCE, 0, link.HOST_ADDR, 1, payload, src=5)))
+shown = link.identity(payload[:20] + bytes([1, 0, 0, 0]))
+expect("ADDRESSED identity: zeros are values", shown["board_rev"] == 0 and shown["version"] == "0.0.0", str(shown))
+
+
+class _InfoDev:
+    def __init__(self, answer):
+        self.identity, self.answer, self.timeout = dict(hid), answer, 3.0
+
+    def text(self, cmd, wait=1.0):
+        return self.answer if cmd == "i" else ""
+
+
+d = _InfoDev("umcub 1.1.0 bluepill_f103c8 overwrite images 1\nboard type 0x46103001 rev 3 node 5\n")
+umcub.device.session_identity(d)
+expect("session identity: board revision and version from cmd i",
+       d.identity["board_rev"] == 3 and d.identity["version"] == "1.1.0", str(d.identity))
+d = _InfoDev("")
+umcub.device.session_identity(d)
+expect("session identity: no answer leaves them hidden", d.identity["version"] is None, str(d.identity))
 raises("board type mismatch with names", lambda: signed_image(7).check_board(0x46103001),
        text="board type 0x00000007 (Pump controller), the device is 0x46103001 (Blue Pill)")
 # A file cut short inside its TLV area: refused, not a hash of a few bytes taken as the image's.

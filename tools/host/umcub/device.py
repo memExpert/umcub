@@ -1,5 +1,6 @@
 """A connected bootloader: the connection, and on a umcub link bus the selected node."""
 import logging
+import re
 import time
 from concurrent.futures import ThreadPoolExecutor
 
@@ -110,11 +111,24 @@ def connect(spec, node=None, uid=None, admin_key=None, device_key=None, timeout=
             return Device(conn, timeout=timeout, owns_conn=owns)
         link = Link(conn, node, uid, admin_key, device_key, timeout)
         link.hello()
-        return Device(conn, link, timeout, owns)
+        dev = Device(conn, link, timeout, owns)
+        if link.session:
+            session_identity(dev)
+        return dev
     except BaseException:
         if owns:
             conn.close()
         raise
+
+
+def session_identity(dev):
+    """The board revision and version a SECURE device keeps out of its identity: from `i` inside the session (they
+    stay None without an answer)."""
+    i = dev.identity
+    if i["version"] is None:
+        m = re.search(r"umcub (\d+\.\d+\.\d+) .*\nboard type 0x[0-9a-f]+ rev (\d+)", dev.text("i", dev.timeout))
+        if m:
+            i["version"], i["board_rev"] = m.group(1), int(m.group(2))
 
 
 CAN_NODES = range(8)        # node addresses that fit the default IDs (host TX 0x7C0 + n, RX 0x7C8 + n)

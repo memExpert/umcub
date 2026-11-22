@@ -22,7 +22,8 @@ T_DISCOVER, T_ANNOUNCE, T_HELLO, T_CHALLENGE, T_AUTH, T_AUTH_OK, T_DATA, T_CLOSE
 F_MAC, F_ENC, F_UID = 0x01, 0x02, 0x04
 BROADCAST, HOST_ADDR = 0xFFFF, 0xFFFE
 HDR, TAG = 14, 16
-LINK_NAMES = {0: "plain", 1: "addressed", 2: "secure"}
+SECURE = 2                              # UMCUB_LINK_SECURE
+LINK_NAMES = {0: "plain", 1: "addressed", SECURE: "secure"}
 ANNOUNCE_ENC, ANNOUNCE_CLOSED = 0x40, 0x80
 LABEL = b"umcub-link-v1"
 FRAME_NAMES = {T_DISCOVER: "DISCOVER", T_ANNOUNCE: "ANNOUNCE", T_HELLO: "HELLO", T_CHALLENGE: "CHALLENGE",
@@ -49,21 +50,28 @@ def parse_frame(f):
 
 
 def identity(p):
-    """ANNOUNCE / CHALLENGE payload: who the device is."""
+    """ANNOUNCE / CHALLENGE payload: who the device is. A SECURE device sends no board revision and version (zeros):
+    None here, the session reads them (device.session_identity)."""
     if len(p) < 24:
         return None
     uid = p[0:12]
     addr, btype, brev = struct.unpack_from("<HIH", p, 12)
     mode = p[20]
-    return dict(uid=uid.hex(), addr=addr, board_type=btype, board_rev=brev, link=mode & 0x3f,
+    hidden = mode & 0x3f == SECURE and not brev and not any(p[21:24])
+    return dict(uid=uid.hex(), addr=addr, board_type=btype, board_rev=None if hidden else brev, link=mode & 0x3f,
                 enc=bool(mode & ANNOUNCE_ENC), closed=bool(mode & ANNOUNCE_CLOSED),
-                version=f"{p[21]}.{p[22]}.{p[23]}")
+                version=None if hidden else f"{p[21]}.{p[22]}.{p[23]}")
+
+
+def shown(v):
+    """A board revision or version as text: "hidden" when a SECURE device did not send it."""
+    return "hidden" if v is None else str(v)
 
 
 def describe_identity(i):
-    return (f"node {i['addr']:5d}  uid {i['uid']}  board {board_label(i['board_type'])} rev {i['board_rev']}"
+    return (f"node {i['addr']:5d}  uid {i['uid']}  board {board_label(i['board_type'])} rev {shown(i['board_rev'])}"
             f"  {LINK_NAMES.get(i['link'], '?')}{' enc' if i['enc'] else ''}{' closed' if i['closed'] else ''}"
-            f"  umcub {i['version']}")
+            f"  umcub {shown(i['version'])}")
 
 
 def describe_frame(f):
@@ -78,9 +86,9 @@ def describe_frame(f):
     p = fr["payload"]
     i = identity(p) if fr["type"] in (T_ANNOUNCE, T_CHALLENGE) else None
     if i:
-        s += (f"\n    uid {i['uid']} addr {i['addr']} board {board_label(i['board_type'])} rev {i['board_rev']} "
+        s += (f"\n    uid {i['uid']} addr {i['addr']} board {board_label(i['board_type'])} rev {shown(i['board_rev'])} "
               f"{LINK_NAMES.get(i['link'], '?')}{' enc' if i['enc'] else ''}{' closed' if i['closed'] else ''}"
-              f" umcub {i['version']}")
+              f" umcub {shown(i['version'])}")
     elif fr["type"] == T_DATA and fr["flags"] & F_ENC:
         s += f"\n    <encrypted {len(p)} B>"
     elif p and all(32 <= c < 127 or c in (9, 10, 13) for c in p):
