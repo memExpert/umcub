@@ -665,6 +665,19 @@ static void test_board_type(const uint8_t *foreign, size_t len, const uint8_t *b
     uint32_t type = 0;
     CHECK(flash_area_open(FLASH_AREA_IMAGE_PRIMARY(0), &fa) == 0);
     CHECK(umcub_image_board_type(fa, 0, &type) == 0 && type == UMCUB_CFG_BOARD_TYPE);
+    /* A read error in the protected TLV area (entry header, then value): refused, not skipped. The protected
+     * area's first entry is the board type (umcub image sign). */
+    struct image_header ph;
+    CHECK(flash_area_read(fa, 0, &ph, sizeof(ph)) == 0 && ph.ih_protect_tlv_size > 0);
+    const uint32_t entry = UMCUB_CFG_IMG0_PRIMARY_ADDR + ph.ih_hdr_size + ph.ih_img_size + 4u;
+    CHECK(fake_flash[entry - 0x08000000] == (UMCUB_TLV_BOARD_TYPE & 0xFF));
+    for (uint32_t at = entry; at <= entry + 4u; at += 4u) {
+        fake_read_fail_addr = at;
+        fake_read_fail_len = 4;
+        CHECK(umcub_image_board_type(fa, 0, &type) == 1 && !umcub_image_check(0, 0, fa));
+    }
+    fake_read_fail_len = 0;
+    CHECK(umcub_image_check(0, 0, fa));
     flash_area_close(fa);
     struct image_header h;
     const uint8_t *imgs[2] = { foreign, bad };
@@ -748,6 +761,12 @@ static void test_vector_slot(const uint8_t *wrong, size_t len, const uint8_t *go
     moved[0] = keep[0];
     moved[1] = keep[1];
     CHECK(umcub_image_check(0, 1, fa));
+
+    printf("[vector check] vector table that cannot be read refused\n");
+    fake_read_fail_addr = UMCUB_CFG_IMG0_SECONDARY_ADDR + hoff + h.ih_hdr_size;
+    fake_read_fail_len = 8;
+    CHECK(!umcub_image_check(0, 1, fa));
+    fake_read_fail_len = 0;
     flash_area_close(fa);
 }
 #endif

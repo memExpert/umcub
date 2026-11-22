@@ -22,10 +22,13 @@ static uint32_t now_ms;
 jmp_buf *fake_reset_jmp;
 unsigned fake_flash_erase_count;
 
+uint32_t fake_read_fail_addr, fake_read_fail_len;
+
 void fake_flash_reset(void)
 {
     memset(fake_flash, 0xFF, sizeof(fake_flash));
     memset(written, 0, sizeof(written));
+    fake_read_fail_len = 0;
 }
 
 /* Device simulator (sim_device.c): real time instead of the fast test clock. */
@@ -108,6 +111,9 @@ int umcub_flash_read(uint32_t addr, void *dst, size_t len)
 {
     if (!range(addr, len)) {
         return UMCUB_EINVAL;
+    }
+    if (fake_read_fail_len && addr < fake_read_fail_addr + fake_read_fail_len && fake_read_fail_addr < addr + len) {
+        return UMCUB_EIO;                   /* e.g. an ECC error */
     }
     memcpy(dst, &fake_flash[addr - BASE], len);
     return 0;

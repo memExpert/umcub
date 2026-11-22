@@ -38,15 +38,12 @@ static int board_type(const struct flash_area *fa, uint32_t hdr_off, struct imag
     if (bootutil_tlv_iter_begin(&it, hdr, fa, UMCUB_TLV_BOARD_TYPE, true) != 0) {
         return -1;
     }
-    int rc = bootutil_tlv_iter_next(&it, &off, &len, &tag);
-    if (rc != 0) {
-        return rc > 0 ? 1 : -1;
-    }
-    if (len != sizeof(*type)) {
-        return 1;                       /* malformed: refused like a missing one */
+    /* missing, malformed or unreadable once the TLV area is found: refused (a read error must not skip the check) */
+    if (bootutil_tlv_iter_next(&it, &off, &len, &tag) != 0 || len != sizeof(*type)) {
+        return 1;
     }
     /* little endian TLV value, little endian target */
-    return flash_area_read(fa, off, type, sizeof(*type)) == 0 ? 0 : -1;
+    return flash_area_read(fa, off, type, sizeof(*type)) == 0 ? 0 : 1;
 }
 
 int umcub_image_board_type(const struct flash_area *fa, uint32_t hdr_off, uint32_t *type)
@@ -81,10 +78,10 @@ static bool vector_ok(int img_index, int slot, const struct flash_area *fa, uint
     /* The alignment comes from the plain header: also for an encrypted update, before it is installed. */
     uint32_t vt[2] = { 0, 0 };
     bool ok = start % UMCUB_FAMILY_VTOR_ALIGN == 0;
-    if (ok && !MUST_DECRYPT(fa, img_index, hdr) &&
-        flash_area_read(fa, hdr_off + hdr->ih_hdr_size, vt, sizeof(vt)) == 0) {
+    if (ok && !MUST_DECRYPT(fa, img_index, hdr)) {
+        ok = flash_area_read(fa, hdr_off + hdr->ih_hdr_size, vt, sizeof(vt)) == 0;   /* unreadable: refused */
         const uint32_t sp = vt[0], reset = vt[1];
-        ok = (reset & 1u) && (reset & ~1u) - start < hdr->ih_img_size && (sp & 3u) == 0 &&
+        ok = ok && (reset & 1u) && (reset & ~1u) - start < hdr->ih_img_size && (sp & 3u) == 0 &&
              sp - 0x10000001u < 0x30000000u;
     }
     if (!ok) {
@@ -98,8 +95,9 @@ static bool vector_ok(int img_index, int slot, const struct flash_area *fa, uint
 /* Every image header present in the slot is checked: in swap-offset mode the
  * secondary slot holds an image at offset 0 (previous image, revert copy) and/or
  * one sector further (the update) - which one MCUboot uses depends on the swap
- * state, so both must pass. Headers whose TLV block cannot be read (stale,
- * half-erased copies) are left to MCUboot's own validation. */
+ * state, so both must pass. Headers whose TLV area is not found (stale,
+ * half-erased copies) are left to MCUboot's own validation; a read error in
+ * the vectors or the board type after that refuses the slot. */
 bool umcub_image_check(int img_index, int slot, const struct flash_area *fa)
 {
     uint32_t offs[2] = { 0, 0 };
@@ -121,8 +119,8 @@ bool umcub_image_check(int img_index, int slot, const struct flash_area *fa)
 #endif
 #if UMCUB_CFG_BOARD_TYPE != 0
         uint32_t type = 0;
-        int rc = bad ? 0 : board_type(fa, offs[i], &hdr, &type);
-        if (rc == 0 && !bad && type != UMCUB_CFG_BOARD_TYPE) {
+        int rc = bad ? -1 : board_type(fa, offs[i], &hdr, &type);
+        if (rc == 0 && type != UMCUB_CFG_BOARD_TYPE) {
             UMCUB_LOG_ERR("image %d slot %d is for board type 0x%08lx, this is 0x%08lx", img_index, slot,
                           (unsigned long)type, (unsigned long)UMCUB_CFG_BOARD_TYPE);
             bad = true;

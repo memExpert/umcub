@@ -10,7 +10,7 @@
 
 /* Board type from the protected TLV UMCUB_TLV_BOARD_TYPE of the image whose
  * header is at `hdr_off` in `fa` (0, or one sector in a swap-offset secondary
- * slot). 0 = found, 1 = no such TLV or a malformed one, < 0 = no image / read error.
+ * slot). 0 = found, 1 = no such TLV, a malformed or an unreadable one, < 0 = no image or no TLV area.
  * The value is authentic only once the image itself has been validated. */
 int umcub_image_board_type(const struct flash_area *fa, uint32_t hdr_off, uint32_t *type);
 
