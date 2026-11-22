@@ -1455,6 +1455,14 @@ static void test_net(void)
     CHECK(eth_out_n == before + 1);
     r = eth_out[before % 16];
     CHECK(umcub_get_be16(r + 12) == 0x0800 && r[14 + 9] == 1 && r[34] == 0 && memcmp(r + 42, "pingpong", 8) == 0);
+
+    /* a datagram longer than one frame takes (a board protocol's answer) is refused, nothing is sent */
+    static const uint8_t big[NET_MTU];
+    const net_peer_t to = { .ip = 0xC0A80A64, .port = 1337 };
+    before = eth_out_n;
+    CHECK(net_udp_send(&to, net_if.ip, 1337, big, NET_MTU - 28 + 1) == UMCUB_EINVAL && eth_out_n == before);
+    CHECK(net_udp_send(&to, net_if.ip, 1337, big, NET_MTU - 28) == 0 && eth_out_n == before + 1);
+    printf("  UDP: a datagram longer than one frame refused\n");
 }
 
 /* ------------------------------------------------------------------------ */

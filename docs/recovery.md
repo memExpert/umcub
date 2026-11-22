@@ -99,7 +99,8 @@ UART bootloader is about 3 K smaller (F103: 16.4 K instead of 19.4 K, H7: 22.5 K
   lite goes to `umcub_proto_user(t, data, len)` in `boards/<b>/umcub_board.c` - a packet of a packet transport, a
   umcub link DATA payload, or a line `0x05 0x0E <base64> \n` on a stream; it returns true when the frame was its
   own, else a packet is tried as a text command next. Both are declared
-  in `umcub_proto.h` (`#include "umcub_proto.h"`). Answer with `umcub_proto_reply()`; write images with `umcub_slot_*` (`umcub.h`), which is part of the bootloader then.
+  in `umcub_proto.h` (`#include "umcub_proto.h"`). Answer with `umcub_proto_reply()` (one frame of the transport, e.g. at most 1472 bytes over UDP, 512 on a stream
+  line, `UMCUB_CFG_SMP_MTU` on a umcub link; longer is not sent); write images with `umcub_slot_*` (`umcub.h`), which is part of the bootloader then.
   Example: the Black Pill (`boards/blackpill_f411ce/umcub_board.c`, fragment `variants/proto_user.conf`, SMP and lite off)
   writes a signed image into the primary slot with four frames - `B image size` (begin), `W offset data`, `E` (finish),
   `R` (reset) - answered by `cmd status taken`; host side `boards/blackpill_f411ce/proto_upload.py`

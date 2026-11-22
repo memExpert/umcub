@@ -72,6 +72,9 @@ static size_t ip_header(uint8_t *ip, uint32_t src, uint32_t dst, uint8_t proto, 
 
 int net_udp_send(const net_peer_t *to, uint32_t src_ip, uint16_t src_port, const uint8_t *data, size_t len)
 {
+    if (len > NET_MTU - IP_HDR - UDP_HDR) {
+        return UMCUB_EINVAL;            /* one frame, no fragments (a board protocol's answer can be longer) */
+    }
     uint8_t *ip = tx + ETH_HDR;
     uint8_t *udp = ip + IP_HDR;
     eth_header(tx, to->ip == NET_IP_BROADCAST ? bcast_mac : to->mac, ETYPE_IP);

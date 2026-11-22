@@ -17,7 +17,8 @@
  * it was yours (the bootloader then stays in recovery during the entry
  * window). Write images with umcub_slot_* (umcub.h). */
 bool umcub_proto_user(const umcub_transport_t *t, const uint8_t *data, size_t len);
-/* Answer `t` with one frame (a packet, or a 0x05 0x0E line on a plain stream). */
+/* Answer `t` with one frame (a packet, or a 0x05 0x0E line on a plain stream), at most what one frame of that
+ * transport carries: e.g. UDP 1472 bytes, a stream line 512, a umcub link UMCUB_CFG_SMP_MTU; longer is not sent. */
 void umcub_proto_reply(const umcub_transport_t *t, const uint8_t *data, size_t len);
 
 /* Before a reset from inside a request (SMP, text command, lite): ends the
