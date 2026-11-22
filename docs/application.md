@@ -132,6 +132,8 @@ matrix build compiles this file with exactly this include list, using GCC and cl
 **3. Signing after the build.** `umcub image sign` takes the ELF / AXF (or an Intel HEX / raw `.bin`). It
 checks that the image is linked at the slot origin and fits the slot, and writes `<name>.signed.bin` and
 `<name>.signed.hex` next to it (and `<name>.bin`, the unsigned flat image, e.g. for `tests/hw/powerfail_test.py`). `umcub_sign_image()` in CMake runs the same tool on the ELF, so every build signs identically; the key is the configuration's.
+A new key file (also one replaced under the same path), another configuration or a new signing tool relinks the
+ELF, so an incremental build signs again; an IDE post-build step signs on every build anyway.
 
 It needs Python 3 with imgtool's dependencies and esp-idf-kconfig: `pip install -r tools/requirements.txt` (on Windows `py -m pip install ...`). The tool
 runs straight from the checkout as `python <umcub>/tools/host/umcub ...` (installed: `umcub ...`); Intel HEX

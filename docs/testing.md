@@ -3,8 +3,9 @@
 The build matrix, host tests, simulated devices and the hardware tests.
 
 ```sh
-tools/build/build_matrix.sh                 # 61 bootloader configurations, presets, examples, library check, host
-                                            # tests, link e2e; warning-free; CTest underneath (JOBS=n), size summary
+tools/build/build_matrix.sh                 # 61 bootloader configurations, presets, examples, re-signing, library
+                                            # check, host tests, link e2e; warning-free; CTest underneath (JOBS=n),
+                                            # size summary
 tools/build/build_matrix.sh build/matrix -R bluepill   # some tests (any ctest option after the directory)
 ctest --test-dir build/matrix -j4 --rerun-failed --output-on-failure   # the same tests with ctest directly
 (cd tests && cmake --preset matrix && ctest --preset matrix)          # tests/CMakePresets.json, e.g. for an IDE

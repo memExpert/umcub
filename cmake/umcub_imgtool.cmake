@@ -161,6 +161,13 @@ function(umcub_sign_image target)
   endif()
 
   umcub_python(_py)
+  # The signature is a post-build step of the ELF: a new key (also under the same path), another configuration
+  # or a new signing tool relinks it, so an incremental build never keeps an image signed the old way.
+  set(_inputs "${A_KEY}" "${UMCUB_CONFIG_DIR}/umcub_config.json" "${UMCUB_ROOT}/tools/host/umcub/sign.py")
+  if(UMCUB_CFG_ENCRYPT_IMAGES)
+    list(APPEND _inputs "${A_ENCRYPT_KEY}")
+  endif()
+  set_property(TARGET ${target} APPEND PROPERTY LINK_DEPENDS ${_inputs})
   add_custom_command(TARGET ${target} POST_BUILD
     COMMAND "${_py}" "${UMCUB_ROOT}/tools/host/umcub" image ${_args}
             -o $<TARGET_FILE_DIR:${target}>/$<TARGET_FILE_BASE_NAME:${target}> $<TARGET_FILE:${target}>

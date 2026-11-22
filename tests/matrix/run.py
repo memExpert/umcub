@@ -133,6 +133,26 @@ def t_example(out, line):
     return tree, f"signed, Image version: {version}, ELF = objcopy"
 
 
+def t_resign(out):
+    """Key rotation in an incremental build: a new signing key under the same path re-signs the application
+    on the next `cmake --build` (the signature is no POST_BUILD of an unchanged ELF)."""
+    keys = out / "resign-keys"
+    shutil.rmtree(keys, ignore_errors=True)
+    env = os.environ["UMCUB_KEYS_DIR"]          # main() sets it
+    os.environ["UMCUB_KEYS_DIR"] = str(keys)
+    try:
+        d = build(out, "resign", [], ROOT / "examples" / "bluepill_app")
+        key, log = signing_key(d), f"{out / 'resign'}.verify.log"
+        run([ROOT / ".venv/bin/imgtool", "verify", "-k", key, d / "bluepill_app.signed.bin"], log)
+        Path(key).unlink()
+        run([ROOT / ".venv/bin/imgtool", "keygen", "-k", key, "-t", "ecdsa-p256"], log, True)
+        run(["cmake", "--build", d], f"{d}.rebuild.log")
+        run([ROOT / ".venv/bin/imgtool", "verify", "-k", key, d / "bluepill_app.signed.bin"], log, True)
+    finally:
+        os.environ["UMCUB_KEYS_DIR"] = env
+    return "resign", "a new key under the same path re-signs on an incremental build"
+
+
 def t_app_library(out):
     """umcub_app_all.c with only the documented include paths, the generated
     configuration and the CMSIS CORE_CMx define (docs/application.md, "Applications
@@ -313,7 +333,7 @@ def t_check(out, name, cmd, grep=None):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--out", required=True, type=Path)
-    ap.add_argument("kind", choices=("config", "preset", "example", "app-library", "noboard-app", "no-slots", "cmake-args", "check"))
+    ap.add_argument("kind", choices=("config", "preset", "example", "resign", "app-library", "noboard-app", "no-slots", "cmake-args", "check"))
     ap.add_argument("args", nargs=argparse.REMAINDER)
     a = ap.parse_args()
     out = a.out.resolve()
@@ -327,7 +347,7 @@ def main():
                 grep, rest = rest[1], rest[2:]
             label, text = t_check(out, name, rest[1:] if rest[:1] == ["--"] else rest, grep)
         else:
-            label, text = {"config": t_config, "preset": t_preset, "example": t_example, "app-library": t_app_library, "noboard-app": t_noboard_app, "no-slots": t_no_slots, "cmake-args": t_cmake_args}[a.kind](out, *args)
+            label, text = {"config": t_config, "preset": t_preset, "example": t_example, "resign": t_resign, "app-library": t_app_library, "noboard-app": t_noboard_app, "no-slots": t_no_slots, "cmake-args": t_cmake_args}[a.kind](out, *args)
     except Failed as e:
         print(f"FAIL: {e}")
         sys.exit(1)

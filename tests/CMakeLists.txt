@@ -54,6 +54,7 @@ endforeach()
 _umcub_test(bluepill_app-rs485 ${RUN} example "bluepill_app|bluepill_f103c8||0|boards/bluepill_f103c8/variants/rs485.conf")
 
 _umcub_test(app-library ${RUN} app-library)
+_umcub_test(resign ${RUN} resign)
 _umcub_test(noboard-app ${RUN} noboard-app)
 _umcub_test(no-slots ${RUN} no-slots)
 _umcub_test(cmake-args ${RUN} cmake-args)
