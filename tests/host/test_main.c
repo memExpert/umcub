@@ -1308,6 +1308,15 @@ static void test_isotp(void)
     fc_stmin = 0;
     printf("  STmin 0 / 500 us / 5 ms / reserved (127 ms) between consecutive frames, watchdog fed per frame\n");
 
+    /* longer than a first frame's 12-bit length: refused, nothing sent (a board protocol's answer can be) */
+    {
+        static uint8_t big[4096];
+        isotp_t tx = { .frame_len = 8, .tx_id = 0x7C8 };
+        can_sent_n = can_rxq_n = cf_since_fc = 0;
+        CHECK(isotp_send(&tx, big, sizeof(big)) == UMCUB_EINVAL && can_sent_n == 0);
+        printf("  a message longer than 4095 bytes refused\n");
+    }
+
     /* FC WAIT: a few are waited out, an endless stream ends the transfer */
     uint8_t msg[300] = { 0 };
     isotp_t tx = { .frame_len = 8, .tx_id = 0x7C8 };

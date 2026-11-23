@@ -167,6 +167,9 @@ int isotp_send(isotp_t *t, const uint8_t *msg, size_t len)
         memcpy(f + hdr, msg, len);
         return send_frame(t, f, (uint8_t)(len + hdr));
     }
+    if (len > 0xFFFu) {
+        return UMCUB_EINVAL;            /* the first frame's 12-bit length (a board protocol's answer can be longer) */
+    }
     f[0] = (uint8_t)((PCI_FF << 4) | (len >> 8));
     f[1] = (uint8_t)len;
     size_t off = fl - 2u;
