@@ -33,7 +33,8 @@ def symbols(elf):
         p = line.split()
         if len(p) == 3:
             syms[p[2]] = int(p[0], 16)
-    return syms["_ebss"], syms["_estack"]
+    # dual-core H7: _estack is the CM4 park stack in SRAM4, the bootloader's own one ends at _estack_main
+    return syms["_ebss"], syms.get("_estack_main", syms["_estack"])
 
 
 def main():
