@@ -54,9 +54,13 @@ def device(a, node, transport):
     if transport == "usb-dfu":
         return [] if has_dfu() else None
     if transport == "eth":
-        rc, _ = run(["ping", "-c", "1", "-W", "1", a.eth], 5) if a.eth else (1, "")
-        return ["-d", a.eth] if rc == 0 else None
+        return ["-d", a.eth] if eth_up(a) else None
     raise ValueError(transport)
+
+
+def eth_up(a):
+    """The node answers one of up to 15 pings (1 s each): after a reset the bootloader needs the PHY link and DHCP."""
+    return bool(a.eth) and any(run(["ping", "-c", "1", "-W", "1", a.eth], 5)[0] == 0 for _ in range(15))
 
 
 def console(a, cmd, wait, expect):
@@ -133,6 +137,8 @@ def step(a, node, tree, elf, transport, on_bus, version, tmp):
     got = (m.group(1).split("+")[0] if m else "?", via.group(1) if via else "?")
     back = console(a, b"b", 1.0, expect="bootloader")
     time.sleep(1.5)
+    if transport == "eth" and not on_bus:   # the bootloader brings the link up again
+        eth_up(a)
     if back_dev is not None:
         rc, out = run(UMCUB + back_dev + ["cmd", "i"], 30)
     else:
