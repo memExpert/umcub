@@ -307,7 +307,7 @@ umcub_preprocess("${UMCUB_FAMILY_BOOT_LD}" "${CMAKE_BINARY_DIR}/umcub_boot.ld")
 set_target_properties(${UMCUB_BOOT_TARGET} PROPERTIES LINK_DEPENDS "${CMAKE_BINARY_DIR}/umcub_boot.ld")
 
 # Link-time optimisation: UMCUB_CFG_LTO, or -DUMCUB_LTO=ON/OFF
-# for one build tree. Verified on the F1 / F4, experimental on the H7 (see the template).
+# for one build tree. Verified on the F1, F4 and H7.
 set(UMCUB_LTO "" CACHE STRING "Link-time optimisation of the bootloader: ON / OFF / empty = UMCUB_CFG_LTO")
 if(UMCUB_LTO STREQUAL "")
   set(_lto ${UMCUB_CFG_LTO})
@@ -315,12 +315,7 @@ else()
   set(_lto ${UMCUB_LTO})
 endif()
 if(_lto)
-  if(UMCUB_FAMILY STREQUAL "stm32h7")
-    message(WARNING "umcub: link-time optimisation is on (experimental on the H7, not run there yet): "
-                    "check the stack usage on your hardware (tests/hw/stack_usage.py).")
-  else()
-    message(STATUS "umcub: link-time optimisation is on")
-  endif()
+  message(STATUS "umcub: link-time optimisation is on")
   target_compile_options(${UMCUB_BOOT_TARGET} PRIVATE -flto=auto)
   target_link_options(${UMCUB_BOOT_TARGET} PRIVATE -flto=auto)
 endif()

@@ -81,7 +81,7 @@ VARIANTS = [
                     "CAN_FD": 1, "TRANSPORT_ETH": 1, "LOG_LEVEL": 3, "CMD_ENABLE": 1, "INSPECT_VERIFY": 1,
                     "INSPECT_HASH": 1, "READBACK": 1, "STATUS_LED": 1}),
 ]
-# The same builds with link-time optimisation (UMCUB_CFG_LTO, experimental):
+# The same builds with link-time optimisation (UMCUB_CFG_LTO):
 # name -> the variant it repeats.
 LTO_OF = {"base LTO": "base", "UART LTO": "UART", "everything LTO": "everything",
           "UART no params LTO": "UART no params", "UART lite LTO": "UART lite"}

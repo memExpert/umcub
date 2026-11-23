@@ -1,14 +1,5 @@
 # TODO
 
-## Ease of use: small flash
-
-Seen with a user's F103CB (128 KiB, 52 K application): whether it fits took about 15 builds and knowing the F1
-trailer reserve, the 256-byte info block and page rounding, and which options save how much (LTO, inspect,
-SMP_PARAMS, lite).
-
-- [ ] **LTO on the H7** (verified on the F1 and the F4): boot, SMP / DFU / Ethernet recovery, swap upgrade, both
-  cores, stack (`tests/hw/stack_usage.py`), then drop "experimental" for it.
-
 ## Hardware verification (NUCLEO-H755ZI-Q)
 
 - [ ] **CAN-FD on a bus** — 64-byte frames, data bit rate switch. Needs a CAN-FD transceiver on PD0/PD1 (classic CAN

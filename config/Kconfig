@@ -1146,9 +1146,9 @@ config ASSERT_TRAP
 config LTO
 	bool "Link-time optimisation"
 	help
-	  3-4 K smaller on Cortex-M3 / M4, about 7 K on the H7. Verified on the F1
-	  and the F4, EXPERIMENTAL on the H7 (not run there yet). Inlining makes
-	  stack frames larger: check the stack on your part
+	  3-4 K smaller on Cortex-M3 / M4, about 6 K on the H7. Verified on the
+	  F1, the F4 and the H7. Inlining makes stack frames larger: check the
+	  stack on your part
 	  (tests/hw/stack_usage.py). CMake -DUMCUB_LTO overrides it for one build
 	  tree.
 config WATCHDOG_MS

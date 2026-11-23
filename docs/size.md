@@ -16,8 +16,8 @@ the H7, overwrite on the F1 / F4), and what every transport and feature adds. Re
 - The second table: the bootloader size for a set of transports on each ported family, and the region it needs
   from the start of flash (`UMCUB_CFG_BOOT_SIZE`: the size plus the 256-byte info block, rounded up to whole erase
   sectors / pages).
-- The third table repeats base, base + SMP + UART and "all on" with link-time optimisation (experimental, see the
-  notes below): absolute size and the saving against the same build without it.
+- The third table repeats base, base + SMP + UART and "all on" with link-time optimisation (see the notes
+  below): absolute size and the saving against the same build without it.
 - The fourth table: how small a bootloader with one UART gets, step by step (no log, text commands or LED in any
   column, no slot inspection from the second on), with the region each step needs. For a part where every KiB
   counts: pick the first column that leaves the application enough room. Without a signature there is no authenticity
@@ -87,10 +87,11 @@ Notes:
   configuration, not code size.
 - Debug builds (`-Og`) are about 18 % larger.
 - **Link-time optimisation** (`UMCUB_CFG_LTO=y` or `-DUMCUB_LTO=ON`, fragment `tests/configs/feature/lto.conf`, third
-  table): about 4 K less for base + SMP + UART, 5-6 K for "all on". Verified on the F1 and the F4, experimental on the H7
-  (not run there yet). Inlining makes single stack frames larger (MCUboot's image validation 248 -> 848 bytes), the
-  peak grows little: Blue Pill about 1.5-2.9 KiB of the 4 KiB reserve (the deepest path is an SMP upload of an
-  encrypted image), Black Pill 2416 instead of 2144 bytes (umcub link upload, verify, hash). Check the stack of your
+  table): about 4 K less for base + SMP + UART, 5-6 K for "all on". Verified on the F1, the F4 and the H7. Inlining makes
+  single stack frames larger (MCUboot's image validation 248 -> 848 bytes), the peak grows little: Blue Pill about
+  1.5-2.9 KiB of the 4 KiB reserve (the deepest path is an SMP upload of an encrypted image), Black Pill 2416 instead
+  of 2144 bytes (umcub link upload, verify, hash), H755 2560 instead of 2224 bytes (uploads over USB CDC, Ethernet,
+  UART and DFU, verify; a boot with a swap 2024 / 2016). Check the stack of your
   part (`tests/hw/stack_usage.py`) when you add board code. Verified on the Blue Pill: boot, SMP recovery upload,
   overwrite upgrade from the application, SECURE + encrypted images; on the Black Pill: umcub link recovery upload,
   verify / hash, boot, the application's request back into the bootloader, overwrite upgrade, the ENC28J60 board
