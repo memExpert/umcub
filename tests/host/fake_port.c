@@ -127,6 +127,30 @@ int umcub_flash_read(uint32_t addr, void *dst, size_t len)
     return 0;
 }
 
+unsigned fake_op_cut;
+
+/* One flash operation done (a word programmed, a sector erased): the power is cut after the fake_op_cut-th. */
+static void op_done(void)
+{
+    if (fake_op_cut && --fake_op_cut == 0) {
+        umcub_port_reset();
+    }
+}
+
+static uint8_t saved[SIZE], saved_written[SIZE / WORD];
+
+void fake_flash_save(void)
+{
+    memcpy(saved, fake_flash, SIZE);
+    memcpy(saved_written, written, sizeof(written));
+}
+
+void fake_flash_restore(void)
+{
+    memcpy(fake_flash, saved, SIZE);
+    memcpy(written, saved_written, sizeof(written));
+}
+
 int umcub_flash_write(uint32_t addr, const void *src, size_t len)
 {
     if (!range(addr, len) || addr % WORD || len % WORD) {
@@ -141,6 +165,7 @@ int umcub_flash_write(uint32_t addr, const void *src, size_t len)
         }
         written[w] = 1;
         memcpy(&fake_flash[w * WORD], (const uint8_t *)src + o, WORD);
+        op_done();
     }
     return 0;
 }
@@ -158,9 +183,12 @@ int umcub_flash_erase(uint32_t addr, size_t len)
         }
         fake_erase_cut -= (unsigned)(len / SECTOR);
     }
-    memset(&fake_flash[addr - BASE], 0xFF, len);
-    memset(&written[(addr - BASE) / WORD], 0, len / WORD);
-    fake_flash_erase_count += (unsigned)(len / SECTOR);
+    for (size_t o = 0; o < len; o += SECTOR) {
+        memset(&fake_flash[addr - BASE + o], 0xFF, SECTOR);
+        memset(&written[(addr - BASE + o) / WORD], 0, SECTOR / WORD);
+        fake_flash_erase_count++;
+        op_done();
+    }
     return 0;
 }
 

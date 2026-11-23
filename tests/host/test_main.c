@@ -587,6 +587,36 @@ static void test_overwrite_install(const uint8_t *v1, size_t v1_len, const uint8
     CHECK(umcub_image_version(0, 0, &v) == 0 && v.minor == 1);
 }
 #else
+/* A power cut after any of the first flash operations of a test swap: the next boot completes the swap. */
+static void test_swap_cut_early(const uint8_t *v2, size_t v2_len)
+{
+    printf("[swap] power cut after each of the first 64 flash operations: the next boot completes the upgrade\n");
+    fake_flash_save();
+    unsigned bad = 0;
+    for (unsigned k = 1; k <= 64; k++) {
+        fake_flash_restore();
+        write_secondary(v2, v2_len);
+        jmp_buf jb;
+        fake_op_cut = k;
+        fake_reset_jmp = &jb;
+        if (!setjmp(jb)) {
+            struct boot_rsp r;
+            FIH_DECLARE(rc, FIH_FAILURE);
+            FIH_CALL(boot_go, rc, &r);
+            (void)rc;
+        }
+        fake_reset_jmp = NULL;
+        fake_op_cut = 0;
+        char ver[16];
+        if (!boot_ok(ver) || strcmp(ver, "1.1.0") != 0) {
+            printf("  cut after operation %u: %s\n", k, ver);
+            bad++;
+        }
+    }
+    CHECK(bad == 0);
+    fake_flash_restore();
+}
+
 static void test_swap_revert_confirm(const uint8_t *v2, size_t v2_len)
 {
     char ver[16];
@@ -1650,6 +1680,7 @@ int main(int argc, char **argv)
 #if UMCUB_CFG_UPGRADE_MODE == UMCUB_MODE_OVERWRITE
     test_overwrite_install(v1, v1_len, v2, v2_len);
 #else
+    test_swap_cut_early(v2, v2_len);
     test_swap_revert_confirm(v2, v2_len);
 #endif
 #if UMCUB_CFG_DOWNGRADE_PREVENTION

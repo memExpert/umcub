@@ -41,7 +41,7 @@ F103 one) - round them up to that part's sector layout and check the real size a
 | + USB DFU (needs no SMP) | +10.7 K | +10.7 K | +10.7 K | +9.4 K | +10.5 K | — |
 | + CAN | +2.9 K | +2.9 K | +2.9 K | +2.6 K | — | +2.9 K |
 | + CAN FD (on top of CAN) | 0 | 0 | 0 | — | — | 0 |
-| + Ethernet (IPv4, UDP, DHCP) | +4.2 K | +4.2 K | +4.2 K | — | — | — |
+| + Ethernet (IPv4, UDP, DHCP) | +4.3 K | +4.3 K | +4.3 K | — | — | — |
 | + lite upload (instead of SMP) | +2.6 K | +2.6 K | +2.5 K | +2.7 K | +2.6 K | +2.6 K |
 | + log (level 3) | +3.7 K | +3.5 K | +3.5 K | +3.1 K | +3.1 K | +3.1 K |
 | + text commands | +2.2 K | +2.2 K | +2.2 K | +2.0 K | +2.0 K | +2.0 K |
@@ -52,27 +52,27 @@ F103 one) - round them up to that part's sector layout and check the real size a
 | + umcub link SECURE | +4.9 K | +4.9 K | +4.9 K | +4.8 K | +4.8 K | +4.9 K |
 | + link encryption (on top of SECURE) | +1.6 K | +1.6 K | +1.6 K | +1.6 K | +1.6 K | +1.6 K |
 | + encrypted images | +7.1 K | +6.3 K | +6.8 K | +6.4 K | +5.8 K | +5.9 K |
-| **all on** | 53.1 K | 50.3 K | 51.1 K | 37.3 K | 39.2 K | 29.5 K |
+| **all on** | 53.3 K | 50.4 K | 51.2 K | 37.4 K | 39.3 K | 29.5 K |
 
 | Bootloader size → `UMCUB_CFG_BOOT_SIZE` | UART, lite (no SMP) | UART | USB CDC | CAN | Ethernet | UART, link SECURE | all on |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| STM32H7 (128 KiB sectors) | 23.0 K → 128 K | 26.1 K → 128 K | 35.9 K → 128 K | 27.7 K → 128 K | 29.0 K → 128 K | 31.0 K → 128 K | 53.1 K → 128 K |
-| STM32F4 (16, 16, 16, 16, 64, 128 KiB ...) | 17.2 K → 32 K | 20.2 K → 32 K | 29.9 K → 32 K | — | — | 25.1 K → 32 K | 39.2 K → 48 K |
-| STM32F1 (1 KiB pages; 2 KiB on high-density parts) | 16.5 K → 17 K | 19.5 K → 20 K | 28.0 K → 29 K | 20.9 K → 22 K | — | 24.4 K → 25 K | 37.3 K → 38 K |
-| STM32G4 (2 KiB pages; 4 KiB in single-bank mode) | 17.7 K → 18 K | 20.8 K → 22 K | — | 22.4 K → 24 K | — | 25.6 K → 26 K | 29.5 K → 30 K |
+| STM32H7 (128 KiB sectors) | 23.0 K → 128 K | 26.1 K → 128 K | 35.9 K → 128 K | 27.7 K → 128 K | 29.0 K → 128 K | 31.0 K → 128 K | 53.3 K → 128 K |
+| STM32F4 (16, 16, 16, 16, 64, 128 KiB ...) | 17.2 K → 32 K | 20.2 K → 32 K | 29.9 K → 32 K | — | — | 25.1 K → 32 K | 39.3 K → 48 K |
+| STM32F1 (1 KiB pages; 2 KiB on high-density parts) | 16.5 K → 17 K | 19.5 K → 20 K | 28.0 K → 29 K | 20.9 K → 22 K | — | 24.3 K → 25 K | 37.4 K → 38 K |
+| STM32G4 (2 KiB pages; 4 KiB in single-bank mode) | 17.7 K → 18 K | 20.7 K → 22 K | — | 22.4 K → 24 K | — | 25.6 K → 26 K | 29.5 K → 30 K |
 
 | with LTO | STM32H755 CM7 (2 images, SINGLE_BOOT) | STM32H755 CM4 (PER_CORE) | STM32H743 / H753 (single core) | STM32F103 (Blue Pill, overwrite) | STM32F411 (Black Pill, overwrite) | STM32G474 (NUCLEO-G474RE, overwrite) |
 |---|---:|---:|---:|---:|---:|---:|
-| base | 16.0 K (-3.0 K) | 13.4 K (-2.9 K) | 14.1 K (-2.9 K) | 10.1 K (-2.5 K) | 10.8 K (-2.7 K) | 11.2 K (-2.7 K) |
+| base | 16.0 K (-3.0 K) | 13.4 K (-2.9 K) | 14.1 K (-2.9 K) | 10.1 K (-2.4 K) | 10.8 K (-2.7 K) | 11.2 K (-2.7 K) |
 | base + SMP + UART | 22.1 K (-4.0 K) | 19.4 K (-3.9 K) | 20.1 K (-3.9 K) | 15.9 K (-3.7 K) | 16.6 K (-3.6 K) | 17.1 K (-3.6 K) |
-| all on | 47.0 K (-6.1 K) | 44.2 K (-6.1 K) | 44.9 K (-6.1 K) | 32.1 K (-5.2 K) | 34.1 K (-5.2 K) | 25.9 K (-3.6 K) |
+| all on | 47.1 K (-6.1 K) | 44.3 K (-6.2 K) | 45.0 K (-6.1 K) | 32.1 K (-5.2 K) | 34.1 K (-5.2 K) | 26.0 K (-3.6 K) |
 
 | Smallest UART bootloader → `UMCUB_CFG_BOOT_SIZE` | SMP, verify + hash | SMP | SMP, no `SMP_PARAMS` | SMP, no `SMP_PARAMS`, LTO | lite | lite, LTO | lite, LTO, no signature |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | STM32H7 (128 KiB sectors) | 26.8 K → 128 K | 26.1 K → 128 K | 26.0 K → 128 K | 22.0 K → 128 K | 23.0 K → 128 K | 19.5 K → 128 K | 15.3 K → 128 K |
 | STM32F4 (16, 16, 16, 16, 64, 128 KiB ...) | 21.2 K → 32 K | 20.2 K → 32 K | 20.1 K → 32 K | 16.5 K → 32 K | 17.2 K → 32 K | 14.1 K → 16 K | 10.0 K → 16 K |
 | STM32F1 (1 KiB pages; 2 KiB on high-density parts) | 20.5 K → 21 K | 19.5 K → 20 K | 19.4 K → 20 K | 15.7 K → 16 K | 16.5 K → 17 K | 13.4 K → 14 K | 9.2 K → 10 K |
-| STM32G4 (2 KiB pages; 4 KiB in single-bank mode) | 21.7 K → 22 K | 20.8 K → 22 K | 20.6 K → 22 K | 17.0 K → 18 K | 17.7 K → 18 K | 14.6 K → 16 K | 10.5 K → 12 K |
+| STM32G4 (2 KiB pages; 4 KiB in single-bank mode) | 21.7 K → 22 K | 20.7 K → 22 K | 20.6 K → 22 K | 17.0 K → 18 K | 17.7 K → 18 K | 14.6 K → 16 K | 10.5 K → 12 K |
 <!-- size-table:end -->
 
 Notes:

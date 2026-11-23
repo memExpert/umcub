@@ -13,7 +13,6 @@
 #include <stdbool.h>
 #include <string.h>
 #include "umcub_cfg.h"
-#include "umcub_port.h"
 #include "umcub_log.h"
 #include "umcub_image_info.h"
 #include "umcub_inspect.h"
@@ -103,27 +102,22 @@ static bool vector_ok(int img_index, int slot, const struct flash_area *fa, uint
  * skip it while MCUboot's later reads succeed). */
 bool umcub_image_check(int img_index, int slot, const struct flash_area *fa)
 {
-    uint32_t offs[2] = { 0, 0 };
-    unsigned n = 1;
+    uint32_t off = 0;
 #if defined(MCUBOOT_SWAP_USING_OFFSET)
-    uint32_t start, size;
-    if (slot == 1 && umcub_flash_sector_info(flash_area_get_off(fa), &start, &size) == 0) {
-        offs[n++] = size;
-    }
+    /* The header MCUboot validates: the update one sector in, the revert copy at 0 - never a half-copied one
+     * a swap cut by a power loss left at the other place (MCUboot's area only; 0 for an area of the caller). */
+    off = boot_get_state_secondary_offset(boot_get_loader_state(), fa);
 #endif
     const unsigned read_errors = umcub_flash_read_errors;
     bool bad = false;
-    for (unsigned i = 0; i < n && !bad; i++) {
-        struct image_header hdr;
-        if (!umcub_image_header(fa, offs[i], &hdr)) {
-            continue;               /* no image header (a read error: the count below) */
-        }
+    struct image_header hdr;
+    if (umcub_image_header(fa, off, &hdr)) {    /* else no image header (a read error: the count below) */
 #if UMCUB_CFG_IMAGE_VECTOR_CHECK
-        bad = !vector_ok(img_index, slot, fa, offs[i], &hdr);
+        bad = !vector_ok(img_index, slot, fa, off, &hdr);
 #endif
 #if UMCUB_CFG_BOARD_TYPE != 0
         uint32_t type = 0;
-        int rc = bad ? -1 : board_type(fa, offs[i], &hdr, &type);
+        int rc = bad ? -1 : board_type(fa, off, &hdr, &type);
         if (rc == 0 && type != UMCUB_CFG_BOARD_TYPE) {
             UMCUB_LOG_ERR("image %d slot %d is for board type 0x%08lx, this is 0x%08lx", img_index, slot,
                           (unsigned long)type, (unsigned long)UMCUB_CFG_BOARD_TYPE);
