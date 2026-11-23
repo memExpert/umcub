@@ -78,6 +78,17 @@ static void apply_static(const char *what)
     log_ip(what, net_if.ip);
 }
 
+/* A lease that ends (NAK, expiry) takes its address with it: the server may give it to another node now.
+ * Selecting again, with the static fallback after the timeout as at the start. */
+static void lease_lost(void)
+{
+    net_if.configured = false;
+    fallback_applied = false;
+    started = umcub_port_millis();
+    state = ST_SELECTING;
+    retry_ms = 2000;
+}
+
 static void schedule_retry(void)
 {
     next_tx = umcub_port_millis() + retry_ms;
@@ -117,8 +128,7 @@ void dhcp_tick(void)
     }
     if (state != ST_BOUND && (int32_t)(now - next_tx) >= 0) {
         if (state == ST_RENEWING && (uint32_t)(now - bound_at) / 1000u >= lease_s) {
-            state = ST_SELECTING;           /* lease expired */
-            retry_ms = 2000;
+            lease_lost();                   /* expired */
         }
         send_msg(state == ST_SELECTING ? MSG_DISCOVER : MSG_REQUEST);
         schedule_retry();
@@ -176,8 +186,12 @@ void dhcp_input(const uint8_t *d, size_t len)
             log_ip("DHCP lease", yiaddr);
         }
     } else if (type == MSG_NAK && state != ST_SELECTING) {
-        state = ST_SELECTING;
-        retry_ms = 2000;
+        if (state == ST_REQUESTING) {       /* no lease yet: nothing to drop */
+            state = ST_SELECTING;
+            retry_ms = 2000;
+        } else {
+            lease_lost();
+        }
         next_tx = umcub_port_millis();
     }
 #else

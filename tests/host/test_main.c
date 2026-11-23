@@ -1465,6 +1465,60 @@ static void test_net(void)
     printf("  UDP: a datagram longer than one frame refused\n");
 }
 
+#if UMCUB_CFG_ETH_DHCP
+/* A DHCP answer of `type` (2 OFFER, 5 ACK, 6 NAK) for the transaction of the last DHCP frame sent. */
+static void dhcp_answer(uint8_t type, uint32_t lease_s)
+{
+    static const uint8_t bc[6] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+    const uint8_t *sent = eth_out[(eth_out_n - 1) % 16] + 42;
+    uint8_t bootp[300] = { 2, 1, 6, 0 };
+    memcpy(bootp + 4, sent + 4, 4);                 /* xid */
+    umcub_put_be32(bootp + 16, 0xC0A80A2A);
+    memcpy(bootp + 28, net_if.mac, 6);
+    umcub_put_be32(bootp + 236, 0x63825363);
+    uint8_t opts[] = { 53, 1, type, 54, 4, 192, 168, 10, 1, 51, 4, 0, 0, 0, 0, 255 };
+    umcub_put_be32(opts + 11, lease_s);
+    memcpy(bootp + 240, opts, sizeof(opts));
+    uint8_t f[1600];
+    net_input(f, ip_udp(f, 0xC0A80A01, 0xFFFFFFFF, 67, 68, bootp, sizeof(bootp), bc));
+}
+
+/* A lease that ends (NAK, expiry) takes its address away: the server may give it to another node. The static
+ * fallback comes back after UMCUB_CFG_ETH_DHCP_TIMEOUT_MS, as at the start. */
+static void test_dhcp_lost(void)
+{
+    printf("[net] DHCP: a NAK or an expired lease drops the address, the fallback follows\n");
+    const uint8_t mac[6] = { 0x02, 0x55, 1, 2, 3, 4 };
+    net_init(mac);
+    net_if.configured = false;
+    eth_out_n = 0;
+    dhcp_start();
+    dhcp_tick();                                    /* DISCOVER */
+    dhcp_answer(2, 60);                             /* OFFER -> REQUEST */
+    dhcp_answer(5, 60);                             /* ACK */
+    CHECK(net_if.configured && net_if.ip == 0xC0A80A2A);
+    umcub_port_delay_ms(30001);
+    dhcp_tick();                                    /* renewing: REQUEST */
+    dhcp_answer(6, 0);                              /* NAK */
+    CHECK(!net_if.configured);
+    umcub_port_delay_ms(UMCUB_CFG_ETH_DHCP_TIMEOUT_MS + 1);
+    dhcp_tick();
+    CHECK(net_if.configured && net_if.ip == UMCUB_CFG_ETH_IP);
+
+    dhcp_answer(2, 60);                             /* the next DISCOVER is answered: bound again */
+    dhcp_answer(5, 60);
+    CHECK(net_if.configured && net_if.ip == 0xC0A80A2A);
+    umcub_port_delay_ms(30001);
+    dhcp_tick();                                    /* renewing, no answer */
+    umcub_port_delay_ms(30001);
+    dhcp_tick();                                    /* expired */
+    CHECK(!net_if.configured);
+    umcub_port_delay_ms(UMCUB_CFG_ETH_DHCP_TIMEOUT_MS + 1);
+    dhcp_tick();
+    CHECK(net_if.configured && net_if.ip == UMCUB_CFG_ETH_IP);
+}
+#endif
+
 /* ------------------------------------------------------------------------ */
 
 static void log_sink(const char *s, size_t len)
@@ -1604,6 +1658,9 @@ int main(int argc, char **argv)
     test_commands();
     test_isotp();
     test_net();
+#if UMCUB_CFG_ETH_DHCP
+    test_dhcp_lost();
+#endif
 #if UMCUB_CFG_SMP_DIRECT_UPLOAD
     test_smp_direct_upload(v1, v1_len, v2, v2_len, v2_flash);
 #endif

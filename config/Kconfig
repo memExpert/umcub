@@ -801,7 +801,8 @@ config ETH_DHCP_TIMEOUT_MS
 	depends on ETH_DHCP
 	default 10000
 	help
-	  Fall back to the static address when no DHCP lease comes in this time.
+	  Fall back to the static address when no DHCP lease comes in this time;
+	  also after a lease ends (NAK, expiry), whose address is dropped at once.
 config ETH_MAC
 	hex "MAC address (0 = from the unique id)"
 	default 0x0

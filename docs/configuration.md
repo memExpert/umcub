@@ -52,7 +52,7 @@ Their defaults fit almost every board, and some of them weaken the bootloader wh
 | `UMCUB_CFG_ENC_INPLACE` | 1 (H7 CM4, F4: 0) | In-place decryption of an encrypted SMP upload into the primary slot, buffering one sector in RAM. Without it encrypted images go through the secondary slot. An encrypted upload into the primary slot is then refused. |
 | `UMCUB_CFG_SWAP_SAVE_ENCTLV` | 1 | Swap modes with encrypted images: the slot trailers keep the encrypted key TLVs of both images until the swap is over (signing passes `--save-enctlv`). **0 stores the plain AES keys there**, readable with a debugger or readback, for a slightly smaller trailer. |
 | `UMCUB_CFG_UART_TX_RING` | 0 | Transmit through a RAM ring of this many bytes (power of two) drained by the UART interrupt, so the log does not stall the boot (drained before the jump); the last lines can be lost on a hang. Not with RS485. Fragment `tests/configs/feature/uart_tx_ring.conf`, verified on the Black Pill (USART2). |
-| `UMCUB_CFG_ETH_DHCP_TIMEOUT_MS` | 10000 | Fall back to `UMCUB_CFG_ETH_IP` when no DHCP lease comes in this time. |
+| `UMCUB_CFG_ETH_DHCP_TIMEOUT_MS` | 10000 | Fall back to `UMCUB_CFG_ETH_IP` when no DHCP lease comes in this time; also after a lease ends (NAK, expiry), whose address is dropped at once. |
 | `UMCUB_CFG_ETH_SMP_PORT` | 1337 | UDP port of SMP. |
 | `UMCUB_CFG_CORE2_DONE_TIMEOUT_MS` | 3000 | `UMCUB_CFG_DUALCORE_PER_CORE`, main core: how long to wait for the second core's bootloader before handing the clocks to the application. |
 | `UMCUB_CFG_APP_WRITE_SLOT_*` | from the mode | Where `umcub_slot_*()` in the application writes by default: `_SECONDARY`, `_PRIMARY`, `_INACTIVE` (direct-xip). |
