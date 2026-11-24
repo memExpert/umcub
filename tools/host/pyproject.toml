@@ -14,6 +14,8 @@ dependencies = [
   "python-can>=4.3",
   "can-isotp>=2.0",
   "cryptography",
+  "gs_usb>=0.3; sys_platform == 'win32'",     # candleLight adapters (python-can's gs_usb interface)
+  "libusb1>=3; sys_platform == 'win32'",      # their libusb-1.0.dll (adapter.prime_libusb)
 ]
 
 [project.optional-dependencies]

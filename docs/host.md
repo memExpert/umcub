@@ -63,7 +63,9 @@ can:socketcan:can0           socketcan:can0               candleLight USB to CAN
   such as the CH340, only by their USB port, `location`);
 - CAN channels: on Linux every SocketCAN interface, also one that is down (with the command that brings it up), with
   the USB facts of the adapter; elsewhere the python-can interfaces that can enumerate their hardware (PCAN, Kvaser,
-  Vector, IXXAT, gs_usb / candleLight on Windows, ...); slcan adapters (CANable) show up as serial ports;
+  Vector, IXXAT, ...; candleLight / gs_usb adapters by index, `can:gs_usb:0`, through libusb - on Windows pip
+  installs the `gs_usb` and `libusb1` packages with the library, no driver to install); slcan adapters (CANable)
+  show up as serial ports;
 - network interfaces that are up, as the broadcast address of their subnet (for `discover`); on Linux also the
   Ethernet ports that cannot be used yet (no link, no IPv4 address: a USB-Ethernet adapter without a cable), with an
   empty device string, the reason and the USB facts;

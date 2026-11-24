@@ -100,6 +100,35 @@ def socketcan_adapters(sysfs=SYSFS_NET):
     return out
 
 
+def prime_libusb(platform=sys.platform):
+    """Windows: pyusb searches libusb-1.0.dll itself and can load one that does not fit (an access violation in the
+    gs_usb / candleLight driver); load the DLL the libusb1 package ships first, pyusb then keeps that library."""
+    if platform != "win32":
+        return
+    try:
+        import usb1
+        from usb.backend import libusb1
+    except ImportError:
+        return
+    dll = os.path.join(os.path.dirname(usb1.__file__), "libusb-1.0.dll")
+    if os.path.isfile(dll):
+        libusb1.get_backend(find_library=lambda _name: dll)
+
+
+def gs_usb_adapters(platform=sys.platform):
+    """candleLight / gs_usb adapters outside Linux (there SocketCAN lists them), by index as python-can's gs_usb
+    interface opens them; python-can itself does not list them."""
+    if platform.startswith("linux"):
+        return []
+    try:
+        prime_libusb()
+        from gs_usb.gs_usb import GsUsb
+        return [Adapter(f"can:gs_usb:{i}", "can", f"gs_usb:{i}", "candleLight / gs_usb", d.gs_usb.idVendor,
+                        d.gs_usb.idProduct, d.serial_number or None) for i, d in enumerate(GsUsb.scan())]
+    except Exception:           # no package, no libusb, no access, an unreadable serial: nothing to list
+        return []
+
+
 def can_adapters(interfaces=CAN_INTERFACES):
     """CAN channels: on Linux the SocketCAN interfaces from sysfs, plus what
     python-can finds on the other given interfaces; python-can's warnings about
@@ -114,6 +143,9 @@ def can_adapters(interfaces=CAN_INTERFACES):
     log.setLevel(logging.CRITICAL)
     try:
         for i in interfaces:
+            if i == "gs_usb":
+                out += gs_usb_adapters()
+                continue
             try:
                 configs = can.detect_available_configs(interfaces=[i])
             except Exception:       # a broken vendor driver must not hide the others

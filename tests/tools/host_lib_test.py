@@ -640,6 +640,49 @@ for what, answer in (("another offset", lambda off, n: (off + 1, blob[off:off + 
     expect(f"readback: {what} refused", code_of(lambda: readback(answer)) == "smp.bad_read")
 
 
+@contextlib.contextmanager
+def _modules(fakes):
+    """sys.modules entries replaced for the block, then put back."""
+    saved = {k: sys.modules.get(k) for k in fakes}
+    sys.modules.update(fakes)
+    try:
+        yield
+    finally:
+        for k, v in saved.items():
+            if v is None:
+                sys.modules.pop(k, None)
+            else:
+                sys.modules[k] = v
+
+
+# Windows: pyusb must load the libusb DLL the libusb1 package ships (its own search found one that crashed the
+# candleLight / gs_usb driver); elsewhere nothing changes.
+import umcub.adapter as _ad  # noqa: E402
+_calls = []
+_fake_lb = types.SimpleNamespace(get_backend=lambda find_library=None: _calls.append(find_library("usb-1.0")))
+_fake_usb1 = types.SimpleNamespace(__file__=str(tmp / "usb1" / "__init__.py"))
+(tmp / "usb1").mkdir(exist_ok=True)
+(tmp / "usb1" / "libusb-1.0.dll").write_bytes(b"")
+with _modules({"usb1": _fake_usb1, "usb": types.ModuleType("usb"), "usb.backend": types.ModuleType("usb.backend"),
+               "usb.backend.libusb1": _fake_lb}):
+    _ad.prime_libusb(platform="linux")
+    expect("libusb: nothing done off Windows", _calls == [], str(_calls))
+    _ad.prime_libusb(platform="win32")
+    expect("libusb: Windows loads the DLL of the libusb1 package",
+           _calls == [str(tmp / "usb1" / "libusb-1.0.dll")], str(_calls))
+
+
+# candleLight / gs_usb adapters outside Linux (python-can does not list them): one per device found, by index.
+_gs = types.ModuleType("gs_usb.gs_usb")
+_gs.GsUsb = types.SimpleNamespace(scan=lambda: [types.SimpleNamespace(
+    serial_number="2067339236", gs_usb=types.SimpleNamespace(idVendor=0x1209, idProduct=0x2323))])
+with _modules({"gs_usb": types.ModuleType("gs_usb"), "gs_usb.gs_usb": _gs}):
+    got = _ad.gs_usb_adapters(platform="win32")
+    expect("gs_usb adapters on Windows", [(a.spec, a.scheme) for a in got] == [("can:gs_usb:0", "can")]
+           and (got[0].vid, got[0].pid, got[0].serial_number) == (0x1209, 0x2323, "2067339236"), str(got))
+    expect("gs_usb adapters on Linux: SocketCAN lists them", _ad.gs_usb_adapters(platform="linux") == [])
+
+
 # Board names: JSON files merge (the later one wins), a new load replaces the catalog; shown wherever a board type is.
 (tmp / "names1.json").write_text('{"0x46103001": "Blue Pill", "0x00000007": "old name"}')
 (tmp / "names2.json").write_text('{"0x00000007": "Pump controller", "0X46411001": "Black Pill"}')

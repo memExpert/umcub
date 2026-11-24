@@ -238,6 +238,9 @@ class _SharedBus:
         interface, channel = key
         bitrate, fd, data_bitrate = settings
         can = _import_can("can", interface, channel)
+        if interface == "gs_usb":
+            from .adapter import prime_libusb
+            prime_libusb()
         try:
             self.bus = can.Bus(interface=interface, channel=channel, bitrate=bitrate, fd=fd,
                                data_bitrate=data_bitrate if fd else None)
