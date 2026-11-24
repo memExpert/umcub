@@ -44,7 +44,8 @@ and feature is listed in [Bootloader size](docs/size.md).
 - Python 3.10 or newer and git (`tools/setup.sh` makes the virtual environment and fetches the submodules);
 - an SWD probe for the first programming: an ST-LINK with STM32CubeProgrammer (`STM32_Programmer_CLI`), or pyOCD;
 - for USB: `dfu-util` for DFU; on Linux `tools/hw/udev/70-umcub.rules` gives the logged-in user access to the
-  bootloader's USB device (DFU, CDC) without root.
+  bootloader's USB device (DFU, CDC) without root; on Windows no driver to install (CDC is a COM port, the DFU
+  interface announces WinUSB through Microsoft OS 2.0 descriptors).
 
 ## Quick start
 

@@ -37,7 +37,7 @@ enum {
 static const tusb_desc_device_t device_desc = {
     .bLength = sizeof(tusb_desc_device_t),
     .bDescriptorType = TUSB_DESC_DEVICE,
-    .bcdUSB = 0x0200,
+    .bcdUSB = CFG_TUD_DFU ? 0x0210 : 0x0200,    /* 2.10: a BOS descriptor (MS OS 2.0, below) */
 #if CFG_TUD_CDC
     .bDeviceClass = TUSB_CLASS_MISC,
     .bDeviceSubClass = MISC_SUBCLASS_COMMON,
@@ -50,7 +50,7 @@ static const tusb_desc_device_t device_desc = {
     .bMaxPacketSize0 = CFG_TUD_ENDPOINT0_SIZE,
     .idVendor = UMCUB_CFG_USB_VID,
     .idProduct = UMCUB_CFG_USB_PID,
-    .bcdDevice = 0x0100,
+    .bcdDevice = 0x0101,                        /* 1.01: Windows asks again for the MS OS 2.0 descriptors */
     .iManufacturer = STR_MANUFACTURER,
     .iProduct = STR_PRODUCT,
     .iSerialNumber = STR_SERIAL,
@@ -69,6 +69,52 @@ static const uint8_t config_desc[] = {
                        1000, CFG_TUD_DFU_XFER_BUFSIZE),
 #endif
 };
+
+#if CFG_TUD_DFU
+/* MS OS 2.0 descriptors: Windows binds WinUSB to the DFU interface by itself, so dfu-util (libusb) works there
+ * without a driver installed by hand. */
+#define VENDOR_REQUEST_MS 1
+#define MS_OS_20_REG_LEN  (10 + 42 + 80)    /* the DeviceInterfaceGUIDs property: name and value, UTF-16 */
+#define MS_OS_20_LEN      (10 + CFG_TUD_CDC * (8 + 8) + 20 + MS_OS_20_REG_LEN)
+
+static const uint8_t ms_os_20[] = {
+    U16_TO_U8S_LE(10), U16_TO_U8S_LE(MS_OS_20_SET_HEADER_DESCRIPTOR), U32_TO_U8S_LE(0x06030000),
+    U16_TO_U8S_LE(MS_OS_20_LEN),
+#if CFG_TUD_CDC     /* a composite device: the feature belongs to the DFU function */
+    U16_TO_U8S_LE(8), U16_TO_U8S_LE(MS_OS_20_SUBSET_HEADER_CONFIGURATION), 0, 0, U16_TO_U8S_LE(MS_OS_20_LEN - 10),
+    U16_TO_U8S_LE(8), U16_TO_U8S_LE(MS_OS_20_SUBSET_HEADER_FUNCTION), ITF_DFU, 0,
+    U16_TO_U8S_LE(8 + 20 + MS_OS_20_REG_LEN),
+#endif
+    U16_TO_U8S_LE(20), U16_TO_U8S_LE(MS_OS_20_FEATURE_COMPATBLE_ID), 'W', 'I', 'N', 'U', 'S', 'B', 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0,
+    /* libusb (dfu-util) finds a WinUSB function of a composite device by this interface GUID (fixed for umcub) */
+    U16_TO_U8S_LE(MS_OS_20_REG_LEN), U16_TO_U8S_LE(MS_OS_20_FEATURE_REG_PROPERTY), U16_TO_U8S_LE(7 /* REG_MULTI_SZ */),
+    U16_TO_U8S_LE(42), 'D', 0, 'e', 0, 'v', 0, 'i', 0, 'c', 0, 'e', 0, 'I', 0, 'n', 0, 't', 0, 'e', 0, 'r', 0, 'f', 0, 'a', 0, 'c', 0, 'e', 0, 'G', 0, 'U', 0, 'I', 0, 'D', 0, 's', 0, 0, 0,
+    U16_TO_U8S_LE(80), '{', 0, 'D', 0, 'B', 0, '7', 0, '0', 0, '2', 0, 'E', 0, 'E', 0, 'D', 0, '-', 0, 'F', 0, '5', 0, 'A', 0, 'E', 0, '-', 0, '4', 0, '3', 0, '0', 0, '2', 0, '-', 0, '8', 0, '5', 0, '8', 0, '1', 0, '-', 0, 'F', 0, '6', 0, 'D', 0, 'A', 0, '0', 0, '8', 0, 'A', 0, '0', 0, 'A', 0, '8', 0, '5', 0, '7', 0, '}', 0, 0, 0, 0, 0,
+};
+_Static_assert(sizeof(ms_os_20) == MS_OS_20_LEN, "MS OS 2.0 descriptor set length");
+
+static const uint8_t bos_desc[] = {
+    TUD_BOS_DESCRIPTOR(TUD_BOS_DESC_LEN + TUD_BOS_MICROSOFT_OS_DESC_LEN, 1),
+    TUD_BOS_MS_OS_20_DESCRIPTOR(MS_OS_20_LEN, VENDOR_REQUEST_MS),
+};
+
+uint8_t const *tud_descriptor_bos_cb(void)
+{
+    return bos_desc;
+}
+
+bool tud_vendor_control_xfer_cb(uint8_t rhport, uint8_t stage, tusb_control_request_t const *request)
+{
+    if (stage != CONTROL_STAGE_SETUP) {
+        return true;
+    }
+    if (request->bRequest == VENDOR_REQUEST_MS && request->wIndex == 7) {     /* MS_OS_20_DESCRIPTOR_INDEX */
+        return tud_control_xfer(rhport, request, (void *)(uintptr_t)ms_os_20, sizeof(ms_os_20));
+    }
+    return false;
+}
+#endif
 
 uint8_t const *tud_descriptor_device_cb(void)
 {
