@@ -199,6 +199,12 @@
 #endif
 
 #define UMCUB_IN_AREA_(a, base, size) ((size) > 0 && (a) + 4 > (base) && (a) < (base) + (size))
+#if UMCUB_CFG_TRANSPORT_CAN && \
+    (UMCUB_CFG_CAN_RX_ID + UMCUB_CFG_NODE_ADDR > (UMCUB_CFG_CAN_EXT_ID ? 0x1FFFFFFF : 0x7FF) || \
+     UMCUB_CFG_CAN_TX_ID + UMCUB_CFG_NODE_ADDR > (UMCUB_CFG_CAN_EXT_ID ? 0x1FFFFFFF : 0x7FF))
+#error "umcub: UMCUB_CFG_NODE_ADDR does not fit the CAN ID range (CAN_RX_ID / CAN_TX_ID + the address)"
+#endif
+
 #if UMCUB_CFG_NODE_ADDR_FLASH != 0 && \
     ((UMCUB_CFG_NODE_ADDR_FLASH % 4) || \
      UMCUB_IN_AREA_(UMCUB_CFG_NODE_ADDR_FLASH, UMCUB_CFG_IMG0_PRIMARY_ADDR, UMCUB_CFG_IMG0_PRIMARY_SIZE) || \

@@ -17,7 +17,9 @@ static void store_words(volatile uint32_t *dst, const uint32_t *src, size_t word
     while (words--) {
         *dst++ = *src++;
     }
+#ifndef UMCUB_HOST_TEST
     __asm volatile("dsb" ::: "memory");
+#endif
 }
 
 /* Transport that delivered the last update: written by the SMP mux in
@@ -70,14 +72,17 @@ __attribute__((weak)) bool umcub_board_node_address(uint16_t *addr)
 
 static uint16_t node_addr;
 
+/* 0 = unassigned, 0xFFFF = broadcast: never a node's own address, "not set" in a source. */
+#define NODE_ADDRESS_SET(found, a) ((found) && (a) != 0u && (a) != 0xFFFFu)
+
 void umcub_node_init(void)
 {
     uint16_t a;
-    /* 0 = unassigned, 0xFFFF = broadcast: never a node's own address. */
-    if ((umcub_handoff_node_request(&a) || flash_node_address(&a) || umcub_board_node_address(&a)) && a != 0xFFFFu) {
+    if (NODE_ADDRESS_SET(umcub_handoff_node_request(&a), a) || NODE_ADDRESS_SET(flash_node_address(&a), a) ||
+        NODE_ADDRESS_SET(umcub_board_node_address(&a), a)) {
         node_addr = a;
     } else {
-        node_addr = 0;          /* unassigned: reachable by UID only (see umcub link) */
+        node_addr = UMCUB_CFG_NODE_ADDR;    /* 0: unassigned, reachable by UID only (see umcub link) */
     }
 }
 

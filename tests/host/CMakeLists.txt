@@ -350,6 +350,14 @@ function(umcub_host_dual name)
   endif()
 endfunction()
 
+# Node address sources (src/util/state.c): with and without a build default (UMCUB_CFG_NODE_ADDR).
+foreach(_d 0 7)
+  add_executable(umcub_host_node_${_d} test_node.c test_node_board.c)
+  umcub_host_setup(umcub_host_node_${_d})
+  target_compile_definitions(umcub_host_node_${_d} PRIVATE TEST_NODE_ADDR=${_d})
+  add_test(NAME umcub_host_node_${_d} COMMAND umcub_host_node_${_d})
+endforeach()
+
 umcub_host_dual(dual_enc)
 umcub_host_dual(dual_enc_direct)
 

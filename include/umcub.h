@@ -60,7 +60,8 @@ __attribute__((noreturn)) void umcub_enter_bootloader(uint32_t arg);
 /* Node address of this device on a shared bus (RS485, CAN, ...), used by the
  * bootloader for addressing (umcub link, CAN IDs). Call it on every start:
  * the value lives in the handoff RAM and survives resets, not power cycles.
- * 0 = unassigned. umcub_boot_info()->node_addr shows what the bootloader used
+ * 0 = none: the bootloader's other sources decide (flash word, board hook,
+ * UMCUB_CFG_NODE_ADDR). umcub_boot_info()->node_addr shows what the bootloader used
  * (always 0 in a bootloader without umcub link and CAN, which has none). */
 void umcub_set_node_address(uint16_t addr);
 
@@ -68,7 +69,7 @@ void umcub_set_node_address(uint16_t addr);
  * the flash word UMCUB_CFG_NODE_ADDR_FLASH (put this value into a field of
  * your settings structure at that address to have the address right after
  * power-up). Erased flash (all 1s) is "no address" (the next source is
- * tried); UMCUB_NODE_ADDR_WORD(0) is "unassigned". */
+ * tried), UMCUB_NODE_ADDR_WORD(0) and (0xFFFF) as well. */
 #define UMCUB_NODE_ADDR_WORD(addr) \
     ((uint32_t)(uint16_t)(addr) | ((uint32_t)(uint16_t)~(uint16_t)(addr) << 16))
 

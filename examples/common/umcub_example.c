@@ -182,8 +182,8 @@ void ex_run(const char *name)
 {
 #ifdef APP_NODE_ADDR
     /* Address on a shared bus, used by the bootloader from the next reset on;
-     * it beats UMCUB_CFG_NODE_ADDR_FLASH. Built with APP_NODE_ADDR=none: not
-     * set, the bootloader keeps its own. */
+     * it beats the bootloader's own sources, 0 leaves it to them. Built with
+     * APP_NODE_ADDR=none: no call. */
     umcub_set_node_address(APP_NODE_ADDR);
 #endif
     show_info(name);

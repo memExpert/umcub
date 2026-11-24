@@ -231,8 +231,19 @@ config NODE_ADDR_FLASH
 	  them). 0 = not used.
 	  The node address on a shared bus comes, in this order, from the
 	  application (umcub_set_node_address(), kept over resets, not over
-	  power-off), from this word, or from the board hook
-	  umcub_board_node_address() (DIP switch, EEPROM, ...); 0 = unassigned.
+	  power-off), from this word, from the board hook
+	  umcub_board_node_address() (DIP switch, EEPROM, ...), else NODE_ADDR.
+	  0 or 0xFFFF in a source counts as not set there.
+
+config NODE_ADDR
+	int "Node address of this build (default)"
+	range 0 65534
+	default 0
+	help
+	  The node address when no other source sets one (see NODE_ADDR_FLASH):
+	  addressable right after power-up without a flash word, one build per
+	  node. The application can still change it. 0 = unassigned (reachable
+	  by UID only; a CAN SECURE node needs an address).
 
 endmenu
 

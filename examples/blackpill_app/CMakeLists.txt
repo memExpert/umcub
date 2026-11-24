@@ -8,7 +8,7 @@ set(CMAKE_TOOLCHAIN_FILE ${CMAKE_CURRENT_LIST_DIR}/../../cmake/arm-none-eabi.cma
 project(blackpill_app C ASM)
 
 set(APP_VERSION "1.0.0" CACHE STRING "Image version written by imgtool")
-set(APP_NODE_ADDR "0" CACHE STRING "Node address handed to the bootloader (0 = unassigned, none = keep the bootloader's own)")
+set(APP_NODE_ADDR "0" CACHE STRING "Node address handed to the bootloader (0 = the bootloader's own, none = no call)")
 set(UMCUB_BOARD blackpill_f411ce CACHE STRING "Board (boards/<name> or a path) whose layout the image is linked for")
 add_subdirectory(../../lib/umcub_app umcub)
 

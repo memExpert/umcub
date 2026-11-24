@@ -72,9 +72,9 @@ the pins and five functions (`ex_putc`, `ex_getc`, `ex_millis`, `ex_led_toggle`,
 examples `-DUMCUB_BUILD_EXAMPLES=ON` builds with the bootloader (`list(APPEND UMCUB_BOARD_EXAMPLES my_app)`, a
 directory under `examples/` or an absolute path). The examples link for the board they are built with
 (`UMCUB_BOARD`), so a board on the same MCU can reuse one, e.g. `examples/blackpill_app` for any F411 board with
-USART1 on PA9/PA10 and a LED on PC13. The examples hand `-DAPP_NODE_ADDR=<n>` (default 0) to the
-bootloader with `umcub_set_node_address()`, which beats an address in flash; `-DAPP_NODE_ADDR=none` leaves the
-address to the bootloader (several boards with `UMCUB_CFG_NODE_ADDR_FLASH` on one bus).
+USART1 on PA9/PA10 and a LED on PC13. The examples hand `-DAPP_NODE_ADDR=<n>` to the
+bootloader with `umcub_set_node_address()`, which beats the bootloader's own sources; the default 0 and
+`-DAPP_NODE_ADDR=none` (no call) leave the address to the bootloader.
 
 Things that are easy to get wrong:
 - **Slots.** Slots start and end on sector boundaries (checked also where sectors differ in size, as on the F4).
@@ -159,7 +159,12 @@ W: second core stays parked (no valid image 1)
    (`umcub.h`, `addr | ~addr << 16`). Put it into a field of the application's own settings structure at a fixed
    address and the node is addressable right after power-up, before the application has run - no flash page of
    its own. The word must lie outside the image slots (checked at compile time); erased flash means "no address";
-3. the board hook `bool umcub_board_node_address(uint16_t *addr)` in `umcub_board.c` (DIP switches, EEPROM).
+3. the board hook `bool umcub_board_node_address(uint16_t *addr)` in `umcub_board.c` (DIP switches, EEPROM);
+4. `UMCUB_CFG_NODE_ADDR`, the address of this build (default 0): one build per node, addressable after power-up
+   without a flash word.
+
+0 and 0xFFFF (broadcast) count as not set in a source: the next one decides, so a stale request for 0 in the handoff
+RAM does not hide the flash word.
 
 A second board hook, `void umcub_board_init(void)` (`umcub_port.h`), runs once per boot right after the clocks and the
 watchdog are up and before MCUboot touches the slots: the place for option bytes (write protection of the

@@ -8,7 +8,7 @@ set(CMAKE_TOOLCHAIN_FILE ${CMAKE_CURRENT_LIST_DIR}/../../cmake/arm-none-eabi.cma
 project(h755_cm7_app C ASM)
 
 set(APP_VERSION "1.0.0" CACHE STRING "Image version written by imgtool")
-set(APP_NODE_ADDR "0" CACHE STRING "Node address handed to the bootloader (0 = unassigned, none = keep the bootloader's own)")
+set(APP_NODE_ADDR "0" CACHE STRING "Node address handed to the bootloader (0 = the bootloader's own, none = no call)")
 set(APP_SLOT "0" CACHE STRING "direct-xip modes: slot the image is linked for (0 primary, 1 secondary)")
 set(UMCUB_BOARD nucleo_h755zi_q CACHE STRING "Board (boards/<name> or a path) whose layout the image is linked for")
 set(UMCUB_CORE cm7)
