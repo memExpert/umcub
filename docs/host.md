@@ -239,7 +239,7 @@ unknown text command, or a frame for a board protocol (`UMCUB_CFG_PROTO_USER`), 
 know.
 
 A board protocol (`UMCUB_CFG_PROTO_USER`) uses the connection directly: `dev.send(umcub.KIND_USER, frame)` and
-`dev.recv(umcub.KIND_USER, timeout)` (see `boards/blackpill_f411ce/proto_upload.py`).
+`dev.recv(umcub.KIND_USER, timeout)` (see `examples/board_protocol/proto_upload.py`).
 
 | Module | Contents |
 |---|---|

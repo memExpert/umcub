@@ -236,7 +236,7 @@ smpmgr --port /dev/ttyUSB0 --timeout 5 image upload build/blackpill/examples/bla
 The F411 has no RNG: nonces (umcub link) and the key unwrap of encrypted images use ADC noise of the temperature
 sensor, like the F1 (`port/stm32f4/entropy.c`). umcub link on RS485: `variants/rs485.conf` + `variants/rs485_link.conf`.
 An own upload protocol instead of SMP (`UMCUB_CFG_PROTO_USER`, see [Recovery mode](recovery.md)):
-`boards/blackpill_f411ce/variants/proto_user.conf` with the host script `boards/blackpill_f411ce/proto_upload.py`.
+`boards/blackpill_f411ce/variants/proto_user.conf` with the host script `examples/board_protocol/proto_upload.py`.
 Ethernet through an ENC28J60 module on SPI1 (SCK PA5, SO PA6, SI PA7, CS PA4, RESET PB0; log on USART2):
 `variants/usart2.conf` + `variants/enc28j60.conf`, see [External controllers](#1-board-driver-under-a-built-in-transport).
 Encrypted images need a 48 KiB bootloader (`boards/blackpill_f411ce/variants/encrypt.conf`, sectors 0-2) and go through the

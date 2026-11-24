@@ -90,6 +90,7 @@ src/             the bootloader itself:
 boards/          L7  board configurations (defconfig, optional Kconfig, umcub_board.c and other .c, umcub_examples.cmake, variants/*.conf)
 lib/umcub_app/   L7  application library (umcub::app); umcub_app_all.c = the whole library as one file
 examples/        CM7 / CM4 applications for NUCLEO-H755ZI-Q, Blue Pill and Black Pill applications; common/ = the shared console
+                     and app_upload.py; board_protocol/ = host side of the Black Pill board protocol example
 keys/            generated keys, per board or part (git-ignored)
 tools/           setup.sh, requirements.txt, keys/ (development keys)
 tools/host/      umcub/ (host library and the `umcub` tool, pyproject.toml: connections, SMP, lite, link;

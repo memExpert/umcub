@@ -105,7 +105,7 @@ UART bootloader is about 3 K smaller (F103: 16.4 K instead of 19.4 K, H7: 22.5 K
   longer is not sent); write images with `umcub_slot_*` (`umcub.h`), which is part of the bootloader then.
   Example: the Black Pill (`boards/blackpill_f411ce/umcub_board.c`, fragment `variants/proto_user.conf`, SMP and lite off)
   writes a signed image into the primary slot with four frames - `B image size` (begin), `W offset data`, `E` (finish),
-  `R` (reset) - answered by `cmd status taken`; host side `boards/blackpill_f411ce/proto_upload.py`
+  `R` (reset) - answered by `cmd status taken`; host side `examples/board_protocol/proto_upload.py`
   (`-d /dev/ttyUSB0 app.signed.bin --reset`). That bootloader is about 3 K smaller than the default one.
 - USB DFU and updates from the application, as with SMP.
 

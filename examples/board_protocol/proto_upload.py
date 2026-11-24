@@ -2,7 +2,7 @@
 """Host side of the example board protocol of boards/blackpill_f411ce/umcub_board.c
 (variants/proto_user.conf): uploads a signed image into the primary slot.
 
-  boards/blackpill_f411ce/proto_upload.py -d /dev/ttyUSB0 app.signed.bin [--reset]
+  examples/board_protocol/proto_upload.py -d /dev/ttyUSB0 app.signed.bin [--reset]
 
 The connection comes from the umcub host library (tools/host/umcub, docs/host.md):
 board frames are KIND_USER payloads - "05 0E base64" lines on a serial port, one

@@ -5,7 +5,7 @@
  *    transport (UMCUB_CFG_ETH_DRIVER = UMCUB_DRIVER_BOARD, variants/enc28j60.conf),
  *    in enc28j60.c next to this file;
  *  - a board's own upload protocol (UMCUB_CFG_PROTO_USER, variants/proto_user.conf),
- *    host side boards/blackpill_f411ce/proto_upload.py.
+ *    host side examples/board_protocol/proto_upload.py.
  *
  * The board protocol:
  * Frames (on a stream transport the lines "0x05 0x0E <base64> \n", one frame
