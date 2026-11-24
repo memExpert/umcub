@@ -161,59 +161,57 @@ expect("serial: USB facts", a[1].description == "FT232R USB UART (FTDI)" and (a[
 expect("serial: --all", [x.spec for x in umcub.adapters(["serial"], all_serial_ports=True)][:2] ==
        ["/dev/ttyS2", "/dev/ttyS10"])
 
-AF = __import__("socket").AF_INET
-addr = types.SimpleNamespace
-sys.modules["psutil"] = types.SimpleNamespace(
-    net_if_stats=lambda: {"eth0": addr(isup=True), "lo": addr(isup=True), "down0": addr(isup=False),
-                          "ptp": addr(isup=True)},
-    net_if_addrs=lambda: {"eth0": [addr(family=AF, address="192.168.5.7", netmask="255.255.255.0"),
-                                   addr(family=-1, address="fe80::1", netmask=None)],
-                          "lo": [addr(family=AF, address="127.0.0.1", netmask="255.0.0.0")],
-                          "down0": [addr(family=AF, address="10.1.1.1", netmask="255.255.255.0")],
-                          "ptp": [addr(family=AF, address="10.9.9.9", netmask="255.255.255.255")]})
-
-# Linux SocketCAN from a fake sysfs: a USB adapter that is down, a vcan that is up, an Ethernet port.
-fs = tmp / "sysfs"
-usbdev = fs / "devices/usb1/1-1.2"
-(usbdev / "1-1.2:1.0").mkdir(parents=True)
-for k, v in {"idVendor": "1d50", "idProduct": "606f", "product": "candleLight", "manufacturer": "bytewerk",
-             "serial": "0042"}.items():
-    (usbdev / k).write_text(v + "\n")
-for name, typ, state, dev in (("can0", "280", "down", usbdev / "1-1.2:1.0"), ("vcan0", "280", "unknown", None),
-                              ("eth0", "1", "up", None)):
-    (fs / "net" / name).mkdir(parents=True)
-    (fs / "net" / name / "type").write_text(typ + "\n")
-    (fs / "net" / name / "operstate").write_text(state + "\n")
-    if dev:
-        (fs / "net" / name / "device").symlink_to(dev)
-a = socketcan_adapters(str(fs / "net"))
-expect("socketcan: CAN interfaces only", [x.spec for x in a] == ["can:socketcan:can0", "can:socketcan:vcan0"],
-       str([x.spec for x in a]))
-expect("socketcan: USB facts, down hint", a and (a[0].vid, a[0].pid, a[0].serial_number, a[0].location) ==
-       (0x1d50, 0x606f, "0042", "1-1.2") and a[0].description.startswith("candleLight (bytewerk), down: sudo ip link"),
-       str(a[:1]))
-expect("socketcan: vcan", len(a) > 1 and a[1].description == "virtual", str(a[1:]))
-
-# Network: psutil above, sysfs here; usbeth0 is a USB-Ethernet adapter without a cable, wlan0 has a link but no
-# address, the others have no sysfs device (virtual) and are left out unless they have an IPv4 subnet.
-(fs / "devices/usb2/2-5.2/2-5.2:1.0").mkdir(parents=True)
-for k, v in {"idVendor": "0bda", "idProduct": "8153", "product": "USB 10/100/1000 LAN", "manufacturer": "Realtek"}.items():
-    (fs / f"devices/usb2/2-5.2/{k}").write_text(v + "\n")
-(fs / "devices/pci/wifi").mkdir(parents=True)
-for name, carrier, dev in (("usbeth0", "0", fs / "devices/usb2/2-5.2/2-5.2:1.0"), ("wlan0", "1", fs / "devices/pci/wifi"),
-                          ("wlan1", "0", fs / "devices/pci/wifi")):
-    (fs / "net" / name).mkdir(parents=True)
-    (fs / "net" / name / "type").write_text("1\n")
-    (fs / "net" / name / "carrier").write_text(carrier + "\n")
-    (fs / "net" / name / "device").symlink_to(dev)
-(fs / "net/wlan1/wireless").mkdir()
-ps = sys.modules["psutil"]
-stats, addrs_ = ps.net_if_stats(), ps.net_if_addrs()
-stats.update({"usbeth0": addr(isup=True), "wlan0": addr(isup=True), "wlan1": addr(isup=False)})
-addrs_.update({"usbeth0": [], "wlan0": [addr(family=-1, address="fe80::2", netmask=None)], "wlan1": []})
-ps.net_if_stats, ps.net_if_addrs = (lambda: stats), (lambda: addrs_)
-a = network_adapters(str(fs / "net")) if sys.platform.startswith("linux") else []
+# Linux only: sysfs (names with ':', symlinks)
 if sys.platform.startswith("linux"):
+    # Network interfaces (psutil): usbeth0 is a USB-Ethernet adapter without a cable, wlan0 has a link but no
+    # address, the others have no sysfs device (virtual) and are left out unless they have an IPv4 subnet.
+    AF, addr = socket.AF_INET, types.SimpleNamespace
+    sys.modules["psutil"] = types.SimpleNamespace(
+        net_if_stats=lambda: {"eth0": addr(isup=True), "lo": addr(isup=True), "down0": addr(isup=False),
+                              "ptp": addr(isup=True), "usbeth0": addr(isup=True), "wlan0": addr(isup=True),
+                              "wlan1": addr(isup=False)},
+        net_if_addrs=lambda: {"eth0": [addr(family=AF, address="192.168.5.7", netmask="255.255.255.0"),
+                                       addr(family=-1, address="fe80::1", netmask=None)],
+                              "lo": [addr(family=AF, address="127.0.0.1", netmask="255.0.0.0")],
+                              "down0": [addr(family=AF, address="10.1.1.1", netmask="255.255.255.0")],
+                              "ptp": [addr(family=AF, address="10.9.9.9", netmask="255.255.255.255")],
+                              "usbeth0": [], "wlan0": [addr(family=-1, address="fe80::2", netmask=None)], "wlan1": []})
+
+    # Linux SocketCAN from a fake sysfs: a USB adapter that is down, a vcan that is up, an Ethernet port.
+    fs = tmp / "sysfs"
+    usbdev = fs / "devices/usb1/1-1.2"
+    (usbdev / "1-1.2:1.0").mkdir(parents=True)
+    for k, v in {"idVendor": "1d50", "idProduct": "606f", "product": "candleLight", "manufacturer": "bytewerk",
+                 "serial": "0042"}.items():
+        (usbdev / k).write_text(v + "\n")
+    for name, typ, state, dev in (("can0", "280", "down", usbdev / "1-1.2:1.0"), ("vcan0", "280", "unknown", None),
+                                  ("eth0", "1", "up", None)):
+        (fs / "net" / name).mkdir(parents=True)
+        (fs / "net" / name / "type").write_text(typ + "\n")
+        (fs / "net" / name / "operstate").write_text(state + "\n")
+        if dev:
+            (fs / "net" / name / "device").symlink_to(dev)
+    a = socketcan_adapters(str(fs / "net"))
+    expect("socketcan: CAN interfaces only", [x.spec for x in a] == ["can:socketcan:can0", "can:socketcan:vcan0"],
+           str([x.spec for x in a]))
+    expect("socketcan: USB facts, down hint", a and (a[0].vid, a[0].pid, a[0].serial_number, a[0].location) ==
+           (0x1d50, 0x606f, "0042", "1-1.2") and a[0].description.startswith("candleLight (bytewerk), down: sudo ip link"),
+           str(a[:1]))
+    expect("socketcan: vcan", len(a) > 1 and a[1].description == "virtual", str(a[1:]))
+
+    # Network: sysfs of the interfaces above.
+    (fs / "devices/usb2/2-5.2/2-5.2:1.0").mkdir(parents=True)
+    for k, v in {"idVendor": "0bda", "idProduct": "8153", "product": "USB 10/100/1000 LAN", "manufacturer": "Realtek"}.items():
+        (fs / f"devices/usb2/2-5.2/{k}").write_text(v + "\n")
+    (fs / "devices/pci/wifi").mkdir(parents=True)
+    for name, carrier, dev in (("usbeth0", "0", fs / "devices/usb2/2-5.2/2-5.2:1.0"), ("wlan0", "1", fs / "devices/pci/wifi"),
+                              ("wlan1", "0", fs / "devices/pci/wifi")):
+        (fs / "net" / name).mkdir(parents=True)
+        (fs / "net" / name / "type").write_text("1\n")
+        (fs / "net" / name / "carrier").write_text(carrier + "\n")
+        (fs / "net" / name / "device").symlink_to(dev)
+    (fs / "net/wlan1/wireless").mkdir()
+    a = network_adapters(str(fs / "net"))
     expect("network: subnets and unusable Ethernet ports",
            [(x.spec, x.name, x.description) for x in a] ==
            [("udp:192.168.5.255", "eth0 192.168.5.7/24", "broadcast 192.168.5.255"),
@@ -1120,9 +1118,9 @@ with tempfile.TemporaryDirectory() as kd:
     finally:
         os.umask(old_umask)
     expect("enc key wrap: the key in it", r.returncode == 0 and "enc_priv_key[] = {" in out.read_text(), r.stderr[-300:])
-    expect("enc key wrap: no other file, mode 0600",
-           [p.name for p in Path(kd).iterdir()] == ["enc_key.c"] and oct(out.stat().st_mode & 0o777) == "0o600",
-           str(list(Path(kd).iterdir())))
+    expect("enc key wrap: no other file, mode 0600 (POSIX: Windows keeps no mode bits)",
+           [p.name for p in Path(kd).iterdir()] == ["enc_key.c"]
+           and (os.name != "posix" or oct(out.stat().st_mode & 0o777) == "0o600"), str(list(Path(kd).iterdir())))
 
 lk = link.Link(BusConn(announce(5)), addr=5, admin_key=KEYS / "dev-admin-p256.pem",
                device_key=KEYS / "dev-device-p256.pem")
