@@ -104,6 +104,7 @@ umcub -d /dev/ttyUSB0 --node 5 --admin-key admin.pem --device-key device.pem upl
 umcub -d /dev/ttyUSB0 --node 5 --admin-key admin.pem --device-key device.pem serve --pty-link /tmp/smp
 smpmgr --port /tmp/smp --line-buffers 4 image upload app.encrypted.bin    # through the proxy
 umcub -d 192.168.1.50 --node 5 serve --udp-listen 127.0.0.1:1337   # mcumgr --conntype udp
+smpmgr --ip 127.0.0.1 image state-read                         # smpmgr: UDP port 1337 only (also: Windows has no pty)
 umcub -d /dev/ttyUSB1 sniff                                   # listen only: every frame on the bus, decoded
 ```
 

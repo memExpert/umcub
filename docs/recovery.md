@@ -15,6 +15,7 @@ smpmgr --port /dev/ttyACM0 os reset
 mcumgr --conntype udp --connstring=<ip>:1337 image upload build/h755-cm7/examples/h755_cm7_app/h755_cm7_app.signed.bin
 smpmgr --ip <ip> image upload build/h755-cm7/examples/h755_cm7_app/h755_cm7_app.signed.bin              # UDP (default --mtu 1500)
 dfu-util -a 0 -D build/h755-cm7/examples/h755_cm7_app/h755_cm7_app.signed.bin -R    # DFU: alt N = image N
+dfu-util -d 1209:0001 -a 0 -D ...    # -d USB_VID:USB_PID when another DFU device is plugged in (candleLight has one)
 umcub -d can:socketcan:can0 upload build/h755-cm7/examples/h755_cm7_app/h755_cm7_app.signed.bin   # or any port / IP
 ```
 
